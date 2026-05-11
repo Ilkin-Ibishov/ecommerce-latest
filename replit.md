@@ -1,45 +1,76 @@
-# [Project name]
+# Whitelabel E-Commerce Store — Azerbaijan Market
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+A whitelabel PWA e-commerce platform for the Azerbaijan market. Customers browse products in AZ/RU/EN, authenticate via WhatsApp OTP, and pay cash-on-delivery. Admins manage products, orders, coupons, and categories through a dark-mode admin panel.
 
 ## Run & Operate
 
-- `pnpm --filter @workspace/api-server run dev` — run the API server (port 5000)
-- `pnpm run typecheck` — full typecheck across all packages
-- `pnpm run build` — typecheck + build all packages
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/store run dev` — Next.js dev server (port 24964)
+- `pnpm --filter @workspace/store run typecheck` — TypeScript check for the store
+- `pnpm --filter @workspace/api-server run dev` — API server (port 8080)
 
 ## Stack
 
-- pnpm workspaces, Node.js 24, TypeScript 5.9
-- API: Express 5
-- DB: PostgreSQL + Drizzle ORM
-- Validation: Zod (`zod/v4`), `drizzle-zod`
-- API codegen: Orval (from OpenAPI spec)
-- Build: esbuild (CJS bundle)
+- **Framework**: Next.js 15 App Router (React 19, TypeScript 5.9)
+- **Database**: Supabase PostgreSQL (external) + @supabase/ssr
+- **Auth**: WhatsApp OTP via Evolution API (console fallback in dev)
+- **i18n**: next-intl v4 — locales: `az` (default), `ru`, `en`
+- **UI**: Tailwind CSS v4 + shadcn/ui components
+- **Admin theme**: Space Slate-Blue dark mode
+- **Payments**: Cash on delivery only (AZN)
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+```
+artifacts/store/
+├── src/app/
+│   ├── (storefront)/[locale]/    ← Storefront pages (/, /products, /categories…)
+│   ├── (admin)/                  ← Admin route group
+│   ├── admin/                    ← Admin pages (/admin, /admin/products…)
+│   └── api/auth/otp/             ← OTP request + verify routes
+├── src/components/
+│   ├── auth/lazy-login-modal.tsx ← WhatsApp OTP login modal
+│   ├── storefront/header.tsx     ← Storefront nav + search
+│   └── admin/sidebar.tsx         ← Admin navigation
+├── src/lib/
+│   ├── supabase/                 ← client, server, middleware
+│   ├── whatsapp/client.ts        ← Evolution API + console fallback
+│   └── auth/otp.ts               ← OTP generate/hash/verify + rate limiting
+├── src/types/database.ts         ← Full Supabase TypeScript types
+├── messages/                     ← az.json, ru.json, en.json
+├── supabase/schema.sql           ← Full DB schema — run in Supabase SQL Editor
+└── middleware.ts                 ← Supabase session + next-intl routing
+```
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- **Route groups**: `(storefront)` for locale-prefixed routes, `(admin)` for the dark admin panel — separate layouts without URL impact
+- **OTP auth**: Custom bcrypt-hashed OTP stored in `otp_codes` table, not Supabase's built-in phone auth (more control over WhatsApp delivery)
+- **No card payments**: All orders use COD (cash on delivery) in AZN — simplifies compliance
+- **Evolution API fallback**: When `EVOLUTION_API_URL` is not configured, OTP codes are logged to the server console for development
+- **RLS on all tables**: Full Supabase Row Level Security — customers see only their own orders, admins see everything via role check on `public.users`
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Storefront: i18n homepage with featured/sale/deal sections, category grid, full-text search
+- Auth: WhatsApp OTP login modal (phone → 6-digit code → optional name collection)
+- Admin: Space Slate-Blue dark dashboard, order management, product CRUD, coupons, comments moderation, audit log
+- Policy pages: Terms, Privacy, Delivery — available in AZ/RU/EN
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Stack: Next.js 15, Supabase, next-intl, Tailwind v4, shadcn/ui
+- Evolution API skipped for now (console fallback active); can be enabled later by setting EVOLUTION_API_URL, EVOLUTION_API_KEY, EVOLUTION_INSTANCE_NAME
+- Currency: AZN only, COD payments
+- Locales: az (default), ru, en
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- **Run the Supabase schema first**: `supabase/schema.sql` must be executed in the Supabase SQL Editor before auth or products work
+- **middleware.ts must be at artifact root** (not inside src/) — Next.js requirement
+- **No BASE_PATH for Next.js** — artifact serves at "/" and Next.js handles routing internally
+- **Admin auth check**: Admin layout redirects non-admin users to /az — set `role = 'admin'` in `public.users` for the first admin user
 
 ## Pointers
 
-- See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details
+- See `supabase/schema.sql` for the full DB schema with RLS policies
+- See `.local/skills/pnpm-workspace` for workspace structure details

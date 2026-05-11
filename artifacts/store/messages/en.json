@@ -1,0 +1,39 @@
+{
+  "HomePage": {
+    "hero": {
+      "title": "The best products are here",
+      "subtitle": "Quality products with fast delivery across Azerbaijan",
+      "cta": "Start Shopping"
+    },
+    "sections": {
+      "categories": "Categories",
+      "featured": "Featured Products",
+      "onSale": "On Sale",
+      "dealOfDay": "Deal of the Day",
+      "viewAll": "View All"
+    },
+    "empty": {
+      "title": "Products coming soon",
+      "subtitle": "Our store is being set up. Check back soon!"
+    }
+  },
+  "Auth": {
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "phone": "Phone Number",
+    "sendCode": "Send Code",
+    "enterCode": "Enter Code",
+    "verify": "Verify",
+    "name": "Full Name",
+    "continue": "Continue",
+    "skip": "Skip"
+  },
+  "Common": {
+    "search": "Search",
+    "cart": "Cart",
+    "wishlist": "Wishlist",
+    "loading": "Loading...",
+    "error": "An error occurred",
+    "retry": "Retry"
+  }
+}
