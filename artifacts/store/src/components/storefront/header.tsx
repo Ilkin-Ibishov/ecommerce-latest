@@ -5,91 +5,117 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ShoppingCart, Search, Heart, User, Menu, X } from "lucide-react";
 import LocaleSwitcher from "./locale-switcher";
+import CartDrawer from "./cart-drawer";
 import { LazyLoginModal } from "@/components/auth/lazy-login-modal";
-import { createClient } from "@/lib/supabase/client";
+import { useCart } from "@/lib/cart/context";
 
 export default function StorefrontHeader() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [cartOpen, setCartOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const pathname = usePathname();
+  const { itemCount } = useCart();
 
   const locale = pathname.split("/")[1] || "az";
   const storeName = process.env.NEXT_PUBLIC_STORE_NAME ?? "Store";
 
   return (
-    <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
-      <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href={`/${locale}`} className="font-bold text-xl text-primary">
-            {storeName}
-          </Link>
+    <>
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo */}
+            <Link href={`/${locale}`} className="font-bold text-xl text-primary">
+              {storeName}
+            </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-6 text-sm">
-            <Link href={`/${locale}/products`} className="hover:text-primary transition">
-              Products
-            </Link>
-            <Link href={`/${locale}/categories`} className="hover:text-primary transition">
-              Categories
-            </Link>
-          </nav>
+            {/* Desktop nav */}
+            <nav className="hidden md:flex items-center gap-6 text-sm">
+              <Link href={`/${locale}/products`} className="hover:text-primary transition">
+                Products
+              </Link>
+              <Link href={`/${locale}/categories`} className="hover:text-primary transition">
+                Categories
+              </Link>
+            </nav>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setSearchOpen(!searchOpen)}
-              className="p-2 rounded-lg hover:bg-accent transition"
-              aria-label="Search"
-            >
-              <Search size={20} />
-            </button>
-            <Link href={`/${locale}/wishlist`} className="p-2 rounded-lg hover:bg-accent transition">
-              <Heart size={20} />
-            </Link>
-            <Link href={`/${locale}/cart`} className="p-2 rounded-lg hover:bg-accent transition relative">
-              <ShoppingCart size={20} />
-            </Link>
-            <button
-              onClick={() => setLoginOpen(true)}
-              className="p-2 rounded-lg hover:bg-accent transition"
-              aria-label="Account"
-            >
-              <User size={20} />
-            </button>
-            <LocaleSwitcher currentLocale={locale} />
-            <button
-              className="md:hidden p-2 rounded-lg hover:bg-accent transition"
-              onClick={() => setMobileOpen(!mobileOpen)}
-            >
-              {mobileOpen ? <X size={20} /> : <Menu size={20} />}
-            </button>
+            {/* Actions */}
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setSearchOpen(!searchOpen)}
+                className="p-2 rounded-lg hover:bg-accent transition"
+                aria-label="Search"
+              >
+                <Search size={20} />
+              </button>
+              <Link href={`/${locale}/wishlist`} className="p-2 rounded-lg hover:bg-accent transition">
+                <Heart size={20} />
+              </Link>
+
+              {/* Cart button with badge */}
+              <button
+                onClick={() => setCartOpen(true)}
+                className="relative p-2 rounded-lg hover:bg-accent transition"
+                aria-label="Cart"
+              >
+                <ShoppingCart size={20} />
+                {itemCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {itemCount > 9 ? "9+" : itemCount}
+                  </span>
+                )}
+              </button>
+
+              <button
+                onClick={() => setLoginOpen(true)}
+                className="p-2 rounded-lg hover:bg-accent transition"
+                aria-label="Account"
+              >
+                <User size={20} />
+              </button>
+              <LocaleSwitcher currentLocale={locale} />
+              <button
+                className="md:hidden p-2 rounded-lg hover:bg-accent transition"
+                onClick={() => setMobileOpen(!mobileOpen)}
+              >
+                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
+              </button>
+            </div>
           </div>
+
+          {/* Search bar */}
+          {searchOpen && (
+            <div className="pb-3">
+              <SearchBar locale={locale} onClose={() => setSearchOpen(false)} />
+            </div>
+          )}
+
+          {/* Mobile menu */}
+          {mobileOpen && (
+            <div className="md:hidden border-t border-border py-3 space-y-1">
+              <Link
+                href={`/${locale}/products`}
+                className="block px-2 py-2 rounded hover:bg-accent text-sm"
+                onClick={() => setMobileOpen(false)}
+              >
+                Products
+              </Link>
+              <Link
+                href={`/${locale}/categories`}
+                className="block px-2 py-2 rounded hover:bg-accent text-sm"
+                onClick={() => setMobileOpen(false)}
+              >
+                Categories
+              </Link>
+            </div>
+          )}
         </div>
+      </header>
 
-        {/* Search bar */}
-        {searchOpen && (
-          <div className="pb-3">
-            <SearchBar locale={locale} onClose={() => setSearchOpen(false)} />
-          </div>
-        )}
-
-        {/* Mobile menu */}
-        {mobileOpen && (
-          <div className="md:hidden border-t border-border py-3 space-y-1">
-            <Link href={`/${locale}/products`} className="block px-2 py-2 rounded hover:bg-accent text-sm">
-              Products
-            </Link>
-            <Link href={`/${locale}/categories`} className="block px-2 py-2 rounded hover:bg-accent text-sm">
-              Categories
-            </Link>
-          </div>
-        )}
-      </div>
-
+      <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} locale={locale} />
       <LazyLoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
-    </header>
+    </>
   );
 }
 
@@ -117,7 +143,7 @@ function SearchBar({
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search products..."
+        placeholder="Search products…"
         className="flex-1 px-4 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
       />
       <button

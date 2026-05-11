@@ -1,5 +1,6 @@
 {
-  "/_not-found/page": "app/_not-found/page.js",
-  "/admin/page": "app/admin/page.js",
-  "/(storefront)/[locale]/page": "app/(storefront)/[locale]/page.js"
+  "/(storefront)/[locale]/page": "app/(storefront)/[locale]/page.js",
+  "/(storefront)/[locale]/products/page": "app/(storefront)/[locale]/products/page.js",
+  "/(storefront)/[locale]/checkout/page": "app/(storefront)/[locale]/checkout/page.js",
+  "/(storefront)/[locale]/categories/page": "app/(storefront)/[locale]/categories/page.js"
 }
