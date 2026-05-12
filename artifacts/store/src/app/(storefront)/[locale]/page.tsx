@@ -39,14 +39,12 @@ export default async function HomePage({
       .limit(12),
   ]);
 
-  const featured = featuredRes.data ?? [];
-  const onSale = saleRes.data ?? [];
-  const dealOfDay = dealRes.data;
-  const categories = categoriesRes.data ?? [];
+  const featured = (featuredRes.data ?? []) as any[];
+  const onSale = (saleRes.data ?? []) as any[];
+  const dealOfDay = dealRes.data as any;
+  const categories = (categoriesRes.data ?? []) as any[];
 
-  function getTitle(
-    translations: { lang_code: string; title: string }[] | null
-  ) {
+  function getTitle(translations: any[] | null) {
     if (!translations) return "";
     return (
       translations.find((t) => t.lang_code === locale)?.title ??
@@ -55,7 +53,7 @@ export default async function HomePage({
     );
   }
 
-  function getFirstImage(images: { url: string; alt_text: string | null }[] | null) {
+  function getFirstImage(images: any[] | null) {
     return images?.[0]?.url ?? null;
   }
 
@@ -82,7 +80,7 @@ export default async function HomePage({
         <section>
           <h2 className="text-2xl font-bold mb-6">{t("sections.categories")}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            {categories.map((cat) => (
+            {categories.map((cat: any) => (
               <Link
                 key={cat.id}
                 href={`/${locale}/categories/${cat.slug}`}
@@ -149,90 +147,90 @@ export default async function HomePage({
 
       {/* Featured Products */}
       {featured.length > 0 && (
-        <section>
-          <h2 className="text-2xl font-bold mb-6">{t("sections.featured")}</h2>
-          <ProductGrid products={featured} locale={locale} getTitle={getTitle} getFirstImage={getFirstImage} />
-        </section>
+        <ProductGrid
+          title={t("sections.featured")}
+          products={featured}
+          locale={locale}
+          getTitle={getTitle}
+          getFirstImage={getFirstImage}
+        />
       )}
 
       {/* On Sale */}
       {onSale.length > 0 && (
-        <section>
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-2xl font-bold">{t("sections.onSale")}</h2>
-            <Link href={`/${locale}/products?sale=true`} className="text-primary text-sm hover:underline">
-              {t("sections.viewAll")}
-            </Link>
-          </div>
-          <ProductGrid products={onSale} locale={locale} getTitle={getTitle} getFirstImage={getFirstImage} showSaleBadge />
-        </section>
-      )}
-
-      {/* Empty state */}
-      {featured.length === 0 && onSale.length === 0 && !dealOfDay && (
-        <div className="text-center py-24 text-muted-foreground">
-          <p className="text-xl">{t("empty.title")}</p>
-          <p className="text-sm mt-2">{t("empty.subtitle")}</p>
-        </div>
+        <ProductGrid
+          title={t("sections.onSale")}
+          products={onSale}
+          locale={locale}
+          getTitle={getTitle}
+          getFirstImage={getFirstImage}
+          showSaleBadge
+        />
       )}
     </div>
   );
 }
 
 function ProductGrid({
+  title,
   products,
   locale,
   getTitle,
   getFirstImage,
-  showSaleBadge = false,
+  showSaleBadge,
 }: {
+  title: string;
   products: any[];
   locale: string;
-  getTitle: (t: any) => string;
-  getFirstImage: (i: any) => string | null;
+  getTitle: (t: any[] | null) => string;
+  getFirstImage: (imgs: any[] | null) => string | null;
   showSaleBadge?: boolean;
 }) {
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-      {products.map((product) => {
-        const img = getFirstImage(product.product_images);
-        const title = getTitle(product.product_translations);
-        return (
-          <Link
-            key={product.id}
-            href={`/${locale}/products/${product.slug}`}
-            className="group rounded-xl border border-border overflow-hidden hover:shadow-md transition"
-          >
-            <div className="relative aspect-square bg-muted overflow-hidden">
-              {img ? (
-                <Image
-                  src={img}
-                  alt={title}
-                  fill
-                  className="object-cover group-hover:scale-105 transition duration-300"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
-                  No image
-                </div>
-              )}
-              {showSaleBadge && (
-                <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                  SALE
-                </span>
-              )}
-            </div>
-            <div className="p-3">
-              <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition">
-                {title}
-              </h3>
-              <p className="font-bold text-primary mt-1">
-                {product.price.toFixed(2)} AZN
-              </p>
-            </div>
-          </Link>
-        );
-      })}
-    </div>
+    <section>
+      <h2 className="text-2xl font-bold mb-6">{title}</h2>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+        {products.map((product: any) => {
+          const img = getFirstImage(product.product_images);
+          const name = getTitle(product.product_translations);
+          return (
+            <Link
+              key={product.id}
+              href={`/${locale}/products/${product.slug}`}
+              className="group rounded-xl border border-border overflow-hidden hover:shadow-md transition"
+            >
+              <div className="relative aspect-square bg-muted overflow-hidden">
+                {img ? (
+                  <Image
+                    src={img}
+                    alt={name}
+                    fill
+                    className="object-cover group-hover:scale-105 transition duration-300"
+                    sizes="(max-width: 640px) 50vw, 25vw"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">
+                    No image
+                  </div>
+                )}
+                {showSaleBadge && (
+                  <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    SALE
+                  </span>
+                )}
+              </div>
+              <div className="p-3">
+                <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition">
+                  {name}
+                </h3>
+                <p className="font-bold text-primary mt-1">
+                  {product.price.toFixed(2)} AZN
+                </p>
+              </div>
+            </Link>
+          );
+        })}
+      </div>
+    </section>
   );
 }

@@ -1,5 +1,4 @@
 import { createClient } from "@/lib/supabase/server";
-import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import Image from "next/image";
 import type { Metadata } from "next";
@@ -14,14 +13,13 @@ interface Props {
 
 export default async function ProductsPage({ params, searchParams }: Props) {
   const { locale } = await params;
-  const { category, sale, deal, page } = await searchParams;
+  const { sale, deal, page } = await searchParams;
   const currentPage = Math.max(1, parseInt(page ?? "1", 10));
   const pageSize = 24;
   const offset = (currentPage - 1) * pageSize;
 
   const supabase = await createClient();
 
-  // Build query
   let query = supabase
     .from("products")
     .select(
@@ -34,26 +32,23 @@ export default async function ProductsPage({ params, searchParams }: Props) {
   if (sale === "true") query = query.eq("is_on_sale", true);
   if (deal === "true") query = query.eq("is_deal_of_day", true);
 
-  const { data: products = [], count } = await query;
+  const { data: rawProducts, count } = await query;
+  const products = (rawProducts ?? []) as any[];
 
-  // Categories for filter sidebar
-  const { data: categories = [] } = await supabase
+  const { data: rawCategories } = await supabase
     .from("categories")
     .select("id, slug, category_translations(*)")
     .is("parent_id", null);
+  const categories = (rawCategories ?? []) as any[];
 
   const totalPages = Math.ceil((count ?? 0) / pageSize);
 
-  function getTitle(translations: { lang_code: string; title: string }[] | null) {
+  function getTitle(translations: any[] | null) {
     return (
-      translations?.find((t) => t.lang_code === locale)?.title ??
+      translations?.find((t: any) => t.lang_code === locale)?.title ??
       translations?.[0]?.title ??
       "Untitled"
     );
-  }
-
-  function getFirstImage(images: { url: string }[] | null) {
-    return images?.[0]?.url ?? null;
   }
 
   return (
@@ -78,7 +73,7 @@ export default async function ProductsPage({ params, searchParams }: Props) {
                 <div>
                   <p className="text-xs text-muted-foreground uppercase tracking-wide mb-2">Category</p>
                   <div className="space-y-1">
-                    {categories.map((cat) => (
+                    {categories.map((cat: any) => (
                       <FilterLink
                         key={cat.id}
                         href={`/${locale}/categories/${cat.slug}`}
@@ -108,8 +103,8 @@ export default async function ProductsPage({ params, searchParams }: Props) {
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {products.map((product) => {
-                const img = getFirstImage(product.product_images);
+              {products.map((product: any) => {
+                const img = (product.product_images as any[])?.[0]?.url ?? null;
                 const title = getTitle(product.product_translations);
                 return (
                   <Link
@@ -143,12 +138,8 @@ export default async function ProductsPage({ params, searchParams }: Props) {
                       )}
                     </div>
                     <div className="p-3">
-                      <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition">
-                        {title}
-                      </h3>
-                      <p className="font-bold text-primary mt-1">
-                        {product.price.toFixed(2)} AZN
-                      </p>
+                      <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition">{title}</h3>
+                      <p className="font-bold text-primary mt-1">{product.price.toFixed(2)} AZN</p>
                       {product.stock > 0 && product.stock < 5 && (
                         <p className="text-xs text-orange-500 mt-0.5">Only {product.stock} left</p>
                       )}
@@ -159,7 +150,6 @@ export default async function ProductsPage({ params, searchParams }: Props) {
             </div>
           )}
 
-          {/* Pagination */}
           {totalPages > 1 && (
             <div className="flex justify-center gap-2 mt-10">
               {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
@@ -167,9 +157,7 @@ export default async function ProductsPage({ params, searchParams }: Props) {
                   key={p}
                   href={`/${locale}/products?page=${p}${sale ? "&sale=true" : ""}${deal ? "&deal=true" : ""}`}
                   className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition ${
-                    p === currentPage
-                      ? "bg-primary text-primary-foreground"
-                      : "border border-border hover:bg-accent"
+                    p === currentPage ? "bg-primary text-primary-foreground" : "border border-border hover:bg-accent"
                   }`}
                 >
                   {p}

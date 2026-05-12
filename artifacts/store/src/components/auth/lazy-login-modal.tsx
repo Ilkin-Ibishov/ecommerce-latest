@@ -134,7 +134,7 @@ export function LazyLoginModal({
         data: { user },
       } = await supabase.auth.getUser();
       if (user) {
-        await supabase
+        await (supabase as any)
           .from("users")
           .update({ full_name: fullName.trim() })
           .eq("id", user.id);

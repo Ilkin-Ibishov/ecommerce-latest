@@ -13,12 +13,14 @@ export default async function CategoriesPage({
   const { locale } = await params;
   const supabase = await createClient();
 
-  const { data: categories = [] } = await supabase
+  const { data: raw } = await supabase
     .from("categories")
     .select("*, category_translations(*)")
     .is("parent_id", null);
 
-  function getTitle(translations: { lang_code: string; title: string }[] | null) {
+  const categories = (raw ?? []) as any[];
+
+  function getTitle(translations: any[] | null) {
     return (
       translations?.find((t) => t.lang_code === locale)?.title ??
       translations?.[0]?.title ??

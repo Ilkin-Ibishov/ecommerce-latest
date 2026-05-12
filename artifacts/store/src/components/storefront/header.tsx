@@ -17,7 +17,7 @@ export default function StorefrontHeader() {
   const pathname = usePathname();
   const { itemCount } = useCart();
 
-  const locale = pathname.split("/")[1] || "az";
+  const locale = (pathname ?? "/az").split("/")[1] || "az";
   const storeName = process.env.NEXT_PUBLIC_STORE_NAME ?? "Store";
 
   return (

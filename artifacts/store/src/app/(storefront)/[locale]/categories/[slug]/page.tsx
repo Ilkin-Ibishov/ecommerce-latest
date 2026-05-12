@@ -18,7 +18,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq("slug", slug)
     .single();
   const title =
-    (data?.category_translations as any[])?.find((t: any) => t.lang_code === locale)?.title ??
+    ((data as any)?.category_translations as any[])?.find((t: any) => t.lang_code === locale)?.title ??
     "Category";
   return { title };
 }
@@ -32,21 +32,21 @@ export default async function CategoryPage({ params, searchParams }: Props) {
 
   const supabase = await createClient();
 
-  const { data: category } = await supabase
+  const { data: catRaw } = await supabase
     .from("categories")
     .select("*, category_translations(*)")
     .eq("slug", slug)
     .single();
 
-  if (!category) notFound();
+  if (!catRaw) notFound();
+  const category = catRaw as any;
 
   const catTitle =
     (category.category_translations as any[]).find((t: any) => t.lang_code === locale)?.title ??
     (category.category_translations as any[])[0]?.title ??
     "Category";
 
-  // Fetch products via join through product_categories
-  const { data: rows = [], count } = await supabase
+  const { data: rowsRaw, count } = await supabase
     .from("product_categories")
     .select(
       "products(id, slug, price, stock, is_on_sale, product_images(*), product_translations(*))",
@@ -55,13 +55,11 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     .eq("category_id", category.id)
     .range(offset, offset + pageSize - 1);
 
-  const products = (rows ?? [])
-    .map((r: any) => r.products)
-    .filter(Boolean);
-
+  const rows = (rowsRaw ?? []) as any[];
+  const products = rows.map((r) => r.products).filter(Boolean);
   const totalPages = Math.ceil((count ?? 0) / pageSize);
 
-  function getTitle(translations: { lang_code: string; title: string }[] | null) {
+  function getTitle(translations: any[] | null) {
     return (
       translations?.find((t) => t.lang_code === locale)?.title ??
       translations?.[0]?.title ??
@@ -123,9 +121,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
                   )}
                 </div>
                 <div className="p-3">
-                  <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition">
-                    {title}
-                  </h3>
+                  <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition">{title}</h3>
                   <p className="font-bold text-primary mt-1">{product.price.toFixed(2)} AZN</p>
                 </div>
               </Link>
@@ -141,9 +137,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
               key={p}
               href={`/${locale}/categories/${slug}?page=${p}`}
               className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition ${
-                p === currentPage
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border hover:bg-accent"
+                p === currentPage ? "bg-primary text-primary-foreground" : "border border-border hover:bg-accent"
               }`}
             >
               {p}

@@ -24,26 +24,27 @@ export default async function SearchPage({
   }
 
   const supabase = await createClient();
-  const { data: results = [] } = await supabase.rpc("search_products", {
+  const { data: rawResults } = await (supabase as any).rpc("search_products", {
     query_text: q,
     lang_code: locale,
   });
+  const results = (rawResults ?? []) as any[];
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-2">Search results for "{q}"</h1>
+      <h1 className="text-2xl font-bold mb-2">Search results for &ldquo;{q}&rdquo;</h1>
       <p className="text-muted-foreground mb-8">{results.length} results found</p>
 
       {results.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-muted-foreground">No products found for "{q}"</p>
+          <p className="text-muted-foreground">No products found for &ldquo;{q}&rdquo;</p>
           <Link href={`/${locale}/products`} className="text-primary text-sm hover:underline mt-2 block">
             Browse all products
           </Link>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {results.map((product) => (
+          {results.map((product: any) => (
             <Link
               key={product.id}
               href={`/${locale}/products/${product.slug}`}
@@ -57,7 +58,7 @@ export default async function SearchPage({
                   {product.title}
                 </h3>
                 <p className="font-bold text-primary mt-1">
-                  {product.price.toFixed(2)} AZN
+                  {Number(product.price).toFixed(2)} AZN
                 </p>
               </div>
             </Link>

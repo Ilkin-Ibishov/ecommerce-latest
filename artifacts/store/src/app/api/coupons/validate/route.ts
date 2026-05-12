@@ -12,12 +12,14 @@ export async function POST(request: NextRequest) {
   if (!code) return NextResponse.json({ error: "Coupon code required" }, { status: 400 });
 
   const admin = await createAdminClient();
-  const { data: coupon } = await admin
+  const { data: rawCoupon } = await (admin as any)
     .from("coupons")
     .select("*")
     .eq("code", code.toUpperCase())
     .eq("is_active", true)
     .single();
+
+  const coupon = rawCoupon as any;
 
   if (!coupon) {
     return NextResponse.json({ error: "Invalid or expired coupon" }, { status: 404 });
@@ -40,9 +42,8 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Check per-user usage
   if (coupon.max_uses_per_user) {
-    const { count } = await admin
+    const { count } = await (admin as any)
       .from("coupon_usages")
       .select("*", { count: "exact", head: true })
       .eq("coupon_id", coupon.id)

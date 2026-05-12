@@ -1,34 +1,33 @@
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/server";
+import Link from "next/link";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = { title: "Dashboard" };
 
 export default async function AdminDashboardPage() {
-  const supabase = await createClient();
+  const admin = await createAdminClient();
 
   const [ordersRes, productsRes, recentOrdersRes] = await Promise.all([
-    supabase
+    (admin as any)
       .from("orders")
       .select("id, status, total_azn, created_at", { count: "exact" }),
-    supabase
+    (admin as any)
       .from("products")
       .select("id, stock, is_featured", { count: "exact" }),
-    supabase
+    (admin as any)
       .from("orders")
-      .select(
-        "id, status, total_azn, customer_name, customer_phone, created_at"
-      )
+      .select("id, status, total_azn, customer_name, customer_phone, created_at")
       .order("created_at", { ascending: false })
       .limit(10),
   ]);
 
-  const orders = ordersRes.data ?? [];
-  const products = productsRes.data ?? [];
-  const recentOrders = recentOrdersRes.data ?? [];
+  const orders = (ordersRes.data ?? []) as any[];
+  const products = (productsRes.data ?? []) as any[];
+  const recentOrders = (recentOrdersRes.data ?? []) as any[];
 
-  const totalRevenue = orders.reduce((sum, o) => sum + o.total_azn, 0);
-  const pendingOrders = orders.filter((o) => o.status === "pending").length;
-  const lowStockProducts = products.filter((p) => p.stock < 5).length;
+  const totalRevenue = orders.reduce((sum: number, o: any) => sum + Number(o.total_azn), 0);
+  const pendingOrders = orders.filter((o: any) => o.status === "pending").length;
+  const lowStockProducts = products.filter((p: any) => p.stock < 5).length;
 
   const statusColors: Record<string, string> = {
     pending: "bg-yellow-500/20 text-yellow-400",
@@ -71,16 +70,9 @@ export default async function AdminDashboardPage() {
             color: "text-red-400",
           },
         ].map((stat) => (
-          <div
-            key={stat.label}
-            className="bg-card border border-border rounded-xl p-5"
-          >
-            <p className="text-xs text-muted-foreground uppercase tracking-wide">
-              {stat.label}
-            </p>
-            <p className={`text-2xl font-bold mt-1 ${stat.color}`}>
-              {stat.value}
-            </p>
+          <div key={stat.label} className="bg-card border border-border rounded-xl p-5">
+            <p className="text-xs text-muted-foreground uppercase tracking-wide">{stat.label}</p>
+            <p className={`text-2xl font-bold mt-1 ${stat.color}`}>{stat.value}</p>
             <p className="text-xs text-muted-foreground mt-1">{stat.sub}</p>
           </div>
         ))}
@@ -88,8 +80,9 @@ export default async function AdminDashboardPage() {
 
       {/* Recent Orders */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="px-6 py-4 border-b border-border">
+        <div className="px-6 py-4 border-b border-border flex items-center justify-between">
           <h2 className="font-semibold">Recent Orders</h2>
+          <Link href="/admin/orders" className="text-xs text-primary hover:underline">View all →</Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
@@ -110,32 +103,24 @@ export default async function AdminDashboardPage() {
                   </td>
                 </tr>
               ) : (
-                recentOrders.map((order) => (
-                  <tr
-                    key={order.id}
-                    className="border-b border-border/50 hover:bg-muted/30 transition"
-                  >
-                    <td className="px-6 py-3 font-mono text-xs text-muted-foreground">
-                      #{order.id.slice(0, 8).toUpperCase()}
+                recentOrders.map((order: any) => (
+                  <tr key={order.id} className="border-b border-border/50 hover:bg-muted/30 transition">
+                    <td className="px-6 py-3">
+                      <Link href={`/admin/orders/${order.id}`} className="font-mono text-xs text-primary hover:underline">
+                        #{String(order.id).slice(0, 8).toUpperCase()}
+                      </Link>
                     </td>
                     <td className="px-6 py-3">
                       <div className="font-medium">{order.customer_name}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {order.customer_phone}
-                      </div>
+                      <div className="text-xs text-muted-foreground">{order.customer_phone}</div>
                     </td>
                     <td className="px-6 py-3">
-                      <span
-                        className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          statusColors[order.status] ??
-                          "bg-muted text-muted-foreground"
-                        }`}
-                      >
-                        {order.status.replace(/_/g, " ")}
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColors[order.status] ?? "bg-muted text-muted-foreground"}`}>
+                        {String(order.status).replace(/_/g, " ")}
                       </span>
                     </td>
                     <td className="px-6 py-3 text-right font-medium">
-                      {order.total_azn.toFixed(2)} AZN
+                      {Number(order.total_azn).toFixed(2)} AZN
                     </td>
                     <td className="px-6 py-3 text-right text-muted-foreground text-xs">
                       {new Date(order.created_at).toLocaleDateString()}

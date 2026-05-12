@@ -13,7 +13,7 @@ export default function LocaleSwitcher({ currentLocale }: { currentLocale: strin
   const router = useRouter();
 
   const switchLocale = (locale: string) => {
-    const segments = pathname.split("/");
+    const segments = (pathname ?? "/az").split("/");
     segments[1] = locale;
     router.push(segments.join("/"));
   };

@@ -26,25 +26,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Authentication required" }, { status: 401 });
   }
 
-  let body;
+  let body: z.infer<typeof OrderSchema>;
   try {
     body = OrderSchema.parse(await request.json());
-  } catch (e) {
+  } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 
   // Fetch all products to verify stock and get prices
   const productIds = body.items.map((i) => i.product_id);
-  const { data: products, error: productsError } = await admin
+  const { data: productsRaw, error: productsError } = await (admin as any)
     .from("products")
     .select("id, price, stock, product_translations(lang_code, title)")
     .in("id", productIds);
 
-  if (productsError || !products) {
+  if (productsError || !productsRaw) {
     return NextResponse.json({ error: "Failed to fetch products" }, { status: 500 });
   }
 
-  const productMap = new Map(products.map((p) => [p.id, p]));
+  const products: any[] = productsRaw;
+  const productMap = new Map<string, any>(products.map((p: any) => [p.id, p]));
   const orderItems: {
     product_id: string;
     product_title_snapshot: string;
@@ -86,12 +87,12 @@ export async function POST(request: NextRequest) {
   let couponId: string | null = null;
 
   if (body.coupon_code) {
-    const { data: coupon } = await admin
+    const { data: coupon } = await (admin as any)
       .from("coupons")
       .select("*")
       .eq("code", body.coupon_code.toUpperCase())
       .eq("is_active", true)
-      .single();
+      .single() as { data: any };
 
     if (coupon) {
       const now = new Date().toISOString();
@@ -102,11 +103,10 @@ export async function POST(request: NextRequest) {
         (!coupon.min_order_amount || subtotal >= coupon.min_order_amount);
 
       if (valid) {
-        if (coupon.discount_type === "percentage") {
-          discountAzn = (subtotal * coupon.discount_value) / 100;
-        } else {
-          discountAzn = Math.min(coupon.discount_value, subtotal);
-        }
+        discountAzn =
+          coupon.discount_type === "percentage"
+            ? (subtotal * coupon.discount_value) / 100
+            : Math.min(coupon.discount_value, subtotal);
         couponId = coupon.id;
       }
     }
@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
   const totalAzn = Math.max(0, subtotal - discountAzn);
 
   // Create the order
-  const { data: order, error: orderError } = await admin
+  const { data: order, error: orderError } = await (admin as any)
     .from("orders")
     .insert({
       user_id: user.id,
@@ -129,14 +129,14 @@ export async function POST(request: NextRequest) {
       notes: body.notes ?? null,
     })
     .select("id")
-    .single();
+    .single() as { data: any; error: any };
 
   if (orderError || !order) {
     return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
   }
 
   // Insert order items
-  await admin.from("order_items").insert(
+  await (admin as any).from("order_items").insert(
     orderItems.map((item) => ({ ...item, order_id: order.id }))
   );
 
@@ -144,7 +144,7 @@ export async function POST(request: NextRequest) {
   await Promise.all(
     body.items.map(async (item) => {
       const product = productMap.get(item.product_id)!;
-      await admin
+      await (admin as any)
         .from("products")
         .update({ stock: product.stock - item.quantity })
         .eq("id", item.product_id);
@@ -153,14 +153,15 @@ export async function POST(request: NextRequest) {
 
   // Track coupon usage
   if (couponId) {
-    await admin.from("coupon_usages").insert({
+    await (admin as any).from("coupon_usages").insert({
       coupon_id: couponId,
       user_id: user.id,
       order_id: order.id,
     });
-    await admin
+    const oldCount = products.find((p: any) => p.id === couponId)?.used_count ?? 0;
+    await (admin as any)
       .from("coupons")
-      .update({ used_count: (productMap.get(couponId) as any)?.used_count + 1 })
+      .update({ used_count: oldCount + 1 })
       .eq("id", couponId);
   }
 

@@ -16,8 +16,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     .eq("slug", slug)
     .single();
   const title =
-    (data?.product_translations as any[])?.find((t: any) => t.lang_code === locale)?.title ??
-    (data?.product_translations as any[])?.[0]?.title ??
+    ((data as any)?.product_translations as any[])?.find((t: any) => t.lang_code === locale)?.title ??
+    ((data as any)?.product_translations as any[])?.[0]?.title ??
     "Product";
   return { title };
 }
@@ -26,17 +26,14 @@ export default async function ProductPage({ params }: Props) {
   const { locale, slug } = await params;
   const supabase = await createClient();
 
-  const { data: product } = await supabase
+  const { data: rawProduct } = await supabase
     .from("products")
-    .select(`
-      *,
-      product_images(id, url, alt_text, sort_order),
-      product_translations(id, lang_code, title, description)
-    `)
+    .select(`*, product_images(id, url, alt_text, sort_order), product_translations(id, lang_code, title, description)`)
     .eq("slug", slug)
     .single();
 
-  if (!product) notFound();
+  if (!rawProduct) notFound();
+  const product = rawProduct as any;
 
   const images = (product.product_images as any[]).sort(
     (a: any, b: any) => a.sort_order - b.sort_order
@@ -47,7 +44,7 @@ export default async function ProductPage({ params }: Props) {
     (product.product_translations as any[])[0] ??
     { title: "Product", description: null };
 
-  const { data: comments = [] } = await supabase
+  const { data: rawComments } = await supabase
     .from("comments")
     .select("id, content, created_at, users(full_name)")
     .eq("product_id", product.id)
@@ -55,12 +52,14 @@ export default async function ProductPage({ params }: Props) {
     .order("created_at", { ascending: false })
     .limit(10);
 
+  const comments = (rawComments ?? []) as any[];
+
   return (
     <ProductDetail
       product={product}
       images={images}
       translation={translation}
-      comments={comments ?? []}
+      comments={comments}
       locale={locale}
     />
   );

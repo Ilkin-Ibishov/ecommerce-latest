@@ -24,11 +24,13 @@ export default async function AdminLayout({
     redirect("/az");
   }
 
-  const { data: profile } = await supabase
+  const { data: profileRaw } = await (supabase as any)
     .from("users")
     .select("role")
     .eq("id", user.id)
     .single();
+
+  const profile = profileRaw as { role: string } | null;
 
   if (profile?.role !== "admin") {
     redirect("/az");

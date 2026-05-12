@@ -1,6 +1,3 @@
 {
-  "/(storefront)/[locale]/page": "app/(storefront)/[locale]/page.js",
-  "/(storefront)/[locale]/products/page": "app/(storefront)/[locale]/products/page.js",
-  "/(storefront)/[locale]/checkout/page": "app/(storefront)/[locale]/checkout/page.js",
-  "/(storefront)/[locale]/categories/page": "app/(storefront)/[locale]/categories/page.js"
+  "/(storefront)/[locale]/page": "app/(storefront)/[locale]/page.js"
 }

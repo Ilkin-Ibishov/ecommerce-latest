@@ -29,7 +29,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Sign in or create user in Supabase Auth
     const supabase = await createAdminClient();
 
     // Check if user exists by phone
@@ -42,15 +41,8 @@ export async function POST(request: NextRequest) {
     let isNew = false;
 
     if (existingUser) {
-      // Generate a session for existing user
-      const { data: sessionData, error } =
-        await supabase.auth.admin.generateLink({
-          type: "magiclink",
-          email: `${phone.replace("+", "")}@phone.local`,
-        });
       authUser = existingUser;
     } else {
-      // Create new user
       const { data: newUser, error } = await supabase.auth.admin.createUser({
         phone,
         phone_confirm: true,
@@ -60,7 +52,6 @@ export async function POST(request: NextRequest) {
       });
 
       if (error || !newUser.user) {
-        console.error("[OTP Verify] Create user error:", error);
         return NextResponse.json(
           { error: "Failed to create user" },
           { status: 500 }
@@ -70,22 +61,20 @@ export async function POST(request: NextRequest) {
       authUser = newUser.user;
       isNew = true;
 
-      // Ensure public.users row exists
-      await supabase.from("users").upsert({
+      await (supabase as any).from("users").upsert({
         id: authUser.id,
         phone,
         role: "customer",
       });
     }
 
-    // Create a session token
+    // Create a server-side session via admin API
     const { data: session, error: sessionError } =
-      await supabase.auth.admin.createSession({
+      await (supabase.auth.admin as any).createSession({
         user_id: authUser.id,
-      } as any);
+      });
 
     if (sessionError || !session) {
-      // Fallback: sign in with password approach won't work, return user info only
       return NextResponse.json({
         success: true,
         isNew,
@@ -97,11 +86,10 @@ export async function POST(request: NextRequest) {
       success: true,
       isNew,
       userId: authUser.id,
-      access_token: (session as any).access_token,
-      refresh_token: (session as any).refresh_token,
+      access_token: session.access_token,
+      refresh_token: session.refresh_token,
     });
   } catch (error) {
-    console.error("[OTP Verify] Error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
