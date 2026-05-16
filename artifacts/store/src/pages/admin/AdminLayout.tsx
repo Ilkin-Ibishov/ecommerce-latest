@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Package, ShoppingCart, Tag, FolderOpen,
-  MessageSquare, FileText, LogOut,
+  MessageSquare, FileText, LogOut, ShieldCheck,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
@@ -21,15 +21,34 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [checking, setChecking] = useState(true);
   const [authed, setAuthed] = useState(false);
+  const [bootstrapAvailable, setBootstrapAvailable] = useState(false);
   const storeName = import.meta.env.VITE_STORE_NAME ?? "Store";
 
   useEffect(() => {
     const supabase = createClient();
     async function check() {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) { setChecking(false); return; }
+      if (!user) {
+        // Check if first-time setup is available
+        try {
+          const res = await fetch(apiUrl("/bootstrap/status"));
+          const json = await res.json();
+          setBootstrapAvailable(json.available === true);
+        } catch { /* ignore */ }
+        setChecking(false);
+        return;
+      }
       const { data } = await (supabase as any).from("users").select("role").eq("id", user.id).single();
-      setAuthed(data?.role === "admin");
+      if (data?.role === "admin") {
+        setAuthed(true);
+      } else {
+        // Signed in but not admin — still check bootstrap
+        try {
+          const res = await fetch(apiUrl("/bootstrap/status"));
+          const json = await res.json();
+          setBootstrapAvailable(json.available === true);
+        } catch { /* ignore */ }
+      }
       setChecking(false);
     }
     check();
@@ -43,10 +62,23 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   if (!authed) return (
     <div className="admin-theme min-h-screen flex items-center justify-center bg-background text-foreground">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold mb-4">Admin Access Required</h1>
+      <div className="text-center max-w-sm mx-auto px-4">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 mb-4">
+          <ShieldCheck size={28} className="text-primary" />
+        </div>
+        <h1 className="text-2xl font-bold mb-2">Admin Access Required</h1>
         <p className="text-muted-foreground mb-6">You need admin privileges to access this area.</p>
-        <Link href="/az" className="text-primary hover:underline">Return to Store</Link>
+        <div className="flex flex-col gap-3">
+          {bootstrapAvailable && (
+            <Link href="/admin/setup"
+              className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition block">
+              Set Up Admin Account
+            </Link>
+          )}
+          <Link href="/az" className="text-sm text-muted-foreground hover:text-foreground transition">
+            Return to Store
+          </Link>
+        </div>
       </div>
     </div>
   );

@@ -18,6 +18,7 @@ import WishlistPage from "@/pages/storefront/WishlistPage";
 import { DeliveryPage, ReturnsPage, TermsPage } from "@/pages/storefront/PoliciesPage";
 
 import AdminLayout from "@/pages/admin/AdminLayout";
+import AdminSetupPage from "@/pages/admin/AdminSetupPage";
 import DashboardPage from "@/pages/admin/DashboardPage";
 import AdminProductsPage from "@/pages/admin/ProductsPage";
 import ProductFormPage from "@/pages/admin/ProductFormPage";
@@ -89,6 +90,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/">{() => <Redirect to="/az" />}</Route>
+      <Route path="/admin/setup" component={AdminSetupPage} />
       <Route path="/admin">{() => <AdminRoutes />}</Route>
       <Route path="/admin/:rest*">{() => <AdminRoutes />}</Route>
       {LOCALES.map((locale) => [

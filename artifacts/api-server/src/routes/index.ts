@@ -7,6 +7,7 @@ import adminRouter from "./admin";
 import wishlistRouter from "./wishlist";
 import commentsRouter from "./comments";
 import cartRouter from "./cart";
+import bootstrapRouter from "./bootstrap";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(adminRouter);
 router.use(wishlistRouter);
 router.use(commentsRouter);
 router.use(cartRouter);
+router.use(bootstrapRouter);
 
 export default router;
