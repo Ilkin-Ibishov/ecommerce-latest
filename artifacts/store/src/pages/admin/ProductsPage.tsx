@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { adminFetch } from "@/lib/admin-fetch";
 
 export default function AdminProductsPage() {
   const [products, setProducts] = useState<any[]>([]);
@@ -22,7 +23,7 @@ export default function AdminProductsPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this product?")) return;
-    await fetch(apiUrl(`/admin/products/${id}`), { method: "DELETE" });
+    await adminFetch(apiUrl(`/admin/products/${id}`), { method: "DELETE" });
     setProducts((prev) => prev.filter((p) => p.id !== id));
   };
 

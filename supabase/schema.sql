@@ -201,20 +201,21 @@ end;
 $$;
 
 -- ─── OTP Rate Limiting ────────────────────────────────────────
-create table if not exists public.otp_codes (
+-- Table name matches what the API server uses (otp_requests).
+-- Stores a SHA-256 hash of the code — never the plain code.
+create table if not exists public.otp_requests (
   id          uuid primary key default gen_random_uuid(),
   phone       text not null,
-  code        text not null,
+  code_hash   text not null,
   attempts    integer not null default 0,
-  verified    boolean not null default false,
   created_at  timestamptz not null default now(),
-  expires_at  timestamptz not null default (now() + interval '5 minutes')
+  expires_at  timestamptz not null default (now() + interval '10 minutes')
 );
-alter table public.otp_codes enable row level security;
--- Only service role can read/write OTP codes (no customer policy needed)
+alter table public.otp_requests enable row level security;
+-- Only service role can read/write OTP requests (no customer policy needed)
 
-create index if not exists otp_codes_phone_idx on public.otp_codes (phone);
-create index if not exists otp_codes_expires_idx on public.otp_codes (expires_at);
+create index if not exists otp_requests_phone_idx on public.otp_requests (phone);
+create index if not exists otp_requests_expires_idx on public.otp_requests (expires_at);
 
 -- ─── Coupons ─────────────────────────────────────────────────
 create table if not exists public.coupons (
