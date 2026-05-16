@@ -5,6 +5,7 @@ import { sendWhatsAppOTP } from "../lib/whatsapp";
 
 const router = Router();
 
+// ─── OTP Request ──────────────────────────────────────────────────────────────
 router.post("/auth/otp/request", async (req, res) => {
   try {
     const { phone } = req.body;
@@ -27,59 +28,93 @@ router.post("/auth/otp/request", async (req, res) => {
   }
 });
 
+// ─── OTP Verify ───────────────────────────────────────────────────────────────
 router.post("/auth/otp/verify", async (req, res) => {
   try {
     const { phone, code } = req.body;
     if (!phone || !code) {
       return res.status(400).json({ error: "Phone and code are required" });
     }
+
+    // 1. Verify against our custom OTP table
     const result = await verifyOTP(phone, code);
     if (!result.valid) {
       return res.status(400).json({ error: "Verification failed", reason: result.reason });
     }
 
     const admin = getAdminSupabase();
-    const { data: existingUser } = await (admin as any)
-      .from("users")
-      .select("id, full_name, role")
-      .eq("phone", phone)
-      .maybeSingle();
 
+    // 2. Find or create the Supabase Auth user
     let userId: string;
     let isNew = false;
 
-    if (existingUser) {
-      userId = existingUser.id;
+    const { data: existingRow } = await (admin as any)
+      .from("users")
+      .select("id")
+      .eq("phone", phone)
+      .maybeSingle();
+
+    if (existingRow) {
+      userId = existingRow.id;
     } else {
-      const signUpResult = await admin.auth.admin.createUser({
+      // Create the user in Supabase Auth with phone confirmed
+      const { data: created, error: createErr } = await admin.auth.admin.createUser({
         phone,
         phone_confirm: true,
       });
-      if (signUpResult.error) {
-        const { data: fetched } = await (admin as any)
-          .from("users").select("id").eq("phone", phone).maybeSingle();
-        if (!fetched) throw signUpResult.error;
-        userId = fetched.id;
+
+      if (createErr) {
+        // User might already exist in auth but not in public.users
+        const { data: { users: allUsers } } = await admin.auth.admin.listUsers({ perPage: 1000 });
+        const found = allUsers?.find((u) => u.phone === phone);
+        if (!found) return res.status(500).json({ error: createErr.message });
+        userId = found.id;
       } else {
-        userId = signUpResult.data.user.id;
-        await (admin as any).from("users").upsert({ id: userId, phone, role: "customer" });
+        userId = created.user.id;
         isNew = true;
       }
+
+      // Ensure public.users row exists
+      await (admin as any).from("users").upsert({
+        id: userId,
+        phone,
+        role: "customer",
+      }, { onConflict: "id" });
     }
 
-    const { data: session } = await admin.auth.admin.generateLink({
-      type: "magiclink",
-      email: `${userId}@whatsapp.placeholder`,
-    }).catch(() => ({ data: null }));
+    // 3. Issue a session via the GoTrue admin REST endpoint
+    //    POST /auth/v1/admin/users/{id}/token  (available in modern GoTrue / Supabase)
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-    const signInResult = await admin.auth.admin.createSession(userId);
-    if (signInResult.error) throw signInResult.error;
+    const tokenRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}/token`, {
+      method: "POST",
+      headers: {
+        "apikey": serviceKey!,
+        "Authorization": `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({}),
+    });
+
+    if (!tokenRes.ok) {
+      const errText = await tokenRes.text();
+      req.log.error({ status: tokenRes.status, body: errText }, "[OTP Verify] Token endpoint failed");
+      return res.status(500).json({ error: "Session creation failed", detail: errText });
+    }
+
+    const tokenData = await tokenRes.json() as {
+      access_token: string;
+      refresh_token: string;
+      token_type: string;
+      expires_in: number;
+    };
 
     return res.json({
       success: true,
       isNew,
-      access_token: signInResult.data.session?.access_token,
-      refresh_token: signInResult.data.session?.refresh_token,
+      access_token: tokenData.access_token,
+      refresh_token: tokenData.refresh_token,
     });
   } catch (err) {
     req.log.error(err, "[OTP Verify] Error");
@@ -87,7 +122,8 @@ router.post("/auth/otp/verify", async (req, res) => {
   }
 });
 
-router.post("/auth/signout", (req, res) => {
+// ─── Sign Out ─────────────────────────────────────────────────────────────────
+router.post("/auth/signout", (_req, res) => {
   return res.json({ success: true });
 });
 
