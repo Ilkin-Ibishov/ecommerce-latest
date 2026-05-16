@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { CheckCircle, XCircle, Trash2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { adminFetch } from "@/lib/admin-fetch";
 
 export default function AdminCommentsPage() {
   const [comments, setComments] = useState<any[]>([]);
@@ -16,12 +17,12 @@ export default function AdminCommentsPage() {
   }, []);
 
   const approve = async (id: string, approved: boolean) => {
-    await fetch(apiUrl(`/admin/comments/${id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ approved }) });
+    await adminFetch(apiUrl(`/admin/comments/${id}`), { method: "PATCH", body: JSON.stringify({ approved }) });
     setComments((prev) => prev.map((c) => c.id === id ? { ...c, approved } : c));
   };
 
   const remove = async (id: string) => {
-    await fetch(apiUrl(`/admin/comments/${id}`), { method: "DELETE" });
+    await adminFetch(apiUrl(`/admin/comments/${id}`), { method: "DELETE" });
     setComments((prev) => prev.filter((c) => c.id !== id));
   };
 

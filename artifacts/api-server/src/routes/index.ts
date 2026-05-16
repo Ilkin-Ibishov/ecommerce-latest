@@ -4,6 +4,9 @@ import authRouter from "./auth";
 import ordersRouter from "./orders";
 import couponsRouter from "./coupons";
 import adminRouter from "./admin";
+import wishlistRouter from "./wishlist";
+import commentsRouter from "./comments";
+import cartRouter from "./cart";
 
 const router: IRouter = Router();
 
@@ -12,5 +15,8 @@ router.use(authRouter);
 router.use(ordersRouter);
 router.use(couponsRouter);
 router.use(adminRouter);
+router.use(wishlistRouter);
+router.use(commentsRouter);
+router.use(cartRouter);
 
 export default router;

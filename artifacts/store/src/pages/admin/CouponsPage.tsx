@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface Coupon {
   id: string; code: string; description: string | null;
@@ -37,10 +38,10 @@ export default function AdminCouponsPage() {
     setSaving(true);
     const body = { ...form, expires_at: form.expires_at ? new Date(form.expires_at).toISOString() : null };
     if (editing) {
-      await fetch(apiUrl(`/admin/coupons/${editing.id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      await adminFetch(apiUrl(`/admin/coupons/${editing.id}`), { method: "PATCH", body: JSON.stringify(body) });
       setCoupons((prev) => prev.map((c) => c.id === editing.id ? { ...c, ...form } : c));
     } else {
-      const res = await fetch(apiUrl("/admin/coupons"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await adminFetch(apiUrl("/admin/coupons"), { method: "POST", body: JSON.stringify(body) });
       const data = await res.json();
       if (data.id) setCoupons((prev) => [{ id: data.id, used_count: 0, ...form } as Coupon, ...prev]);
     }
@@ -48,12 +49,12 @@ export default function AdminCouponsPage() {
   };
 
   const handleDelete = async (id: string) => {
-    await fetch(apiUrl(`/admin/coupons/${id}`), { method: "DELETE" });
+    await adminFetch(apiUrl(`/admin/coupons/${id}`), { method: "DELETE" });
     setCoupons((prev) => prev.filter((c) => c.id !== id));
   };
 
   const toggleActive = async (c: Coupon) => {
-    await fetch(apiUrl(`/admin/coupons/${c.id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...c, is_active: !c.is_active }) });
+    await adminFetch(apiUrl(`/admin/coupons/${c.id}`), { method: "PATCH", body: JSON.stringify({ ...c, is_active: !c.is_active }) });
     setCoupons((prev) => prev.map((x) => x.id === c.id ? { ...x, is_active: !x.is_active } : x));
   };
 

@@ -13,6 +13,8 @@ import CategoriesPage from "@/pages/storefront/CategoriesPage";
 import CategoryPage from "@/pages/storefront/CategoryPage";
 import SearchPage from "@/pages/storefront/SearchPage";
 import CheckoutPage from "@/pages/storefront/CheckoutPage";
+import ProfilePage from "@/pages/storefront/ProfilePage";
+import WishlistPage from "@/pages/storefront/WishlistPage";
 import { DeliveryPage, ReturnsPage, TermsPage } from "@/pages/storefront/PoliciesPage";
 
 import AdminLayout from "@/pages/admin/AdminLayout";
@@ -27,7 +29,6 @@ import AdminCommentsPage from "@/pages/admin/CommentsPage";
 import AdminAuditPage from "@/pages/admin/AuditPage";
 
 const queryClient = new QueryClient();
-
 const LOCALES = ["az", "ru", "en"];
 
 function StorefrontLayout({ locale, children }: { locale: string; children: React.ReactNode }) {
@@ -73,6 +74,8 @@ function StorefrontRoutes({ locale }: { locale: string }) {
         <Route path={`/${locale}/categories/:slug`}>{(params) => <CategoryPage locale={locale} slug={params.slug} />}</Route>
         <Route path={`/${locale}/search`}>{() => <SearchPage locale={locale} />}</Route>
         <Route path={`/${locale}/checkout`}>{() => <CheckoutPage locale={locale} />}</Route>
+        <Route path={`/${locale}/profile`}>{() => <ProfilePage locale={locale} />}</Route>
+        <Route path={`/${locale}/wishlist`}>{() => <WishlistPage locale={locale} />}</Route>
         <Route path={`/${locale}/policies/delivery`}>{() => <DeliveryPage locale={locale} />}</Route>
         <Route path={`/${locale}/policies/returns`}>{() => <ReturnsPage locale={locale} />}</Route>
         <Route path={`/${locale}/policies/terms`}>{() => <TermsPage locale={locale} />}</Route>

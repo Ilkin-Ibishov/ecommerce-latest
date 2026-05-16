@@ -1,17 +1,33 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
-import { ShoppingCart, Search, User, Menu, X } from "lucide-react";
+import { ShoppingCart, Search, User, Menu, X, Heart, LogOut, Package } from "lucide-react";
 import CartDrawer from "./CartDrawer";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { useCart } from "@/lib/cart/context";
+import { createClient } from "@/lib/supabase/client";
 
 export default function StorefrontHeader({ locale }: { locale: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [cartOpen, setCartOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const { itemCount } = useCart();
   const storeName = import.meta.env.VITE_STORE_NAME ?? "Store";
+  const supabase = createClient();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => setUser(session?.user ?? null));
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null);
+    setUserMenuOpen(false);
+  };
 
   return (
     <>
@@ -31,6 +47,13 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
                 <Search size={20} />
               </button>
 
+              {user && (
+                <Link href={`/${locale}/wishlist`}
+                  className="p-2 rounded-lg hover:bg-accent transition" aria-label="Wishlist">
+                  <Heart size={20} />
+                </Link>
+              )}
+
               <button onClick={() => setCartOpen(true)}
                 className="relative p-2 rounded-lg hover:bg-accent transition" aria-label="Cart">
                 <ShoppingCart size={20} />
@@ -41,10 +64,37 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
                 )}
               </button>
 
-              <button onClick={() => setLoginOpen(true)}
-                className="p-2 rounded-lg hover:bg-accent transition" aria-label="Account">
-                <User size={20} />
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => user ? setUserMenuOpen((v) => !v) : setLoginOpen(true)}
+                  className="p-2 rounded-lg hover:bg-accent transition" aria-label="Account">
+                  <User size={20} className={user ? "text-primary" : ""} />
+                </button>
+                {userMenuOpen && user && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
+                    <div className="absolute right-0 top-full mt-1 w-48 bg-background border border-border rounded-xl shadow-lg overflow-hidden z-50">
+                      <div className="px-3 py-2 border-b border-border">
+                        <p className="text-xs text-muted-foreground truncate">{user.phone ?? user.email ?? "Account"}</p>
+                      </div>
+                      <Link href={`/${locale}/profile`}
+                        className="flex items-center gap-2 px-3 py-2.5 hover:bg-accent text-sm transition"
+                        onClick={() => setUserMenuOpen(false)}>
+                        <Package size={15} /> My Orders
+                      </Link>
+                      <Link href={`/${locale}/wishlist`}
+                        className="flex items-center gap-2 px-3 py-2.5 hover:bg-accent text-sm transition"
+                        onClick={() => setUserMenuOpen(false)}>
+                        <Heart size={15} /> Wishlist
+                      </Link>
+                      <button onClick={handleSignOut}
+                        className="flex items-center gap-2 w-full px-3 py-2.5 hover:bg-accent text-sm text-destructive transition border-t border-border">
+                        <LogOut size={15} /> Sign Out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
 
               <LocaleSwitcher currentLocale={locale} />
 
@@ -69,6 +119,25 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
               <Link href={`/${locale}/categories`}
                 className="block px-2 py-2 rounded hover:bg-accent text-sm"
                 onClick={() => setMobileOpen(false)}>Categories</Link>
+              {user ? (
+                <>
+                  <Link href={`/${locale}/profile`}
+                    className="block px-2 py-2 rounded hover:bg-accent text-sm"
+                    onClick={() => setMobileOpen(false)}>My Orders</Link>
+                  <Link href={`/${locale}/wishlist`}
+                    className="block px-2 py-2 rounded hover:bg-accent text-sm"
+                    onClick={() => setMobileOpen(false)}>Wishlist</Link>
+                  <button onClick={() => { handleSignOut(); setMobileOpen(false); }}
+                    className="block w-full text-left px-2 py-2 rounded hover:bg-accent text-sm text-destructive">
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <button onClick={() => { setLoginOpen(true); setMobileOpen(false); }}
+                  className="block w-full text-left px-2 py-2 rounded hover:bg-accent text-sm">
+                  Sign In
+                </button>
+              )}
             </div>
           )}
         </div>

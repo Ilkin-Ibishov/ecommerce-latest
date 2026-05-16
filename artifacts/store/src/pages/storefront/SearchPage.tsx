@@ -9,11 +9,56 @@ export default function SearchPage({ locale }: { locale: string }) {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!q.trim()) return;
+    if (!q.trim()) { setResults([]); return; }
     setLoading(true);
     const supabase = createClient();
+
+    // Try FTS RPC first (requires search_products function in DB), fallback to ilike
     (supabase as any).rpc("search_products", { query_text: q, lang_code: locale })
-      .then(({ data }: any) => { setResults(data ?? []); setLoading(false); });
+      .then(({ data, error }: any) => {
+        if (error || !data) {
+          // Fallback: basic ilike search with full product data including images
+          return (supabase as any)
+            .from("product_translations")
+            .select("product_id, title, description, products(id, slug, price, product_images(*))")
+            .eq("lang_code", locale)
+            .ilike("title", `%${q}%`)
+            .limit(50)
+            .then(({ data: fallbackData }: any) => {
+              const mapped = (fallbackData ?? []).map((pt: any) => ({
+                id: pt.products?.id,
+                slug: pt.products?.slug,
+                price: pt.products?.price,
+                title: pt.title,
+                description: pt.description,
+                image: pt.products?.product_images?.[0]?.url ?? null,
+              }));
+              setResults(mapped);
+              setLoading(false);
+            });
+        }
+        // FTS RPC returns { id, title, description, price, slug, rank }
+        // Enrich with images from a second query
+        const slugs = (data ?? []).map((r: any) => r.slug);
+        if (!slugs.length) { setResults([]); setLoading(false); return; }
+        return (supabase as any)
+          .from("products")
+          .select("id, slug, product_images(url, sort_order)")
+          .in("slug", slugs)
+          .then(({ data: imgData }: any) => {
+            const imgMap = new Map((imgData ?? []).map((p: any) => [
+              p.slug,
+              p.product_images?.sort((a: any, b: any) => a.sort_order - b.sort_order)?.[0]?.url ?? null,
+            ]));
+            const enriched = (data ?? []).map((r: any) => ({
+              ...r,
+              image: imgMap.get(r.slug) ?? null,
+            }));
+            setResults(enriched);
+            setLoading(false);
+          });
+      })
+      .catch(() => { setResults([]); setLoading(false); });
   }, [q, locale]);
 
   if (!q.trim()) return (
@@ -25,10 +70,20 @@ export default function SearchPage({ locale }: { locale: string }) {
   return (
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold mb-2">Search results for &ldquo;{q}&rdquo;</h1>
-      <p className="text-muted-foreground mb-8">{results.length} results found</p>
+      <p className="text-muted-foreground mb-8">{loading ? "Searching…" : `${results.length} results found`}</p>
 
       {loading ? (
-        <div className="text-center py-24 text-muted-foreground">Searching...</div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+          {[...Array(8)].map((_, i) => (
+            <div key={i} className="rounded-xl border border-border overflow-hidden animate-pulse">
+              <div className="aspect-square bg-muted" />
+              <div className="p-3 space-y-2">
+                <div className="h-4 bg-muted rounded" />
+                <div className="h-4 bg-muted rounded w-1/2" />
+              </div>
+            </div>
+          ))}
+        </div>
       ) : results.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-muted-foreground">No products found for &ldquo;{q}&rdquo;</p>
@@ -37,9 +92,15 @@ export default function SearchPage({ locale }: { locale: string }) {
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
           {results.map((product: any) => (
-            <Link key={product.id} href={`/${locale}/products/${product.slug}`}
+            <Link key={product.id ?? product.slug} href={`/${locale}/products/${product.slug}`}
               className="group rounded-xl border border-border overflow-hidden hover:shadow-md transition">
-              <div className="aspect-square bg-muted flex items-center justify-center text-muted-foreground text-xs">No image</div>
+              <div className="aspect-square bg-muted overflow-hidden">
+                {product.image ? (
+                  <img src={product.image} alt={product.title} className="object-cover w-full h-full group-hover:scale-105 transition duration-300" />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No image</div>
+                )}
+              </div>
               <div className="p-3">
                 <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition">{product.title}</h3>
                 <p className="font-bold text-primary mt-1">{Number(product.price).toFixed(2)} AZN</p>

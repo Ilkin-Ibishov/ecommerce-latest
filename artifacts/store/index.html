@@ -4,18 +4,49 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
     <title>E-Commerce Store</title>
-    <meta name="description" content="E-Commerce Store — built on Replit. Update this description to reflect the app." />
+    <meta name="description" content="Quality products with fast delivery across Azerbaijan. Shop online and pay on delivery." />
+    <meta name="theme-color" content="#4f46e5" />
     <meta name="robots" content="index, follow" />
     <meta property="og:title" content="E-Commerce Store" />
-    <meta property="og:description" content="E-Commerce Store — built on Replit. Update this description to reflect the app." />
+    <meta property="og:description" content="Quality products with fast delivery across Azerbaijan." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="E-Commerce Store" />
-    <meta name="twitter:description" content="E-Commerce Store — built on Replit. Update this description to reflect the app." />
+    <meta name="twitter:description" content="Quality products with fast delivery across Azerbaijan." />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.json" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Google Analytics (set VITE_GA_MEASUREMENT_ID to activate) -->
+    <script>
+      (function() {
+        var gaId = document.currentScript && document.currentScript.dataset.ga;
+        if (!gaId) return;
+        var s = document.createElement('script');
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=' + gaId;
+        s.async = true;
+        document.head.appendChild(s);
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        window.gtag = gtag;
+        gtag('js', new Date());
+        gtag('config', gaId);
+      })();
+    </script>
+
+    <!-- Meta Pixel (set VITE_META_PIXEL_ID to activate) -->
+    <script>
+      (function() {
+        var pixelId = document.currentScript && document.currentScript.dataset.pixel;
+        if (!pixelId) return;
+        !function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', pixelId);
+        fbq('track', 'PageView');
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

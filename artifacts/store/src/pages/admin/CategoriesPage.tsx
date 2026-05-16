@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { adminFetch } from "@/lib/admin-fetch";
 
 interface Category {
   id: string; slug: string; icon_url: string | null;
@@ -39,10 +40,10 @@ export default function AdminCategoriesPage() {
     setSaving(true);
     const body = { slug: form.slug, icon_url: form.icon_url || null, translations: form.translations.filter((t) => t.title.trim()) };
     if (editing) {
-      await fetch(apiUrl(`/admin/categories/${editing.id}`), { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      await adminFetch(apiUrl(`/admin/categories/${editing.id}`), { method: "PATCH", body: JSON.stringify(body) });
       setCategories((prev) => prev.map((c) => c.id === editing.id ? { ...c, slug: form.slug, icon_url: form.icon_url || null, category_translations: form.translations } : c));
     } else {
-      const res = await fetch(apiUrl("/admin/categories"), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const res = await adminFetch(apiUrl("/admin/categories"), { method: "POST", body: JSON.stringify(body) });
       const data = await res.json();
       if (data.id) setCategories((prev) => [...prev, { id: data.id, slug: form.slug, icon_url: form.icon_url || null, category_translations: form.translations }]);
     }
@@ -51,7 +52,7 @@ export default function AdminCategoriesPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this category?")) return;
-    await fetch(apiUrl(`/admin/categories/${id}`), { method: "DELETE" });
+    await adminFetch(apiUrl(`/admin/categories/${id}`), { method: "DELETE" });
     setCategories((prev) => prev.filter((c) => c.id !== id));
   };
 

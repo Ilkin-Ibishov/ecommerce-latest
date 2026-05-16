@@ -52,8 +52,15 @@ export default function CheckoutPage({ locale }: { locale: string }) {
     if (items.length === 0) return;
     setError(""); setLoading(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) { setShowLogin(true); setLoading(false); return; }
+
       const res = await fetch(apiUrl("/orders"), {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
           items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
           ...form,
@@ -81,9 +88,14 @@ export default function CheckoutPage({ locale }: { locale: string }) {
         Our courier will contact you on <strong>{form.customer_phone}</strong> before delivery.
         You'll pay <strong>{total.toFixed(2)} AZN</strong> in cash on delivery.
       </p>
-      <Link href={`/${locale}`} className="inline-block bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition">
-        Continue Shopping
-      </Link>
+      <div className="flex flex-col sm:flex-row gap-3 justify-center">
+        <Link href={`/${locale}/profile`} className="inline-block bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition">
+          Track Order
+        </Link>
+        <Link href={`/${locale}`} className="inline-block border border-border px-8 py-3 rounded-xl font-semibold hover:bg-accent transition">
+          Continue Shopping
+        </Link>
+      </div>
     </div>
   );
 

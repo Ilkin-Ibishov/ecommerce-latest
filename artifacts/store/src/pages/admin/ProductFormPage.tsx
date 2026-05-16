@@ -1,8 +1,10 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Upload, X, Plus } from "lucide-react";
+import { Upload, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { adminFetch, adminJson } from "@/lib/admin-fetch";
+import imageCompression from "browser-image-compression";
 
 const LANGS = ["az", "ru", "en"];
 const LANG_LABELS: Record<string, string> = { az: "Azərbaycan", ru: "Русский", en: "English" };
@@ -14,6 +16,7 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
   const [, navigate] = useLocation();
   const fileRef = useRef<HTMLInputElement>(null);
   const [activeLang, setActiveLang] = useState("az");
+  const [sku, setSku] = useState("");
   const [slug, setSlug] = useState("");
   const [price, setPrice] = useState(0);
   const [stock, setStock] = useState(0);
@@ -41,6 +44,7 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
           .select("*, product_translations(*), product_images(*), product_categories(category_id)")
           .eq("id", productId).single();
         if (data) {
+          setSku(data.sku ?? "");
           setSlug(data.slug); setPrice(data.price); setStock(data.stock);
           setSortOrder(data.sort_order); setIsFeatured(data.is_featured);
           setIsOnSale(data.is_on_sale); setIsDeal(data.is_deal_of_day);
@@ -65,10 +69,19 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true); setError("");
     try {
-      const fd = new FormData(); fd.append("file", file);
-      const res = await fetch(apiUrl("/admin/upload"), { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Upload failed");
+      // Compress + convert to WebP before upload
+      const compressed = await imageCompression(file, {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1200,
+        useWebWorker: true,
+        fileType: "image/webp",
+        initialQuality: 0.85,
+      });
+      const webpFile = new File([compressed], file.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" });
+
+      const fd = new FormData();
+      fd.append("file", webpFile);
+      const data = await adminJson(apiUrl("/admin/upload"), { method: "POST", body: fd });
       setImages((prev) => [...prev, { url: data.url, alt_text: "" }]);
     } catch (e: any) { setError(e.message); }
     finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
@@ -79,13 +92,18 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
       setError("Please fill in slug and at least one title."); return;
     }
     setSaving(true); setError("");
-    const body = { slug, price, stock, sort_order: sortOrder, is_featured: isFeatured, is_on_sale: isOnSale, is_deal_of_day: isDeal, translations: translations.filter((t) => t.title.trim()), images, category_ids: categoryIds };
+    const body = {
+      sku: sku.trim() || null,
+      slug, price, stock, sort_order: sortOrder,
+      is_featured: isFeatured, is_on_sale: isOnSale, is_deal_of_day: isDeal,
+      translations: translations.filter((t) => t.title.trim()),
+      images,
+      category_ids: categoryIds,
+    };
     try {
       const url = productId ? apiUrl(`/admin/products/${productId}`) : apiUrl("/admin/products");
       const method = productId ? "PATCH" : "POST";
-      const res = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error ?? "Save failed");
+      await adminJson(url, { method, body: JSON.stringify(body) });
       navigate("/admin/products");
     } catch (e: any) { setError(e.message); setSaving(false); }
   };
@@ -105,13 +123,14 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
       <div className="bg-card border border-border rounded-xl p-5 space-y-4">
         <h2 className="font-semibold">Basic Info</h2>
         <div className="grid grid-cols-2 gap-4">
+          <F label="SKU (optional)" value={sku} onChange={setSku} placeholder="e.g. PROD-001" />
           <F label="Slug" value={slug} onChange={setSlug} placeholder="product-slug" />
           <N label="Price (AZN)" value={price} onChange={setPrice} />
           <N label="Stock" value={stock} onChange={setStock} integer />
           <N label="Sort Order" value={sortOrder} onChange={setSortOrder} integer />
         </div>
         <div className="flex gap-6">
-          {[["Featured", isFeatured, setIsFeatured], ["On Sale", isOnSale, setIsOnSale], ["Deal of Day", isDeal, setIsDeal]].map(([label, val, setter]: any) => (
+          {([["Featured", isFeatured, setIsFeatured], ["On Sale", isOnSale, setIsOnSale], ["Deal of Day", isDeal, setIsDeal]] as const).map(([label, val, setter]: any) => (
             <label key={label as string} className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={val as boolean} onChange={(e) => setter(e.target.checked)} className="w-4 h-4" />
               {label as string}
@@ -140,7 +159,10 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
       </div>
 
       <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-        <h2 className="font-semibold">Images</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold">Images</h2>
+          <p className="text-xs text-muted-foreground">Auto-compressed to WebP on upload</p>
+        </div>
         <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
           {images.map((img, i) => (
             <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-border bg-muted">
@@ -154,7 +176,7 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
           <button onClick={() => fileRef.current?.click()} disabled={uploading}
             className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 hover:border-primary/50 transition text-muted-foreground disabled:opacity-50">
             <Upload size={20} />
-            <span className="text-xs">{uploading ? "..." : "Upload"}</span>
+            <span className="text-xs">{uploading ? "Compressing…" : "Upload"}</span>
           </button>
         </div>
         <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />

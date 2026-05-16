@@ -1,13 +1,8 @@
 import { Router } from "express";
 import { getSupabase, getAdminSupabase } from "../lib/supabase";
-import { sendWhatsAppStatusUpdate } from "../lib/whatsapp";
+import { queueNotification } from "../lib/notifications";
 
 const router = Router();
-
-const VALID_STATUSES = [
-  "pending", "phone_verified", "courier_assigned", "shipped",
-  "delivered", "refused_at_delivery", "cancelled",
-];
 
 router.post("/orders", async (req, res) => {
   try {
@@ -25,8 +20,8 @@ router.post("/orders", async (req, res) => {
     }
 
     const admin = getAdminSupabase();
-
     const productIds = items.map((i: any) => i.product_id);
+
     const { data: products } = await (admin as any)
       .from("products")
       .select("id, price, stock, product_translations(lang_code, title)")
@@ -41,10 +36,12 @@ router.post("/orders", async (req, res) => {
     for (const item of items) {
       const product = productMap.get(item.product_id);
       if (!product) return res.status(400).json({ error: `Product not found: ${item.product_id}` });
-      if (product.stock < item.quantity) return res.status(400).json({ error: `Insufficient stock for product ${item.product_id}` });
+      if (product.stock < item.quantity) {
+        return res.status(400).json({ error: `Insufficient stock`, product_id: item.product_id });
+      }
       const title = (product.product_translations as any[]).find((t: any) => t.lang_code === "az")?.title
         ?? (product.product_translations as any[])[0]?.title ?? "Product";
-      const lineTotal = product.price * item.quantity;
+      const lineTotal = Number(product.price) * item.quantity;
       subtotal += lineTotal;
       orderItems.push({
         product_id: item.product_id,
@@ -57,6 +54,7 @@ router.post("/orders", async (req, res) => {
 
     let discountAmount = 0;
     let couponId: string | null = null;
+    let couponData: any = null;
 
     if (coupon_code) {
       const { data: coupon } = await (admin as any)
@@ -73,14 +71,12 @@ router.post("/orders", async (req, res) => {
         const meetsMin = !coupon.min_order_amount || subtotal >= coupon.min_order_amount;
 
         if (notExpired && withinMaxUses && meetsMin) {
-          if (coupon.discount_type === "percentage") {
-            discountAmount = (subtotal * coupon.discount_value) / 100;
-          } else {
-            discountAmount = coupon.discount_value;
-          }
+          discountAmount = coupon.discount_type === "percentage"
+            ? (subtotal * coupon.discount_value) / 100
+            : coupon.discount_value;
           discountAmount = Math.min(discountAmount, subtotal);
           couponId = coupon.id;
-          await (admin as any).from("coupons").update({ used_count: coupon.used_count + 1 }).eq("id", coupon.id);
+          couponData = coupon;
         }
       }
     }
@@ -110,10 +106,47 @@ router.post("/orders", async (req, res) => {
       orderItems.map((item) => ({ ...item, order_id: order.id }))
     );
 
+    // Atomic stock deduction — use RPC if available, else conditional update
     for (const item of items) {
       const product = productMap.get(item.product_id);
-      await (admin as any).from("products").update({ stock: product.stock - item.quantity }).eq("id", item.product_id);
+      const { error: stockErr } = await (admin as any).rpc("decrement_stock_safe", {
+        p_product_id: item.product_id,
+        p_qty: item.quantity,
+      });
+      if (stockErr) {
+        // Fallback: conditional update (protects against race condition via WHERE stock >= qty)
+        const { count } = await (admin as any)
+          .from("products")
+          .update({ stock: product.stock - item.quantity })
+          .eq("id", item.product_id)
+          .gte("stock", item.quantity)
+          .select("id", { count: "exact", head: true });
+        if (!count) {
+          // Race condition: stock depleted between check and update
+          // Rollback by deleting the order (best-effort)
+          await (admin as any).from("orders").delete().eq("id", order.id);
+          return res.status(409).json({ error: `Out of stock: ${item.product_id}` });
+        }
+      }
     }
+
+    // Record coupon usage
+    if (couponId && couponData) {
+      await (admin as any).from("coupons").update({ used_count: (couponData.used_count ?? 0) + 1 }).eq("id", couponId);
+      await (admin as any).from("coupon_usages").insert({
+        coupon_id: couponId,
+        user_id: user.id,
+        order_id: order.id,
+      });
+    }
+
+    // Queue WhatsApp notification
+    queueNotification({
+      userId: user.id,
+      type: "order_confirmed",
+      recipient: customer_phone,
+      payload: { order_id: order.id, total: totalAzn, status: "confirmed" },
+    }).catch(() => {});
 
     return res.status(201).json({ success: true, orderId: order.id });
   } catch (err) {
@@ -132,9 +165,14 @@ router.get("/orders/:id", async (req, res) => {
 
     const admin = getAdminSupabase();
     const { data: order } = await (admin as any)
-      .from("orders").select("*,order_items(*)").eq("id", req.params.id).single();
+      .from("orders")
+      .select("*, order_items(*)")
+      .eq("id", req.params.id)
+      .single();
 
-    if (!order || order.user_id !== user.id) {
+    if (!order) return res.status(404).json({ error: "Not found" });
+
+    if (order.user_id !== user.id) {
       const { data: profile } = await (admin as any).from("users").select("role").eq("id", user.id).single();
       if (profile?.role !== "admin") return res.status(403).json({ error: "Forbidden" });
     }

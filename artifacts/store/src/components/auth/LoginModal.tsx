@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Phone, ArrowRight, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { useCart } from "@/lib/cart/context";
 
 interface LoginModalProps {
   open: boolean;
@@ -19,8 +20,7 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [cooldown, setCooldown] = useState(0);
-
-  const supabase = createClient();
+  const { sessionId } = useCart();
 
   const formatPhone = (value: string) => {
     const digits = value.replace(/\D/g, "");
@@ -90,11 +90,23 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
         else setError(data.error ?? "Verification failed.");
         return;
       }
+      const supabase = createClient();
       if (data.access_token) {
         await supabase.auth.setSession({
           access_token: data.access_token,
           refresh_token: data.refresh_token,
         });
+        // Merge guest cart into user cart
+        if (sessionId) {
+          fetch(apiUrl("/cart/merge"), {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${data.access_token}`,
+            },
+            body: JSON.stringify({ session_id: sessionId }),
+          }).catch(() => {});
+        }
       }
       if (data.isNew) {
         setStep("name");
@@ -114,6 +126,7 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
     if (!fullName.trim()) return;
     setLoading(true);
     try {
+      const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         await (supabase as any).from("users").update({ full_name: fullName.trim() }).eq("id", user.id);

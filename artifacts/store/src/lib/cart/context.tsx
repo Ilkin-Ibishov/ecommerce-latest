@@ -18,23 +18,32 @@ export interface CartItem {
 
 interface CartState {
   items: CartItem[];
+  sessionId: string;
 }
 
 type CartAction =
   | { type: "SET"; items: CartItem[] }
+  | { type: "SET_SESSION"; sessionId: string }
   | { type: "ADD"; item: CartItem }
   | { type: "REMOVE"; product_id: string }
   | { type: "UPDATE_QTY"; product_id: string; quantity: number }
   | { type: "CLEAR" };
 
+function generateSessionId(): string {
+  return `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
     case "SET":
-      return { items: action.items };
+      return { ...state, items: action.items };
+    case "SET_SESSION":
+      return { ...state, sessionId: action.sessionId };
     case "ADD": {
       const existing = state.items.find((i) => i.product_id === action.item.product_id);
       if (existing) {
         return {
+          ...state,
           items: state.items.map((i) =>
             i.product_id === action.item.product_id
               ? { ...i, quantity: i.quantity + action.item.quantity }
@@ -42,21 +51,22 @@ function cartReducer(state: CartState, action: CartAction): CartState {
           ),
         };
       }
-      return { items: [...state.items, action.item] };
+      return { ...state, items: [...state.items, action.item] };
     }
     case "REMOVE":
-      return { items: state.items.filter((i) => i.product_id !== action.product_id) };
+      return { ...state, items: state.items.filter((i) => i.product_id !== action.product_id) };
     case "UPDATE_QTY":
       if (action.quantity <= 0) {
-        return { items: state.items.filter((i) => i.product_id !== action.product_id) };
+        return { ...state, items: state.items.filter((i) => i.product_id !== action.product_id) };
       }
       return {
+        ...state,
         items: state.items.map((i) =>
           i.product_id === action.product_id ? { ...i, quantity: action.quantity } : i
         ),
       };
     case "CLEAR":
-      return { items: [] };
+      return { ...state, items: [] };
     default:
       return state;
   }
@@ -64,6 +74,7 @@ function cartReducer(state: CartState, action: CartAction): CartState {
 
 interface CartContextValue {
   items: CartItem[];
+  sessionId: string;
   itemCount: number;
   subtotal: number;
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
@@ -74,9 +85,10 @@ interface CartContextValue {
 
 const CartContext = createContext<CartContextValue | null>(null);
 const STORAGE_KEY = "cart_items";
+const SESSION_KEY = "cart_session_id";
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(cartReducer, { items: [] });
+  const [state, dispatch] = useReducer(cartReducer, { items: [], sessionId: "" });
 
   useEffect(() => {
     try {
@@ -86,10 +98,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch {
       dispatch({ type: "SET", items: [] });
     }
+
+    let sessionId = localStorage.getItem(SESSION_KEY);
+    if (!sessionId) {
+      sessionId = generateSessionId();
+      localStorage.setItem(SESSION_KEY, sessionId);
+    }
+    dispatch({ type: "SET_SESSION", sessionId });
   }, []);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
+    if (state.items.length > 0 || localStorage.getItem(STORAGE_KEY)) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
+    }
   }, [state.items]);
 
   const addItem = useCallback((item: Omit<CartItem, "quantity">, quantity = 1) => {
@@ -112,7 +133,16 @@ export function CartProvider({ children }: { children: ReactNode }) {
   const subtotal = state.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ items: state.items, itemCount, subtotal, addItem, removeItem, updateQty, clearCart }}>
+    <CartContext.Provider value={{
+      items: state.items,
+      sessionId: state.sessionId,
+      itemCount,
+      subtotal,
+      addItem,
+      removeItem,
+      updateQty,
+      clearCart,
+    }}>
       {children}
     </CartContext.Provider>
   );

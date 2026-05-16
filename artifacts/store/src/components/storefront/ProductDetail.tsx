@@ -1,6 +1,10 @@
-import { useState } from "react";
-import { ShoppingCart, Heart, Minus, Plus, Check, MessageSquare } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShoppingCart, Minus, Plus, Check, MessageSquare, Send } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
+import { createClient } from "@/lib/supabase/client";
+import { apiUrl } from "@/lib/api";
+import { WishlistButton } from "./WishlistButton";
+import { LoginModal } from "@/components/auth/LoginModal";
 
 interface Props {
   product: any;
@@ -10,11 +14,24 @@ interface Props {
   locale: string;
 }
 
-export default function ProductDetail({ product, images, translation, comments, locale }: Props) {
+export default function ProductDetail({ product, images, translation, comments: initialComments, locale }: Props) {
   const [mainImage, setMainImage] = useState(images[0] ?? null);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+  const [showLogin, setShowLogin] = useState(false);
+  const [comments, setComments] = useState(initialComments);
+  const [commentText, setCommentText] = useState("");
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentStatus, setCommentStatus] = useState<"idle" | "success" | "error">("idle");
+  const [user, setUser] = useState<any>(null);
   const { addItem } = useCart();
+  const supabase = createClient();
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => setUser(session?.user ?? null));
+    return () => subscription.unsubscribe();
+  }, []);
 
   const handleAddToCart = () => {
     addItem({
@@ -28,15 +45,43 @@ export default function ProductDetail({ product, images, translation, comments, 
     setTimeout(() => setAdded(false), 2000);
   };
 
+  const handleSubmitComment = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!commentText.trim()) return;
+    if (!user) { setShowLogin(true); return; }
+    setCommentLoading(true);
+    setCommentStatus("idle");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(apiUrl(`/products/${product.id}/comments`), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+        body: JSON.stringify({ content: commentText.trim() }),
+      });
+      if (res.ok) {
+        setCommentText("");
+        setCommentStatus("success");
+      } else {
+        setCommentStatus("error");
+      }
+    } catch {
+      setCommentStatus("error");
+    }
+    setCommentLoading(false);
+  };
+
   const inStock = product.stock > 0;
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <nav className="text-sm text-muted-foreground mb-6">
+      <nav className="text-sm text-muted-foreground mb-6 flex items-center gap-1">
         <a href={`/${locale}`} className="hover:text-foreground">Home</a>
-        <span className="mx-2">/</span>
+        <span>/</span>
         <a href={`/${locale}/products`} className="hover:text-foreground">Products</a>
-        <span className="mx-2">/</span>
+        <span>/</span>
         <span className="text-foreground">{translation.title}</span>
       </nav>
 
@@ -69,7 +114,7 @@ export default function ProductDetail({ product, images, translation, comments, 
           <div>
             <h1 className="text-2xl md:text-3xl font-bold">{translation.title}</h1>
             <div className="flex items-center gap-3 mt-3">
-              <span className="text-3xl font-bold text-primary">{product.price.toFixed(2)} AZN</span>
+              <span className="text-3xl font-bold text-primary">{Number(product.price).toFixed(2)} AZN</span>
               {product.is_deal_of_day && (
                 <span className="text-xs bg-orange-100 text-orange-600 font-semibold px-2 py-1 rounded-full">🔥 Deal of the Day</span>
               )}
@@ -113,9 +158,11 @@ export default function ProductDetail({ product, images, translation, comments, 
               className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition text-sm ${added ? "bg-green-500 text-white" : inStock ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-muted-foreground cursor-not-allowed"}`}>
               {added ? <><Check size={18} />Added to Cart</> : <><ShoppingCart size={18} />{inStock ? "Add to Cart" : "Out of Stock"}</>}
             </button>
-            <button className="w-12 h-12 flex items-center justify-center border border-border rounded-xl hover:bg-accent transition">
-              <Heart size={18} />
-            </button>
+            <WishlistButton
+              productId={product.id}
+              onAuthRequired={() => setShowLogin(true)}
+              className="w-12 h-12"
+            />
           </div>
 
           <div className="bg-secondary rounded-xl p-4 text-sm">
@@ -137,8 +184,36 @@ export default function ProductDetail({ product, images, translation, comments, 
           <MessageSquare size={20} />
           Reviews ({comments.length})
         </h2>
+
+        <form onSubmit={handleSubmitComment} className="mb-8 bg-secondary/40 rounded-xl p-4 space-y-3">
+          <p className="text-sm font-medium">Leave a review</p>
+          {!user && (
+            <p className="text-xs text-muted-foreground">
+              <button type="button" onClick={() => setShowLogin(true)} className="text-primary underline">Sign in</button> to leave a review.
+            </p>
+          )}
+          <textarea
+            value={commentText}
+            onChange={(e) => setCommentText(e.target.value)}
+            placeholder="Share your experience with this product…"
+            rows={3}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+          />
+          {commentStatus === "success" && (
+            <p className="text-xs text-green-600 font-medium">✓ Review submitted! It will appear after moderation.</p>
+          )}
+          {commentStatus === "error" && (
+            <p className="text-xs text-destructive">Failed to submit. Please try again.</p>
+          )}
+          <button type="submit" disabled={commentLoading || !commentText.trim()}
+            className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50">
+            <Send size={14} />
+            {commentLoading ? "Submitting…" : "Submit Review"}
+          </button>
+        </form>
+
         {comments.length === 0 ? (
-          <p className="text-muted-foreground text-sm">No reviews yet. Be the first to leave a review after purchasing.</p>
+          <p className="text-muted-foreground text-sm">No reviews yet. Be the first!</p>
         ) : (
           <div className="space-y-4">
             {comments.map((c: any) => (
@@ -153,6 +228,8 @@ export default function ProductDetail({ product, images, translation, comments, 
           </div>
         )}
       </div>
+
+      <LoginModal open={showLogin} onClose={() => setShowLogin(false)} onSuccess={() => {}} />
     </div>
   );
 }
