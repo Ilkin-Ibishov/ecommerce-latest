@@ -5,10 +5,17 @@ const router = Router();
 
 // POST /bootstrap/admin
 // Creates the very first admin account. Disabled once any admin exists.
+// In production, also requires BOOTSTRAP_SECRET env var to match body.secret.
 router.post("/bootstrap/admin", async (req, res) => {
   try {
     const admin = getAdminSupabase();
-    const { phone, name } = req.body as { phone?: string; name?: string };
+    const { phone, name, secret } = req.body as { phone?: string; name?: string; secret?: string };
+
+    // In production, require a shared secret to prevent open takeover
+    const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
+    if (bootstrapSecret && secret !== bootstrapSecret) {
+      return res.status(403).json({ error: "Invalid bootstrap secret." });
+    }
 
     if (!phone?.trim()) {
       return res.status(400).json({ error: "phone is required" });

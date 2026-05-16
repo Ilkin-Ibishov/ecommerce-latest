@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { apiUrl } from "@/lib/api";
-import { createClient } from "@/lib/supabase/client";
 
 export default function AdminSetupPage() {
   const [, navigate] = useLocation();
@@ -39,12 +38,9 @@ export default function AdminSetupPage() {
     }
   };
 
-  const handleSignIn = async () => {
-    // Trigger OTP flow — navigate to store home so they can sign in normally
-    const supabase = createClient();
-    await supabase.auth.signOut();
+  const handleSignIn = () => {
+    // Navigate to store — user clicks the sign-in icon in the header
     navigate("/az");
-    window.dispatchEvent(new CustomEvent("open-login-modal"));
   };
 
   return (

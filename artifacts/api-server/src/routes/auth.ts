@@ -84,7 +84,7 @@ router.post("/auth/otp/verify", async (req, res) => {
 
     // 3. Issue a session via the GoTrue admin REST endpoint
     //    POST /auth/v1/admin/users/{id}/token  (available in modern GoTrue / Supabase)
-    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     const tokenRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}/token`, {
