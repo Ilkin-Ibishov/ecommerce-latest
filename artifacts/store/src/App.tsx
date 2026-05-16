@@ -92,10 +92,10 @@ function Router() {
       <Route path="/">{() => <Redirect to="/az" />}</Route>
       <Route path="/admin/setup" component={AdminSetupPage} />
       <Route path="/admin">{() => <AdminRoutes />}</Route>
-      <Route path="/admin/:rest*">{() => <AdminRoutes />}</Route>
+      <Route path="/admin/*">{() => <AdminRoutes />}</Route>
       {LOCALES.map((locale) => [
         <Route key={locale} path={`/${locale}`}>{() => <StorefrontRoutes locale={locale} />}</Route>,
-        <Route key={`${locale}-sub`} path={`/${locale}/:rest*`}>{() => <StorefrontRoutes locale={locale} />}</Route>,
+        <Route key={`${locale}-sub`} path={`/${locale}/*`}>{() => <StorefrontRoutes locale={locale} />}</Route>,
       ])}
       <Route>{() => <Redirect to="/az" />}</Route>
     </Switch>

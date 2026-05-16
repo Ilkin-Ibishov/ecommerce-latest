@@ -6,6 +6,13 @@ const COOLDOWN_SECONDS = 60;
 const MAX_REQUESTS_PER_HOUR = 5;
 const MAX_VERIFY_ATTEMPTS = 5;
 
+const IS_DEV = process.env.NODE_ENV !== "production";
+
+// In-memory OTP store used in dev/test mode so tests don't need the
+// otp_requests DB table (which requires a Supabase SQL Editor migration).
+// Format: phone -> { code (plaintext, for test retrieval), codeHash, expiresAt, attempts }
+const devOtpStore = new Map<string, { code: string; codeHash: string; expiresAt: number; attempts: number }>();
+
 export function validateAzPhone(phone: string): boolean {
   return /^\+994\d{9}$/.test(phone);
 }
@@ -14,7 +21,26 @@ function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
 }
 
+// Dev-only: inject a known OTP code for a phone number (used by test suite)
+export function devInjectOTP(phone: string, code: string): void {
+  devOtpStore.set(phone, {
+    code,
+    codeHash: hashCode(code),
+    expiresAt: Date.now() + OTP_TTL_MINUTES * 60 * 1000,
+    attempts: 0,
+  });
+}
+
+// Dev-only: retrieve the last generated OTP code for a phone number (plaintext)
+export function devGetLastOTP(phone: string): string | null {
+  const entry = devOtpStore.get(phone);
+  if (!entry || Date.now() > entry.expiresAt) return null;
+  return entry.code;
+}
+
 export async function checkRateLimit(phone: string): Promise<{ allowed: boolean; reason?: string }> {
+  if (IS_DEV) return { allowed: true };
+
   const admin = getAdminSupabase();
   const now = new Date();
   const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
@@ -37,24 +63,45 @@ export async function checkRateLimit(phone: string): Promise<{ allowed: boolean;
 }
 
 export async function createOTP(phone: string): Promise<string> {
-  const admin = getAdminSupabase();
+  if (IS_DEV) {
+    const code = String(randomInt(100000, 999999));
+    devOtpStore.set(phone, { code, codeHash: hashCode(code), expiresAt: Date.now() + OTP_TTL_MINUTES * 60 * 1000, attempts: 0 });
+    console.log(`[DEV OTP] Phone: ${phone} → Code: ${code}`);
+    return code;
+  }
+
   const code = String(randomInt(100000, 999999));
   const expiresAt = new Date(Date.now() + OTP_TTL_MINUTES * 60 * 1000).toISOString();
+
+  const admin = getAdminSupabase();
   await (admin as any).from("otp_requests").insert({
     phone,
     code_hash: hashCode(code),
     expires_at: expiresAt,
     attempts: 0,
   });
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`[DEV OTP] Phone: ${phone} → Code: ${code}`);
-  }
   return code;
 }
 
-export async function verifyOTP(phone: string, code: string): Promise<{
-  valid: boolean; reason?: string;
-}> {
+export async function verifyOTP(phone: string, code: string): Promise<{ valid: boolean; reason?: string }> {
+  // Dev mode: check in-memory store first
+  if (IS_DEV) {
+    const entry = devOtpStore.get(phone);
+    if (!entry) return { valid: false, reason: "not_found_or_expired" };
+    if (Date.now() > entry.expiresAt) {
+      devOtpStore.delete(phone);
+      return { valid: false, reason: "not_found_or_expired" };
+    }
+    if (entry.attempts >= MAX_VERIFY_ATTEMPTS) {
+      devOtpStore.delete(phone);
+      return { valid: false, reason: "max_attempts" };
+    }
+    entry.attempts += 1;
+    if (hashCode(code) !== entry.codeHash) return { valid: false, reason: "invalid_code" };
+    devOtpStore.delete(phone);
+    return { valid: true };
+  }
+
   const admin = getAdminSupabase();
   const now = new Date().toISOString();
   const { data: otpRows } = await (admin as any)

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getAdminSupabase } from "../lib/supabase";
+import { getAdminSupabase, getSupabase } from "../lib/supabase";
 import { validateAzPhone, checkRateLimit, createOTP, verifyOTP } from "../lib/otp";
 import { sendWhatsAppOTP } from "../lib/whatsapp";
 
@@ -82,39 +82,43 @@ router.post("/auth/otp/verify", async (req, res) => {
       }, { onConflict: "id" });
     }
 
-    // 3. Issue a session via the GoTrue admin REST endpoint
-    //    POST /auth/v1/admin/users/{id}/token  (available in modern GoTrue / Supabase)
-    const supabaseUrl = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    // 3. Issue a session token.
+    //    This Supabase project's GoTrue version does not expose createSession or
+    //    /admin/users/{id}/session. Workaround: stamp a deterministic internal
+    //    email + password on the phone-only user via the admin API, then call
+    //    signInWithPassword to get a real access/refresh token pair.
+    //    The "email" uses a non-routable .internal domain and never conflicts with
+    //    real addresses. The password is stable per user, derived from the userId.
+    const tempEmail = `${phone.replace(/[^0-9]/g, "")}@phoneauth.internal`;
+    const tempPass  = `pauth_${userId.replace(/-/g, "").slice(0, 24)}`;
 
-    const tokenRes = await fetch(`${supabaseUrl}/auth/v1/admin/users/${userId}/token`, {
-      method: "POST",
-      headers: {
-        "apikey": serviceKey!,
-        "Authorization": `Bearer ${serviceKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({}),
+    const { error: updateErr } = await admin.auth.admin.updateUserById(userId, {
+      email: tempEmail,
+      email_confirm: true,
+      password: tempPass,
     });
 
-    if (!tokenRes.ok) {
-      const errText = await tokenRes.text();
-      req.log.error({ status: tokenRes.status, body: errText }, "[OTP Verify] Token endpoint failed");
-      return res.status(500).json({ error: "Session creation failed", detail: errText });
+    if (updateErr) {
+      req.log.error({ err: updateErr }, "[OTP Verify] updateUser for session failed");
+      return res.status(500).json({ error: "Session creation failed", detail: updateErr.message });
     }
 
-    const tokenData = await tokenRes.json() as {
-      access_token: string;
-      refresh_token: string;
-      token_type: string;
-      expires_in: number;
-    };
+    const anonClient = getSupabase();
+    const { data: signInData, error: signInErr } = await anonClient.auth.signInWithPassword({
+      email: tempEmail,
+      password: tempPass,
+    });
+
+    if (signInErr || !signInData.session) {
+      req.log.error({ err: signInErr }, "[OTP Verify] signInWithPassword failed");
+      return res.status(500).json({ error: "Session creation failed", detail: signInErr?.message });
+    }
 
     return res.json({
       success: true,
       isNew,
-      access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token,
+      access_token: signInData.session.access_token,
+      refresh_token: signInData.session.refresh_token,
     });
   } catch (err) {
     req.log.error(err, "[OTP Verify] Error");
