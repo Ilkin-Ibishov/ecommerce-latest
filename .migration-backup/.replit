@@ -1,0 +1,41 @@
+modules = ["nodejs-24"]
+
+[deployment]
+router = "application"
+deploymentTarget = "autoscale"
+
+[deployment.postBuild]
+args = ["pnpm", "store", "prune"]
+env = { "CI" = "true" }
+
+[workflows]
+runButton = "Project"
+
+[agent]
+stack = "PNPM_WORKSPACE"
+expertMode = true
+
+[postMerge]
+path = "scripts/post-merge.sh"
+timeoutMs = 20000
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8081
+externalPort = 80
+
+[[ports]]
+localPort = 24964
+externalPort = 3000
+
+[userenv]
+
+[userenv.shared]
+NEXT_PUBLIC_STORE_NAME = "My Store"
+NEXT_PUBLIC_PRIMARY_COLOR = "#4F46E5"
+NEXT_PUBLIC_CONTACT_EMAIL = "contact@mystore.az"
+NEXT_PUBLIC_CURRENCY = "AZN"
+NEXT_PUBLIC_DEFAULT_LOCALE = "az"
