@@ -3,7 +3,7 @@ import { Link, useSearch } from "wouter";
 import { Filter } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ProductCard from "@/components/storefront/ProductCard";
-import { ProductSkeletonGrid } from "@/components/storefront/ProductSkeleton";
+import BouncingLoader from "@/components/ui/BouncingLoader";
 
 export default function ProductsPage({ locale }: { locale: string }) {
   const search = useSearch();
@@ -86,7 +86,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
           </div>
 
           {loading ? (
-            <ProductSkeletonGrid count={12} />
+            <BouncingLoader label="Loading products…" className="py-32" />
           ) : products.length === 0 ? (
             <div className="text-center py-24 text-muted-foreground">
               <p className="text-xl">No products found</p>

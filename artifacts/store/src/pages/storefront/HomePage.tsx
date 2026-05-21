@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n/context";
 import ProductCard from "@/components/storefront/ProductCard";
-import { ProductSkeletonGrid } from "@/components/storefront/ProductSkeleton";
+import BouncingLoader from "@/components/ui/BouncingLoader";
 
 function ProductGrid({ title, products, locale, showSaleBadge }: {
   title: string; products: any[]; locale: string; showSaleBadge?: boolean;
@@ -79,9 +79,8 @@ export default function HomePage({ locale }: { locale: string }) {
   }, [configured]);
 
   if (loading) return (
-    <div className="container mx-auto px-4 py-8 space-y-12">
-      <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/70 h-56 shimmer opacity-40" />
-      <ProductSkeletonGrid count={8} className="grid-cols-2 sm:grid-cols-3 md:grid-cols-4" />
+    <div className="container mx-auto px-4">
+      <BouncingLoader label="Loading store…" className="min-h-[60vh]" />
     </div>
   );
 
