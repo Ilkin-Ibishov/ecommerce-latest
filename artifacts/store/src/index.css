@@ -242,6 +242,73 @@
  * Even without handling focused or not, this is six possible combinations that
  * need to be distinguished from eachother visually.
  */
+/* ─── Shimmer skeleton loader ───────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -500px 0; }
+  100% { background-position: 500px 0; }
+}
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(210 40% 93%) 0px,
+    hsl(210 40% 86%) 120px,
+    hsl(210 40% 93%) 240px
+  );
+  background-size: 700px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.dark .shimmer {
+  background: linear-gradient(
+    90deg,
+    hsl(217 33% 13%) 0px,
+    hsl(217 33% 21%) 120px,
+    hsl(217 33% 13%) 240px
+  );
+  background-size: 700px 100%;
+}
+
+/* ─── Product card hover lift ───────────────────────────── */
+.product-card {
+  transition:
+    transform 0.32s cubic-bezier(0.215, 0.61, 0.355, 1),
+    box-shadow 0.32s cubic-bezier(0.215, 0.61, 0.355, 1);
+  will-change: transform;
+}
+.product-card:hover {
+  transform: translateY(-7px);
+  box-shadow:
+    0 16px 32px rgba(79, 70, 229, 0.11),
+    0 4px 10px rgba(0, 0, 0, 0.06);
+}
+.product-card-img {
+  transition: transform 0.5s ease;
+}
+.product-card:hover .product-card-img {
+  transform: scale(1.07);
+}
+
+/* ─── Hero CTA button shimmer sweep ─────────────────────── */
+.btn-hero {
+  position: relative;
+  overflow: hidden;
+}
+.btn-hero::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 55%;
+  height: 100%;
+  background: linear-gradient(120deg, transparent, rgba(255,255,255,0.38), transparent);
+  transform: skewX(-20deg);
+  animation: hero-shimmer 3.5s ease-in-out infinite;
+}
+@keyframes hero-shimmer {
+  0%   { left: -100%; }
+  35%  { left: 130%; }
+  100% { left: 130%; }
+}
+
 @layer utilities {
 
   /* Hide ugly search cancel button in Chrome until we can style it properly */

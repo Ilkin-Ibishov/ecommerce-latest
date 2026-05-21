@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { Filter } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import ProductCard from "@/components/storefront/ProductCard";
+import { ProductSkeletonGrid } from "@/components/storefront/ProductSkeleton";
 
 export default function ProductsPage({ locale }: { locale: string }) {
   const search = useSearch();
@@ -23,7 +25,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
       setLoading(true);
       let query = (supabase as any)
         .from("products")
-        .select("id, slug, price, stock, is_on_sale, product_images(*), product_translations(*)", { count: "exact" })
+        .select("id, slug, price, stock, is_on_sale, is_deal_of_day, product_images(*), product_translations(*)", { count: "exact" })
         .order("sort_order")
         .range(offset, offset + pageSize - 1);
       if (sale === "true") query = query.eq("is_on_sale", true);
@@ -80,46 +82,30 @@ export default function ProductsPage({ locale }: { locale: string }) {
             <h1 className="text-2xl font-bold">
               {sale === "true" ? "On Sale" : deal === "true" ? "Deals" : "All Products"}
             </h1>
-            <span className="text-sm text-muted-foreground">{count} products</span>
+            <span className="text-sm text-muted-foreground">{loading ? "…" : `${count} products`}</span>
           </div>
 
           {loading ? (
-            <div className="text-center py-24 text-muted-foreground">Loading...</div>
+            <ProductSkeletonGrid count={12} />
           ) : products.length === 0 ? (
-            <div className="text-center py-24 text-muted-foreground"><p className="text-xl">No products found</p></div>
+            <div className="text-center py-24 text-muted-foreground">
+              <p className="text-xl">No products found</p>
+            </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {products.map((product: any) => {
-                const img = product.product_images?.[0]?.url ?? null;
-                const title = getTitle(product.product_translations);
-                return (
-                  <Link key={product.id} href={`/${locale}/products/${product.slug}`}
-                    className="group rounded-xl border border-border overflow-hidden hover:shadow-md transition">
-                    <div className="relative aspect-square bg-muted overflow-hidden">
-                      {img ? (
-                        <img src={img} alt={title} className="object-cover w-full h-full group-hover:scale-105 transition duration-300" />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No image</div>
-                      )}
-                      {product.is_on_sale && (
-                        <span className="absolute top-2 left-2 bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">SALE</span>
-                      )}
-                      {product.stock === 0 && (
-                        <div className="absolute inset-0 bg-background/60 flex items-center justify-center">
-                          <span className="text-xs font-medium text-muted-foreground">Out of stock</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="p-3">
-                      <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition">{title}</h3>
-                      <p className="font-bold text-primary mt-1">{Number(product.price).toFixed(2)} AZN</p>
-                      {product.stock > 0 && product.stock < 5 && (
-                        <p className="text-xs text-orange-500 mt-0.5">Only {product.stock} left</p>
-                      )}
-                    </div>
-                  </Link>
-                );
-              })}
+              {products.map((product: any) => (
+                <ProductCard
+                  key={product.id}
+                  slug={product.slug}
+                  title={getTitle(product.product_translations)}
+                  price={product.price}
+                  image={product.product_images?.[0]?.url ?? null}
+                  isOnSale={product.is_on_sale}
+                  isDealOfDay={product.is_deal_of_day}
+                  stock={product.stock}
+                  locale={locale}
+                />
+              ))}
             </div>
           )}
 

@@ -139,14 +139,18 @@ export default function ProductDetail({ product, images, translation, comments: 
           {inStock && (
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium">Quantity</span>
-              <div className="flex items-center gap-1 border border-border rounded-lg">
-                <button onClick={() => setQty(Math.max(1, qty - 1))}
-                  className="w-9 h-9 flex items-center justify-center hover:bg-accent transition rounded-l-lg">
+              <div className="flex items-center rounded-full border-2 border-border bg-background overflow-hidden shadow-sm">
+                <button
+                  onClick={() => setQty(Math.max(1, qty - 1))}
+                  className="w-10 h-10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+                >
                   <Minus size={14} />
                 </button>
-                <span className="w-10 text-center text-sm font-medium">{qty}</span>
-                <button onClick={() => setQty(Math.min(product.stock, qty + 1))}
-                  className="w-9 h-9 flex items-center justify-center hover:bg-accent transition rounded-r-lg">
+                <span className="w-11 text-center text-sm font-semibold select-none">{qty}</span>
+                <button
+                  onClick={() => setQty(Math.min(product.stock, qty + 1))}
+                  className="w-10 h-10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all duration-200"
+                >
                   <Plus size={14} />
                 </button>
               </div>
@@ -154,9 +158,22 @@ export default function ProductDetail({ product, images, translation, comments: 
           )}
 
           <div className="flex gap-3">
-            <button onClick={handleAddToCart} disabled={!inStock}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold transition text-sm ${added ? "bg-green-500 text-white" : inStock ? "bg-primary text-primary-foreground hover:bg-primary/90" : "bg-muted text-muted-foreground cursor-not-allowed"}`}>
-              {added ? <><Check size={18} />Added to Cart</> : <><ShoppingCart size={18} />{inStock ? "Add to Cart" : "Out of Stock"}</>}
+            <button
+              onClick={handleAddToCart}
+              disabled={!inStock || added}
+              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-full font-semibold transition-all duration-300 text-sm shadow-md ${
+                added
+                  ? "bg-green-500 text-white shadow-green-200 scale-[0.98]"
+                  : inStock
+                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/25 active:scale-95"
+                  : "bg-muted text-muted-foreground cursor-not-allowed"
+              }`}
+            >
+              {added ? (
+                <><Check size={18} strokeWidth={3} />Added to Cart</>
+              ) : (
+                <><ShoppingCart size={18} />{inStock ? "Add to Cart" : "Out of Stock"}</>
+              )}
             </button>
             <WishlistButton
               productId={product.id}
