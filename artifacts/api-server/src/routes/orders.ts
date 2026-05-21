@@ -92,7 +92,6 @@ router.post("/orders", async (req, res) => {
         customer_phone,
         delivery_address,
         notes: notes ?? null,
-        subtotal_azn: subtotal,
         discount_azn: discountAmount,
         total_azn: totalAzn,
         coupon_id: couponId,
@@ -115,13 +114,13 @@ router.post("/orders", async (req, res) => {
       });
       if (stockErr) {
         // Fallback: conditional update (protects against race condition via WHERE stock >= qty)
-        const { count } = await (admin as any)
+        const { data: updated } = await (admin as any)
           .from("products")
           .update({ stock: product.stock - item.quantity })
           .eq("id", item.product_id)
           .gte("stock", item.quantity)
-          .select("id", { count: "exact", head: true });
-        if (!count) {
+          .select("id");
+        if (!updated || updated.length === 0) {
           // Race condition: stock depleted between check and update
           // Rollback by deleting the order (best-effort)
           await (admin as any).from("orders").delete().eq("id", order.id);
@@ -151,6 +150,29 @@ router.post("/orders", async (req, res) => {
     return res.status(201).json({ success: true, orderId: order.id });
   } catch (err) {
     req.log.error(err, "[Orders POST] Error");
+    return res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+router.get("/profile/orders", async (req, res) => {
+  try {
+    const token = req.headers.authorization?.replace("Bearer ", "");
+    if (!token) return res.status(401).json({ error: "Unauthorized" });
+    const supabase = getSupabase(token);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    const admin = getAdminSupabase();
+    const { data: orders, error } = await (admin as any)
+      .from("orders")
+      .select("*, order_items(*)")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+    return res.json(orders ?? []);
+  } catch (err) {
+    req.log.error(err, "[Profile Orders GET] Error");
     return res.status(500).json({ error: "Internal server error" });
   }
 });
