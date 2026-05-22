@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { LoginModal } from "@/components/auth/LoginModal";
 
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -23,6 +24,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [checking, setChecking] = useState(true);
   const [authed, setAuthed] = useState(false);
   const [bootstrapAvailable, setBootstrapAvailable] = useState(false);
+  const [loginOpen, setLoginOpen] = useState(false);
   const storeName = import.meta.env.VITE_STORE_NAME ?? "Store";
 
   useEffect(() => {
@@ -66,12 +68,17 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           <ShieldCheck size={28} className="text-primary" />
         </div>
         <h1 className="text-2xl font-bold mb-2">Admin Access Required</h1>
-        <p className="text-muted-foreground mb-6">You need admin privileges to access this area.</p>
+        <p className="text-muted-foreground mb-6">Sign in with your admin phone number to continue.</p>
         <div className="flex flex-col gap-3">
+          <button
+            onClick={() => setLoginOpen(true)}
+            className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition">
+            Sign In with Phone
+          </button>
           {bootstrapAvailable && (
             <Link href="/admin/setup"
-              className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition block">
-              Set Up Admin Account
+              className="px-5 py-2.5 border border-border rounded-xl text-sm font-medium hover:bg-muted/50 transition block">
+              First-time Setup
             </Link>
           )}
           <Link href="/az" className="text-sm text-muted-foreground hover:text-foreground transition">
@@ -79,6 +86,11 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
           </Link>
         </div>
       </div>
+      <LoginModal
+        open={loginOpen}
+        onClose={() => setLoginOpen(false)}
+        onSuccess={() => window.location.reload()}
+      />
     </div>
   );
 
