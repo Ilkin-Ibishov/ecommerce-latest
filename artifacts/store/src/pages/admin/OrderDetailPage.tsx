@@ -24,7 +24,32 @@ const STATUS_LABELS: Record<string, string> = {
   cancelled: "Cancelled",
 };
 
+const NOTIF_STATUS_COLORS: Record<string, string> = {
+  sent: "bg-green-500/20 text-green-400",
+  pending: "bg-yellow-500/20 text-yellow-400",
+  retrying: "bg-orange-500/20 text-orange-400",
+  failed: "bg-red-500/20 text-red-400",
+};
+
+const NOTIF_TYPE_LABELS: Record<string, string> = {
+  order_confirmed: "Sifariş təsdiqi",
+  status_changed: "Status dəyişikliyi",
+  low_stock: "Az stok",
+};
+
 const ALL_STATUSES = ["pending", "phone_verified", "courier_assigned", "shipped", "delivered", "refused_at_delivery", "cancelled"];
+
+type Notification = {
+  id: string;
+  type: string;
+  channel: string;
+  recipient: string;
+  status: string;
+  sent_at: string | null;
+  created_at: string;
+  attempts: number;
+  error_message: string | null;
+};
 
 export default function OrderDetailPage({ id }: { id: string }) {
   const [order, setOrder] = useState<any>(null);
@@ -33,6 +58,11 @@ export default function OrderDetailPage({ id }: { id: string }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [notifsOpen, setNotifsOpen] = useState(false);
+  const [testPhone, setTestPhone] = useState("");
+  const [testSending, setTestSending] = useState(false);
+  const [testResult, setTestResult] = useState<string>("");
 
   useEffect(() => {
     const supabase = createClient();
@@ -45,6 +75,14 @@ export default function OrderDetailPage({ id }: { id: string }) {
         setLoading(false);
       });
   }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    adminFetch(apiUrl(`/admin/orders/${id}/notifications`))
+      .then((r) => r.ok ? r.json() : [])
+      .then(setNotifications)
+      .catch(() => {});
+  }, [id, saved]);
 
   const handleSaveStatus = async () => {
     if (newStatus === order.status) return;
@@ -66,6 +104,22 @@ export default function OrderDetailPage({ id }: { id: string }) {
       setError("Network error");
     }
     setSaving(false);
+  };
+
+  const handleTestSend = async () => {
+    if (!testPhone) return;
+    setTestSending(true); setTestResult("");
+    try {
+      const res = await adminFetch(apiUrl("/admin/whatsapp/test"), {
+        method: "POST",
+        body: JSON.stringify({ phone: testPhone }),
+      });
+      const data = await res.json();
+      setTestResult(data.ok ? "✓ Göndərildi" : `Xəta: ${data.error ?? "unknown"}`);
+    } catch {
+      setTestResult("Şəbəkə xətası");
+    }
+    setTestSending(false);
   };
 
   if (loading) return <div className="text-muted-foreground">Loading...</div>;
@@ -147,6 +201,75 @@ export default function OrderDetailPage({ id }: { id: string }) {
             {saving ? "Saving…" : saved ? "✓ Saved" : "Save Status"}
           </button>
         </div>
+        <p className="text-xs text-muted-foreground">WhatsApp bildirişi avtomatik göndəriləcək.</p>
+      </div>
+
+      {/* WhatsApp Notifications Log */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <button
+          onClick={() => setNotifsOpen((v) => !v)}
+          className="w-full flex items-center justify-between px-5 py-4 text-sm font-semibold hover:bg-muted/30 transition"
+        >
+          <span className="flex items-center gap-2">
+            <span>📱 WhatsApp Bildirişləri</span>
+            {notifications.length > 0 && (
+              <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
+                {notifications.length}
+              </span>
+            )}
+          </span>
+          <span className="text-muted-foreground">{notifsOpen ? "▲" : "▼"}</span>
+        </button>
+
+        {notifsOpen && (
+          <div className="border-t border-border px-5 py-4 space-y-3">
+            {notifications.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Bu sifariş üçün bildiriş yoxdur.</p>
+            ) : (
+              <div className="space-y-2">
+                {notifications.map((n) => (
+                  <div key={n.id} className="flex flex-wrap items-start gap-2 text-xs py-2 border-b border-border last:border-0">
+                    <span className="font-mono text-muted-foreground">{new Date(n.created_at).toLocaleString()}</span>
+                    <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{n.channel}</span>
+                    <span className="text-muted-foreground">{NOTIF_TYPE_LABELS[n.type] ?? n.type}</span>
+                    <span className={`px-1.5 py-0.5 rounded font-semibold ${NOTIF_STATUS_COLORS[n.status] ?? "bg-gray-500/20 text-gray-400"}`}>
+                      {n.status}
+                    </span>
+                    {n.error_message && (
+                      <span className="text-red-400 truncate max-w-xs" title={n.error_message}>{n.error_message}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Test message sender */}
+            <div className="pt-2 border-t border-border">
+              <p className="text-xs text-muted-foreground mb-2">Test mesajı göndər:</p>
+              <div className="flex gap-2">
+                <input
+                  type="tel"
+                  placeholder="+994501234567"
+                  value={testPhone}
+                  onChange={(e) => setTestPhone(e.target.value)}
+                  className="flex-1 px-3 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <button
+                  onClick={handleTestSend}
+                  disabled={testSending || !testPhone}
+                  className="px-4 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50"
+                >
+                  {testSending ? "…" : "Göndər"}
+                </button>
+              </div>
+              {testResult && (
+                <p className={`text-xs mt-1 ${testResult.startsWith("✓") ? "text-green-500" : "text-red-500"}`}>
+                  {testResult}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

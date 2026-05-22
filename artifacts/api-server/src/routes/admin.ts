@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { requireAdmin, getAdminSupabase } from "../lib/supabase";
 import { queueNotification } from "../lib/notifications";
+import { sendWhatsAppTestMessage, isWhatsAppConfigured, getWhatsAppInstance } from "../lib/whatsapp";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -315,6 +316,48 @@ router.delete("/admin/coupons/:id", async (req, res) => {
     if (!ctx) return res.status(403).json({ error: "Forbidden" });
     await (ctx.admin as any).from("coupons").delete().eq("id", req.params.id);
     return res.json({ success: true });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+// ── WhatsApp ──────────────────────────────────────────────────────────────────
+
+router.get("/admin/whatsapp/status", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    return res.json({
+      configured: isWhatsAppConfigured(),
+      instance: getWhatsAppInstance(),
+    });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+router.post("/admin/whatsapp/test", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const { phone } = req.body;
+    if (!phone) return res.status(400).json({ error: "phone is required" });
+    const result = await sendWhatsAppTestMessage(phone);
+    return res.json(result);
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+router.get("/admin/orders/:id/notifications", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const { id } = req.params;
+    const { data, error } = await (ctx.admin as any)
+      .from("notifications")
+      .select("id, type, channel, recipient, status, sent_at, created_at, attempts, error_message")
+      .filter("payload->>order_id", "eq", id)
+      .order("created_at", { ascending: false });
+    if (error) {
+      if (error.code === "42P01") return res.json([]);
+      throw error;
+    }
+    return res.json(data ?? []);
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
 });
 

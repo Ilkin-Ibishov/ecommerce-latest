@@ -1,11 +1,13 @@
 const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL ?? "";
 const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY ?? "";
 const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE ?? "default";
+const STORE_NAME = process.env.VITE_STORE_NAME ?? "ILK Electronics";
+const ADMIN_PHONE = process.env.ADMIN_PHONE ?? "+994556195907";
 
-async function sendMessage(phone: string, message: string): Promise<void> {
+async function sendMessage(phone: string, message: string): Promise<{ ok: boolean; error?: string }> {
   if (!EVOLUTION_API_URL) {
-    console.log(`[WhatsApp MOCK] To ${phone}: ${message}`);
-    return;
+    console.log(`[WhatsApp MOCK] To ${phone}:\n${message}`);
+    return { ok: true };
   }
   try {
     const phoneE164 = phone.replace(/\D/g, "");
@@ -22,32 +24,85 @@ async function sendMessage(phone: string, message: string): Promise<void> {
     });
     if (!response.ok) {
       const body = await response.text();
-      console.error(`[WhatsApp] Failed to send: ${response.status} ${body}`);
+      console.error(`[WhatsApp] Send failed: ${response.status} ${body}`);
+      return { ok: false, error: `HTTP ${response.status}: ${body}` };
     }
-  } catch (err) {
+    return { ok: true };
+  } catch (err: any) {
     console.error("[WhatsApp] Error:", err);
+    return { ok: false, error: err?.message ?? "Unknown error" };
   }
 }
 
 export async function sendWhatsAppOTP(phone: string, code: string): Promise<void> {
-  const storeName = process.env.VITE_STORE_NAME ?? "Store";
-  const message = `${storeName}: Your verification code is *${code}*. Valid for 10 minutes. Do not share it.`;
+  const message =
+    `${STORE_NAME}: Doğrulama kodunuz *${code}*. ` +
+    `10 dəqiqə ərzində etibarlıdır. Heç kimlə paylaşmayın.`;
   await sendMessage(phone, message);
 }
 
-export async function sendWhatsAppStatusUpdate(phone: string, orderId: string, status: string): Promise<void> {
-  const storeName = process.env.VITE_STORE_NAME ?? "Store";
-  const statusMessages: Record<string, string> = {
-    phone_verified: "Your order has been confirmed.",
-    courier_assigned: "A courier has been assigned to your order.",
-    shipped: "Your order is on its way!",
-    delivered: "Your order has been delivered. Thank you!",
-    refused_at_delivery: "Your order was returned. Please contact us.",
-    cancelled: "Your order has been cancelled.",
-  };
-  const statusMsg = statusMessages[status];
-  if (!statusMsg) return;
+export async function sendWhatsAppOrderConfirmed(
+  phone: string,
+  orderId: string,
+  itemCount: number,
+  totalAzn: number,
+): Promise<{ ok: boolean; error?: string }> {
   const shortId = orderId.slice(0, 8).toUpperCase();
-  const message = `${storeName} — Order #${shortId}: ${statusMsg}`;
-  await sendMessage(phone, message);
+  const message =
+    `✅ ${STORE_NAME}\n\n` +
+    `Sifariş #${shortId} qəbul edildi!\n` +
+    `📦 ${itemCount} məhsul · ${totalAzn.toFixed(2)} ₼\n` +
+    `💵 Ödəniş: Çatdırılmada nağd\n\n` +
+    `Sualınız üçün: ${ADMIN_PHONE}`;
+  return sendMessage(phone, message);
+}
+
+export async function sendWhatsAppStatusUpdate(
+  phone: string,
+  orderId: string,
+  status: string,
+): Promise<{ ok: boolean; error?: string }> {
+  const shortId = orderId.slice(0, 8).toUpperCase();
+
+  const statusMessages: Record<string, string> = {
+    phone_verified:
+      `📋 ${STORE_NAME} — Sifariş #${shortId}\n\n` +
+      `Sifarişiniz təsdiqləndi və hazırlanmağa başlandı.`,
+    courier_assigned:
+      `🚴 ${STORE_NAME} — Sifariş #${shortId}\n\n` +
+      `Kuryerimiz sifarişinizi götürdü. Tezliklə çatdırılacaq!`,
+    shipped:
+      `🚚 ${STORE_NAME} — Sifariş #${shortId}\n\n` +
+      `Sifarişiniz yola düşdü! Kuryerimiz sizə çatdıracaq.`,
+    delivered:
+      `🎉 ${STORE_NAME} — Sifariş #${shortId}\n\n` +
+      `Sifarişiniz çatdırıldı. ${STORE_NAME}-i seçdiyiniz üçün təşəkkür edirik!`,
+    refused_at_delivery:
+      `↩️ ${STORE_NAME} — Sifariş #${shortId}\n\n` +
+      `Sifarişiniz qəbul edilmədi və geri qaytarıldı.\n` +
+      `Ətraflı məlumat üçün: ${ADMIN_PHONE}`,
+    cancelled:
+      `❌ ${STORE_NAME} — Sifariş #${shortId}\n\n` +
+      `Sifarişiniz ləğv edildi.\n` +
+      `Sualınız varsa: ${ADMIN_PHONE}`,
+  };
+
+  const message = statusMessages[status];
+  if (!message) return { ok: true };
+  return sendMessage(phone, message);
+}
+
+export async function sendWhatsAppTestMessage(phone: string): Promise<{ ok: boolean; error?: string }> {
+  const message =
+    `🔧 ${STORE_NAME} — WhatsApp test mesajı\n\n` +
+    `Bu mesaj admin panelindən göndərildi. Əlaqə işləyir! ✅`;
+  return sendMessage(phone, message);
+}
+
+export function isWhatsAppConfigured(): boolean {
+  return Boolean(EVOLUTION_API_URL && EVOLUTION_API_KEY);
+}
+
+export function getWhatsAppInstance(): string {
+  return EVOLUTION_INSTANCE;
 }

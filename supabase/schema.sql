@@ -357,8 +357,10 @@ create table if not exists public.notifications (
   attempts         integer not null default 0,
   last_attempt_at  timestamptz,
   sent_at          timestamptz,
+  error_message    text,
   created_at       timestamptz not null default now()
 );
+alter table public.notifications add column if not exists error_message text;
 alter table public.notifications enable row level security;
 -- Only service role accesses this table
 

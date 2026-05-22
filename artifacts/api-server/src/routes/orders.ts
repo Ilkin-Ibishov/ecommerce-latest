@@ -139,12 +139,17 @@ router.post("/orders", async (req, res) => {
       });
     }
 
-    // Queue WhatsApp notification
+    // Queue WhatsApp notification (fire-and-forget; never blocks order response)
     queueNotification({
       userId: user.id,
       type: "order_confirmed",
       recipient: customer_phone,
-      payload: { order_id: order.id, total: totalAzn, status: "confirmed" },
+      payload: {
+        order_id: order.id,
+        total: totalAzn,
+        item_count: orderItems.length,
+        status: "confirmed",
+      },
     }).catch(() => {});
 
     return res.status(201).json({ success: true, orderId: order.id });
