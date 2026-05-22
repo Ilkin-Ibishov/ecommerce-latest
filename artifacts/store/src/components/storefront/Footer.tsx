@@ -10,7 +10,7 @@ export default function StorefrontFooter({ locale }: { locale: string }) {
 
           {/* Brand column */}
           <div className="col-span-2 md:col-span-1">
-            <img src="/logo.png" alt={storeName} className="h-10 w-auto object-contain mb-4" />
+            <img src="/logo.png" alt={storeName} className="h-12 w-auto object-contain mb-4" />
             <p className="text-sm text-gray-500 leading-relaxed">
               Azərbaycanda keyfiyyətli elektronika məhsullarının etibarlı ünvanı.
             </p>

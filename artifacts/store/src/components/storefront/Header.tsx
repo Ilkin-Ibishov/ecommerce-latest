@@ -41,11 +41,11 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
           <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
 
             {/* Logo — transparent PNG on dark header */}
-            <Link href={`/${locale}`} className="shrink-0 flex items-center">
+            <Link href={`/${locale}`} className="shrink-0 flex items-center py-1">
               <img
                 src="/logo.png"
                 alt="İlk Electronics"
-                className="h-9 sm:h-11 w-auto object-contain"
+                className="h-10 sm:h-12 w-auto object-contain"
               />
             </Link>
 
