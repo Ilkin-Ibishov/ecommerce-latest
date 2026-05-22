@@ -12,6 +12,7 @@ import devRouter from "./dev";
 import productsRouter from "./products";
 import migrationRouter from "./migration";
 import bannersRouter from "./banners";
+import categoriesRouter from "./categories";
 
 const router: IRouter = Router();
 
@@ -27,6 +28,7 @@ router.use(bootstrapRouter);
 router.use(productsRouter);
 router.use(migrationRouter);
 router.use(bannersRouter);
+router.use(categoriesRouter);
 
 // Dev/test routes — only active outside production
 if (process.env.NODE_ENV !== "production") {

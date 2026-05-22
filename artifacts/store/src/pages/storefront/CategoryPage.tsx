@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
-import { createClient } from "@/lib/supabase/client";
+import { apiUrl } from "@/lib/api";
 import ProductCard from "@/components/storefront/ProductCard";
 import { ArrowUpDown, ChevronDown } from "lucide-react";
 
@@ -17,10 +17,8 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
   const page = Math.max(1, parseInt(params.get("page") ?? "1", 10));
   const sortParam = params.get("sort") ?? "sort_order";
   const pageSize = 24;
-  const offset = (page - 1) * pageSize;
 
   const [category, setCategory] = useState<any>(null);
-  const [subcategories, setSubcategories] = useState<any[]>([]);
   const [products, setProducts] = useState<any[]>([]);
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -28,33 +26,20 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
   const [sortOpen, setSortOpen] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
     async function load() {
       setLoading(true);
-      const { data: cat } = await supabase.from("categories")
-        .select("*, category_translations(*)").eq("slug", slug).single();
-      if (!cat) { setNotFound(true); setLoading(false); return; }
-      setCategory(cat);
-
-      const { data: subs } = await supabase.from("categories")
-        .select("*, category_translations(*)").eq("parent_id", cat.id);
-      setSubcategories(subs ?? []);
-
-      const { data: rows, count: total } = await (supabase as any)
-        .from("product_categories")
-        .select("products(id, slug, price, original_price, stock, is_on_sale, is_deal_of_day, brand, sort_order, created_at, product_images(*), product_translations(*))", { count: "exact" })
-        .eq("category_id", cat.id)
-        .range(offset, offset + pageSize - 1);
-
-      let prods = (rows ?? []).map((r: any) => r.products).filter(Boolean);
-
-      if (sortParam === "price_asc") prods.sort((a: any, b: any) => a.price - b.price);
-      else if (sortParam === "price_desc") prods.sort((a: any, b: any) => b.price - a.price);
-      else if (sortParam === "newest") prods.sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      else prods.sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-
-      setProducts(prods);
-      setCount(total ?? 0);
+      try {
+        const url = apiUrl(`/categories/${slug}/products?page=${page}&limit=${pageSize}&sort=${sortParam}`);
+        const res = await fetch(url);
+        if (res.status === 404) { setNotFound(true); setLoading(false); return; }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        setCategory(json.category);
+        setProducts(json.products ?? []);
+        setCount(json.total ?? 0);
+      } catch (e) {
+        console.error("[CategoryPage]", e);
+      }
       setLoading(false);
     }
     load();
@@ -68,10 +53,10 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
     </div>
   );
 
-  const catTitle = category.category_translations?.find((t: any) => t.lang_code === locale)?.title
-    ?? category.category_translations?.[0]?.title ?? "Category";
   const getTitle = (translations: any[]) =>
     translations?.find((t: any) => t.lang_code === locale)?.title ?? translations?.[0]?.title ?? "Untitled";
+
+  const catTitle = category ? getTitle(category.category_translations) : "";
   const totalPages = Math.ceil(count / pageSize);
   const currentSort = SORT_OPTIONS.find(o => o.value === sortParam) ?? SORT_OPTIONS[0];
 
@@ -127,19 +112,6 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
           )}
         </div>
       </div>
-
-      {/* Subcategories */}
-      {subcategories.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-8">
-          {subcategories.map((sub: any) => (
-            <Link key={sub.id} href={`/${locale}/categories/${sub.slug}`}
-              className="px-4 py-2 rounded-full border border-border text-sm hover:border-primary hover:text-primary hover:bg-primary/5 transition">
-              {sub.icon_url && <span className="mr-1.5"><img src={sub.icon_url} className="inline w-4 h-4 rounded" alt="" /></span>}
-              {getTitle(sub.category_translations)}
-            </Link>
-          ))}
-        </div>
-      )}
 
       {products.length === 0 ? (
         <div className="text-center py-24 text-muted-foreground">
