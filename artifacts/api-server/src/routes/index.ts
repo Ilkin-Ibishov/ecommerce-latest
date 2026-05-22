@@ -9,6 +9,8 @@ import commentsRouter from "./comments";
 import cartRouter from "./cart";
 import bootstrapRouter from "./bootstrap";
 import devRouter from "./dev";
+import productsRouter from "./products";
+import migrationRouter from "./migration";
 
 const router: IRouter = Router();
 
@@ -21,6 +23,8 @@ router.use(wishlistRouter);
 router.use(commentsRouter);
 router.use(cartRouter);
 router.use(bootstrapRouter);
+router.use(productsRouter);
+router.use(migrationRouter);
 
 // Dev/test routes — only active outside production
 if (process.env.NODE_ENV !== "production") {

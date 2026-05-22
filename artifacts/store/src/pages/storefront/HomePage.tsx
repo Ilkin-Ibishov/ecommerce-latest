@@ -1,10 +1,54 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n/context";
 import ProductCard from "@/components/storefront/ProductCard";
 import BouncingLoader from "@/components/ui/BouncingLoader";
 import TrustBadges from "@/components/storefront/TrustBadges";
+
+const BRAND_LOGOS: Array<{ name: string; logo: string }> = [
+  { name: "Apple", logo: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" },
+  { name: "Samsung", logo: "https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg" },
+  { name: "Xiaomi", logo: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg" },
+  { name: "LG", logo: "https://upload.wikimedia.org/wikipedia/commons/2/21/LG_logo_%282015%29.svg" },
+  { name: "Sony", logo: "https://upload.wikimedia.org/wikipedia/commons/c/ca/Sony_logo.svg" },
+  { name: "Philips", logo: "https://upload.wikimedia.org/wikipedia/commons/5/52/Philips_logo_new.svg" },
+  { name: "Bosch", logo: "https://upload.wikimedia.org/wikipedia/commons/0/0e/Bosch-logo.svg" },
+  { name: "Huawei", logo: "https://upload.wikimedia.org/wikipedia/commons/e/e8/Huawei_logo_icon.svg" },
+];
+
+function useCountdown(targetHour = 0) {
+  const getSecondsLeft = useCallback(() => {
+    const now = new Date();
+    const target = new Date(now);
+    target.setHours(targetHour, 0, 0, 0);
+    if (target <= now) target.setDate(target.getDate() + 1);
+    return Math.max(0, Math.floor((target.getTime() - now.getTime()) / 1000));
+  }, [targetHour]);
+
+  const [seconds, setSeconds] = useState(getSecondsLeft);
+
+  useEffect(() => {
+    const interval = setInterval(() => setSeconds(getSecondsLeft()), 1000);
+    return () => clearInterval(interval);
+  }, [getSecondsLeft]);
+
+  const h = String(Math.floor(seconds / 3600)).padStart(2, "0");
+  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2, "0");
+  const s = String(seconds % 60).padStart(2, "0");
+  return { h, m, s };
+}
+
+function CountdownUnit({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="flex flex-col items-center">
+      <span className="text-xl sm:text-2xl font-mono font-bold tabular-nums bg-black/20 px-2 py-0.5 rounded-lg min-w-[2.5rem] text-center">
+        {value}
+      </span>
+      <span className="text-[10px] uppercase tracking-wide mt-0.5 opacity-70">{label}</span>
+    </div>
+  );
+}
 
 function ProductGrid({ title, products, locale, showSaleBadge }: {
   title: string; products: any[]; locale: string; showSaleBadge?: boolean;
@@ -19,13 +63,16 @@ function ProductGrid({ title, products, locale, showSaleBadge }: {
           return (
             <ProductCard
               key={product.id}
+              productId={product.id}
               slug={product.slug}
               title={name}
               price={product.price}
+              originalPrice={product.original_price}
               image={product.product_images?.[0]?.url ?? null}
               isOnSale={showSaleBadge || product.is_on_sale}
               isDealOfDay={product.is_deal_of_day}
               stock={product.stock}
+              brand={product.brand}
               locale={locale}
             />
           );
@@ -44,9 +91,6 @@ function SetupBanner() {
         Set <code className="bg-muted px-1 rounded">VITE_SUPABASE_URL</code> and{" "}
         <code className="bg-muted px-1 rounded">VITE_SUPABASE_ANON_KEY</code> in your environment variables to connect to your Supabase project.
       </p>
-      <p className="text-sm text-muted-foreground">
-        Also set <code className="bg-muted px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> on the API server for full admin functionality.
-      </p>
     </div>
   );
 }
@@ -59,6 +103,7 @@ export default function HomePage({ locale }: { locale: string }) {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const configured = isSupabaseConfigured();
+  const countdown = useCountdown(0);
 
   useEffect(() => {
     if (!configured) { setLoading(false); return; }
@@ -109,6 +154,27 @@ export default function HomePage({ locale }: { locale: string }) {
 
       {!configured && <SetupBanner />}
 
+      {/* Brand logos strip */}
+      <section className="overflow-hidden">
+        <div className="flex items-center gap-6 sm:gap-10 overflow-x-auto pb-2 scrollbar-hide">
+          {BRAND_LOGOS.map((b) => (
+            <Link
+              key={b.name}
+              href={`/${locale}/products?brand=${encodeURIComponent(b.name)}`}
+              className="shrink-0 group flex items-center justify-center h-10 w-20 sm:h-12 sm:w-24 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-200"
+              title={b.name}
+            >
+              <img
+                src={b.logo}
+                alt={b.name}
+                className="max-h-full max-w-full object-contain"
+                loading="lazy"
+              />
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* Categories */}
       {categories.length > 0 && (
         <section>
@@ -135,14 +201,27 @@ export default function HomePage({ locale }: { locale: string }) {
         </section>
       )}
 
-      {/* Deal of Day */}
+      {/* Deal of Day with countdown */}
       {dealOfDay && (
         <section>
-          <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 flex items-center gap-2">
-            <span className="text-orange-500">🔥</span>{t("HomePage.sections.dealOfDay")}
-          </h2>
+          <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-3">
+            <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+              <span className="text-orange-500">🔥</span>{t("HomePage.sections.dealOfDay")}
+            </h2>
+            {/* Countdown */}
+            <div className="flex items-center gap-2 text-orange-600">
+              <span className="text-xs font-medium opacity-80">Bitməsinə:</span>
+              <div className="flex items-center gap-1.5">
+                <CountdownUnit value={countdown.h} label="saat" />
+                <span className="font-bold text-xl mb-3">:</span>
+                <CountdownUnit value={countdown.m} label="dəq" />
+                <span className="font-bold text-xl mb-3">:</span>
+                <CountdownUnit value={countdown.s} label="san" />
+              </div>
+            </div>
+          </div>
           <Link href={`/${locale}/products/${dealOfDay.slug}`}
-            className="product-card block rounded-2xl border border-orange-200 bg-orange-50 hover:bg-orange-100 transition overflow-hidden">
+            className="product-card block rounded-2xl border border-orange-200 bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/20 dark:border-orange-900/40 transition overflow-hidden">
             <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 p-4 sm:p-6">
               {dealOfDay.product_images?.[0]?.url && (
                 <div className="w-full sm:w-56 h-44 sm:h-48 rounded-xl overflow-hidden bg-white shrink-0">
@@ -150,13 +229,21 @@ export default function HomePage({ locale }: { locale: string }) {
                     className="product-card-img object-cover w-full h-full" />
                 </div>
               )}
-              <div className="flex-1 flex flex-col justify-center">
-                <span className="text-xs font-semibold uppercase tracking-wide text-orange-600 mb-2">{t("HomePage.sections.dealOfDay")}</span>
-                <h3 className="text-xl sm:text-2xl font-bold mb-2">
+              <div className="flex-1 flex flex-col justify-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wide text-orange-600">{t("HomePage.sections.dealOfDay")}</span>
+                <h3 className="text-xl sm:text-2xl font-bold">
                   {dealOfDay.product_translations?.find((tr: any) => tr.lang_code === locale)?.title
                     ?? dealOfDay.product_translations?.[0]?.title ?? "Product"}
                 </h3>
-                <p className="text-2xl sm:text-3xl font-bold text-primary">{Number(dealOfDay.price).toFixed(2)} AZN</p>
+                <div className="flex items-baseline gap-2 flex-wrap">
+                  <p className="text-2xl sm:text-3xl font-bold text-primary">{Number(dealOfDay.price).toFixed(2)} AZN</p>
+                  {dealOfDay.original_price && dealOfDay.original_price > dealOfDay.price && (
+                    <p className="text-base text-muted-foreground line-through">{Number(dealOfDay.original_price).toFixed(2)} AZN</p>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Ayda <span className="font-semibold text-foreground">{(dealOfDay.price / 12).toFixed(2)} AZN</span> — 12 aya
+                </p>
               </div>
             </div>
           </Link>
