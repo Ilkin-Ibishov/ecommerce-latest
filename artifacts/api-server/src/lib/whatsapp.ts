@@ -1,32 +1,48 @@
-const EVOLUTION_API_URL = process.env.EVOLUTION_API_URL ?? "";
-const EVOLUTION_API_KEY = process.env.EVOLUTION_API_KEY ?? "";
-const EVOLUTION_INSTANCE = process.env.EVOLUTION_INSTANCE ?? "default";
+/**
+ * WhatsApp messaging via UltraMsg (https://ultramsg.com)
+ * Free tier: 1,000 messages/day · no server required · 5-min setup
+ *
+ * Required env vars:
+ *   ULTRAMSG_INSTANCE  — Instance ID shown on the UltraMsg dashboard (e.g. "instance123456")
+ *   ULTRAMSG_TOKEN     — API token shown on the UltraMsg dashboard
+ */
+
+const ULTRAMSG_INSTANCE = process.env.ULTRAMSG_INSTANCE ?? "";
+const ULTRAMSG_TOKEN = process.env.ULTRAMSG_TOKEN ?? "";
 const STORE_NAME = process.env.VITE_STORE_NAME ?? "ILK Electronics";
 const ADMIN_PHONE = process.env.ADMIN_PHONE ?? "+994556195907";
 
 async function sendMessage(phone: string, message: string): Promise<{ ok: boolean; error?: string }> {
-  if (!EVOLUTION_API_URL) {
+  if (!ULTRAMSG_INSTANCE || !ULTRAMSG_TOKEN) {
     console.log(`[WhatsApp MOCK] To ${phone}:\n${message}`);
     return { ok: true };
   }
+
   try {
-    const phoneE164 = phone.replace(/\D/g, "");
-    const response = await fetch(`${EVOLUTION_API_URL}/message/sendText/${EVOLUTION_INSTANCE}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": EVOLUTION_API_KEY,
+    // UltraMsg expects the phone in international format without leading +
+    const to = phone.replace(/^\+/, "").replace(/\D/g, "");
+
+    const response = await fetch(
+      `https://api.ultramsg.com/${ULTRAMSG_INSTANCE}/messages/chat`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          token: ULTRAMSG_TOKEN,
+          to: `+${to}`,
+          body: message,
+        }),
       },
-      body: JSON.stringify({
-        number: `${phoneE164}@s.whatsapp.net`,
-        text: message,
-      }),
-    });
-    if (!response.ok) {
-      const body = await response.text();
-      console.error(`[WhatsApp] Send failed: ${response.status} ${body}`);
-      return { ok: false, error: `HTTP ${response.status}: ${body}` };
+    );
+
+    const data = await response.json() as any;
+
+    if (!response.ok || data?.sent === "false" || data?.error) {
+      const errMsg = data?.error ?? `HTTP ${response.status}`;
+      console.error(`[WhatsApp] Send failed: ${errMsg}`);
+      return { ok: false, error: errMsg };
     }
+
     return { ok: true };
   } catch (err: any) {
     console.error("[WhatsApp] Error:", err);
@@ -100,9 +116,9 @@ export async function sendWhatsAppTestMessage(phone: string): Promise<{ ok: bool
 }
 
 export function isWhatsAppConfigured(): boolean {
-  return Boolean(EVOLUTION_API_URL && EVOLUTION_API_KEY);
+  return Boolean(ULTRAMSG_INSTANCE && ULTRAMSG_TOKEN);
 }
 
 export function getWhatsAppInstance(): string {
-  return EVOLUTION_INSTANCE;
+  return ULTRAMSG_INSTANCE || "(not configured)";
 }
