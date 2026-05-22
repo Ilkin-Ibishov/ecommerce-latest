@@ -8,14 +8,24 @@ import TrustBadges from "@/components/storefront/TrustBadges";
 import HeroCarousel from "@/components/storefront/HeroCarousel";
 
 const BRAND_LOGOS: Array<{ name: string; logo: string }> = [
-  { name: "Apple", logo: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" },
-  { name: "Samsung", logo: "https://upload.wikimedia.org/wikipedia/commons/2/24/Samsung_Logo.svg" },
-  { name: "Xiaomi", logo: "https://upload.wikimedia.org/wikipedia/commons/2/29/Xiaomi_logo.svg" },
-  { name: "LG", logo: "https://upload.wikimedia.org/wikipedia/commons/2/21/LG_logo_%282015%29.svg" },
-  { name: "Sony", logo: "https://upload.wikimedia.org/wikipedia/commons/c/ca/Sony_logo.svg" },
-  { name: "Philips", logo: "https://upload.wikimedia.org/wikipedia/commons/5/52/Philips_logo_new.svg" },
-  { name: "Bosch", logo: "https://upload.wikimedia.org/wikipedia/commons/0/0e/Bosch-logo.svg" },
-  { name: "Huawei", logo: "https://upload.wikimedia.org/wikipedia/commons/e/e8/Huawei_logo_icon.svg" },
+  { name: "Apple",    logo: "https://cdn.simpleicons.org/apple/222222" },
+  { name: "Samsung",  logo: "https://cdn.simpleicons.org/samsung/222222" },
+  { name: "Xiaomi",   logo: "https://cdn.simpleicons.org/xiaomi/222222" },
+  { name: "Huawei",   logo: "https://cdn.simpleicons.org/huawei/222222" },
+  { name: "Sony",     logo: "https://cdn.simpleicons.org/sony/222222" },
+  { name: "LG",       logo: "https://cdn.simpleicons.org/lg/222222" },
+  { name: "Lenovo",   logo: "https://cdn.simpleicons.org/lenovo/222222" },
+  { name: "HP",       logo: "https://cdn.simpleicons.org/hp/222222" },
+  { name: "Asus",     logo: "https://cdn.simpleicons.org/asus/222222" },
+  { name: "Acer",     logo: "https://cdn.simpleicons.org/acer/222222" },
+  { name: "Dell",     logo: "https://cdn.simpleicons.org/dell/222222" },
+  { name: "OnePlus",  logo: "https://cdn.simpleicons.org/oneplus/222222" },
+  { name: "Logitech",  logo: "https://cdn.simpleicons.org/logitech/222222" },
+  { name: "Microsoft", logo: "https://cdn.simpleicons.org/microsoft/222222" },
+  { name: "Intel",     logo: "https://cdn.simpleicons.org/intel/222222" },
+  { name: "Nvidia",    logo: "https://cdn.simpleicons.org/nvidia/222222" },
+  { name: "AMD",       logo: "https://cdn.simpleicons.org/amd/222222" },
+  { name: "Razer",     logo: "https://cdn.simpleicons.org/razer/222222" },
 ];
 
 function useCountdown(targetHour = 0) {
@@ -142,21 +152,22 @@ export default function HomePage({ locale }: { locale: string }) {
 
       {!configured && <SetupBanner />}
 
-      {/* Brand logos strip */}
+      {/* Brand logos strip — auto-scrolling marquee */}
       <section className="overflow-hidden">
-        <div className="flex items-center gap-6 sm:gap-10 overflow-x-auto pb-2 scrollbar-hide">
-          {BRAND_LOGOS.map((b) => (
+        <div className="animate-marquee flex items-center" style={{ width: "max-content" }}>
+          {[...BRAND_LOGOS, ...BRAND_LOGOS].map((b, i) => (
             <Link
-              key={b.name}
+              key={`${b.name}-${i}`}
               href={`/${locale}/products?brand=${encodeURIComponent(b.name)}`}
-              className="shrink-0 group flex items-center justify-center h-10 w-20 sm:h-12 sm:w-24 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-200"
+              className="shrink-0 group flex items-center justify-center h-10 w-24 sm:h-12 sm:w-28 mx-5 sm:mx-8 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-200"
               title={b.name}
             >
               <img
                 src={b.logo}
                 alt={b.name}
                 className="max-h-full max-w-full object-contain"
-                loading="lazy"
+                loading="eager"
+                onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }}
               />
             </Link>
           ))}
