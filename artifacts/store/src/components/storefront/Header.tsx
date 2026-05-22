@@ -3,6 +3,8 @@ import { Link, useLocation } from "wouter";
 import { ShoppingCart, Search, User, Menu, X, Heart, LogOut, Package } from "lucide-react";
 import CartDrawer from "./CartDrawer";
 import { LoginModal } from "@/components/auth/LoginModal";
+import MobileBottomNav from "./MobileBottomNav";
+import AnnouncementBar from "./AnnouncementBar";
 import { useCart } from "@/lib/cart/context";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,7 +16,6 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const { itemCount } = useCart();
-  const storeName = import.meta.env.VITE_STORE_NAME ?? "Store";
   const supabase = createClient();
 
   useEffect(() => {
@@ -31,31 +32,55 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
 
   return (
     <>
-      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
-        <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
-            <Link href={`/${locale}`} className="font-bold text-xl text-primary">{storeName}</Link>
+      <AnnouncementBar />
 
-            <nav className="hidden md:flex items-center gap-6 text-sm">
-              <Link href={`/${locale}/products`} className="hover:text-primary transition">Products</Link>
-              <Link href={`/${locale}/categories`} className="hover:text-primary transition">Categories</Link>
+      <header className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border">
+        <div className="container mx-auto px-3 sm:px-4">
+
+          {/* Main row */}
+          <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
+
+            {/* Logo */}
+            <Link href={`/${locale}`} className="shrink-0">
+              <div className="bg-gray-900 rounded-lg px-2 py-1 flex items-center">
+                <img
+                  src="/logo.jpg"
+                  alt="İlk Electronics"
+                  className="h-8 sm:h-9 w-auto object-contain"
+                />
+              </div>
+            </Link>
+
+            {/* Desktop search bar (center, always visible) */}
+            <div className="hidden md:flex flex-1 max-w-xl mx-4">
+              <SearchBar locale={locale} onClose={() => {}} inline />
+            </div>
+
+            {/* Desktop nav links */}
+            <nav className="hidden lg:flex items-center gap-5 text-sm shrink-0">
+              <Link href={`/${locale}/products`} className="hover:text-primary transition font-medium">Məhsullar</Link>
+              <Link href={`/${locale}/categories`} className="hover:text-primary transition font-medium">Kateqoriyalar</Link>
             </nav>
 
-            <div className="flex items-center gap-1">
+            {/* Action icons */}
+            <div className="flex items-center gap-0.5 shrink-0">
+
+              {/* Mobile search toggle */}
               <button onClick={() => setSearchOpen(!searchOpen)}
-                className="p-2 rounded-lg hover:bg-accent transition" aria-label="Search">
+                className="md:hidden p-2 rounded-lg hover:bg-accent transition" aria-label="Search">
                 <Search size={20} />
               </button>
 
               {user && (
                 <Link href={`/${locale}/wishlist`}
-                  className="p-2 rounded-lg hover:bg-accent transition" aria-label="Wishlist">
+                  className="hidden sm:flex p-2 rounded-lg hover:bg-accent transition" aria-label="Wishlist">
                   <Heart size={20} />
                 </Link>
               )}
 
+              {/* Cart — hidden on mobile (bottom nav handles it) */}
               <button onClick={() => setCartOpen(true)}
-                className="relative p-2 rounded-lg hover:bg-accent transition" aria-label="Cart">
+                className="hidden md:flex relative p-2 rounded-lg hover:bg-accent transition" aria-label="Cart">
                 <ShoppingCart size={20} />
                 {itemCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
@@ -64,7 +89,8 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
                 )}
               </button>
 
-              <div className="relative">
+              {/* Account — hidden on mobile (bottom nav handles it) */}
+              <div className="relative hidden md:block">
                 <button
                   onClick={() => user ? setUserMenuOpen((v) => !v) : setLoginOpen(true)}
                   className="p-2 rounded-lg hover:bg-accent transition" aria-label="Account">
@@ -80,16 +106,16 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
                       <Link href={`/${locale}/profile`}
                         className="flex items-center gap-2 px-3 py-2.5 hover:bg-accent text-sm transition"
                         onClick={() => setUserMenuOpen(false)}>
-                        <Package size={15} /> My Orders
+                        <Package size={15} /> Sifarişlərim
                       </Link>
                       <Link href={`/${locale}/wishlist`}
                         className="flex items-center gap-2 px-3 py-2.5 hover:bg-accent text-sm transition"
                         onClick={() => setUserMenuOpen(false)}>
-                        <Heart size={15} /> Wishlist
+                        <Heart size={15} /> İstək siyahısı
                       </Link>
                       <button onClick={handleSignOut}
                         className="flex items-center gap-2 w-full px-3 py-2.5 hover:bg-accent text-sm text-destructive transition border-t border-border">
-                        <LogOut size={15} /> Sign Out
+                        <LogOut size={15} /> Çıxış
                       </button>
                     </div>
                   </>
@@ -98,50 +124,61 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
 
               <LocaleSwitcher currentLocale={locale} />
 
-              <button className="md:hidden p-2 rounded-lg hover:bg-accent transition"
+              {/* Hamburger — tablet only (md and below but not xs) */}
+              <button className="hidden sm:flex md:hidden p-2 rounded-lg hover:bg-accent transition"
                 onClick={() => setMobileOpen(!mobileOpen)}>
                 {mobileOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
             </div>
           </div>
 
+          {/* Mobile search bar (dropdown) */}
           {searchOpen && (
-            <div className="pb-3">
-              <SearchBar locale={locale} onClose={() => setSearchOpen(false)} />
+            <div className="md:hidden pb-3">
+              <SearchBar locale={locale} onClose={() => setSearchOpen(false)} autoFocus />
             </div>
           )}
 
+          {/* Tablet menu dropdown */}
           {mobileOpen && (
-            <div className="md:hidden border-t border-border py-3 space-y-1">
+            <div className="sm:flex md:hidden flex-col border-t border-border py-3 space-y-1">
               <Link href={`/${locale}/products`}
                 className="block px-2 py-2 rounded hover:bg-accent text-sm"
-                onClick={() => setMobileOpen(false)}>Products</Link>
+                onClick={() => setMobileOpen(false)}>Məhsullar</Link>
               <Link href={`/${locale}/categories`}
                 className="block px-2 py-2 rounded hover:bg-accent text-sm"
-                onClick={() => setMobileOpen(false)}>Categories</Link>
+                onClick={() => setMobileOpen(false)}>Kateqoriyalar</Link>
               {user ? (
                 <>
                   <Link href={`/${locale}/profile`}
                     className="block px-2 py-2 rounded hover:bg-accent text-sm"
-                    onClick={() => setMobileOpen(false)}>My Orders</Link>
+                    onClick={() => setMobileOpen(false)}>Sifarişlərim</Link>
                   <Link href={`/${locale}/wishlist`}
                     className="block px-2 py-2 rounded hover:bg-accent text-sm"
-                    onClick={() => setMobileOpen(false)}>Wishlist</Link>
+                    onClick={() => setMobileOpen(false)}>İstək siyahısı</Link>
                   <button onClick={() => { handleSignOut(); setMobileOpen(false); }}
                     className="block w-full text-left px-2 py-2 rounded hover:bg-accent text-sm text-destructive">
-                    Sign Out
+                    Çıxış
                   </button>
                 </>
               ) : (
                 <button onClick={() => { setLoginOpen(true); setMobileOpen(false); }}
                   className="block w-full text-left px-2 py-2 rounded hover:bg-accent text-sm">
-                  Sign In
+                  Daxil ol
                 </button>
               )}
             </div>
           )}
         </div>
       </header>
+
+      {/* Mobile bottom navigation */}
+      <MobileBottomNav
+        locale={locale}
+        onSearchClick={() => setSearchOpen(true)}
+        onCartClick={() => setCartOpen(true)}
+        onAccountClick={() => user ? setLoginOpen(false) || setUserMenuOpen(true) : setLoginOpen(true)}
+      />
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} locale={locale} />
       <LoginModal open={loginOpen} onClose={() => setLoginOpen(false)} />
@@ -164,7 +201,7 @@ function LocaleSwitcher({ currentLocale }: { currentLocale: string }) {
     <div className="flex items-center gap-0.5 border border-border rounded-lg overflow-hidden">
       {locales.map((l) => (
         <button key={l} onClick={() => switchLocale(l)}
-          className={`px-2 py-1 text-xs font-medium transition ${currentLocale === l ? "bg-primary text-primary-foreground" : "hover:bg-accent text-muted-foreground"}`}>
+          className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-medium transition ${currentLocale === l ? "bg-primary text-primary-foreground" : "hover:bg-accent text-muted-foreground"}`}>
           {l.toUpperCase()}
         </button>
       ))}
@@ -172,7 +209,12 @@ function LocaleSwitcher({ currentLocale }: { currentLocale: string }) {
   );
 }
 
-function SearchBar({ locale, onClose }: { locale: string; onClose: () => void }) {
+function SearchBar({ locale, onClose, inline, autoFocus }: {
+  locale: string;
+  onClose: () => void;
+  inline?: boolean;
+  autoFocus?: boolean;
+}) {
   const [query, setQuery] = useState("");
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -181,17 +223,44 @@ function SearchBar({ locale, onClose }: { locale: string; onClose: () => void })
       onClose();
     }
   };
+
+  if (inline) {
+    return (
+      <form onSubmit={handleSubmit} className="flex w-full gap-2">
+        <div className="relative flex-1">
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Məhsul axtar…"
+            className="w-full pl-9 pr-4 py-2 rounded-lg border border-border bg-muted/50 text-sm focus:outline-none focus:ring-2 focus:ring-ring focus:bg-background transition"
+          />
+        </div>
+        <button type="submit"
+          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition shrink-0">
+          Axtar
+        </button>
+      </form>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} className="flex gap-2">
-      <input autoFocus type="search" value={query} onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search products…"
-        className="flex-1 px-4 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+      <input
+        autoFocus={autoFocus}
+        type="search"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Məhsul axtar…"
+        className="flex-1 px-4 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+      />
       <button type="submit"
         className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition">
-        Search
+        Axtar
       </button>
       <button type="button" onClick={onClose}
-        className="px-3 py-2 rounded-lg hover:bg-accent text-sm transition">Cancel</button>
+        className="px-3 py-2 rounded-lg hover:bg-accent text-sm transition">İmtina</button>
     </form>
   );
 }

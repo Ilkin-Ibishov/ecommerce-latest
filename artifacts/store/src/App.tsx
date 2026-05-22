@@ -37,7 +37,8 @@ function StorefrontLayout({ locale, children }: { locale: string; children: Reac
     <I18nProvider locale={locale}>
       <div className="min-h-screen flex flex-col">
         <StorefrontHeader locale={locale} />
-        <main className="flex-1">{children}</main>
+        {/* pb-16 adds padding so content is never hidden behind the mobile bottom nav */}
+        <main className="flex-1 pb-16 md:pb-0">{children}</main>
         <StorefrontFooter locale={locale} />
       </div>
     </I18nProvider>
