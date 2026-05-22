@@ -28,6 +28,7 @@ import AdminCouponsPage from "@/pages/admin/CouponsPage";
 import AdminCategoriesPage from "@/pages/admin/CategoriesPage";
 import AdminCommentsPage from "@/pages/admin/CommentsPage";
 import AdminAuditPage from "@/pages/admin/AuditPage";
+import BannersPage from "@/pages/admin/BannersPage";
 
 const queryClient = new QueryClient();
 const LOCALES = ["az", "ru", "en"];
@@ -37,7 +38,6 @@ function StorefrontLayout({ locale, children }: { locale: string; children: Reac
     <I18nProvider locale={locale}>
       <div className="min-h-screen flex flex-col">
         <StorefrontHeader locale={locale} />
-        {/* pb-16 adds padding so content is never hidden behind the mobile bottom nav */}
         <main className="flex-1 pb-16 md:pb-0">{children}</main>
         <StorefrontFooter locale={locale} />
       </div>
@@ -56,6 +56,7 @@ function AdminRoutes() {
         <Route path="/admin/orders/:id">{(params) => <OrderDetailPage id={params.id} />}</Route>
         <Route path="/admin/orders" component={AdminOrdersPage} />
         <Route path="/admin/coupons" component={AdminCouponsPage} />
+        <Route path="/admin/banners" component={BannersPage} />
         <Route path="/admin/categories" component={AdminCategoriesPage} />
         <Route path="/admin/comments" component={AdminCommentsPage} />
         <Route path="/admin/audit" component={AdminAuditPage} />

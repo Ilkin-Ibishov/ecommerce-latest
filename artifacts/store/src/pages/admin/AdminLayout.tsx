@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Package, ShoppingCart, Tag, FolderOpen,
-  MessageSquare, FileText, LogOut, ShieldCheck,
+  MessageSquare, FileText, LogOut, ShieldCheck, Image,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
@@ -12,6 +12,7 @@ const navItems = [
   { href: "/admin/products", label: "Products", icon: Package },
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
   { href: "/admin/coupons", label: "Coupons", icon: Tag },
+  { href: "/admin/banners", label: "Banners", icon: Image },
   { href: "/admin/categories", label: "Categories", icon: FolderOpen },
   { href: "/admin/comments", label: "Comments", icon: MessageSquare },
   { href: "/admin/audit", label: "Audit Log", icon: FileText },
@@ -29,7 +30,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     async function check() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
-        // Check if first-time setup is available
         try {
           const res = await fetch(apiUrl("/bootstrap/status"));
           const json = await res.json();
@@ -42,7 +42,6 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       if (data?.role === "admin") {
         setAuthed(true);
       } else {
-        // Signed in but not admin — still check bootstrap
         try {
           const res = await fetch(apiUrl("/bootstrap/status"));
           const json = await res.json();

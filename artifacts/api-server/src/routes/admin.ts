@@ -46,11 +46,18 @@ router.post("/admin/products", async (req, res) => {
   try {
     const ctx = await requireAdmin(req);
     if (!ctx) return res.status(403).json({ error: "Forbidden" });
-    const { sku, slug, price, stock, is_featured, is_on_sale, is_deal_of_day, sort_order, translations, images, category_ids } = req.body;
+    const { sku, slug, price, stock, is_featured, is_on_sale, is_deal_of_day, sort_order,
+      brand, original_price, translations, images, category_ids, specs } = req.body;
     const admin = ctx.admin;
 
     const { data: product, error } = await (admin as any).from("products")
-      .insert({ sku: sku ?? null, slug, price, stock, is_featured: !!is_featured, is_on_sale: !!is_on_sale, is_deal_of_day: !!is_deal_of_day, sort_order: sort_order ?? 0 })
+      .insert({
+        sku: sku ?? null, slug, price, stock,
+        is_featured: !!is_featured, is_on_sale: !!is_on_sale, is_deal_of_day: !!is_deal_of_day,
+        sort_order: sort_order ?? 0,
+        brand: brand ?? null,
+        original_price: original_price ?? null,
+      })
       .select("id").single();
     if (error) return res.status(400).json({ error: error.message });
 
@@ -63,6 +70,9 @@ router.post("/admin/products", async (req, res) => {
     if (category_ids?.length) {
       await (admin as any).from("product_categories").insert(category_ids.map((cat_id: string) => ({ product_id: product.id, category_id: cat_id })));
     }
+    if (specs?.length) {
+      await (admin as any).from("product_specs").insert(specs.map((s: any) => ({ product_id: product.id, spec_key: s.spec_key, spec_value: s.spec_value, sort_order: s.sort_order ?? 0 })));
+    }
     await (admin as any).from("audit_log").insert({ actor_id: ctx.user.id, action: "create_product", entity: "product", entity_id: product.id, changes: req.body });
     return res.status(201).json({ id: product.id });
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
@@ -73,16 +83,30 @@ router.patch("/admin/products/:id", async (req, res) => {
     const ctx = await requireAdmin(req);
     if (!ctx) return res.status(403).json({ error: "Forbidden" });
     const { id } = req.params;
-    const { sku, slug, price, stock, is_featured, is_on_sale, is_deal_of_day, sort_order, translations, images, category_ids } = req.body;
+    const { sku, slug, price, stock, is_featured, is_on_sale, is_deal_of_day, sort_order,
+      brand, original_price, translations, images, category_ids, specs } = req.body;
     const admin = ctx.admin;
 
-    await (admin as any).from("products").update({ sku: sku ?? null, slug, price, stock, is_featured: !!is_featured, is_on_sale: !!is_on_sale, is_deal_of_day: !!is_deal_of_day, sort_order: sort_order ?? 0 }).eq("id", id);
+    await (admin as any).from("products").update({
+      sku: sku ?? null, slug, price, stock,
+      is_featured: !!is_featured, is_on_sale: !!is_on_sale, is_deal_of_day: !!is_deal_of_day,
+      sort_order: sort_order ?? 0,
+      brand: brand ?? null,
+      original_price: original_price ?? null,
+    }).eq("id", id);
+
     await (admin as any).from("product_translations").delete().eq("product_id", id);
     if (translations?.length) await (admin as any).from("product_translations").insert(translations.map((t: any) => ({ ...t, product_id: id })));
+
     await (admin as any).from("product_images").delete().eq("product_id", id);
     if (images?.length) await (admin as any).from("product_images").insert(images.map((img: any, i: number) => ({ product_id: id, url: img.url, alt_text: img.alt_text ?? null, sort_order: i })));
+
     await (admin as any).from("product_categories").delete().eq("product_id", id);
     if (category_ids?.length) await (admin as any).from("product_categories").insert(category_ids.map((cat_id: string) => ({ product_id: id, category_id: cat_id })));
+
+    await (admin as any).from("product_specs").delete().eq("product_id", id);
+    if (specs?.length) await (admin as any).from("product_specs").insert(specs.map((s: any) => ({ product_id: id, spec_key: s.spec_key, spec_value: s.spec_value, sort_order: s.sort_order ?? 0 })));
+
     await (admin as any).from("audit_log").insert({ actor_id: ctx.user.id, action: "update_product", entity: "product", entity_id: id, changes: req.body });
     return res.json({ success: true });
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
@@ -98,6 +122,61 @@ router.delete("/admin/products/:id", async (req, res) => {
     return res.json({ success: true });
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
 });
+
+// ── Banners ──────────────────────────────────────────────────────────────────
+
+router.get("/admin/banners", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const { data } = await (ctx.admin as any).from("banners").select("*").order("sort_order");
+    return res.json(data ?? []);
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+router.post("/admin/banners", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const { title, subtitle, image_url, cta_text, cta_url, sort_order, active } = req.body;
+    const { data, error } = await (ctx.admin as any).from("banners").insert({
+      title, subtitle: subtitle ?? null, image_url: image_url ?? null,
+      cta_text: cta_text ?? null, cta_url: cta_url ?? null,
+      sort_order: sort_order ?? 0, active: active ?? true,
+    }).select("id").single();
+    if (error) return res.status(400).json({ error: error.message });
+    await (ctx.admin as any).from("audit_log").insert({ actor_id: ctx.user.id, action: "create_banner", entity: "banner", entity_id: data.id, changes: req.body });
+    return res.status(201).json({ id: data.id });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+router.patch("/admin/banners/:id", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const { id } = req.params;
+    const { title, subtitle, image_url, cta_text, cta_url, sort_order, active } = req.body;
+    await (ctx.admin as any).from("banners").update({
+      title, subtitle: subtitle ?? null, image_url: image_url ?? null,
+      cta_text: cta_text ?? null, cta_url: cta_url ?? null,
+      sort_order: sort_order ?? 0, active: !!active,
+    }).eq("id", id);
+    await (ctx.admin as any).from("audit_log").insert({ actor_id: ctx.user.id, action: "update_banner", entity: "banner", entity_id: id, changes: req.body });
+    return res.json({ success: true });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+router.delete("/admin/banners/:id", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    await (ctx.admin as any).from("banners").delete().eq("id", req.params.id);
+    await (ctx.admin as any).from("audit_log").insert({ actor_id: ctx.user.id, action: "delete_banner", entity: "banner", entity_id: req.params.id, changes: {} });
+    return res.json({ success: true });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+// ── Orders ────────────────────────────────────────────────────────────────────
 
 router.patch("/admin/orders/:id/status", async (req, res) => {
   try {
@@ -119,10 +198,8 @@ router.patch("/admin/orders/:id/status", async (req, res) => {
 
     await (admin as any).from("orders").update({ status }).eq("id", id);
 
-    // Cancel & Restock: return stock when order is cancelled
     if (status === "cancelled" && oldStatus !== "cancelled") {
       for (const item of order.order_items ?? []) {
-        // Try atomic RPC first, fallback to read+write
         const { error: rpcErr } = await (admin as any).rpc("increment_stock", {
           p_product_id: item.product_id,
           p_qty: item.quantity,
@@ -147,7 +224,6 @@ router.patch("/admin/orders/:id/status", async (req, res) => {
       });
     }
 
-    // Queue WhatsApp notification for customer
     if (order.customer_phone && status !== oldStatus) {
       queueNotification({
         type: "status_changed",
@@ -160,6 +236,8 @@ router.patch("/admin/orders/:id/status", async (req, res) => {
     return res.json({ success: true });
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
 });
+
+// ── Categories ────────────────────────────────────────────────────────────────
 
 router.post("/admin/categories", async (req, res) => {
   try {
@@ -196,6 +274,8 @@ router.delete("/admin/categories/:id", async (req, res) => {
     return res.json({ success: true });
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
 });
+
+// ── Coupons ───────────────────────────────────────────────────────────────────
 
 router.post("/admin/coupons", async (req, res) => {
   try {
@@ -237,6 +317,8 @@ router.delete("/admin/coupons/:id", async (req, res) => {
     return res.json({ success: true });
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
 });
+
+// ── Comments ──────────────────────────────────────────────────────────────────
 
 router.patch("/admin/comments/:id", async (req, res) => {
   try {

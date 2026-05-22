@@ -1,9 +1,11 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
-import { X, Minus, Plus, ShoppingBag, Trash2, Truck } from "lucide-react";
+import { X, Minus, Plus, ShoppingBag, Trash2, Truck, Tag, ChevronDown, CheckCircle } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
+import { apiUrl } from "@/lib/api";
 
 const FREE_DELIVERY_THRESHOLD = 100;
+const PROMO_STORAGE_KEY = "ilk_promo";
 
 interface CartDrawerProps {
   open: boolean;
@@ -14,6 +16,24 @@ interface CartDrawerProps {
 export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
   const { items, subtotal, updateQty, removeItem, itemCount } = useCart();
   const drawerRef = useRef<HTMLDivElement>(null);
+
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState("");
+  const [promo, setPromo] = useState<{ code: string; discount_amount: number; description?: string } | null>(null);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(PROMO_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setPromo(parsed);
+        setPromoCode(parsed.code);
+        setPromoOpen(true);
+      }
+    } catch { /* ignore */ }
+  }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -29,6 +49,40 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
   const deliveryProgress = Math.min(100, (subtotal / FREE_DELIVERY_THRESHOLD) * 100);
   const remaining = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal);
   const freeDelivery = subtotal >= FREE_DELIVERY_THRESHOLD;
+  const discountAmount = promo?.discount_amount ?? 0;
+  const total = Math.max(0, subtotal - discountAmount);
+
+  const applyPromo = async () => {
+    if (!promoCode.trim()) return;
+    setPromoError(""); setPromoLoading(true);
+    try {
+      const res = await fetch(apiUrl("/coupons/validate"), {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: promoCode.trim(), subtotal }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setPromoError(data.error ?? "Yanlış promo kod");
+        setPromo(null);
+        localStorage.removeItem(PROMO_STORAGE_KEY);
+      } else {
+        const applied = { code: promoCode.trim(), discount_amount: data.discount_amount, description: data.description };
+        setPromo(applied);
+        localStorage.setItem(PROMO_STORAGE_KEY, JSON.stringify(applied));
+        setPromoError("");
+      }
+    } catch { setPromoError("Yoxlamaq mümkün olmadı. Yenidən cəhd edin."); }
+    finally { setPromoLoading(false); }
+  };
+
+  const clearPromo = () => {
+    setPromo(null);
+    setPromoCode("");
+    setPromoError("");
+    localStorage.removeItem(PROMO_STORAGE_KEY);
+  };
+
+  const checkoutHref = `/${locale}/checkout${promo ? `?promo=${encodeURIComponent(promo.code)}` : ""}`;
 
   return (
     <>
@@ -125,19 +179,95 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
         </div>
 
         {items.length > 0 && (
-          <div className="px-5 py-4 border-t border-border space-y-3">
-            <div className="flex justify-between font-bold text-lg">
-              <span>Cəmi</span>
-              <span className="text-primary">{subtotal.toFixed(2)} AZN</span>
+          <div className="border-t border-border">
+            {/* Promo code section */}
+            <div className="px-5 pt-3 pb-2 border-b border-border/60">
+              <button
+                onClick={() => setPromoOpen((v) => !v)}
+                className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition w-full"
+              >
+                <Tag size={12} />
+                <span className="flex-1 text-left">
+                  {promo ? (
+                    <span className="text-green-600 font-medium flex items-center gap-1">
+                      <CheckCircle size={12} /> Promo tətbiq edilib: <strong>{promo.code}</strong>
+                    </span>
+                  ) : "Promo kodunuz var?"}
+                </span>
+                <ChevronDown size={12} className={`transition-transform duration-200 ${promoOpen ? "rotate-180" : ""}`} />
+              </button>
+
+              {promoOpen && (
+                <div className="mt-2 space-y-1.5">
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={promoCode}
+                      onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoError(""); }}
+                      onKeyDown={(e) => e.key === "Enter" && applyPromo()}
+                      placeholder="KOD DAXİL EDİN"
+                      className="flex-1 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring uppercase tracking-wider"
+                    />
+                    {promo ? (
+                      <button
+                        onClick={clearPromo}
+                        className="px-3 py-1.5 rounded-lg bg-muted text-xs font-medium hover:bg-destructive/10 hover:text-destructive transition"
+                      >
+                        Sil
+                      </button>
+                    ) : (
+                      <button
+                        onClick={applyPromo}
+                        disabled={promoLoading || !promoCode.trim()}
+                        className="px-3 py-1.5 rounded-lg bg-secondary text-xs font-medium hover:bg-secondary/80 transition disabled:opacity-50"
+                      >
+                        {promoLoading ? "…" : "Tətbiq et"}
+                      </button>
+                    )}
+                  </div>
+                  {promoError && <p className="text-destructive text-[11px]">{promoError}</p>}
+                  {promo && (
+                    <p className="text-green-600 text-[11px] font-medium">
+                      ✓ -{promo.discount_amount.toFixed(2)} AZN endirim tətbiq edildi
+                      {promo.description ? ` — ${promo.description}` : ""}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <Truck size={12} />
-              Çatdırılma: {freeDelivery ? <span className="text-green-600 font-medium">Pulsuz</span> : "Sifarişdə göstəriləcək"}
-            </p>
-            <Link href={`/${locale}/checkout`} onClick={onClose}
-              className="block w-full text-center bg-primary text-primary-foreground font-semibold py-3 rounded-xl hover:bg-primary/90 transition">
-              Sifariş ver
-            </Link>
+
+            {/* Totals + checkout */}
+            <div className="px-5 py-4 space-y-3">
+              {promo ? (
+                <div className="space-y-1.5 text-sm">
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Ara cəm</span>
+                    <span>{subtotal.toFixed(2)} AZN</span>
+                  </div>
+                  <div className="flex justify-between text-green-600 font-medium">
+                    <span>Endirim ({promo.code})</span>
+                    <span>-{discountAmount.toFixed(2)} AZN</span>
+                  </div>
+                  <div className="flex justify-between font-bold text-lg border-t border-border pt-2">
+                    <span>Cəmi</span>
+                    <span className="text-primary">{total.toFixed(2)} AZN</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex justify-between font-bold text-lg">
+                  <span>Cəmi</span>
+                  <span className="text-primary">{subtotal.toFixed(2)} AZN</span>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Truck size={12} />
+                Çatdırılma: {freeDelivery ? <span className="text-green-600 font-medium">Pulsuz</span> : "Sifarişdə göstəriləcək"}
+              </p>
+              <Link href={checkoutHref} onClick={onClose}
+                className="block w-full text-center bg-primary text-primary-foreground font-semibold py-3 rounded-xl hover:bg-primary/90 transition">
+                Sifariş ver{promo ? ` · ${total.toFixed(2)} AZN` : ""}
+              </Link>
+            </div>
           </div>
         )}
       </div>

@@ -5,6 +5,7 @@ import { useI18n } from "@/lib/i18n/context";
 import ProductCard from "@/components/storefront/ProductCard";
 import BouncingLoader from "@/components/ui/BouncingLoader";
 import TrustBadges from "@/components/storefront/TrustBadges";
+import HeroCarousel from "@/components/storefront/HeroCarousel";
 
 const BRAND_LOGOS: Array<{ name: string; logo: string }> = [
   { name: "Apple", logo: "https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg" },
@@ -133,21 +134,8 @@ export default function HomePage({ locale }: { locale: string }) {
   return (
     <div className="container mx-auto px-3 sm:px-4 py-4 sm:py-8 space-y-8 sm:space-y-12">
 
-      {/* Hero */}
-      <section className="relative rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground p-7 sm:p-10 md:p-16 text-center overflow-hidden">
-        <div className="relative z-10">
-          <h1 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-3 sm:mb-4">{t("HomePage.hero.title")}</h1>
-          <p className="text-base sm:text-lg md:text-xl opacity-90 mb-6 sm:mb-8">{t("HomePage.hero.subtitle")}</p>
-          <Link
-            href={`/${locale}/products`}
-            className="btn-hero inline-block bg-white text-primary font-semibold px-7 sm:px-8 py-2.5 sm:py-3 rounded-full hover:bg-white/90 hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200 text-sm sm:text-base"
-          >
-            {t("HomePage.hero.cta")}
-          </Link>
-        </div>
-        <div className="absolute -top-16 -right-16 w-64 h-64 rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute -bottom-20 -left-10 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
-      </section>
+      {/* Hero Carousel (falls back to static hero if no banners) */}
+      <HeroCarousel locale={locale} />
 
       {/* Trust badges */}
       <TrustBadges />
@@ -208,7 +196,6 @@ export default function HomePage({ locale }: { locale: string }) {
             <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
               <span className="text-orange-500">🔥</span>{t("HomePage.sections.dealOfDay")}
             </h2>
-            {/* Countdown */}
             <div className="flex items-center gap-2 text-orange-600">
               <span className="text-xs font-medium opacity-80">Bitməsinə:</span>
               <div className="flex items-center gap-1.5">

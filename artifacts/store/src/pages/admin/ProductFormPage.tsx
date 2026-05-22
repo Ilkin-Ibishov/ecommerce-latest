@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Upload, X } from "lucide-react";
+import { Upload, X, Plus, Trash2, GripVertical } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch, adminJson } from "@/lib/admin-fetch";
@@ -11,6 +11,7 @@ const LANG_LABELS: Record<string, string> = { az: "Azərbaycan", ru: "Русск
 const defaultTranslations = LANGS.map((lang_code) => ({ lang_code, title: "", description: "" }));
 
 interface ImageItem { url: string; alt_text: string }
+interface SpecRow { key: string; value: string }
 
 export default function ProductFormPage({ productId }: { productId?: string }) {
   const [, navigate] = useLocation();
@@ -19,6 +20,8 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
   const [sku, setSku] = useState("");
   const [slug, setSlug] = useState("");
   const [price, setPrice] = useState(0);
+  const [originalPrice, setOriginalPrice] = useState(0);
+  const [brand, setBrand] = useState("");
   const [stock, setStock] = useState(0);
   const [sortOrder, setSortOrder] = useState(0);
   const [isFeatured, setIsFeatured] = useState(false);
@@ -28,6 +31,7 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
   const [images, setImages] = useState<ImageItem[]>([]);
   const [categoryIds, setCategoryIds] = useState<string[]>([]);
   const [allCategories, setAllCategories] = useState<any[]>([]);
+  const [specs, setSpecs] = useState<SpecRow[]>([]);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -40,14 +44,23 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
 
     if (productId) {
       (async () => {
-        const { data } = await (supabase as any).from("products")
-          .select("*, product_translations(*), product_images(*), product_categories(category_id)")
-          .eq("id", productId).single();
+        const [productRes, specsRes] = await Promise.all([
+          (supabase as any).from("products")
+            .select("*, product_translations(*), product_images(*), product_categories(category_id)")
+            .eq("id", productId).single(),
+          (supabase as any).from("product_specs")
+            .select("spec_key, spec_value, sort_order")
+            .eq("product_id", productId)
+            .order("sort_order"),
+        ]);
+        const data = productRes.data;
         if (data) {
           setSku(data.sku ?? "");
           setSlug(data.slug); setPrice(data.price); setStock(data.stock);
           setSortOrder(data.sort_order); setIsFeatured(data.is_featured);
           setIsOnSale(data.is_on_sale); setIsDeal(data.is_deal_of_day);
+          setBrand(data.brand ?? "");
+          setOriginalPrice(data.original_price ?? 0);
           setTranslations(LANGS.map((lang) => ({
             lang_code: lang,
             title: data.product_translations?.find((t: any) => t.lang_code === lang)?.title ?? "",
@@ -55,6 +68,9 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
           })));
           setImages((data.product_images ?? []).sort((a: any, b: any) => a.sort_order - b.sort_order).map((img: any) => ({ url: img.url, alt_text: img.alt_text ?? "" })));
           setCategoryIds((data.product_categories ?? []).map((pc: any) => pc.category_id));
+        }
+        if (specsRes.data?.length) {
+          setSpecs(specsRes.data.map((s: any) => ({ key: s.spec_key, value: s.spec_value })));
         }
         setLoadingProduct(false);
       })();
@@ -69,16 +85,11 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true); setError("");
     try {
-      // Compress + convert to WebP before upload
       const compressed = await imageCompression(file, {
-        maxSizeMB: 1,
-        maxWidthOrHeight: 1200,
-        useWebWorker: true,
-        fileType: "image/webp",
-        initialQuality: 0.85,
+        maxSizeMB: 1, maxWidthOrHeight: 1200, useWebWorker: true,
+        fileType: "image/webp", initialQuality: 0.85,
       });
       const webpFile = new File([compressed], file.name.replace(/\.[^.]+$/, ".webp"), { type: "image/webp" });
-
       const fd = new FormData();
       fd.append("file", webpFile);
       const data = await adminJson(apiUrl("/admin/upload"), { method: "POST", body: fd });
@@ -86,6 +97,11 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
     } catch (e: any) { setError(e.message); }
     finally { setUploading(false); if (fileRef.current) fileRef.current.value = ""; }
   };
+
+  const addSpec = () => setSpecs((prev) => [...prev, { key: "", value: "" }]);
+  const removeSpec = (i: number) => setSpecs((prev) => prev.filter((_, idx) => idx !== i));
+  const setSpecField = (i: number, field: "key" | "value", val: string) =>
+    setSpecs((prev) => prev.map((s, idx) => idx === i ? { ...s, [field]: val } : s));
 
   const handleSave = async () => {
     if (!slug.trim() || !translations.some((t) => t.title.trim())) {
@@ -96,9 +112,14 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
       sku: sku.trim() || null,
       slug, price, stock, sort_order: sortOrder,
       is_featured: isFeatured, is_on_sale: isOnSale, is_deal_of_day: isDeal,
+      brand: brand.trim() || null,
+      original_price: originalPrice > 0 ? originalPrice : null,
       translations: translations.filter((t) => t.title.trim()),
       images,
       category_ids: categoryIds,
+      specs: specs.filter((s) => s.key.trim() && s.value.trim()).map((s, i) => ({
+        spec_key: s.key.trim(), spec_value: s.value.trim(), sort_order: i,
+      })),
     };
     try {
       const url = productId ? apiUrl(`/admin/products/${productId}`) : apiUrl("/admin/products");
@@ -126,9 +147,16 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
           <F label="SKU (optional)" value={sku} onChange={setSku} placeholder="e.g. PROD-001" />
           <F label="Slug" value={slug} onChange={setSlug} placeholder="product-slug" />
           <N label="Price (AZN)" value={price} onChange={setPrice} />
+          <N label="Original Price (AZN, optional)" value={originalPrice} onChange={setOriginalPrice} placeholder="0 = no strikethrough" />
+          <F label="Brand (optional)" value={brand} onChange={setBrand} placeholder="e.g. Samsung" />
           <N label="Stock" value={stock} onChange={setStock} integer />
           <N label="Sort Order" value={sortOrder} onChange={setSortOrder} integer />
         </div>
+        {originalPrice > 0 && originalPrice > price && (
+          <p className="text-xs text-green-600 font-medium">
+            ✓ {Math.round(((originalPrice - price) / originalPrice) * 100)}% endirim göstəriləcək
+          </p>
+        )}
         <div className="flex gap-6">
           {([["Featured", isFeatured, setIsFeatured], ["On Sale", isOnSale, setIsOnSale], ["Deal of Day", isDeal, setIsDeal]] as const).map(([label, val, setter]: any) => (
             <label key={label as string} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -156,6 +184,40 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
             rows={4} placeholder={`Description in ${activeLang}`}
             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
         </div>
+      </div>
+
+      {/* Technical Specs */}
+      <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold">Technical Specs</h2>
+          <button onClick={addSpec}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-sm hover:bg-primary/20 transition">
+            <Plus size={14} /> Add Row
+          </button>
+        </div>
+        {specs.length === 0 ? (
+          <p className="text-sm text-muted-foreground italic">No specs yet. Click "Add Row" to add technical details.</p>
+        ) : (
+          <div className="space-y-2">
+            {specs.map((spec, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <GripVertical size={16} className="text-muted-foreground/40 shrink-0" />
+                <input
+                  type="text" value={spec.key} placeholder="Spec name (e.g. RAM)"
+                  onChange={(e) => setSpecField(i, "key", e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                <input
+                  type="text" value={spec.value} placeholder="Value (e.g. 8 GB)"
+                  onChange={(e) => setSpecField(i, "value", e.target.value)}
+                  className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+                <button onClick={() => removeSpec(i)}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition shrink-0">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-xl p-5 space-y-4">
@@ -225,11 +287,11 @@ function F({ label, value, onChange, placeholder }: { label: string; value: stri
   );
 }
 
-function N({ label, value, onChange, integer }: { label: string; value: number; onChange: (v: number) => void; integer?: boolean }) {
+function N({ label, value, onChange, integer, placeholder }: { label: string; value: number; onChange: (v: number) => void; integer?: boolean; placeholder?: string }) {
   return (
     <div>
       <label className="block text-sm font-medium mb-1">{label}</label>
-      <input type="number" min={0} step={integer ? 1 : 0.01} value={value}
+      <input type="number" min={0} step={integer ? 1 : 0.01} value={value || ""} placeholder={placeholder}
         onChange={(e) => onChange(integer ? parseInt(e.target.value) || 0 : parseFloat(e.target.value) || 0)}
         className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
     </div>

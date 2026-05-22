@@ -20,6 +20,18 @@ CREATE TABLE IF NOT EXISTS product_specs (
   sort_order int4 NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS product_specs_product_id_idx ON product_specs(product_id);
+CREATE TABLE IF NOT EXISTS banners (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL DEFAULT '',
+  subtitle text,
+  image_url text,
+  cta_text text,
+  cta_url text,
+  sort_order int4 NOT NULL DEFAULT 0,
+  active boolean NOT NULL DEFAULT true,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS banners_active_sort_idx ON banners(active, sort_order);
 `;
 
 async function runSql(sql: string): Promise<{ ok: boolean; error?: string }> {
