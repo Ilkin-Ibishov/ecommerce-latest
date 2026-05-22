@@ -1,4 +1,5 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
+import { useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { CartProvider } from "@/lib/cart/context";
@@ -32,6 +33,14 @@ import BannersPage from "@/pages/admin/BannersPage";
 
 const queryClient = new QueryClient();
 const LOCALES = ["az", "ru", "en"];
+
+function ScrollToTop() {
+  const [location] = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
+  return null;
+}
 
 function StorefrontLayout({ locale, children }: { locale: string; children: React.ReactNode }) {
   return (
@@ -109,6 +118,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <CartProvider>
         <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+          <ScrollToTop />
           <Router />
         </WouterRouter>
         <Toaster />
