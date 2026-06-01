@@ -96,7 +96,7 @@ function RevenueTooltip({ active, payload, label }: any) {
 // ─── Main Page ────────────────────────────────────────────────
 interface DailyRevenue { date: string; revenue: number }
 interface StatusBucket { name: string; value: number; color: string }
-interface TopProduct { product_id: string; title: string; units: number; revenue: number }
+interface TopProduct { product_id: string; title: string; units: number; revenue: number; image: string | null }
 
 export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -128,11 +128,10 @@ export default function DashboardPage() {
         ordersThisRes,
         ordersPrevRes,
         recentRes,
-        orderItemsThisRes,
         allOrdersStatusRes,
         last30Res,
       ] = await Promise.all([
-        // Orders this month
+        // Orders this month (id needed for items join, status/total for KPIs)
         (supabase as any)
           .from("orders")
           .select("id, status, total_azn, created_at")
@@ -149,11 +148,6 @@ export default function DashboardPage() {
           .select("id, status, total_azn, customer_name, customer_phone, created_at")
           .order("created_at", { ascending: false })
           .limit(10),
-        // Order items this month (for top products)
-        (supabase as any)
-          .from("order_items")
-          .select("product_id, product_title_snapshot, line_total, quantity, order_id")
-          .gte("created_at", thisMonthStart),
         // All orders for status breakdown
         (supabase as any)
           .from("orders")
@@ -165,6 +159,15 @@ export default function DashboardPage() {
           .gte("created_at", thirtyDaysAgo)
           .order("created_at", { ascending: true }),
       ]);
+
+      // ── Order items for this month: join through orders (order_items has no created_at) ──
+      const thisOrderIds: string[] = (ordersThisRes.data ?? []).map((o: any) => o.id);
+      const orderItemsThisRes = thisOrderIds.length > 0
+        ? await (supabase as any)
+            .from("order_items")
+            .select("product_id, product_title_snapshot, line_total, quantity")
+            .in("order_id", thisOrderIds)
+        : { data: [] };
 
       // ── KPIs ──
       const thisOrders: any[] = ordersThisRes.data ?? [];
@@ -204,7 +207,8 @@ export default function DashboardPage() {
       const items: any[] = orderItemsThisRes.data ?? [];
       const productMap = new Map<string, { title: string; units: number; revenue: number }>();
       for (const item of items) {
-        const pid = item.product_id ?? item.product_title_snapshot;
+        // Use product_id as key when available; fall back to title snapshot for deleted products
+        const pid = item.product_id ?? `snapshot:${item.product_title_snapshot}`;
         const existing = productMap.get(pid);
         if (existing) {
           existing.units += item.quantity;
@@ -217,11 +221,28 @@ export default function DashboardPage() {
           });
         }
       }
-      const top5 = [...productMap.entries()]
+      const top5Raw = [...productMap.entries()]
         .map(([product_id, v]) => ({ product_id, ...v }))
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 5);
-      setTopProducts(top5);
+
+      // Fetch first image for each real product (snapshot keys are prefixed with "snapshot:")
+      const realProductIds = top5Raw.map((p) => p.product_id).filter((id) => !id.startsWith("snapshot:"));
+      let imageMap = new Map<string, string>();
+      if (realProductIds.length > 0) {
+        const { data: images } = await (supabase as any)
+          .from("product_images")
+          .select("product_id, url")
+          .in("product_id", realProductIds)
+          .order("sort_order", { ascending: true });
+        if (images) {
+          for (const img of images) {
+            if (!imageMap.has(img.product_id)) imageMap.set(img.product_id, img.url);
+          }
+        }
+      }
+
+      setTopProducts(top5Raw.map((p) => ({ ...p, image: imageMap.get(p.product_id) ?? null })));
 
       // ── Status breakdown ──
       const allOrders: any[] = allOrdersStatusRes.data ?? [];
@@ -382,11 +403,18 @@ export default function DashboardPage() {
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-border">
           <h2 className="font-semibold">Top Products This Month</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">By revenue from completed orders</p>
+          <p className="text-xs text-muted-foreground mt-0.5">By revenue, based on orders placed this month</p>
         </div>
         {loading ? (
           <div className="p-6 space-y-3">
-            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8 w-full" />)}
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton className="h-10 w-10 rounded-lg shrink-0" />
+                <Skeleton className="h-4 flex-1" />
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-20" />
+              </div>
+            ))}
           </div>
         ) : topProducts.length === 0 ? (
           <div className="px-6 py-8 text-center text-muted-foreground text-sm">No sales data this month</div>
@@ -402,21 +430,36 @@ export default function DashboardPage() {
                 </tr>
               </thead>
               <tbody>
-                {topProducts.map((p, idx) => (
-                  <tr key={p.product_id} className="border-b border-border/50 hover:bg-muted/30 transition">
-                    <td className="px-6 py-3 text-muted-foreground font-mono text-xs">{idx + 1}</td>
-                    <td className="px-6 py-3">
-                      <Link
-                        href={`/admin/products?q=${encodeURIComponent(p.title)}`}
-                        className="font-medium hover:text-primary transition line-clamp-1"
-                      >
-                        {p.title}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-3 text-right text-muted-foreground">{p.units}</td>
-                    <td className="px-6 py-3 text-right font-semibold text-primary">{p.revenue.toFixed(2)} AZN</td>
-                  </tr>
-                ))}
+                {topProducts.map((p, idx) => {
+                  const isRealProduct = !p.product_id.startsWith("snapshot:");
+                  return (
+                    <tr key={p.product_id} className="border-b border-border/50 hover:bg-muted/30 transition">
+                      <td className="px-6 py-3 text-muted-foreground font-mono text-xs">{idx + 1}</td>
+                      <td className="px-6 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-lg bg-muted shrink-0 overflow-hidden">
+                            {p.image
+                              ? <img src={p.image} alt={p.title} className="w-full h-full object-cover" />
+                              : <div className="w-full h-full flex items-center justify-center text-muted-foreground/40 text-xs">?</div>
+                            }
+                          </div>
+                          {isRealProduct ? (
+                            <Link
+                              href={`/admin/products/${p.product_id}/edit`}
+                              className="font-medium hover:text-primary transition line-clamp-1"
+                            >
+                              {p.title}
+                            </Link>
+                          ) : (
+                            <span className="font-medium line-clamp-1 text-muted-foreground">{p.title}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-6 py-3 text-right text-muted-foreground">{p.units}</td>
+                      <td className="px-6 py-3 text-right font-semibold text-primary">{p.revenue.toFixed(2)} AZN</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
