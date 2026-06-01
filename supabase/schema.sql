@@ -21,13 +21,14 @@ create type order_status as enum (
 
 -- ─── Users ───────────────────────────────────────────────────
 create table if not exists public.users (
-  id          uuid primary key references auth.users on delete cascade,
-  phone       text unique,
-  email       text,
-  full_name   text,
-  role        text not null default 'customer' check (role in ('customer', 'admin')),
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  id               uuid primary key references auth.users on delete cascade,
+  phone            text unique,
+  email            text,
+  full_name        text,
+  default_address  text,
+  role             text not null default 'customer' check (role in ('customer', 'admin')),
+  created_at       timestamptz not null default now(),
+  updated_at       timestamptz not null default now()
 );
 alter table public.users enable row level security;
 create policy "Users: own row" on public.users for all using (auth.uid() = id);

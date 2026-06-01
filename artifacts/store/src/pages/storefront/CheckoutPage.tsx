@@ -5,12 +5,14 @@ import { useCart } from "@/lib/cart/context";
 import { createClient } from "@/lib/supabase/client";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { apiUrl } from "@/lib/api";
+import { useProfile } from "@/lib/hooks/useProfile";
 
 const PROMO_STORAGE_KEY = "ilk_promo";
 
 export default function CheckoutPage({ locale }: { locale: string }) {
   const { items, subtotal, removeItem, clearCart } = useCart();
   const supabase = createClient();
+  const { profile } = useProfile();
 
   const [user, setUser] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -29,6 +31,17 @@ export default function CheckoutPage({ locale }: { locale: string }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => setUser(session?.user ?? null));
     return () => subscription.unsubscribe();
   }, []);
+
+  // Pre-fill name and address from saved profile (only when fields are still empty)
+  useEffect(() => {
+    if (!profile) return;
+    setForm((f) => ({
+      ...f,
+      customer_name: f.customer_name || profile.full_name || "",
+      customer_phone: f.customer_phone || profile.phone || "",
+      delivery_address: f.delivery_address || profile.default_address || "",
+    }));
+  }, [profile]);
 
   // Pre-fill promo code from cart drawer (localStorage) or URL query param
   useEffect(() => {

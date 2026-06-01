@@ -13,11 +13,13 @@ import productsRouter from "./products";
 import migrationRouter from "./migration";
 import bannersRouter from "./banners";
 import categoriesRouter from "./categories";
+import profileRouter from "./profile";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use(authRouter);
+router.use(profileRouter);
 router.use(ordersRouter);
 router.use(couponsRouter);
 router.use(adminRouter);
