@@ -130,7 +130,7 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
           </div>
         )}
 
-        <div className="flex-1 overflow-y-auto px-5 py-4">
+        <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
               <ShoppingBag size={48} className="text-muted-foreground/30" />
@@ -155,22 +155,22 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
                       {item.title}
                     </Link>
                     <p className="text-primary font-bold text-sm mt-1">{item.price.toFixed(2)} AZN</p>
-                    <div className="flex items-center gap-1 mt-2 border border-border rounded-lg w-fit">
+                    <div className="flex items-center gap-0 mt-2 border border-border rounded-lg w-fit touch-manipulation">
                       <button onClick={() => updateQty(item.product_id, item.quantity - 1)}
-                        className="w-7 h-7 flex items-center justify-center hover:bg-accent transition rounded-l-lg text-muted-foreground">
-                        <Minus size={12} />
+                        className="w-9 h-9 flex items-center justify-center hover:bg-accent active:bg-accent transition rounded-l-lg text-muted-foreground">
+                        <Minus size={14} />
                       </button>
-                      <span className="w-8 text-center text-sm font-medium">{item.quantity}</span>
+                      <span className="w-9 text-center text-sm font-medium">{item.quantity}</span>
                       <button onClick={() => updateQty(item.product_id, item.quantity + 1)}
-                        className="w-7 h-7 flex items-center justify-center hover:bg-accent transition rounded-r-lg text-muted-foreground">
-                        <Plus size={12} />
+                        className="w-9 h-9 flex items-center justify-center hover:bg-accent active:bg-accent transition rounded-r-lg text-muted-foreground">
+                        <Plus size={14} />
                       </button>
                     </div>
                   </div>
                   <div className="flex flex-col items-end justify-between shrink-0">
                     <button onClick={() => removeItem(item.product_id)}
-                      className="text-muted-foreground hover:text-destructive transition p-1">
-                      <Trash2 size={14} />
+                      className="text-muted-foreground hover:text-destructive active:text-destructive transition p-2 -m-1 touch-manipulation">
+                      <Trash2 size={16} />
                     </button>
                     <p className="text-sm font-bold">{(item.price * item.quantity).toFixed(2)} AZN</p>
                   </div>
