@@ -11,6 +11,11 @@ export default function ProductPage({ locale, slug }: { locale: string; slug: st
 
   useEffect(() => {
     const supabase = createClient();
+    // Reset state when slug changes to show loading and prevent stale data
+    setLoading(true);
+    setProduct(null);
+    setNotFound(false);
+
     async function load() {
       const { data } = await supabase
         .from("products")
@@ -52,8 +57,19 @@ export default function ProductPage({ locale, slug }: { locale: string; slug: st
   }, [slug, locale]);
 
   if (loading) return (
-    <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">
-      Yüklənir…
+    <div className="container mx-auto px-4 py-8">
+      <div className="h-4 w-48 bg-muted rounded animate-pulse mb-6" />
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+        <div className="aspect-square rounded-2xl bg-muted animate-pulse" />
+        <div className="space-y-4">
+          <div className="h-4 w-24 bg-muted rounded animate-pulse" />
+          <div className="h-8 w-3/4 bg-muted rounded animate-pulse" />
+          <div className="h-10 w-40 bg-muted rounded animate-pulse" />
+          <div className="h-4 w-32 bg-muted rounded animate-pulse" />
+          <div className="h-12 w-full bg-muted rounded-full animate-pulse mt-6" />
+          <div className="h-24 w-full bg-muted rounded-xl animate-pulse" />
+        </div>
+      </div>
     </div>
   );
   if (notFound) return (

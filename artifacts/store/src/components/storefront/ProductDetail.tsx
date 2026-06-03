@@ -126,6 +126,14 @@ export default function ProductDetail({ product, images, translation, comments: 
   const [mainImageIdx, setMainImageIdx] = useState(0);
   const [qty, setQty] = useState(1);
   const [added, setAdded] = useState(false);
+
+  // Reset main image when images prop changes (e.g. navigating between products)
+  useEffect(() => {
+    setMainImage(images[0] ?? null);
+    setMainImageIdx(0);
+    setQty(1);
+    setAdded(false);
+  }, [product.id]);
   const [showLogin, setShowLogin] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
   const [comments, setComments] = useState(initialComments);
