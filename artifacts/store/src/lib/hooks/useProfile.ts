@@ -29,7 +29,7 @@ export function useProfile() {
 
   useEffect(() => {
     fetchProfile();
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_: any, session: any) => {
       if (session) fetchProfile();
       else { setProfile(null); setLoading(false); }
     });

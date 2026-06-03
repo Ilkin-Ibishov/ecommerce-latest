@@ -17,7 +17,7 @@ export function WishlistButton({ productId, onAuthRequired, className = "" }: Pr
 
   useEffect(() => {
     let cancelled = false;
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }: any) => {
       if (!session || cancelled) { setChecked(true); return; }
       try {
         const res = await fetch(apiUrl("/wishlist"), {

@@ -40,7 +40,7 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
   useEffect(() => {
     const supabase = createClient();
     supabase.from("categories").select("id, slug, category_translations(lang_code, title)").order("id")
-      .then(({ data }) => setAllCategories(data ?? []));
+      .then(({ data }: any) => setAllCategories(data ?? []));
 
     if (productId) {
       (async () => {

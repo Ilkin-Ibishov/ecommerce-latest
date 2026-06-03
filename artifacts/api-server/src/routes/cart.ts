@@ -29,7 +29,7 @@ router.post("/cart/merge", async (req, res) => {
       .select("product_id, quantity, id")
       .eq("user_id", user.id);
 
-    const userMap = new Map((userItems ?? []).map((i: any) => [i.product_id, i]));
+    const userMap = new Map<string, any>((userItems ?? []).map((i: any) => [i.product_id, i]));
 
     for (const guestItem of guestItems) {
       const existing = userMap.get(guestItem.product_id);

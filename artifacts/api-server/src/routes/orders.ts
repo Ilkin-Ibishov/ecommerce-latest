@@ -29,7 +29,7 @@ router.post("/orders", async (req, res) => {
 
     if (!products) return res.status(500).json({ error: "Failed to fetch products" });
 
-    const productMap = new Map(products.map((p: any) => [p.id, p]));
+    const productMap = new Map<string, any>(products.map((p: any) => [p.id, p]));
     let subtotal = 0;
     const orderItems = [];
 
@@ -107,7 +107,7 @@ router.post("/orders", async (req, res) => {
 
     // Atomic stock deduction — use RPC if available, else conditional update
     for (const item of items) {
-      const product = productMap.get(item.product_id);
+      const product: any = productMap.get(item.product_id);
       const { error: stockErr } = await (admin as any).rpc("decrement_stock_safe", {
         p_product_id: item.product_id,
         p_qty: item.quantity,

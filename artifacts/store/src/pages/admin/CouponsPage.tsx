@@ -11,7 +11,7 @@ interface Coupon {
   used_count: number; is_active: boolean; expires_at: string | null;
 }
 
-const EMPTY = { code: "", description: "", discount_type: "percentage" as const, discount_value: 10, min_order_amount: null as number | null, max_uses: null as number | null, is_active: true, expires_at: null as string | null };
+const EMPTY = { code: "", description: "", discount_type: "percentage" as "percentage" | "fixed", discount_value: 10, min_order_amount: null as number | null, max_uses: null as number | null, is_active: true, expires_at: null as string | null };
 
 export default function AdminCouponsPage() {
   const [coupons, setCoupons] = useState<Coupon[]>([]);

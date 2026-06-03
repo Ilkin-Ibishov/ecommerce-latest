@@ -6,7 +6,7 @@ const router = Router();
 // POST /bootstrap/admin
 // Creates the very first admin account. Disabled once any admin exists.
 // In production, also requires BOOTSTRAP_SECRET env var to match body.secret.
-router.post("/bootstrap/admin", async (req, res) => {
+router.post("/bootstrap/admin", async (req, res): Promise<void> => {
   try {
     const admin = getAdminSupabase();
     const { phone, name, secret } = req.body as { phone?: string; name?: string; secret?: string };
@@ -14,11 +14,13 @@ router.post("/bootstrap/admin", async (req, res) => {
     // In production, require a shared secret to prevent open takeover
     const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
     if (bootstrapSecret && secret !== bootstrapSecret) {
-      return res.status(403).json({ error: "Invalid bootstrap secret." });
+      res.status(403).json({ error: "Invalid bootstrap secret." });
+      return;
     }
 
     if (!phone?.trim()) {
-      return res.status(400).json({ error: "phone is required" });
+      res.status(400).json({ error: "phone is required" });
+      return;
     }
 
     // Safety check: refuse if any admin already exists
@@ -28,10 +30,14 @@ router.post("/bootstrap/admin", async (req, res) => {
       .eq("role", "admin")
       .limit(1);
 
-    if (checkErr) return res.status(500).json({ error: checkErr.message });
+    if (checkErr) {
+      res.status(500).json({ error: checkErr.message });
+      return;
+    }
 
     if (existing && existing.length > 0) {
-      return res.status(403).json({ error: "An admin already exists. Bootstrap is disabled." });
+      res.status(403).json({ error: "An admin already exists. Bootstrap is disabled." });
+      return;
     }
 
     // Create the user in Supabase Auth
@@ -48,7 +54,10 @@ router.post("/bootstrap/admin", async (req, res) => {
       if (authErr.message?.includes("already")) {
         const { data: { users: allUsers } } = await (admin as any).auth.admin.listUsers();
         const found = allUsers?.find((u: any) => u.phone === normalizedPhone);
-        if (!found) return res.status(400).json({ error: authErr.message });
+        if (!found) {
+          res.status(400).json({ error: authErr.message });
+          return;
+        }
 
         // Upsert public.users row and set admin
         await (admin as any).from("users").upsert({
@@ -58,9 +67,11 @@ router.post("/bootstrap/admin", async (req, res) => {
           role: "admin",
         });
 
-        return res.json({ ok: true, message: "Existing user promoted to admin." });
+        res.json({ ok: true, message: "Existing user promoted to admin." });
+        return;
       }
-      return res.status(400).json({ error: authErr.message });
+      res.status(400).json({ error: authErr.message });
+      return;
     }
 
     const userId = authData.user.id;
@@ -80,7 +91,7 @@ router.post("/bootstrap/admin", async (req, res) => {
 });
 
 // GET /bootstrap/status — returns whether bootstrap is still available
-router.get("/bootstrap/status", async (_req, res) => {
+router.get("/bootstrap/status", async (_req, res): Promise<void> => {
   try {
     const admin = getAdminSupabase();
     const { data, error } = await (admin as any)
@@ -89,7 +100,10 @@ router.get("/bootstrap/status", async (_req, res) => {
       .eq("role", "admin")
       .limit(1);
 
-    if (error) return res.status(500).json({ error: error.message });
+    if (error) {
+      res.status(500).json({ error: error.message });
+      return;
+    }
     res.json({ available: !data || data.length === 0 });
   } catch (err: any) {
     res.status(500).json({ error: err.message });

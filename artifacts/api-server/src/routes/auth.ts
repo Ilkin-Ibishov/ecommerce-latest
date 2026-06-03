@@ -66,7 +66,7 @@ router.post("/auth/otp/verify", async (req, res) => {
       if (createErr) {
         // User might already exist in auth but not in public.users
         const { data: { users: allUsers } } = await admin.auth.admin.listUsers({ perPage: 1000 });
-        const found = allUsers?.find((u) => u.phone === phone);
+        const found = (allUsers as any[])?.find((u: any) => u.phone === phone);
         if (!found) return res.status(500).json({ error: createErr.message });
         userId = found.id;
       } else {

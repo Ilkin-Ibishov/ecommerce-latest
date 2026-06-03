@@ -12,7 +12,7 @@ export default function CategoriesPage({ locale }: { locale: string }) {
       .from("categories")
       .select("*, category_translations(*), subcategories:categories!parent_id(id, slug, category_translations(*))")
       .is("parent_id", null)
-      .then(({ data }) => { setCategories(data ?? []); setLoading(false); });
+      .then(({ data }: any) => { setCategories(data ?? []); setLoading(false); });
   }, []);
 
   const getTitle = (translations: any[] | null) =>
