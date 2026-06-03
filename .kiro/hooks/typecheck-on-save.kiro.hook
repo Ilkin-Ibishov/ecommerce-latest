@@ -1,0 +1,14 @@
+{
+  "enabled": true,
+  "name": "Typecheck on Save",
+  "description": "Runs TypeScript type checking manually to catch type errors",
+  "version": "1",
+  "when": {
+    "type": "userTriggered"
+  },
+  "then": {
+    "type": "runCommand",
+    "command": "pnpm run typecheck",
+    "timeout": 60
+  }
+}

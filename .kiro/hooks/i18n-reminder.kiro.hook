@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "i18n Translation Reminder",
+  "description": "When a new storefront component or page is created, reminds to add translation keys for all three locales (az, ru, en)",
+  "version": "1",
+  "when": {
+    "type": "fileCreated",
+    "patterns": [
+      "**/storefront/**"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A new storefront file was created. Check if it contains any user-facing text strings. If so, ensure all strings use the t() function from useI18n() and that corresponding translation keys are added to artifacts/store/src/lib/i18n/messages.ts for all three locales: az, ru, and en."
+  }
+}

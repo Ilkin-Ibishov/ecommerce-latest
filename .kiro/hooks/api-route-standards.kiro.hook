@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "API Route Standards Check",
+  "description": "When a new route file is created in the API server, reminds to validate inputs with Zod schemas from @workspace/api-zod and use req.log instead of console.log",
+  "version": "1",
+  "when": {
+    "type": "fileCreated",
+    "patterns": [
+      "**/api-server/src/routes/**"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A new API route file was created. Verify it follows these standards: 1) Uses req.log for logging (never console.log), 2) Validates request bodies with Zod schemas from @workspace/api-zod, 3) Uses Promise<void> return type on async handlers, 4) Uses 'res.status().json(); return;' pattern for early returns (never 'return res.status().json()'), 5) Is registered in artifacts/api-server/src/routes/index.ts."
+  }
+}
