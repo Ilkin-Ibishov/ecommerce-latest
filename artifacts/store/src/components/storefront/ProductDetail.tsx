@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { ShoppingCart, Minus, Plus, Check, MessageSquare, Send, Star, ZoomIn, X, ChevronLeft, ChevronRight } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
+import { useI18n } from "@/lib/i18n/context";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { WishlistButton } from "./WishlistButton";
@@ -44,6 +45,7 @@ function StarInput({ value, onChange }: { value: number; onChange: (v: number) =
 }
 
 function StarDisplay({ rating, count }: { rating: number; count: number }) {
+  const { t } = useI18n();
   return (
     <div className="flex items-center gap-1.5">
       {[1, 2, 3, 4, 5].map((s) => (
@@ -54,7 +56,7 @@ function StarDisplay({ rating, count }: { rating: number; count: number }) {
         />
       ))}
       <span className="text-sm font-semibold">{rating.toFixed(1)}</span>
-      <span className="text-sm text-muted-foreground">({count} rəy)</span>
+      <span className="text-sm text-muted-foreground">({count} {t("ProductDetail.reviewCount")})</span>
     </div>
   );
 }
@@ -133,11 +135,12 @@ export default function ProductDetail({ product, images, translation, comments: 
   const [commentStatus, setCommentStatus] = useState<"idle" | "success" | "error">("idle");
   const [user, setUser] = useState<any>(null);
   const { addItem } = useCart();
+  const { t } = useI18n();
   const supabase = createClient();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => setUser(session?.user ?? null));
+    supabase.auth.getUser().then(({ data }: any) => setUser(data.user ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_: any, session: any) => setUser(session?.user ?? null));
     return () => subscription.unsubscribe();
   }, []);
 
@@ -200,16 +203,16 @@ export default function ProductDetail({ product, images, translation, comments: 
     : null;
 
   const getRelatedTitle = (p: any) =>
-    p.product_translations?.find((t: any) => t.lang_code === locale)?.title
+    p.product_translations?.find((tr: any) => tr.lang_code === locale)?.title
     ?? p.product_translations?.[0]?.title ?? "Məhsul";
 
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <nav className="text-sm text-muted-foreground mb-6 flex items-center gap-1 flex-wrap">
-        <a href={`/${locale}`} className="hover:text-foreground">Ana səhifə</a>
+        <a href={`/${locale}`} className="hover:text-foreground">{t("ProductDetail.home")}</a>
         <span>/</span>
-        <a href={`/${locale}/products`} className="hover:text-foreground">Məhsullar</a>
+        <a href={`/${locale}/products`} className="hover:text-foreground">{t("ProductDetail.productsLink")}</a>
         <span>/</span>
         <span className="text-foreground">{translation.title}</span>
       </nav>
@@ -275,13 +278,13 @@ export default function ProductDetail({ product, images, translation, comments: 
                 <span className="text-lg text-muted-foreground line-through">{Number(originalPrice).toFixed(2)} AZN</span>
               )}
               {product.is_deal_of_day && (
-                <span className="text-xs bg-orange-100 text-orange-600 font-semibold px-2 py-1 rounded-full">🔥 Günün təklifi</span>
+                <span className="text-xs bg-orange-100 text-orange-600 font-semibold px-2 py-1 rounded-full">🔥 {t("ProductDetail.dealOfDay")}</span>
               )}
             </div>
 
             {/* Installment */}
             <p className="text-sm text-muted-foreground mt-1">
-              Ayda cəmi <span className="font-semibold text-foreground">{monthlyPrice} AZN</span> — {INSTALLMENT_MONTHS} aya bölün
+              {t("ProductDetail.installment").replace("{amount}", monthlyPrice).replace("{months}", String(INSTALLMENT_MONTHS))}
             </p>
           </div>
 
@@ -290,13 +293,13 @@ export default function ProductDetail({ product, images, translation, comments: 
             {inStock ? (
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600">
                 <span className="w-2 h-2 rounded-full bg-green-500" />
-                Stokda var
-                {product.stock < 10 && <span className="text-orange-500">— yalnız {product.stock} ədəd</span>}
+                {t("ProductDetail.inStock")}
+                {product.stock < 10 && <span className="text-orange-500">— {t("ProductDetail.onlyLeft").replace("{count}", String(product.stock))}</span>}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
                 <span className="w-2 h-2 rounded-full bg-gray-400" />
-                Stokda yoxdur
+                {t("ProductDetail.outOfStock")}
               </span>
             )}
           </div>
@@ -304,7 +307,7 @@ export default function ProductDetail({ product, images, translation, comments: 
           {/* Quantity */}
           {inStock && (
             <div className="flex items-center gap-3">
-              <span className="text-sm font-medium">Miqdar</span>
+              <span className="text-sm font-medium">{t("ProductDetail.quantity")}</span>
               <div className="flex items-center rounded-full border-2 border-border bg-background overflow-hidden shadow-sm">
                 <button
                   onClick={() => setQty(Math.max(1, qty - 1))}
@@ -337,9 +340,9 @@ export default function ProductDetail({ product, images, translation, comments: 
               }`}
             >
               {added ? (
-                <><Check size={18} strokeWidth={3} />Səbətə əlavə edildi</>
+                <><Check size={18} strokeWidth={3} />{t("ProductDetail.addedToCart")}</>
               ) : (
-                <><ShoppingCart size={18} />{inStock ? "Səbətə əlavə et" : "Stokda yoxdur"}</>
+                <><ShoppingCart size={18} />{inStock ? t("ProductDetail.addToCart") : t("ProductDetail.outOfStock")}</>
               )}
             </button>
             <WishlistButton
@@ -351,15 +354,15 @@ export default function ProductDetail({ product, images, translation, comments: 
 
           {/* Payment info */}
           <div className="bg-secondary rounded-xl p-4 text-sm space-y-1.5">
-            <p className="font-medium">💰 Çatdırılmada ödəniş</p>
-            <p className="text-muted-foreground">Sifarişiniz çatanda AZN ilə ödəyin. Kart lazım deyil.</p>
-            <p className="font-medium mt-1">📦 Pulsuz çatdırılma 50 AZN-dən yuxarı sifarişlərə</p>
+            <p className="font-medium">{t("ProductDetail.payOnDelivery")}</p>
+            <p className="text-muted-foreground">{t("ProductDetail.payOnDeliveryDesc")}</p>
+            <p className="font-medium mt-1">{t("ProductDetail.freeDeliveryOver")}</p>
           </div>
 
           {/* Description */}
           {translation.description && (
             <div>
-              <h3 className="font-semibold mb-2">Məhsul haqqında</h3>
+              <h3 className="font-semibold mb-2">{t("ProductDetail.aboutProduct")}</h3>
               <p className="text-muted-foreground text-sm leading-relaxed whitespace-pre-line">{translation.description}</p>
             </div>
           )}
@@ -369,7 +372,7 @@ export default function ProductDetail({ product, images, translation, comments: 
       {/* Specs table */}
       {specs && specs.length > 0 && (
         <div className="mb-12">
-          <h2 className="text-xl font-bold mb-4">Texniki xüsusiyyətlər</h2>
+          <h2 className="text-xl font-bold mb-4">{t("ProductDetail.specs")}</h2>
           <div className="rounded-xl border border-border overflow-hidden">
             {specs.map((spec: any, i: number) => (
               <div
@@ -387,7 +390,7 @@ export default function ProductDetail({ product, images, translation, comments: 
       {/* Related products */}
       {related && related.length > 0 && (
         <div className="mb-12">
-          <h2 className="text-xl font-bold mb-5">Oxşar məhsullar</h2>
+          <h2 className="text-xl font-bold mb-5">{t("ProductDetail.relatedProducts")}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
             {related.map((p: any) => (
               <ProductCard
@@ -413,32 +416,32 @@ export default function ProductDetail({ product, images, translation, comments: 
       <div className="border-t border-border pt-10">
         <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
           <MessageSquare size={20} />
-          Rəylər ({comments.length})
+          {t("ProductDetail.reviews")} ({comments.length})
         </h2>
 
         <form onSubmit={handleSubmitComment} className="mb-8 bg-secondary/40 rounded-xl p-4 space-y-3">
-          <p className="text-sm font-medium">Rəy yazın</p>
+          <p className="text-sm font-medium">{t("ProductDetail.writeReview")}</p>
           {!user && (
             <p className="text-xs text-muted-foreground">
-              <button type="button" onClick={() => setShowLogin(true)} className="text-primary underline">Daxil olun</button> ki, rəy yaza biləsiniz.
+              <button type="button" onClick={() => setShowLogin(true)} className="text-primary underline">{t("ProductDetail.signInToReview")}</button> {t("ProductDetail.signInToReviewSuffix")}
             </p>
           )}
           <div>
-            <p className="text-xs text-muted-foreground mb-1">Qiymətləndirməz:</p>
+            <p className="text-xs text-muted-foreground mb-1">{t("ProductDetail.ratingLabel")}</p>
             <StarInput value={commentRating} onChange={setCommentRating} />
           </div>
           <textarea
             value={commentText}
             onChange={(e) => setCommentText(e.target.value)}
-            placeholder="Bu məhsul haqqında təcrübənizi paylaşın…"
+            placeholder={t("ProductDetail.reviewPlaceholder")}
             rows={3}
             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
           />
           {commentStatus === "success" && (
-            <p className="text-xs text-green-600 font-medium">✓ Rəyiniz göndərildi! Moderasiyadan sonra görünəcək.</p>
+            <p className="text-xs text-green-600 font-medium">{t("ProductDetail.reviewSuccess")}</p>
           )}
           {commentStatus === "error" && (
-            <p className="text-xs text-destructive">Göndərilə bilmədi. Yenidən cəhd edin.</p>
+            <p className="text-xs text-destructive">{t("ProductDetail.reviewError")}</p>
           )}
           <button
             type="submit"
@@ -446,19 +449,19 @@ export default function ProductDetail({ product, images, translation, comments: 
             className="flex items-center gap-2 bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50"
           >
             <Send size={14} />
-            {commentLoading ? "Göndərilir…" : "Rəy göndər"}
+            {commentLoading ? t("ProductDetail.submittingReview") : t("ProductDetail.submitReview")}
           </button>
         </form>
 
         {comments.length === 0 ? (
-          <p className="text-muted-foreground text-sm">Hələ rəy yoxdur. İlk siz olun!</p>
+          <p className="text-muted-foreground text-sm">{t("ProductDetail.noReviews")}</p>
         ) : (
           <div className="space-y-4">
             {comments.map((c: any) => (
               <div key={c.id} className="bg-secondary/50 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-sm">{c.users?.full_name ?? "Anonim"}</span>
+                    <span className="font-medium text-sm">{c.users?.full_name ?? t("ProductDetail.anonymous")}</span>
                     {c.rating != null && (
                       <div className="flex gap-0.5">
                         {[1, 2, 3, 4, 5].map((s) => (

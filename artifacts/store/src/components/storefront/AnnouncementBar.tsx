@@ -1,14 +1,17 @@
 import { useState } from "react";
 import { X, Truck } from "lucide-react";
+import { useI18n } from "@/lib/i18n/context";
 
 export default function AnnouncementBar() {
   const [dismissed, setDismissed] = useState(false);
+  const { t } = useI18n();
+
   if (dismissed) return null;
   return (
     <div className="bg-yellow-500 text-gray-900 text-xs sm:text-sm py-2 px-4 flex items-center justify-center gap-2 relative font-medium">
       <Truck size={14} className="shrink-0" />
       <span className="text-center">
-        100 AZN-dən yuxarı sifarişlərə <strong>Pulsuz Çatdırılma</strong> · Bütün Azərbaycan üzrə
+        {t("AnnouncementBar.message")}
       </span>
       <button
         onClick={() => setDismissed(true)}

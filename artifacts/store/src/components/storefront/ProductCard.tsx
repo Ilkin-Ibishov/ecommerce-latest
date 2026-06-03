@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "wouter";
 import { ShoppingCart, Check, Star } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
+import { useI18n } from "@/lib/i18n/context";
 
 interface Props {
   slug: string;
@@ -41,6 +42,7 @@ export default function ProductCard({
 }: Props) {
   const [added, setAdded] = useState(false);
   const { addItem } = useCart();
+  const { t } = useI18n();
   const outOfStock = typeof stock === "number" && stock === 0;
   const lowStock   = typeof stock === "number" && stock > 0 && stock < 5;
   const monthlyPrice = (price / INSTALLMENT_MONTHS).toFixed(2);
@@ -85,7 +87,7 @@ export default function ProductCard({
           )}
           {isOnSale && !discount && !outOfStock && (
             <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
-              SALE
+              {t("ProductCard.sale")}
             </span>
           )}
           {isDealOfDay && !isOnSale && !outOfStock && (
@@ -102,7 +104,7 @@ export default function ProductCard({
             className={`absolute bottom-2 right-2 w-9 h-9 rounded-full flex items-center justify-center shadow-md transition-all duration-200
               opacity-0 group-hover:opacity-100 translate-y-1 group-hover:translate-y-0
               ${added ? "bg-green-500 text-white scale-110" : "bg-primary text-primary-foreground hover:bg-primary/90"}`}
-            aria-label="Səbətə əlavə et"
+            aria-label={t("ProductCard.addToCart")}
           >
             {added ? <Check size={14} strokeWidth={3} /> : <ShoppingCart size={14} />}
           </button>
@@ -111,7 +113,7 @@ export default function ProductCard({
         {outOfStock && (
           <div className="absolute inset-0 bg-background/70 backdrop-blur-[1px] flex items-center justify-center">
             <span className="text-xs font-medium text-muted-foreground bg-background/90 px-3 py-1.5 rounded-full">
-              Stokda yoxdur
+              {t("ProductCard.outOfStock")}
             </span>
           </div>
         )}
@@ -145,11 +147,11 @@ export default function ProductCard({
 
         {/* Installment */}
         <p className="text-[10px] text-muted-foreground">
-          Ayda <span className="font-semibold text-foreground">{monthlyPrice} AZN</span> — {INSTALLMENT_MONTHS} aya
+          {t("ProductCard.installment").replace("{amount}", monthlyPrice).replace("{months}", String(INSTALLMENT_MONTHS))}
         </p>
 
         {lowStock && (
-          <p className="text-[10px] text-orange-500">Yalnız {stock} ədəd qalıb</p>
+          <p className="text-[10px] text-orange-500">{t("ProductCard.onlyLeft").replace("{count}", String(stock))}</p>
         )}
       </div>
     </Link>

@@ -1,29 +1,32 @@
 import { Truck, CreditCard, RotateCcw, ShieldCheck } from "lucide-react";
-
-const badges = [
-  {
-    icon: Truck,
-    title: "Pulsuz Çatdırılma",
-    subtitle: "100 AZN-dən yuxarı",
-  },
-  {
-    icon: CreditCard,
-    title: "Çatdırılmada Ödəniş",
-    subtitle: "Nağd • Kart",
-  },
-  {
-    icon: RotateCcw,
-    title: "Asan Qaytarma",
-    subtitle: "14 gün ərzində",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Təhlükəsiz Alış-veriş",
-    subtitle: "Orijinal məhsullar",
-  },
-];
+import { useI18n } from "@/lib/i18n/context";
 
 export default function TrustBadges() {
+  const { t } = useI18n();
+
+  const badges = [
+    {
+      icon: Truck,
+      title: t("TrustBadges.freeDelivery"),
+      subtitle: t("TrustBadges.freeDeliverySubtitle"),
+    },
+    {
+      icon: CreditCard,
+      title: t("TrustBadges.payOnDelivery"),
+      subtitle: t("TrustBadges.payOnDeliverySubtitle"),
+    },
+    {
+      icon: RotateCcw,
+      title: t("TrustBadges.easyReturns"),
+      subtitle: t("TrustBadges.easyReturnsSubtitle"),
+    },
+    {
+      icon: ShieldCheck,
+      title: t("TrustBadges.secureShopping"),
+      subtitle: t("TrustBadges.secureShoppingSubtitle"),
+    },
+  ];
+
   return (
     <section className="grid grid-cols-2 md:grid-cols-4 gap-3">
       {badges.map(({ icon: Icon, title, subtitle }) => (

@@ -1,6 +1,7 @@
 import { Link, useLocation } from "wouter";
 import { Home, Grid3X3, Search, ShoppingCart, User } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
+import { useI18n } from "@/lib/i18n/context";
 
 interface MobileBottomNavProps {
   locale: string;
@@ -17,6 +18,7 @@ export default function MobileBottomNav({
 }: MobileBottomNavProps) {
   const [location] = useLocation();
   const { itemCount } = useCart();
+  const { t } = useI18n();
 
   const isActive = (path: string) => location === path || location.startsWith(path + "/");
 
@@ -28,7 +30,7 @@ export default function MobileBottomNav({
           className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${isActive(`/${locale}`) && location === `/${locale}` ? "text-primary" : "text-muted-foreground"}`}
         >
           <Home size={22} />
-          <span>Ana səhifə</span>
+          <span>{t("MobileBottomNav.home")}</span>
         </Link>
 
         <Link
@@ -36,7 +38,7 @@ export default function MobileBottomNav({
           className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${isActive(`/${locale}/products`) ? "text-primary" : "text-muted-foreground"}`}
         >
           <Grid3X3 size={22} />
-          <span>Məhsullar</span>
+          <span>{t("MobileBottomNav.products")}</span>
         </Link>
 
         <button
@@ -44,7 +46,7 @@ export default function MobileBottomNav({
           className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           <Search size={22} />
-          <span>Axtar</span>
+          <span>{t("MobileBottomNav.search")}</span>
         </button>
 
         <button
@@ -59,7 +61,7 @@ export default function MobileBottomNav({
               </span>
             )}
           </span>
-          <span>Səbət</span>
+          <span>{t("MobileBottomNav.cart")}</span>
         </button>
 
         <button
@@ -67,7 +69,7 @@ export default function MobileBottomNav({
           className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           <User size={22} />
-          <span>Hesab</span>
+          <span>{t("MobileBottomNav.account")}</span>
         </button>
       </div>
     </nav>

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { apiUrl } from "@/lib/api";
 import { useProfile } from "@/lib/hooks/useProfile";
+import { useI18n } from "@/lib/i18n/context";
 
 const PROMO_STORAGE_KEY = "ilk_promo";
 
@@ -13,6 +14,7 @@ export default function CheckoutPage({ locale }: { locale: string }) {
   const { items, subtotal, removeItem, clearCart } = useCart();
   const supabase = createClient();
   const { profile } = useProfile();
+  const { t } = useI18n();
 
   const [user, setUser] = useState<any>(null);
   const [showLogin, setShowLogin] = useState(false);
@@ -27,8 +29,8 @@ export default function CheckoutPage({ locale }: { locale: string }) {
   const [form, setForm] = useState({ customer_name: "", customer_phone: "", delivery_address: "", notes: "" });
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => setUser(session?.user ?? null));
+    supabase.auth.getUser().then(({ data }: any) => setUser(data.user ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_: any, session: any) => setUser(session?.user ?? null));
     return () => subscription.unsubscribe();
   }, []);
 
@@ -78,13 +80,13 @@ export default function CheckoutPage({ locale }: { locale: string }) {
         body: JSON.stringify({ code: codeToApply, subtotal }),
       });
       const data = await res.json();
-      if (!res.ok) { setCouponError(data.error ?? "Yanlış kupon kodu"); setCoupon(null); }
+      if (!res.ok) { setCouponError(data.error ?? t("Checkout.invalidCoupon")); setCoupon(null); }
       else {
         setCoupon(data);
         setCouponCode(codeToApply);
         localStorage.setItem(PROMO_STORAGE_KEY, JSON.stringify({ code: codeToApply, ...data }));
       }
-    } catch { setCouponError("Kupon yoxlanıla bilmədi. Yenidən cəhd edin."); }
+    } catch { setCouponError(t("Checkout.couponCheckFailed")); }
     finally { setCouponLoading(false); }
   };
 
@@ -124,19 +126,18 @@ export default function CheckoutPage({ locale }: { locale: string }) {
       <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-6">
         <CheckCircle size={40} className="text-green-500" />
       </div>
-      <h1 className="text-2xl font-bold mb-2">Sifariş qəbul edildi!</h1>
-      <p className="text-muted-foreground mb-2">Təşəkkür edirik, {form.customer_name}. Sifarişiniz qəbul edildi.</p>
-      <p className="text-sm text-muted-foreground mb-1">Sifariş ID: <span className="font-mono font-medium">#{orderId.slice(0, 8).toUpperCase()}</span></p>
+      <h1 className="text-2xl font-bold mb-2">{t("Checkout.orderAccepted")}</h1>
+      <p className="text-muted-foreground mb-2">{t("Checkout.thankYou").replace("{name}", form.customer_name)}</p>
+      <p className="text-sm text-muted-foreground mb-1">{t("Checkout.orderId")} <span className="font-mono font-medium">#{orderId.slice(0, 8).toUpperCase()}</span></p>
       <p className="text-sm text-muted-foreground mb-8">
-        Kuryer çatdırılmadan əvvəl <strong>{form.customer_phone}</strong> nömrəsinə zəng edəcək.
-        Çatdırılmada <strong>{total.toFixed(2)} AZN</strong> nağd ödəyəcəksiniz.
+        {t("Checkout.courierWillCall").replace("{phone}", form.customer_phone).replace("{amount}", total.toFixed(2))}
       </p>
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Link href={`/${locale}/profile`} className="inline-block bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition">
-          Sifarişi izlə
+          {t("Checkout.trackOrder")}
         </Link>
         <Link href={`/${locale}`} className="inline-block border border-border px-8 py-3 rounded-xl font-semibold hover:bg-accent transition">
-          Alış-verişə davam et
+          {t("Checkout.continueShopping")}
         </Link>
       </div>
     </div>
@@ -145,49 +146,49 @@ export default function CheckoutPage({ locale }: { locale: string }) {
   if (items.length === 0) return (
     <div className="container mx-auto px-4 py-16 text-center">
       <ShoppingBag size={48} className="mx-auto text-muted-foreground/30 mb-4" />
-      <p className="text-muted-foreground mb-4">Səbətiniz boşdur.</p>
-      <Link href={`/${locale}/products`} className="text-primary hover:underline text-sm">Məhsullara bax</Link>
+      <p className="text-muted-foreground mb-4">{t("Checkout.emptyCart")}</p>
+      <Link href={`/${locale}/products`} className="text-primary hover:underline text-sm">{t("Checkout.viewProducts")}</Link>
     </div>
   );
 
   return (
     <div className="container mx-auto px-4 py-8 max-w-4xl">
-      <h1 className="text-2xl font-bold mb-8">Sifariş ver</h1>
+      <h1 className="text-2xl font-bold mb-8">{t("Checkout.placeOrder")}</h1>
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
         <form onSubmit={handleSubmit} className="space-y-5">
           <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-            <h2 className="font-semibold">Məlumatlarınız</h2>
+            <h2 className="font-semibold">{t("Checkout.yourInfo")}</h2>
             {!user && (
               <div className="bg-primary/10 text-primary text-sm px-4 py-3 rounded-lg">
-                Sifariş vermək üçün{" "}
-                <button type="button" onClick={() => setShowLogin(true)} className="underline font-medium">daxil olun</button>.
+                {t("Checkout.signInRequired")}{" "}
+                <button type="button" onClick={() => setShowLogin(true)} className="underline font-medium">{t("Checkout.signInLink")}</button>.
               </div>
             )}
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label="Ad Soyad" value={form.customer_name} onChange={(v) => setForm((f) => ({ ...f, customer_name: v }))} placeholder="Adınız" required />
-              <Field label="WhatsApp nömrəsi" value={form.customer_phone} onChange={(v) => setForm((f) => ({ ...f, customer_phone: v }))} placeholder="+994 XX XXX XX XX" type="tel" required />
+              <Field label={t("Checkout.nameLabel")} value={form.customer_name} onChange={(v) => setForm((f) => ({ ...f, customer_name: v }))} placeholder={t("Checkout.namePlaceholder")} required />
+              <Field label={t("Checkout.phoneLabel")} value={form.customer_phone} onChange={(v) => setForm((f) => ({ ...f, customer_phone: v }))} placeholder={t("Checkout.phonePlaceholder")} type="tel" required />
             </div>
-            <Field label="Çatdırılma ünvanı" value={form.delivery_address} onChange={(v) => setForm((f) => ({ ...f, delivery_address: v }))} placeholder="Şəhər, küçə, ev nömrəsi" required />
+            <Field label={t("Checkout.addressLabel")} value={form.delivery_address} onChange={(v) => setForm((f) => ({ ...f, delivery_address: v }))} placeholder={t("Checkout.addressPlaceholder")} required />
             <div>
-              <label className="block text-sm font-medium mb-1">Qeyd (istəyə görə)</label>
+              <label className="block text-sm font-medium mb-1">{t("Checkout.notesLabel")}</label>
               <textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Kuryer üçün qeyd…" rows={2}
+                placeholder={t("Checkout.notesPlaceholder")} rows={2}
                 className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
             </div>
           </div>
 
           <div className="bg-card border border-border rounded-xl p-5">
-            <h2 className="font-semibold mb-3 flex items-center gap-2"><Tag size={16} />Promo Kod</h2>
+            <h2 className="font-semibold mb-3 flex items-center gap-2"><Tag size={16} />{t("Checkout.promoCode")}</h2>
             {coupon ? (
               <div className="flex items-center gap-3">
                 <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900/40 text-green-700 dark:text-green-400 text-sm">
                   <CheckCircle size={14} />
                   <span className="font-medium">{couponCode}</span>
-                  <span className="text-xs opacity-80">— -{discountAmount.toFixed(2)} AZN endirim</span>
+                  <span className="text-xs opacity-80">— -{discountAmount.toFixed(2)} AZN {t("Checkout.discount").toLowerCase()}</span>
                 </div>
                 <button type="button" onClick={() => { setCoupon(null); setCouponCode(""); localStorage.removeItem(PROMO_STORAGE_KEY); }}
                   className="px-3 py-2 rounded-lg border border-border text-xs text-muted-foreground hover:text-destructive hover:border-destructive/50 transition">
-                  Sil
+                  {t("Checkout.remove")}
                 </button>
               </div>
             ) : (
@@ -195,11 +196,11 @@ export default function CheckoutPage({ locale }: { locale: string }) {
                 <div className="flex gap-2">
                   <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), applyCoupon())}
-                    placeholder="KOD DAXİL EDİN"
+                    placeholder={t("Checkout.enterCode")}
                     className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring uppercase tracking-wide" />
                   <button type="button" onClick={() => applyCoupon()} disabled={couponLoading || !couponCode.trim()}
                     className="px-4 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80 transition disabled:opacity-50">
-                    {couponLoading ? "…" : "Tətbiq et"}
+                    {couponLoading ? "…" : t("Checkout.apply")}
                   </button>
                 </div>
                 {couponError && <p className="text-destructive text-xs mt-1">{couponError}</p>}
@@ -211,14 +212,14 @@ export default function CheckoutPage({ locale }: { locale: string }) {
 
           <button type="submit" disabled={loading}
             className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl hover:bg-primary/90 transition disabled:opacity-60 text-lg">
-            {loading ? "Sifariş verilir…" : `Sifariş ver · ${total.toFixed(2)} AZN`}
+            {loading ? t("Checkout.placingOrder") : `${t("Checkout.placeOrder")} · ${total.toFixed(2)} AZN`}
           </button>
-          <p className="text-xs text-center text-muted-foreground">Nağd ödəniş · Çatdırılmada AZN ilə ödəyin</p>
+          <p className="text-xs text-center text-muted-foreground">{t("Checkout.cashPayment")}</p>
         </form>
 
         <div className="space-y-3">
           <div className="bg-card border border-border rounded-xl p-5">
-            <h2 className="font-semibold mb-4">Sifariş icmalı</h2>
+            <h2 className="font-semibold mb-4">{t("Checkout.orderSummary")}</h2>
             <ul className="space-y-3 divide-y divide-border">
               {items.map((item) => (
                 <li key={item.product_id} className="flex gap-3 pt-3 first:pt-0">
@@ -240,11 +241,11 @@ export default function CheckoutPage({ locale }: { locale: string }) {
               ))}
             </ul>
             <div className="border-t border-border mt-4 pt-4 space-y-2">
-              <div className="flex justify-between text-sm"><span>Ara cəm</span><span>{subtotal.toFixed(2)} AZN</span></div>
-              {coupon && <div className="flex justify-between text-sm text-green-600"><span>Endirim</span><span>-{discountAmount.toFixed(2)} AZN</span></div>}
-              <div className="flex justify-between text-sm"><span>Çatdırılma</span><span className="text-green-600">Pulsuz</span></div>
+              <div className="flex justify-between text-sm"><span>{t("Checkout.subtotal")}</span><span>{subtotal.toFixed(2)} AZN</span></div>
+              {coupon && <div className="flex justify-between text-sm text-green-600"><span>{t("Checkout.discount")}</span><span>-{discountAmount.toFixed(2)} AZN</span></div>}
+              <div className="flex justify-between text-sm"><span>{t("Checkout.delivery")}</span><span className="text-green-600">{t("Checkout.free")}</span></div>
               <div className="flex justify-between font-bold text-lg border-t border-border pt-3 mt-1">
-                <span>Cəmi</span><span className="text-primary">{total.toFixed(2)} AZN</span>
+                <span>{t("Checkout.total")}</span><span className="text-primary">{total.toFixed(2)} AZN</span>
               </div>
             </div>
           </div>
@@ -252,7 +253,7 @@ export default function CheckoutPage({ locale }: { locale: string }) {
       </div>
 
       <LoginModal open={showLogin} onClose={() => setShowLogin(false)}
-        onSuccess={() => supabase.auth.getUser().then(({ data }) => setUser(data.user))} />
+        onSuccess={() => supabase.auth.getUser().then(({ data }: any) => setUser(data.user))} />
     </div>
   );
 }

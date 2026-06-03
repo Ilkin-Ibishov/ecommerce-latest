@@ -3,6 +3,7 @@ import { X, Phone, ArrowRight, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { useCart } from "@/lib/cart/context";
+import { useI18n } from "@/lib/i18n/context";
 
 interface LoginModalProps {
   open: boolean;
@@ -21,6 +22,7 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
   const [error, setError] = useState("");
   const [cooldown, setCooldown] = useState(0);
   const { sessionId } = useCart();
+  const { t } = useI18n();
 
   const formatPhone = (value: string) => {
     const digits = value.replace(/\D/g, "");
@@ -158,9 +160,9 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
             <div className="flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
               <Phone size={22} className="text-primary" />
             </div>
-            <h2 className="text-xl font-bold mb-1">Sign in with WhatsApp</h2>
+            <h2 className="text-xl font-bold mb-1">{t("LoginModal.signInWithWhatsApp")}</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              Enter your phone number. We'll send a verification code via WhatsApp.
+              {t("LoginModal.phoneDescription")}
             </p>
             {import.meta.env.DEV && (
               <p className="text-xs text-orange-600 mb-3 bg-orange-50 px-3 py-2 rounded-lg">
@@ -175,7 +177,7 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
               {error && <p className="text-sm text-destructive">{error}</p>}
               <button type="submit" disabled={loading}
                 className="w-full flex items-center justify-center gap-2 bg-primary text-primary-foreground py-3 rounded-xl font-medium hover:bg-primary/90 transition disabled:opacity-50">
-                {loading ? "Sending..." : "Send Code"}
+                {loading ? t("LoginModal.sending") : t("LoginModal.sendCode")}
                 {!loading && <ArrowRight size={16} />}
               </button>
             </form>
@@ -184,9 +186,9 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
 
         {step === "otp" && (
           <div>
-            <h2 className="text-xl font-bold mb-1">Enter verification code</h2>
+            <h2 className="text-xl font-bold mb-1">{t("LoginModal.enterVerificationCode")}</h2>
             <p className="text-sm text-muted-foreground mb-6">
-              We sent a 6-digit code to <strong>{phone}</strong> via WhatsApp.
+              {t("LoginModal.codeSentTo").replace("{phone}", phone)}
             </p>
             <form onSubmit={handleOtpSubmit} className="space-y-4">
               <input type="text" inputMode="numeric" pattern="[0-9]{6}" maxLength={6}
@@ -197,21 +199,21 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
               {error && <p className="text-sm text-destructive">{error}</p>}
               <button type="submit" disabled={loading || otp.length !== 6}
                 className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-medium hover:bg-primary/90 transition disabled:opacity-50">
-                {loading ? "Verifying..." : "Verify Code"}
+                {loading ? t("LoginModal.verifying") : t("LoginModal.verifyCode")}
               </button>
               <div className="text-center">
                 {cooldown > 0 ? (
-                  <p className="text-xs text-muted-foreground">Resend in {cooldown}s</p>
+                  <p className="text-xs text-muted-foreground">{t("LoginModal.resendIn").replace("{seconds}", String(cooldown))}</p>
                 ) : (
                   <button type="button" onClick={handlePhoneSubmit as any}
                     className="text-xs text-primary hover:underline flex items-center gap-1 mx-auto">
-                    <RotateCcw size={12} /> Resend code
+                    <RotateCcw size={12} /> {t("LoginModal.resendCode")}
                   </button>
                 )}
               </div>
               <button type="button" onClick={() => setStep("phone")}
                 className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
-                Change phone number
+                {t("LoginModal.changePhone")}
               </button>
             </form>
           </div>
@@ -219,20 +221,20 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
 
         {step === "name" && (
           <div>
-            <h2 className="text-xl font-bold mb-1">Welcome!</h2>
-            <p className="text-sm text-muted-foreground mb-6">What's your name? (optional)</p>
+            <h2 className="text-xl font-bold mb-1">{t("LoginModal.welcome")}</h2>
+            <p className="text-sm text-muted-foreground mb-6">{t("LoginModal.namePrompt")}</p>
             <form onSubmit={handleNameSubmit} className="space-y-4">
               <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)}
-                placeholder="Your full name"
+                placeholder={t("LoginModal.namePlaceholder")}
                 className="w-full px-4 py-3 rounded-xl border border-border bg-background focus:outline-none focus:ring-2 focus:ring-ring text-sm"
                 autoFocus />
               <button type="submit" disabled={loading}
                 className="w-full bg-primary text-primary-foreground py-3 rounded-xl font-medium hover:bg-primary/90 transition disabled:opacity-50">
-                {loading ? "Saving..." : "Continue"}
+                {loading ? t("LoginModal.saving") : t("LoginModal.continue")}
               </button>
               <button type="button" onClick={() => { setStep("success"); setTimeout(handleClose, 1200); }}
                 className="text-xs text-muted-foreground hover:text-foreground w-full text-center">
-                Skip
+                {t("LoginModal.skip")}
               </button>
             </form>
           </div>
@@ -243,8 +245,8 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
             <div className="w-16 h-16 rounded-full bg-green-500/20 flex items-center justify-center mx-auto mb-4">
               <span className="text-3xl">✓</span>
             </div>
-            <h2 className="text-xl font-bold mb-1">You're in!</h2>
-            <p className="text-sm text-muted-foreground">Successfully signed in.</p>
+            <h2 className="text-xl font-bold mb-1">{t("LoginModal.successTitle")}</h2>
+            <p className="text-sm text-muted-foreground">{t("LoginModal.successMessage")}</p>
           </div>
         )}
       </div>

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "wouter";
 import { X, Minus, Plus, ShoppingBag, Trash2, Truck, Tag, ChevronDown, CheckCircle } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
+import { useI18n } from "@/lib/i18n/context";
 import { apiUrl } from "@/lib/api";
 
 const FREE_DELIVERY_THRESHOLD = 100;
@@ -15,6 +16,7 @@ interface CartDrawerProps {
 
 export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
   const { items, subtotal, updateQty, removeItem, itemCount } = useCart();
+  const { t } = useI18n();
   const drawerRef = useRef<HTMLDivElement>(null);
 
   const [promoOpen, setPromoOpen] = useState(false);
@@ -62,7 +64,7 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
       });
       const data = await res.json();
       if (!res.ok) {
-        setPromoError(data.error ?? "Yanlış promo kod");
+        setPromoError(data.error ?? t("CartDrawer.invalidPromo"));
         setPromo(null);
         localStorage.removeItem(PROMO_STORAGE_KEY);
       } else {
@@ -71,7 +73,7 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
         localStorage.setItem(PROMO_STORAGE_KEY, JSON.stringify(applied));
         setPromoError("");
       }
-    } catch { setPromoError("Yoxlamaq mümkün olmadı. Yenidən cəhd edin."); }
+    } catch { setPromoError(t("CartDrawer.promoCheckFailed")); }
     finally { setPromoLoading(false); }
   };
 
@@ -96,7 +98,7 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <h2 className="font-bold text-lg flex items-center gap-2">
             <ShoppingBag size={20} />
-            Səbət
+            {t("CartDrawer.cart")}
             {itemCount > 0 && (
               <span className="text-sm bg-primary text-primary-foreground rounded-full px-2 py-0.5 font-medium">{itemCount}</span>
             )}
@@ -113,8 +115,8 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
               <span className="flex items-center gap-1 font-medium">
                 <Truck size={13} className={freeDelivery ? "text-green-600" : "text-muted-foreground"} />
                 {freeDelivery
-                  ? <span className="text-green-600 font-semibold">Pulsuz çatdırılma qazandınız! 🎉</span>
-                  : <span><strong>{remaining.toFixed(2)} AZN</strong> daha əlavə edin — Pulsuz Çatdırılma</span>
+                  ? <span className="text-green-600 font-semibold">{t("CartDrawer.freeDeliveryEarned")}</span>
+                  : <span><strong>{remaining.toFixed(2)} AZN</strong> {t("CartDrawer.addMoreForFreeDelivery")}</span>
                 }
               </span>
               <span className="text-muted-foreground">{FREE_DELIVERY_THRESHOLD} AZN</span>
@@ -132,8 +134,8 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
               <ShoppingBag size={48} className="text-muted-foreground/30" />
-              <p className="text-muted-foreground">Səbətiniz boşdur</p>
-              <button onClick={onClose} className="text-sm text-primary hover:underline">Alış-verişə davam edin</button>
+              <p className="text-muted-foreground">{t("CartDrawer.emptyCart")}</p>
+              <button onClick={onClose} className="text-sm text-primary hover:underline">{t("CartDrawer.continueShopping")}</button>
             </div>
           ) : (
             <ul className="space-y-3">
@@ -190,9 +192,9 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
                 <span className="flex-1 text-left">
                   {promo ? (
                     <span className="text-green-600 font-medium flex items-center gap-1">
-                      <CheckCircle size={12} /> Promo tətbiq edilib: <strong>{promo.code}</strong>
+                      <CheckCircle size={12} /> {t("CartDrawer.promoApplied")} <strong>{promo.code}</strong>
                     </span>
-                  ) : "Promo kodunuz var?"}
+                  ) : t("CartDrawer.promoQuestion")}
                 </span>
                 <ChevronDown size={12} className={`transition-transform duration-200 ${promoOpen ? "rotate-180" : ""}`} />
               </button>
@@ -205,7 +207,7 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
                       value={promoCode}
                       onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoError(""); }}
                       onKeyDown={(e) => e.key === "Enter" && applyPromo()}
-                      placeholder="KOD DAXİL EDİN"
+                      placeholder={t("CartDrawer.enterCode")}
                       className="flex-1 px-2.5 py-1.5 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring uppercase tracking-wider"
                     />
                     {promo ? (
@@ -213,7 +215,7 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
                         onClick={clearPromo}
                         className="px-3 py-1.5 rounded-lg bg-muted text-xs font-medium hover:bg-destructive/10 hover:text-destructive transition"
                       >
-                        Sil
+                        {t("CartDrawer.remove")}
                       </button>
                     ) : (
                       <button
@@ -221,7 +223,7 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
                         disabled={promoLoading || !promoCode.trim()}
                         className="px-3 py-1.5 rounded-lg bg-secondary text-xs font-medium hover:bg-secondary/80 transition disabled:opacity-50"
                       >
-                        {promoLoading ? "…" : "Tətbiq et"}
+                        {promoLoading ? "…" : t("CartDrawer.apply")}
                       </button>
                     )}
                   </div>
@@ -241,31 +243,31 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
               {promo ? (
                 <div className="space-y-1.5 text-sm">
                   <div className="flex justify-between text-muted-foreground">
-                    <span>Ara cəm</span>
+                    <span>{t("CartDrawer.subtotal")}</span>
                     <span>{subtotal.toFixed(2)} AZN</span>
                   </div>
                   <div className="flex justify-between text-green-600 font-medium">
-                    <span>Endirim ({promo.code})</span>
+                    <span>{t("CartDrawer.discount")} ({promo.code})</span>
                     <span>-{discountAmount.toFixed(2)} AZN</span>
                   </div>
                   <div className="flex justify-between font-bold text-lg border-t border-border pt-2">
-                    <span>Cəmi</span>
+                    <span>{t("CartDrawer.total")}</span>
                     <span className="text-primary">{total.toFixed(2)} AZN</span>
                   </div>
                 </div>
               ) : (
                 <div className="flex justify-between font-bold text-lg">
-                  <span>Cəmi</span>
+                  <span>{t("CartDrawer.total")}</span>
                   <span className="text-primary">{subtotal.toFixed(2)} AZN</span>
                 </div>
               )}
               <p className="text-xs text-muted-foreground flex items-center gap-1">
                 <Truck size={12} />
-                Çatdırılma: {freeDelivery ? <span className="text-green-600 font-medium">Pulsuz</span> : "Sifarişdə göstəriləcək"}
+                {t("CartDrawer.delivery")} {freeDelivery ? <span className="text-green-600 font-medium">{t("CartDrawer.free")}</span> : t("CartDrawer.deliveryAtOrder")}
               </p>
               <Link href={checkoutHref} onClick={onClose}
                 className="block w-full text-center bg-primary text-primary-foreground font-semibold py-3 rounded-xl hover:bg-primary/90 transition">
-                Sifariş ver{promo ? ` · ${total.toFixed(2)} AZN` : ""}
+                {t("CartDrawer.placeOrder")}{promo ? ` · ${total.toFixed(2)} AZN` : ""}
               </Link>
             </div>
           </div>

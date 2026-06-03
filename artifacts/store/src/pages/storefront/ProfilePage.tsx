@@ -5,6 +5,7 @@ import { apiUrl } from "@/lib/api";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { useCart } from "@/lib/cart/context";
 import { useProfile } from "@/lib/hooks/useProfile";
+import { useI18n } from "@/lib/i18n/context";
 import {
   Package, Clock, MapPin, ChevronDown, ChevronUp,
   User, Edit2, Check, X, ShoppingCart, Home,
@@ -72,6 +73,7 @@ function StatusStepper({ status }: { status: string }) {
 function OrderCard({ order, locale }: { order: any; locale: string }) {
   const [expanded, setExpanded] = useState(false);
   const { addItem } = useCart();
+  const { t } = useI18n();
   const status = STATUS_LABELS[order.status] ?? { label: order.status, color: "bg-gray-100 text-gray-500" };
 
   const handleReorder = (e: React.MouseEvent) => {
@@ -123,7 +125,7 @@ function OrderCard({ order, locale }: { order: any; locale: string }) {
             {order.delivery_address}
           </div>
           {Number(order.discount_azn) > 0 && (
-            <p className="text-xs text-green-600 font-medium">Discount: -{Number(order.discount_azn).toFixed(2)} AZN</p>
+            <p className="text-xs text-green-600 font-medium">{t("Profile.orderDiscount")} -{Number(order.discount_azn).toFixed(2)} AZN</p>
           )}
           <div className="space-y-2 pt-1">
             {(order.order_items ?? []).map((item: any) => (
@@ -134,7 +136,7 @@ function OrderCard({ order, locale }: { order: any; locale: string }) {
             ))}
           </div>
           {order.notes && (
-            <p className="text-xs text-muted-foreground italic">Note: {order.notes}</p>
+            <p className="text-xs text-muted-foreground italic">{t("Profile.note")} {order.notes}</p>
           )}
           {(order.order_items ?? []).length > 0 && (
             <button
@@ -142,7 +144,7 @@ function OrderCard({ order, locale }: { order: any; locale: string }) {
               className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition pt-1"
             >
               <ShoppingCart size={13} />
-              Re-order all items
+              {t("Profile.reorderAll")}
             </button>
           )}
         </div>
@@ -249,15 +251,16 @@ export default function ProfilePage({ locale }: { locale: string }) {
   const [pageLoading, setPageLoading] = useState(true);
   const supabase = createClient();
   const { profile, loading: profileLoading, updateProfile } = useProfile();
+  const { t } = useI18n();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => {
+    supabase.auth.getUser().then(({ data }: any) => {
       setUser(data.user ?? null);
       setPageLoading(false);
       if (data.user) loadOrders();
       else setOrdersLoading(false);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_: any, session: any) => {
       setUser(session?.user ?? null);
       if (session?.user) loadOrders();
       else { setOrders([]); setOrdersLoading(false); }
@@ -284,7 +287,7 @@ export default function ProfilePage({ locale }: { locale: string }) {
   };
 
   if (pageLoading) {
-    return <div className="container mx-auto px-4 py-16 text-center text-muted-foreground">Loading…</div>;
+    return <div className="container mx-auto px-4 py-16 text-center text-muted-foreground">{t("Profile.loading")}</div>;
   }
 
   if (!user) {
@@ -293,13 +296,13 @@ export default function ProfilePage({ locale }: { locale: string }) {
         <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-6">
           <Package size={36} className="text-primary" />
         </div>
-        <h1 className="text-2xl font-bold mb-2">Your Profile</h1>
-        <p className="text-muted-foreground mb-6">Sign in to view your orders and manage your account.</p>
+        <h1 className="text-2xl font-bold mb-2">{t("Profile.signInTitle")}</h1>
+        <p className="text-muted-foreground mb-6">{t("Profile.signInPrompt")}</p>
         <button
           onClick={() => setShowLogin(true)}
           className="bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition"
         >
-          Sign In with WhatsApp
+          {t("Profile.signInButton")}
         </button>
         <LoginModal open={showLogin} onClose={() => setShowLogin(false)} onSuccess={() => {}} />
       </div>
@@ -312,35 +315,35 @@ export default function ProfilePage({ locale }: { locale: string }) {
     <div className="container mx-auto px-4 py-8 max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">My Profile</h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Welcome back, {displayName}</p>
+          <h1 className="text-2xl font-bold">{t("Profile.title")}</h1>
+          <p className="text-muted-foreground text-sm mt-0.5">{t("Profile.welcomeBack").replace("{name}", displayName)}</p>
         </div>
         <button
           onClick={handleSignOut}
           className="text-sm text-muted-foreground hover:text-destructive transition border border-border px-4 py-2 rounded-lg"
         >
-          Sign Out
+          {t("Profile.signOut")}
         </button>
       </div>
 
       {/* ── Personal Info ── */}
       <section className="bg-card border border-border rounded-xl p-5 space-y-4">
         <h2 className="font-semibold flex items-center gap-2 text-base">
-          <User size={16} /> Personal Info
+          <User size={16} /> {t("Profile.personalInfo")}
         </h2>
         {profileLoading ? (
-          <p className="text-sm text-muted-foreground animate-pulse">Loading…</p>
+          <p className="text-sm text-muted-foreground animate-pulse">{t("Profile.loading")}</p>
         ) : (
           <>
             <InlineEditor
-              label="Phone number"
+              label={t("Profile.phoneNumber")}
               value={profile?.phone ?? user?.phone ?? ""}
               readOnly
             />
             <InlineEditor
-              label="Full name"
+              label={t("Profile.fullName")}
               value={profile?.full_name ?? ""}
-              placeholder="Add your name"
+              placeholder={t("Profile.addName")}
               onSave={(v) => updateProfile({ full_name: v })}
             />
           </>
@@ -350,21 +353,21 @@ export default function ProfilePage({ locale }: { locale: string }) {
       {/* ── Default Delivery Address ── */}
       <section className="bg-card border border-border rounded-xl p-5 space-y-4">
         <h2 className="font-semibold flex items-center gap-2 text-base">
-          <Home size={16} /> Default Delivery Address
+          <Home size={16} /> {t("Profile.defaultAddress")}
         </h2>
         {profileLoading ? (
-          <p className="text-sm text-muted-foreground animate-pulse">Loading…</p>
+          <p className="text-sm text-muted-foreground animate-pulse">{t("Profile.loading")}</p>
         ) : (
           <>
             <InlineEditor
-              label="Address"
+              label={t("Profile.addressLabel")}
               value={profile?.default_address ?? ""}
-              placeholder="City, street, house number"
+              placeholder={t("Profile.addressPlaceholder")}
               multiline
               onSave={(v) => updateProfile({ default_address: v })}
             />
             <p className="text-xs text-muted-foreground">
-              Saved here will auto-fill the address field at checkout.
+              {t("Profile.addressNote")}
             </p>
           </>
         )}
@@ -373,20 +376,20 @@ export default function ProfilePage({ locale }: { locale: string }) {
       {/* ── Orders ── */}
       <section>
         <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <Package size={18} /> My Orders
+          <Package size={18} /> {t("Profile.myOrders")}
           {orders.length > 0 && (
             <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">{orders.length}</span>
           )}
         </h2>
 
         {ordersLoading ? (
-          <div className="text-center py-12 text-muted-foreground">Loading…</div>
+          <div className="text-center py-12 text-muted-foreground">{t("Profile.loading")}</div>
         ) : orders.length === 0 ? (
           <div className="text-center py-12 border border-dashed border-border rounded-xl">
             <Package size={40} className="mx-auto text-muted-foreground/30 mb-3" />
-            <p className="text-muted-foreground">No orders yet.</p>
+            <p className="text-muted-foreground">{t("Profile.noOrders")}</p>
             <Link href={`/${locale}/products`} className="text-primary hover:underline text-sm mt-2 inline-block">
-              Start shopping
+              {t("Profile.startShopping")}
             </Link>
           </div>
         ) : (

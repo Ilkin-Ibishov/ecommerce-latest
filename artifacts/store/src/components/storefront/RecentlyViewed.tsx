@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n/context";
 
 const STORAGE_KEY = "ilk_recently_viewed";
 const MAX_ITEMS = 8;
@@ -26,6 +27,7 @@ export function getRecentlyViewedIds(): string[] {
 
 export default function RecentlyViewed({ locale, excludeId }: { locale: string; excludeId?: string }) {
   const [products, setProducts] = useState<any[]>([]);
+  const { t } = useI18n();
 
   useEffect(() => {
     const ids = getRecentlyViewedIds().filter((id) => id !== excludeId);
@@ -35,7 +37,7 @@ export default function RecentlyViewed({ locale, excludeId }: { locale: string; 
       .from("products")
       .select("id, slug, price, stock, is_on_sale, product_images(*), product_translations(*)")
       .in("id", ids.slice(0, 8))
-      .then(({ data }) => {
+      .then(({ data }: any) => {
         if (!data) return;
         const ordered = ids.map((id) => data.find((p: any) => p.id === id)).filter(Boolean);
         setProducts(ordered);
@@ -45,12 +47,12 @@ export default function RecentlyViewed({ locale, excludeId }: { locale: string; 
   if (products.length === 0) return null;
 
   const getTitle = (p: any) =>
-    p.product_translations?.find((t: any) => t.lang_code === locale)?.title
-    ?? p.product_translations?.[0]?.title ?? "Məhsul";
+    p.product_translations?.find((tr: any) => tr.lang_code === locale)?.title
+    ?? p.product_translations?.[0]?.title ?? "";
 
   return (
     <section className="border-t border-border pt-10 mt-10">
-      <h2 className="text-xl font-bold mb-5">Son baxılan məhsullar</h2>
+      <h2 className="text-xl font-bold mb-5">{t("RecentlyViewed.title")}</h2>
       <div className="flex gap-3 overflow-x-auto pb-2 snap-x">
         {products.map((p: any) => (
           <Link

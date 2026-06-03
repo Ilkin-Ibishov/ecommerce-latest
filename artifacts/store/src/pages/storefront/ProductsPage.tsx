@@ -4,16 +4,18 @@ import { Filter, ArrowUpDown, ChevronDown, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import ProductCard from "@/components/storefront/ProductCard";
 import BouncingLoader from "@/components/ui/BouncingLoader";
+import { useI18n } from "@/lib/i18n/context";
 
 const SORT_OPTIONS = [
-  { value: "sort_order", label: "Tövsiyə edilən" },
-  { value: "price_asc", label: "Qiymət: Aşağıdan yuxarı" },
-  { value: "price_desc", label: "Qiymət: Yuxarıdan aşağı" },
-  { value: "newest", label: "Ən yeni" },
+  { value: "sort_order", labelKey: "Products.sortRecommended" },
+  { value: "price_asc", labelKey: "Products.sortPriceAsc" },
+  { value: "price_desc", labelKey: "Products.sortPriceDesc" },
+  { value: "newest", labelKey: "Products.sortNewest" },
 ];
 
 export default function ProductsPage({ locale }: { locale: string }) {
   const search = useSearch();
+  const { t } = useI18n();
   const params = new URLSearchParams(search);
   const sale = params.get("sale");
   const deal = params.get("deal");
@@ -112,27 +114,27 @@ export default function ProductsPage({ locale }: { locale: string }) {
     <div className="space-y-5">
       {/* Type filter */}
       <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Növ</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("Products.typeLabel")}</p>
         <div className="space-y-1">
-          <FilterLink href={buildUrl({ sale: null, deal: null })} active={!sale && !deal} label="Bütün məhsullar" />
-          <FilterLink href={buildUrl({ sale: "true", deal: null })} active={sale === "true"} label="Endirimli" />
-          <FilterLink href={buildUrl({ deal: "true", sale: null })} active={deal === "true"} label="Günün təklifi" />
+          <FilterLink href={buildUrl({ sale: null, deal: null })} active={!sale && !deal} label={t("Products.allProductsFilter")} />
+          <FilterLink href={buildUrl({ sale: "true", deal: null })} active={sale === "true"} label={t("Products.discounted")} />
+          <FilterLink href={buildUrl({ deal: "true", sale: null })} active={deal === "true"} label={t("Products.dealOfDayFilter")} />
         </div>
       </div>
 
       {/* Stock filter */}
       <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Stok</p>
-        <FilterLink href={buildUrl({ instock: inStockParam ? null : "true" })} active={inStockParam} label="Yalnız stokda olanlar" />
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("Products.stockLabel")}</p>
+        <FilterLink href={buildUrl({ instock: inStockParam ? null : "true" })} active={inStockParam} label={t("Products.inStockOnly")} />
       </div>
 
       {/* Brand filter */}
       {brands.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Brend</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("Products.brandLabel")}</p>
           <div className="space-y-1 max-h-48 overflow-y-auto pr-1">
             {brandParam && (
-              <FilterLink href={buildUrl({ brand: null })} active={false} label="Hamısı" />
+              <FilterLink href={buildUrl({ brand: null })} active={false} label={t("Products.all")} />
             )}
             {brands.map((b) => (
               <FilterLink key={b} href={buildUrl({ brand: b === brandParam ? null : b })} active={brandParam === b} label={b} />
@@ -143,7 +145,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
 
       {/* Price range */}
       <div>
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Qiymət (AZN)</p>
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("Products.priceLabel")}</p>
         <div className="flex gap-2 items-center">
           <input
             type="number"
@@ -165,7 +167,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
           onClick={applyPriceFilter}
           className="mt-2 w-full py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition"
         >
-          Tətbiq et
+          {t("Products.applyPrice")}
         </button>
         {(priceMinParam || priceMaxParam) && (
           <button
@@ -175,7 +177,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
             }}
             className="mt-1 w-full py-1 text-xs text-muted-foreground hover:text-foreground transition flex items-center justify-center gap-1"
           >
-            <X size={10} /> Qiymət filtrini sil
+            <X size={10} /> {t("Products.clearPriceFilter")}
           </button>
         )}
       </div>
@@ -183,7 +185,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
       {/* Categories */}
       {categories.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Kateqoriya</p>
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{t("Products.categoryLabel")}</p>
           <div className="space-y-1">
             {categories.map((cat: any) => (
               <FilterLink key={cat.id} href={`/${locale}/categories/${cat.slug}`} active={false} label={getTitle(cat.category_translations)} />
@@ -203,7 +205,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
           onClick={() => setFilterOpen(!filterOpen)}
           className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium hover:bg-accent transition ${filterOpen ? "border-primary text-primary" : "border-border"}`}
         >
-          <Filter size={15} /> Filtr
+          <Filter size={15} /> {t("Products.filter")}
           {activeFilterCount > 0 && (
             <span className="w-5 h-5 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
               {activeFilterCount}
@@ -215,7 +217,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
             onClick={() => setSortOpen(!sortOpen)}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-accent transition"
           >
-            <ArrowUpDown size={15} /> Sırala <ChevronDown size={14} className={`ml-auto transition-transform ${sortOpen ? "rotate-180" : ""}`} />
+            <ArrowUpDown size={15} /> {t("Products.sort")} <ChevronDown size={14} className={`ml-auto transition-transform ${sortOpen ? "rotate-180" : ""}`} />
           </button>
           {sortOpen && (
             <>
@@ -225,7 +227,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
                   <Link key={opt.value} href={buildUrl({ sort: opt.value })}
                     onClick={() => setSortOpen(false)}
                     className={`block px-4 py-2.5 text-sm transition hover:bg-accent ${sortParam === opt.value ? "text-primary font-semibold" : ""}`}>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </Link>
                 ))}
               </div>
@@ -246,9 +248,9 @@ export default function ProductsPage({ locale }: { locale: string }) {
         <aside className="hidden md:block w-56 shrink-0">
           <div className="bg-card border border-border rounded-xl p-4 sticky top-20">
             <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Filter size={16} /> Filtrlər
+              <Filter size={16} /> {t("Products.filters")}
               {activeFilterCount > 0 && (
-                <span className="ml-auto text-xs text-primary font-medium">{activeFilterCount} aktiv</span>
+                <span className="ml-auto text-xs text-primary font-medium">{activeFilterCount} {t("Products.active")}</span>
               )}
             </h3>
             <FilterSidebar />
@@ -259,19 +261,19 @@ export default function ProductsPage({ locale }: { locale: string }) {
           <div className="flex items-center justify-between mb-4 sm:mb-6 gap-3">
             <h1 className="text-xl sm:text-2xl font-bold">
               {brandParam ? brandParam :
-               sale === "true" ? "Endirimli məhsullar" :
-               deal === "true" ? "Günün təklifi" : "Bütün məhsullar"}
+               sale === "true" ? t("Products.discountedProducts") :
+               deal === "true" ? t("Products.dealOfDay") : t("Products.allProducts")}
             </h1>
             <div className="flex items-center gap-3">
-              <span className="text-sm text-muted-foreground hidden sm:block">{loading ? "…" : `${count} məhsul`}</span>
+              <span className="text-sm text-muted-foreground hidden sm:block">{loading ? "…" : t("Products.productCount").replace("{count}", String(count))}</span>
               <div className="relative hidden md:block">
                 <button
                   onClick={() => setSortOpen(!sortOpen)}
                   className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm hover:bg-accent transition"
                 >
                   <ArrowUpDown size={14} />
-                  <span className="hidden lg:inline">{currentSort.label}</span>
-                  <span className="lg:hidden">Sırala</span>
+                  <span className="hidden lg:inline">{t(currentSort.labelKey)}</span>
+                  <span className="lg:hidden">{t("Products.sort")}</span>
                   <ChevronDown size={13} className={`transition-transform ${sortOpen ? "rotate-180" : ""}`} />
                 </button>
                 {sortOpen && (
@@ -282,7 +284,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
                         <Link key={opt.value} href={buildUrl({ sort: opt.value })}
                           onClick={() => setSortOpen(false)}
                           className={`block px-4 py-2.5 text-sm transition hover:bg-accent ${sortParam === opt.value ? "text-primary font-semibold bg-primary/5" : ""}`}>
-                          {opt.label}
+                          {t(opt.labelKey)}
                         </Link>
                       ))}
                     </div>
@@ -304,7 +306,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
               {inStockParam && (
                 <Link href={buildUrl({ instock: null })}
                   className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition">
-                  Stokda var <X size={10} />
+                  {t("Products.inStock")} <X size={10} />
                 </Link>
               )}
               {(priceMinParam || priceMaxParam) && (
@@ -318,17 +320,17 @@ export default function ProductsPage({ locale }: { locale: string }) {
               )}
               <Link href={buildUrl({ sale: null, deal: null, brand: null, instock: null, pmin: null, pmax: null })}
                 className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-muted text-muted-foreground text-xs font-medium hover:bg-muted/70 transition">
-                Hamısını sil <X size={10} />
+                {t("Products.clearAll")} <X size={10} />
               </Link>
             </div>
           )}
 
           {loading ? (
-            <BouncingLoader label="Yüklənir…" className="py-32" />
+            <BouncingLoader label={t("Products.loading")} className="py-32" />
           ) : products.length === 0 ? (
             <div className="text-center py-24 text-muted-foreground">
-              <p className="text-xl">Məhsul tapılmadı</p>
-              <Link href={`/${locale}/products`} className="text-primary text-sm hover:underline mt-2 block">Filtrləri sıfırla</Link>
+              <p className="text-xl">{t("Products.noProductsFound")}</p>
+              <Link href={`/${locale}/products`} className="text-primary text-sm hover:underline mt-2 block">{t("Products.resetFilters")}</Link>
             </div>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">

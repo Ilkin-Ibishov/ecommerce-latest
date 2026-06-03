@@ -1,7 +1,9 @@
 import { Link } from "wouter";
 import { Phone, MapPin, Mail, Instagram, Facebook, Send } from "lucide-react";
+import { useI18n } from "@/lib/i18n/context";
 
 export default function StorefrontFooter({ locale }: { locale: string }) {
+  const { t } = useI18n();
   const storeName = import.meta.env.VITE_STORE_NAME ?? "İlk Electronics";
   return (
     <footer className="border-t border-gray-800 bg-gray-950 text-gray-400 mt-8 mb-16 md:mb-0">
@@ -12,7 +14,7 @@ export default function StorefrontFooter({ locale }: { locale: string }) {
           <div className="col-span-2 md:col-span-1">
             <img src="/logo.png" alt={storeName} className="h-12 w-auto object-contain mb-4" />
             <p className="text-sm text-gray-500 leading-relaxed">
-              Azərbaycanda keyfiyyətli elektronika məhsullarının etibarlı ünvanı.
+              {t("Footer.brandDescription")}
             </p>
             <div className="flex items-center gap-3 mt-4">
               <a href="https://instagram.com" target="_blank" rel="noreferrer"
@@ -32,28 +34,28 @@ export default function StorefrontFooter({ locale }: { locale: string }) {
 
           {/* Shop column */}
           <div>
-            <h4 className="font-semibold mb-3 text-sm text-white">Mağaza</h4>
+            <h4 className="font-semibold mb-3 text-sm text-white">{t("Footer.store")}</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href={`/${locale}/products`} className="hover:text-yellow-400 transition">Bütün məhsullar</Link></li>
-              <li><Link href={`/${locale}/categories`} className="hover:text-yellow-400 transition">Kateqoriyalar</Link></li>
-              <li><Link href={`/${locale}/products?sale=true`} className="hover:text-yellow-400 transition">Endirimli məhsullar</Link></li>
-              <li><Link href={`/${locale}/products?deal=true`} className="hover:text-yellow-400 transition">Günün təklifi</Link></li>
+              <li><Link href={`/${locale}/products`} className="hover:text-yellow-400 transition">{t("Footer.allProducts")}</Link></li>
+              <li><Link href={`/${locale}/categories`} className="hover:text-yellow-400 transition">{t("Footer.categories")}</Link></li>
+              <li><Link href={`/${locale}/products?sale=true`} className="hover:text-yellow-400 transition">{t("Footer.discountedProducts")}</Link></li>
+              <li><Link href={`/${locale}/products?deal=true`} className="hover:text-yellow-400 transition">{t("Footer.dealOfDay")}</Link></li>
             </ul>
           </div>
 
           {/* Info column */}
           <div>
-            <h4 className="font-semibold mb-3 text-sm text-white">Məlumat</h4>
+            <h4 className="font-semibold mb-3 text-sm text-white">{t("Footer.info")}</h4>
             <ul className="space-y-2 text-sm">
-              <li><Link href={`/${locale}/policies/delivery`} className="hover:text-yellow-400 transition">Çatdırılma şərtləri</Link></li>
-              <li><Link href={`/${locale}/policies/returns`} className="hover:text-yellow-400 transition">Geri qaytarma</Link></li>
-              <li><Link href={`/${locale}/policies/terms`} className="hover:text-yellow-400 transition">İstifadə şərtləri</Link></li>
+              <li><Link href={`/${locale}/policies/delivery`} className="hover:text-yellow-400 transition">{t("Footer.deliveryTerms")}</Link></li>
+              <li><Link href={`/${locale}/policies/returns`} className="hover:text-yellow-400 transition">{t("Footer.returns")}</Link></li>
+              <li><Link href={`/${locale}/policies/terms`} className="hover:text-yellow-400 transition">{t("Footer.termsOfUse")}</Link></li>
             </ul>
           </div>
 
           {/* Contact column */}
           <div>
-            <h4 className="font-semibold mb-3 text-sm text-white">Əlaqə</h4>
+            <h4 className="font-semibold mb-3 text-sm text-white">{t("Footer.contact")}</h4>
             <ul className="space-y-3 text-sm">
               <li className="flex items-start gap-2">
                 <Phone size={14} className="mt-0.5 shrink-0 text-yellow-500" />
@@ -72,8 +74,8 @@ export default function StorefrontFooter({ locale }: { locale: string }) {
         </div>
 
         <div className="border-t border-gray-800 mt-8 pt-6 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-600">
-          <span>© {new Date().getFullYear()} {storeName}. Bütün hüquqlar qorunur.</span>
-          <span>Ödəniş çatdırılmada · Yalnız Azərbaycan</span>
+          <span>© {new Date().getFullYear()} {storeName}. {t("Footer.allRightsReserved")}</span>
+          <span>{t("Footer.paymentOnDelivery")}</span>
         </div>
       </div>
     </footer>

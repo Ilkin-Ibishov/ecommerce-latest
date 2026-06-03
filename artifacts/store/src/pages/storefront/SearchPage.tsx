@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n/context";
 
 export default function SearchPage({ locale }: { locale: string }) {
   const search = useSearch();
   const q = new URLSearchParams(search).get("q") ?? "";
   const [results, setResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!q.trim()) { setResults([]); return; }
@@ -63,14 +65,14 @@ export default function SearchPage({ locale }: { locale: string }) {
 
   if (!q.trim()) return (
     <div className="container mx-auto px-4 py-16 text-center">
-      <p className="text-muted-foreground">Enter a search term to find products.</p>
+      <p className="text-muted-foreground">{t("Search.enterSearchTerm")}</p>
     </div>
   );
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-2">Search results for &ldquo;{q}&rdquo;</h1>
-      <p className="text-muted-foreground mb-8">{loading ? "Searching…" : `${results.length} results found`}</p>
+      <h1 className="text-2xl font-bold mb-2">{t("Search.resultsFor")} &ldquo;{q}&rdquo;</h1>
+      <p className="text-muted-foreground mb-8">{loading ? t("Search.searching") : t("Search.resultsCount").replace("{count}", String(results.length))}</p>
 
       {loading ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
@@ -86,8 +88,8 @@ export default function SearchPage({ locale }: { locale: string }) {
         </div>
       ) : results.length === 0 ? (
         <div className="text-center py-16">
-          <p className="text-muted-foreground">No products found for &ldquo;{q}&rdquo;</p>
-          <Link href={`/${locale}/products`} className="text-primary text-sm hover:underline mt-2 block">Browse all products</Link>
+          <p className="text-muted-foreground">{t("Search.noResults")} &ldquo;{q}&rdquo;</p>
+          <Link href={`/${locale}/products`} className="text-primary text-sm hover:underline mt-2 block">{t("Search.browseAll")}</Link>
         </div>
       ) : (
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">

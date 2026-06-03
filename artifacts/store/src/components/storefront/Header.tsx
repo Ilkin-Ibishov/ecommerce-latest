@@ -7,6 +7,7 @@ import MobileBottomNav from "./MobileBottomNav";
 import AnnouncementBar from "./AnnouncementBar";
 import { useCart } from "@/lib/cart/context";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n/context";
 
 export default function StorefrontHeader({ locale }: { locale: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -16,11 +17,12 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [user, setUser] = useState<any>(null);
   const { itemCount } = useCart();
+  const { t } = useI18n();
   const supabase = createClient();
 
   useEffect(() => {
-    supabase.auth.getUser().then(({ data }) => setUser(data.user ?? null));
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => setUser(session?.user ?? null));
+    supabase.auth.getUser().then(({ data }: any) => setUser(data.user ?? null));
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_: any, session: any) => setUser(session?.user ?? null));
     return () => subscription.unsubscribe();
   }, []);
 
@@ -56,8 +58,8 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
 
             {/* Desktop nav links */}
             <nav className="hidden lg:flex items-center gap-5 text-sm shrink-0">
-              <Link href={`/${locale}/products`} className="text-gray-300 hover:text-yellow-400 transition font-medium">Məhsullar</Link>
-              <Link href={`/${locale}/categories`} className="text-gray-300 hover:text-yellow-400 transition font-medium">Kateqoriyalar</Link>
+              <Link href={`/${locale}/products`} className="text-gray-300 hover:text-yellow-400 transition font-medium">{t("Header.products")}</Link>
+              <Link href={`/${locale}/categories`} className="text-gray-300 hover:text-yellow-400 transition font-medium">{t("Header.categories")}</Link>
             </nav>
 
             {/* Action icons */}
@@ -104,16 +106,16 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
                       <Link href={`/${locale}/profile`}
                         className="flex items-center gap-2 px-3 py-2.5 hover:bg-accent text-sm transition"
                         onClick={() => setUserMenuOpen(false)}>
-                        <Package size={15} /> Sifarişlərim
+                        <Package size={15} /> {t("Header.myOrders")}
                       </Link>
                       <Link href={`/${locale}/wishlist`}
                         className="flex items-center gap-2 px-3 py-2.5 hover:bg-accent text-sm transition"
                         onClick={() => setUserMenuOpen(false)}>
-                        <Heart size={15} /> İstək siyahısı
+                        <Heart size={15} /> {t("Header.wishlist")}
                       </Link>
                       <button onClick={handleSignOut}
                         className="flex items-center gap-2 w-full px-3 py-2.5 hover:bg-accent text-sm text-destructive transition border-t border-border">
-                        <LogOut size={15} /> Çıxış
+                        <LogOut size={15} /> {t("Header.signOut")}
                       </button>
                     </div>
                   </>
@@ -142,27 +144,27 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
             <div className="sm:flex md:hidden flex-col border-t border-gray-800 py-3 space-y-1">
               <Link href={`/${locale}/products`}
                 className="block px-2 py-2 rounded text-gray-300 hover:text-yellow-400 hover:bg-gray-800 text-sm"
-                onClick={() => setMobileOpen(false)}>Məhsullar</Link>
+                onClick={() => setMobileOpen(false)}>{t("Header.products")}</Link>
               <Link href={`/${locale}/categories`}
                 className="block px-2 py-2 rounded text-gray-300 hover:text-yellow-400 hover:bg-gray-800 text-sm"
-                onClick={() => setMobileOpen(false)}>Kateqoriyalar</Link>
+                onClick={() => setMobileOpen(false)}>{t("Header.categories")}</Link>
               {user ? (
                 <>
                   <Link href={`/${locale}/profile`}
                     className="block px-2 py-2 rounded text-gray-300 hover:text-yellow-400 hover:bg-gray-800 text-sm"
-                    onClick={() => setMobileOpen(false)}>Sifarişlərim</Link>
+                    onClick={() => setMobileOpen(false)}>{t("Header.myOrders")}</Link>
                   <Link href={`/${locale}/wishlist`}
                     className="block px-2 py-2 rounded text-gray-300 hover:text-yellow-400 hover:bg-gray-800 text-sm"
-                    onClick={() => setMobileOpen(false)}>İstək siyahısı</Link>
+                    onClick={() => setMobileOpen(false)}>{t("Header.wishlist")}</Link>
                   <button onClick={() => { handleSignOut(); setMobileOpen(false); }}
                     className="block w-full text-left px-2 py-2 rounded text-sm text-red-400 hover:bg-gray-800">
-                    Çıxış
+                    {t("Header.signOut")}
                   </button>
                 </>
               ) : (
                 <button onClick={() => { setLoginOpen(true); setMobileOpen(false); }}
                   className="block w-full text-left px-2 py-2 rounded text-gray-300 hover:text-yellow-400 hover:bg-gray-800 text-sm">
-                  Daxil ol
+                  {t("Header.signIn")}
                 </button>
               )}
             </div>
@@ -215,6 +217,7 @@ function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
   dark?: boolean;
 }) {
   const [query, setQuery] = useState("");
+  const { t } = useI18n();
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
@@ -232,13 +235,13 @@ function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Məhsul axtar…"
+            placeholder={t("Header.searchPlaceholder")}
             className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-700 bg-gray-800 text-gray-100 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition"
           />
         </div>
         <button type="submit"
           className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition shrink-0">
-          Axtar
+          {t("Header.search")}
         </button>
       </form>
     );
@@ -251,15 +254,15 @@ function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        placeholder="Məhsul axtar…"
+        placeholder={t("Header.searchPlaceholder")}
         className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 transition ${dark ? "border-gray-700 bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-yellow-500" : "border-border bg-background focus:ring-ring"}`}
       />
       <button type="submit"
         className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition">
-        Axtar
+        {t("Header.search")}
       </button>
       <button type="button" onClick={onClose}
-        className={`px-3 py-2 rounded-lg text-sm transition ${dark ? "text-gray-400 hover:bg-gray-800" : "hover:bg-accent"}`}>İmtina</button>
+        className={`px-3 py-2 rounded-lg text-sm transition ${dark ? "text-gray-400 hover:bg-gray-800" : "hover:bg-accent"}`}>{t("Header.cancel")}</button>
     </form>
   );
 }
