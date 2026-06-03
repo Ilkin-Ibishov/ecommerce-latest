@@ -169,7 +169,7 @@ returns table (
     pt.description,
     ts_rank(p.search_vector, to_tsquery('simple', unaccent(query_text) || ':*')) as rank
   from public.products p
-  join public.product_translations pt on pt.product_id = p.id and pt.lang_code = lang_code
+  join public.product_translations pt on pt.product_id = p.id and pt.lang_code = search_products.lang_code
   where p.search_vector @@ to_tsquery('simple', unaccent(query_text) || ':*')
   order by rank desc
   limit 50;
