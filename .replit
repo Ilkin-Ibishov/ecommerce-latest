@@ -1,4 +1,4 @@
-modules = ["nodejs-24"]
+modules = ["nodejs-24", "python-3.11", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -21,11 +21,15 @@ timeoutMs = 20000
 
 [[ports]]
 localPort = 8080
-externalPort = 8080
+externalPort = 80
 
 [[ports]]
 localPort = 8081
-externalPort = 80
+externalPort = 8081
+
+[[ports]]
+localPort = 8082
+externalPort = 3001
 
 [[ports]]
 localPort = 24964
@@ -34,8 +38,6 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
-NEXT_PUBLIC_STORE_NAME = "My Store"
-NEXT_PUBLIC_PRIMARY_COLOR = "#4F46E5"
-NEXT_PUBLIC_CONTACT_EMAIL = "contact@mystore.az"
-NEXT_PUBLIC_CURRENCY = "AZN"
-NEXT_PUBLIC_DEFAULT_LOCALE = "az"
+
+[nix]
+channel = "stable-25_05"

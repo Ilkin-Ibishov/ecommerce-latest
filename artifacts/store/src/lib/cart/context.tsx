@@ -1,5 +1,3 @@
-"use client";
-
 import {
   createContext,
   useContext,
@@ -25,32 +23,24 @@ interface CartState {
 
 type CartAction =
   | { type: "SET"; items: CartItem[] }
+  | { type: "SET_SESSION"; sessionId: string }
   | { type: "ADD"; item: CartItem }
   | { type: "REMOVE"; product_id: string }
   | { type: "UPDATE_QTY"; product_id: string; quantity: number }
   | { type: "CLEAR" };
 
 function generateSessionId(): string {
-  return "sess_" + Math.random().toString(36).slice(2) + Date.now().toString(36);
-}
-
-function getOrCreateSessionId(): string {
-  if (typeof window === "undefined") return "ssr";
-  const existing = localStorage.getItem("cart_session_id");
-  if (existing) return existing;
-  const id = generateSessionId();
-  localStorage.setItem("cart_session_id", id);
-  return id;
+  return `sess_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
     case "SET":
       return { ...state, items: action.items };
+    case "SET_SESSION":
+      return { ...state, sessionId: action.sessionId };
     case "ADD": {
-      const existing = state.items.find(
-        (i) => i.product_id === action.item.product_id
-      );
+      const existing = state.items.find((i) => i.product_id === action.item.product_id);
       if (existing) {
         return {
           ...state,
@@ -64,23 +54,15 @@ function cartReducer(state: CartState, action: CartAction): CartState {
       return { ...state, items: [...state.items, action.item] };
     }
     case "REMOVE":
-      return {
-        ...state,
-        items: state.items.filter((i) => i.product_id !== action.product_id),
-      };
+      return { ...state, items: state.items.filter((i) => i.product_id !== action.product_id) };
     case "UPDATE_QTY":
       if (action.quantity <= 0) {
-        return {
-          ...state,
-          items: state.items.filter((i) => i.product_id !== action.product_id),
-        };
+        return { ...state, items: state.items.filter((i) => i.product_id !== action.product_id) };
       }
       return {
         ...state,
         items: state.items.map((i) =>
-          i.product_id === action.product_id
-            ? { ...i, quantity: action.quantity }
-            : i
+          i.product_id === action.product_id ? { ...i, quantity: action.quantity } : i
         ),
       };
     case "CLEAR":
@@ -102,18 +84,13 @@ interface CartContextValue {
 }
 
 const CartContext = createContext<CartContextValue | null>(null);
-
 const STORAGE_KEY = "cart_items";
+const SESSION_KEY = "cart_session_id";
 
 export function CartProvider({ children }: { children: ReactNode }) {
-  const [state, dispatch] = useReducer(cartReducer, {
-    items: [],
-    sessionId: "ssr",
-  });
+  const [state, dispatch] = useReducer(cartReducer, { items: [], sessionId: "" });
 
-  // Hydrate from localStorage on mount
   useEffect(() => {
-    getOrCreateSessionId();
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
       const items: CartItem[] = stored ? JSON.parse(stored) : [];
@@ -121,26 +98,24 @@ export function CartProvider({ children }: { children: ReactNode }) {
     } catch {
       dispatch({ type: "SET", items: [] });
     }
+
+    let sessionId = localStorage.getItem(SESSION_KEY);
+    if (!sessionId) {
+      sessionId = generateSessionId();
+      localStorage.setItem(SESSION_KEY, sessionId);
+    }
+    dispatch({ type: "SET_SESSION", sessionId });
   }, []);
 
-  // Persist to localStorage on every change
   useEffect(() => {
-    if (typeof window !== "undefined") {
+    if (state.items.length > 0 || localStorage.getItem(STORAGE_KEY)) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(state.items));
     }
   }, [state.items]);
 
-  const sessionId =
-    typeof window !== "undefined"
-      ? getOrCreateSessionId()
-      : "ssr";
-
-  const addItem = useCallback(
-    (item: Omit<CartItem, "quantity">, quantity = 1) => {
-      dispatch({ type: "ADD", item: { ...item, quantity } });
-    },
-    []
-  );
+  const addItem = useCallback((item: Omit<CartItem, "quantity">, quantity = 1) => {
+    dispatch({ type: "ADD", item: { ...item, quantity } });
+  }, []);
 
   const removeItem = useCallback((product_id: string) => {
     dispatch({ type: "REMOVE", product_id });
@@ -155,24 +130,19 @@ export function CartProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const itemCount = state.items.reduce((sum, i) => sum + i.quantity, 0);
-  const subtotal = state.items.reduce(
-    (sum, i) => sum + i.price * i.quantity,
-    0
-  );
+  const subtotal = state.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
   return (
-    <CartContext.Provider
-      value={{
-        items: state.items,
-        sessionId,
-        itemCount,
-        subtotal,
-        addItem,
-        removeItem,
-        updateQty,
-        clearCart,
-      }}
-    >
+    <CartContext.Provider value={{
+      items: state.items,
+      sessionId: state.sessionId,
+      itemCount,
+      subtotal,
+      addItem,
+      removeItem,
+      updateQty,
+      clearCart,
+    }}>
       {children}
     </CartContext.Provider>
   );

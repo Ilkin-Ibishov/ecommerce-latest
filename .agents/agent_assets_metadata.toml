@@ -1,0 +1,20 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "ZgIQ80TIyorWGW_EnwCzR"
+uri = "file://docs/competitor-analysis.md"
+type = "text"
+title = "Competitor Analysis: kontakt.az vs Our Store"
+
+[[outputs]]
+id = "LNT6KVWSACwiQazfDIBc9"
+uri = "file://docs/feature-roadmap.md"
+type = "text"
+title = "Feature Roadmap (25 features, P0→P3)"
+
+[[outputs]]
+id = "_qnG5J99z2ke0z-anTIct"
+uri = "file://docs/ui-ux-improvements.md"
+type = "text"
+title = "UI & UX Improvements (12 areas)"
