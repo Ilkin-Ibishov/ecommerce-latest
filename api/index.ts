@@ -5,10 +5,17 @@
  * All /api/* routes are handled here.
  */
 
-let app;
+import type { IncomingMessage, ServerResponse } from "node:http";
 
-export default async function handler(req, res) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let app: any = null;
+
+export default async function handler(
+  req: IncomingMessage,
+  res: ServerResponse,
+): Promise<void> {
   if (!app) {
+    // @ts-expect-error — pre-built ESM bundle has no declaration file
     const mod = await import("../artifacts/api-server/dist/app.mjs");
     app = mod.default;
   }
