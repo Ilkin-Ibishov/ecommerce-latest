@@ -1,0 +1,56 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps
+
+      - name: Seed test data
+        run: pnpm run seed:test
+
+      - name: Start API server
+        run: pnpm --filter @workspace/api-server run start &
+
+      - name: Wait for API health endpoint
+        run: |
+          timeout=30
+          elapsed=0
+          until curl -sf http://localhost:5000/api/health > /dev/null 2>&1; do
+            if [ $elapsed -ge $timeout ]; then
+              echo "API server failed to start within ${timeout}s"
+              exit 1
+            fi
+            sleep 1
+            elapsed=$((elapsed + 1))
+          done
+          echo "API server is healthy"
+
+      - name: Run tests
+        run: pnpm test

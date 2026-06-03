@@ -47,3 +47,25 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# Secrets / environment
+.env
+.env.*
+!.env.example
+
+# Kiro — ignore MCP config (may contain access tokens); keep steering & specs tracked
+.kiro/settings/mcp.json
+
+# Playwright MCP snapshots
+.playwright-mcp/
+
+# Test output
+test-results/
+**/coverage/
+
+# --- ltm-power ---
+ltm/store/*.jsonl
+ltm/runtime/*
+ltm/reports/*
+ltm/snapshots/*
+# --- /ltm-power ---
