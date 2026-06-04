@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/lib/i18n/context";
 
 export default function CategoriesPage({ locale }: { locale: string }) {
   const [categories, setCategories] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { t } = useI18n();
 
   useEffect(() => {
     const supabase = createClient();
@@ -18,13 +20,13 @@ export default function CategoriesPage({ locale }: { locale: string }) {
   const getTitle = (translations: any[] | null) =>
     translations?.find((t: any) => t.lang_code === locale)?.title ?? translations?.[0]?.title ?? "Untitled";
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">Yüklənir…</div>;
+  if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">{t("Common.loading")}</div>;
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-8">Kateqoriyalar</h1>
+      <h1 className="text-2xl font-bold mb-8">{t("Categories.title")}</h1>
       {categories.length === 0 ? (
-        <p className="text-muted-foreground text-center py-16">Kateqoriya yoxdur</p>
+        <p className="text-muted-foreground text-center py-16">{t("Categories.empty")}</p>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
           {categories.map((cat) => {
@@ -49,7 +51,7 @@ export default function CategoriesPage({ locale }: { locale: string }) {
                       {getTitle(cat.category_translations)}
                     </h2>
                     {subs.length > 0 && (
-                      <p className="text-xs text-muted-foreground mt-0.5">{subs.length} alt kateqoriya</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">{subs.length} {t("Categories.subcategories")}</p>
                     )}
                   </div>
                   <span className="text-muted-foreground text-lg">›</span>
@@ -71,7 +73,7 @@ export default function CategoriesPage({ locale }: { locale: string }) {
                         href={`/${locale}/categories/${cat.slug}`}
                         className="text-xs px-2.5 py-1 rounded-full bg-background border border-border text-muted-foreground hover:text-foreground transition"
                       >
-                        +{subs.length - 5} daha
+                        +{subs.length - 5} {t("Categories.more")}
                       </Link>
                     )}
                   </div>

@@ -167,7 +167,14 @@ export default function HomePage({ locale }: { locale: string }) {
                 alt={b.name}
                 className="max-h-full max-w-full object-contain"
                 loading="eager"
-                onError={(e) => { (e.currentTarget.parentElement as HTMLElement).style.display = "none"; }}
+                onError={(e) => {
+                  const img = e.currentTarget;
+                  img.style.display = "none";
+                  const fallback = document.createElement("span");
+                  fallback.textContent = b.name;
+                  fallback.className = "text-xs font-semibold text-muted-foreground";
+                  img.parentElement?.appendChild(fallback);
+                }}
               />
             </Link>
           ))}

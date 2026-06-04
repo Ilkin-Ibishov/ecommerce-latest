@@ -97,6 +97,7 @@ const messages: Record<string, Record<string, any>> = {
     ProductDetail: {
       addToCart: "Səbətə əlavə et",
       addedToCart: "Səbətə əlavə edildi",
+      updateCart: "Səbəti yenilə",
       inStock: "Stokda var",
       outOfStock: "Stokda yoxdur",
       onlyLeft: "yalnız {count} ədəd",
@@ -145,6 +146,12 @@ const messages: Record<string, Record<string, any>> = {
     RecentlyViewed: {
       title: "Son baxılan məhsullar",
     },
+    Categories: {
+      title: "Kateqoriyalar",
+      empty: "Kateqoriya yoxdur",
+      subcategories: "alt kateqoriya",
+      more: "daha",
+    },
     Checkout: {
       placeOrder: "Sifariş ver",
       yourInfo: "Məlumatlarınız",
@@ -181,6 +188,8 @@ const messages: Record<string, Record<string, any>> = {
       cashPayment: "Nağd ödəniş · Çatdırılmada AZN ilə ödəyin",
       invalidCoupon: "Yanlış kupon kodu",
       couponCheckFailed: "Kupon yoxlanıla bilmədi. Yenidən cəhd edin.",
+      fieldRequired: "Bu sahəni doldurun",
+      invalidPhone: "Düzgün Azərbaycan telefon nömrəsi daxil edin (+994XXXXXXXXX)",
     },
     Products: {
       allProducts: "Bütün məhsullar",
@@ -380,6 +389,7 @@ const messages: Record<string, Record<string, any>> = {
     ProductDetail: {
       addToCart: "Добавить в корзину",
       addedToCart: "Добавлено в корзину",
+      updateCart: "Обновить корзину",
       inStock: "В наличии",
       outOfStock: "Нет в наличии",
       onlyLeft: "осталось только {count} шт.",
@@ -428,6 +438,12 @@ const messages: Record<string, Record<string, any>> = {
     RecentlyViewed: {
       title: "Недавно просмотренные",
     },
+    Categories: {
+      title: "Категории",
+      empty: "Категорий нет",
+      subcategories: "подкатегорий",
+      more: "ещё",
+    },
     Checkout: {
       placeOrder: "Оформить заказ",
       yourInfo: "Ваши данные",
@@ -464,6 +480,8 @@ const messages: Record<string, Record<string, any>> = {
       cashPayment: "Оплата наличными · При доставке в AZN",
       invalidCoupon: "Неверный код купона",
       couponCheckFailed: "Не удалось проверить купон. Попробуйте ещё раз.",
+      fieldRequired: "Заполните это поле",
+      invalidPhone: "Введите корректный номер Азербайджана (+994XXXXXXXXX)",
     },
     Products: {
       allProducts: "Все продукты",
@@ -663,6 +681,7 @@ const messages: Record<string, Record<string, any>> = {
     ProductDetail: {
       addToCart: "Add to Cart",
       addedToCart: "Added to Cart",
+      updateCart: "Update Cart",
       inStock: "In Stock",
       outOfStock: "Out of Stock",
       onlyLeft: "only {count} left",
@@ -711,6 +730,12 @@ const messages: Record<string, Record<string, any>> = {
     RecentlyViewed: {
       title: "Recently Viewed",
     },
+    Categories: {
+      title: "Categories",
+      empty: "No categories found",
+      subcategories: "subcategories",
+      more: "more",
+    },
     Checkout: {
       placeOrder: "Place Order",
       yourInfo: "Your Information",
@@ -747,6 +772,8 @@ const messages: Record<string, Record<string, any>> = {
       cashPayment: "Cash payment · Pay in AZN on delivery",
       invalidCoupon: "Invalid coupon code",
       couponCheckFailed: "Could not verify coupon. Please try again.",
+      fieldRequired: "This field is required",
+      invalidPhone: "Enter a valid Azerbaijan phone number (+994XXXXXXXXX)",
     },
     Products: {
       allProducts: "All Products",

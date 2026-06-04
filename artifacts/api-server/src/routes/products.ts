@@ -3,6 +3,37 @@ import { getAdminSupabase } from "../lib/supabase";
 
 const router = Router();
 
+// POST /api/products/prices — bulk price check for cart items
+router.post("/products/prices", async (req, res) => {
+  try {
+    const { product_ids } = req.body;
+    if (!Array.isArray(product_ids) || product_ids.length === 0) {
+      res.status(400).json({ error: "product_ids array is required" });
+      return;
+    }
+    if (product_ids.length > 50) {
+      res.status(400).json({ error: "Maximum 50 products per request" });
+      return;
+    }
+
+    const admin = getAdminSupabase();
+    const { data } = await (admin as any)
+      .from("products")
+      .select("id, price, stock, slug")
+      .in("id", product_ids);
+
+    const priceMap: Record<string, { price: number; stock: number; slug: string }> = {};
+    for (const p of data ?? []) {
+      priceMap[p.id] = { price: Number(p.price), stock: p.stock, slug: p.slug };
+    }
+
+    res.json(priceMap);
+  } catch (err: any) {
+    req.log.error(err, "[Products Prices] Error");
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
 // GET /api/products/:id/related — uses product_specs (product_categories table doesn't exist)
 router.get("/products/:id/related", async (req, res) => {
   try {

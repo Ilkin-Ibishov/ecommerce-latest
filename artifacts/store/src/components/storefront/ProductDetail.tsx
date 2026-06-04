@@ -131,7 +131,6 @@ export default function ProductDetail({ product, images, translation, comments: 
   useEffect(() => {
     setMainImage(images[0] ?? null);
     setMainImageIdx(0);
-    setQty(1);
     setAdded(false);
   }, [product.id]);
   const [showLogin, setShowLogin] = useState(false);
@@ -142,8 +141,16 @@ export default function ProductDetail({ product, images, translation, comments: 
   const [commentLoading, setCommentLoading] = useState(false);
   const [commentStatus, setCommentStatus] = useState<"idle" | "success" | "error">("idle");
   const [user, setUser] = useState<any>(null);
-  const { addItem } = useCart();
+  const { addItem, updateQty, getItemQty } = useCart();
   const { t } = useI18n();
+
+  const cartQty = getItemQty(product.id);
+  const isInCart = cartQty > 0;
+
+  // Initialize qty from cart if already in cart, reset when product changes
+  useEffect(() => {
+    setQty(cartQty > 0 ? cartQty : 1);
+  }, [product.id, cartQty]);
   const supabase = createClient();
 
   useEffect(() => {
@@ -158,13 +165,17 @@ export default function ProductDetail({ product, images, translation, comments: 
   };
 
   const handleAddToCart = () => {
-    addItem({
-      product_id: product.id,
-      slug: product.slug,
-      title: translation.title,
-      price: product.price,
-      image: images[0]?.url ?? null,
-    }, qty);
+    if (isInCart) {
+      updateQty(product.id, qty);
+    } else {
+      addItem({
+        product_id: product.id,
+        slug: product.slug,
+        title: translation.title,
+        price: product.price,
+        image: images[0]?.url ?? null,
+      }, qty);
+    }
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
@@ -350,7 +361,7 @@ export default function ProductDetail({ product, images, translation, comments: 
               {added ? (
                 <><Check size={18} strokeWidth={3} />{t("ProductDetail.addedToCart")}</>
               ) : (
-                <><ShoppingCart size={18} />{inStock ? t("ProductDetail.addToCart") : t("ProductDetail.outOfStock")}</>
+                <><ShoppingCart size={18} />{inStock ? (isInCart ? t("ProductDetail.updateCart") : t("ProductDetail.addToCart")) : t("ProductDetail.outOfStock")}</>
               )}
             </button>
             <WishlistButton

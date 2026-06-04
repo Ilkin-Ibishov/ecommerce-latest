@@ -11,7 +11,7 @@ import { useI18n } from "@/lib/i18n/context";
 const PROMO_STORAGE_KEY = "ilk_promo";
 
 export default function CheckoutPage({ locale }: { locale: string }) {
-  const { items, subtotal, removeItem, clearCart } = useCart();
+  const { items, subtotal, removeItem, clearCart, updateQty } = useCart();
   const supabase = createClient();
   const { profile } = useProfile();
   const { t } = useI18n();
@@ -27,12 +27,43 @@ export default function CheckoutPage({ locale }: { locale: string }) {
   const [couponError, setCouponError] = useState("");
   const [coupon, setCoupon] = useState<any>(null);
   const [form, setForm] = useState({ customer_name: "", customer_phone: "", delivery_address: "", notes: "" });
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }: any) => setUser(data.user ?? null));
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_: any, session: any) => setUser(session?.user ?? null));
     return () => subscription.unsubscribe();
   }, []);
+
+  // Refresh cart prices from the server to detect stale/changed prices
+  const [priceRefreshed, setPriceRefreshed] = useState(false);
+  useEffect(() => {
+    if (items.length === 0 || priceRefreshed) return;
+    const productIds = items.map((i) => i.product_id);
+    fetch(apiUrl("/products/prices"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ product_ids: productIds }),
+    })
+      .then((r) => r.ok ? r.json() : null)
+      .then((priceMap) => {
+        if (!priceMap) return;
+        for (const item of items) {
+          const server = priceMap[item.product_id];
+          if (!server) {
+            // Product no longer exists — remove from cart
+            removeItem(item.product_id);
+          } else if (server.stock <= 0) {
+            removeItem(item.product_id);
+          } else if (server.price !== item.price) {
+            // Price changed — update locally (cart context will persist to localStorage)
+            updateQty(item.product_id, Math.min(item.quantity, server.stock));
+          }
+        }
+        setPriceRefreshed(true);
+      })
+      .catch(() => { /* non-blocking — checkout still works with local prices */ });
+  }, [items.length]);
 
   // Pre-fill name and address from saved profile (only when fields are still empty)
   useEffect(() => {
@@ -92,6 +123,20 @@ export default function CheckoutPage({ locale }: { locale: string }) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Client-side validation
+    const errors: Record<string, string> = {};
+    if (!form.customer_name.trim()) errors.customer_name = t("Checkout.fieldRequired");
+    if (!form.customer_phone.trim()) {
+      errors.customer_phone = t("Checkout.fieldRequired");
+    } else {
+      const digits = form.customer_phone.replace(/\D/g, "");
+      const normalized = digits.startsWith("994") ? `+${digits}` : digits.startsWith("0") ? `+994${digits.slice(1)}` : `+994${digits}`;
+      if (!/^\+994\d{9}$/.test(normalized)) errors.customer_phone = t("Checkout.invalidPhone");
+    }
+    if (!form.delivery_address.trim()) errors.delivery_address = t("Checkout.fieldRequired");
+    if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
+    setFieldErrors({});
+
     if (!user) { setShowLogin(true); return; }
     if (items.length === 0) return;
     setError(""); setLoading(true);
@@ -165,10 +210,10 @@ export default function CheckoutPage({ locale }: { locale: string }) {
               </div>
             )}
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label={t("Checkout.nameLabel")} value={form.customer_name} onChange={(v) => setForm((f) => ({ ...f, customer_name: v }))} placeholder={t("Checkout.namePlaceholder")} required />
-              <Field label={t("Checkout.phoneLabel")} value={form.customer_phone} onChange={(v) => setForm((f) => ({ ...f, customer_phone: v }))} placeholder={t("Checkout.phonePlaceholder")} type="tel" required />
+              <Field label={t("Checkout.nameLabel")} value={form.customer_name} onChange={(v) => { setForm((f) => ({ ...f, customer_name: v })); setFieldErrors((e) => ({ ...e, customer_name: "" })); }} placeholder={t("Checkout.namePlaceholder")} required error={fieldErrors.customer_name} />
+              <Field label={t("Checkout.phoneLabel")} value={form.customer_phone} onChange={(v) => { setForm((f) => ({ ...f, customer_phone: v })); setFieldErrors((e) => ({ ...e, customer_phone: "" })); }} placeholder={t("Checkout.phonePlaceholder")} type="tel" required error={fieldErrors.customer_phone} />
             </div>
-            <Field label={t("Checkout.addressLabel")} value={form.delivery_address} onChange={(v) => setForm((f) => ({ ...f, delivery_address: v }))} placeholder={t("Checkout.addressPlaceholder")} required />
+            <Field label={t("Checkout.addressLabel")} value={form.delivery_address} onChange={(v) => { setForm((f) => ({ ...f, delivery_address: v })); setFieldErrors((e) => ({ ...e, delivery_address: "" })); }} placeholder={t("Checkout.addressPlaceholder")} required error={fieldErrors.delivery_address} />
             <div>
               <label className="block text-sm font-medium mb-1">{t("Checkout.notesLabel")}</label>
               <textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
@@ -258,14 +303,15 @@ export default function CheckoutPage({ locale }: { locale: string }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = "text", required }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; required?: boolean;
+function Field({ label, value, onChange, placeholder, type = "text", required, error }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; required?: boolean; error?: string;
 }) {
   return (
     <div>
       <label className="block text-sm font-medium mb-1">{label}</label>
       <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required}
-        className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
+        className={`w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring ${error ? "border-destructive" : "border-border"}`} />
+      {error && <p className="text-destructive text-xs mt-1">{error}</p>}
     </div>
   );
 }

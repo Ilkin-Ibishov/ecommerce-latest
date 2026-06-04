@@ -16,7 +16,7 @@ router.post("/coupons/validate", async (req, res) => {
       .eq("is_active", true)
       .maybeSingle();
 
-    if (!coupon) return res.status(404).json({ error: "Invalid or expired coupon" });
+    if (!coupon) return res.status(400).json({ error: "Invalid or expired coupon" });
 
     const now = new Date();
     if (coupon.expires_at && new Date(coupon.expires_at) <= now) {

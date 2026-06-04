@@ -80,6 +80,7 @@ interface CartContextValue {
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   removeItem: (product_id: string) => void;
   updateQty: (product_id: string, quantity: number) => void;
+  getItemQty: (product_id: string) => number;
   clearCart: () => void;
 }
 
@@ -93,7 +94,18 @@ export function CartProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const stored = localStorage.getItem(STORAGE_KEY);
-      const items: CartItem[] = stored ? JSON.parse(stored) : [];
+      const raw: unknown[] = stored ? JSON.parse(stored) : [];
+      // Validate each item from localStorage to prevent tampered data
+      const items: CartItem[] = (Array.isArray(raw) ? raw : []).filter((item): item is CartItem => {
+        if (!item || typeof item !== "object") return false;
+        const i = item as Record<string, unknown>;
+        if (typeof i.product_id !== "string" || !i.product_id) return false;
+        if (typeof i.slug !== "string" || !i.slug) return false;
+        if (typeof i.title !== "string" || !i.title) return false;
+        if (typeof i.price !== "number" || i.price <= 0 || !isFinite(i.price)) return false;
+        if (typeof i.quantity !== "number" || i.quantity <= 0 || i.quantity > 99 || !Number.isInteger(i.quantity)) return false;
+        return true;
+      });
       dispatch({ type: "SET", items });
     } catch {
       dispatch({ type: "SET", items: [] });
@@ -129,6 +141,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "CLEAR" });
   }, []);
 
+  const getItemQty = useCallback((product_id: string) => {
+    return state.items.find((i) => i.product_id === product_id)?.quantity ?? 0;
+  }, [state.items]);
+
   const itemCount = state.items.reduce((sum, i) => sum + i.quantity, 0);
   const subtotal = state.items.reduce((sum, i) => sum + i.price * i.quantity, 0);
 
@@ -141,6 +157,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       addItem,
       removeItem,
       updateQty,
+      getItemQty,
       clearCart,
     }}>
       {children}

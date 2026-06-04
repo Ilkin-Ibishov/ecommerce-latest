@@ -55,6 +55,7 @@ export default function SearchSuggestions({
       document.addEventListener("mousedown", handleClickOutside);
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
+    return undefined;
   }, [visible, handleClickOutside]);
 
   if (!visible || (products.length === 0 && categories.length === 0)) {
