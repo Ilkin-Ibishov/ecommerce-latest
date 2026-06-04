@@ -13,22 +13,23 @@ The canonical schema lives in `supabase/schema.sql`. Reference it via:
 | Table | Purpose |
 |-------|---------|
 | `users` | User profiles (linked to Supabase Auth) |
-| `products` | Product catalog (price, stock, flags) |
+| `products` | Product catalog (price, stock, brand, flags) |
 | `product_translations` | Localized title/description (az, ru, en) |
 | `product_images` | Product image URLs with sort order |
-| `product_categories` | Many-to-many product↔category |
-| `categories` | Hierarchical categories (parent_id) |
+| `product_specs` | Product specifications (key/value pairs with sort order) |
+| `categories` | Hierarchical categories (parent_id, slug, icon_url) |
 | `category_translations` | Localized category names |
-| `orders` | Order header (status, totals, address) |
-| `order_items` | Line items with price snapshots |
+| `orders` | Order header (status, totals, address, coupon) |
+| `order_items` | Line items with price/title snapshots |
 | `cart_items` | Cart (user-based or session-based) |
-| `coupons` | Discount codes (percentage/fixed, scoped) |
+| `coupons` | Discount codes (percentage/fixed, scoped, min order, max uses, expiry) |
 | `coupon_usages` | Track per-user coupon usage |
 | `wishlists` | User wishlists |
-| `comments` | Product reviews (admin-moderated) |
-| `notifications` | WhatsApp/notification queue |
+| `comments` | Product reviews with ratings (admin-moderated) |
+| `notifications` | WhatsApp/notification queue (pending/sent/failed) |
 | `audit_log` | Admin action audit trail |
-| `otp_requests` | OTP rate limiting (hashed codes) |
+| `otp_requests` | OTP rate limiting (hashed codes, expiry) |
+| `banners` | Homepage banners (title, image, CTA, sort order) |
 
 ## Order Status Flow
 

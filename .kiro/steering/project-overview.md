@@ -38,7 +38,17 @@ This is a **pnpm monorepo** for a white-label e-commerce platform targeting the 
 5. **Row Level Security** — Database-level access control; API server uses service role for privileged ops.
 6. **Atomic stock management** — Postgres RPC functions (`decrement_stock_safe`, `increment_stock`).
 7. **Component library** — shadcn/ui pattern: Radix primitives + Tailwind + CVA in `artifacts/store/src/components/ui/`.
-8. **Cart context** — React context at `artifacts/store/src/lib/cart/context.tsx`.
+8. **Cart context** — React context at `artifacts/store/src/lib/cart/context.tsx`. Validates localStorage data on load (rejects negative prices, invalid items). Exposes `getItemQty(product_id)` for checking if item is in cart.
+9. **Server-side price verification** — Checkout page refreshes cart prices via `POST /api/products/prices` to detect stale/changed prices and remove out-of-stock items.
+10. **Form validation** — Checkout uses client-side validation with inline error messages (translated). Server also validates on order submission.
+
+### Deployment
+
+- **Hosting:** Vercel (auto-deploy from GitHub `main` branch)
+- **Architecture:** Store SPA served from CDN, `/api/*` routed to serverless function wrapping Express
+- **Project:** `ecommerce-latest-api-server` on Vercel
+- **URL:** `https://ecommerce-latest-api-server.vercel.app`
+- **GitHub:** `Ilkin-Ibishov/ecommerce-latest`
 
 ### Environment Variables
 

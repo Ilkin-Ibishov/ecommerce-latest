@@ -71,6 +71,20 @@ res.status(400).json({ error: "Description of what went wrong" });
 res.json({ data: items, total: count, page, pageSize });
 ```
 
+## Important Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/api/auth/otp/request` | Send OTP code via WhatsApp |
+| `POST` | `/api/auth/otp/verify` | Verify OTP and issue session |
+| `POST` | `/api/orders` | Create order (validates products, prices, stock server-side) |
+| `POST` | `/api/coupons/validate` | Validate coupon code (returns 400 for invalid, not 404) |
+| `POST` | `/api/products/prices` | Bulk price check — accepts `{ product_ids: string[] }`, returns `{ [id]: { price, stock, slug } }` |
+| `GET` | `/api/products/:id/specs` | Product specifications |
+| `GET` | `/api/products/:id/related` | Related products |
+| `GET` | `/api/profile/orders` | User's orders (auth required) |
+| `POST` | `/api/cart/merge` | Merge guest cart into user cart after login |
+
 ## Build
 
 The API server is bundled with esbuild to `dist/index.mjs`. Build config is in `build.mjs`.

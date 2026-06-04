@@ -21,8 +21,16 @@ When the user asks to implement a feature from the roadmap, follow this order:
 
 ## Current P0 Gaps (Critical)
 
-1. Prominent search bar in header
-2. Trust badges section on homepage
-3. Announcement bar (promo banner)
-4. Star ratings on product cards & detail
-5. Sort options on products page
+1. ~~Prominent search bar in header~~ ✅ Done (with autocomplete suggestions)
+2. ~~Trust badges section on homepage~~ ✅ Done
+3. ~~Announcement bar (promo banner)~~ ✅ Done
+4. ~~Star ratings on product cards & detail~~ ✅ Done
+5. ~~Sort options on products page~~ ✅ Done
+
+## Current P1 Gaps (High Priority)
+
+1. SEO & Open Graph tags (JSON-LD, sitemap, OG)
+2. Admin analytics dashboard (revenue chart, KPIs)
+3. WhatsApp notification templates (Azerbaijani)
+4. Order status tracking page for customers
+5. Product image zoom/lightbox on mobile ✅ Done

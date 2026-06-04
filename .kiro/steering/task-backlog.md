@@ -14,11 +14,8 @@ Pre-planned feature implementations with detailed steps. Use these as input when
 **Tech:** Recharts (already installed), direct Supabase queries from frontend
 **Files:** `artifacts/store/src/pages/admin/DashboardPage.tsx`
 
-### 2. Search Autocomplete
-**Priority:** High | **Effort:** Medium
-**What:** Instant suggestions as user types (products + categories), keyboard navigation, debounced API
-**API:** `GET /api/search/suggest?q=...&locale=az` — returns top 6 products + top 3 categories
-**Files:** `Header.tsx`, `SearchPage.tsx`, new route in api-server
+### 2. ~~Search Autocomplete~~ ✅ DONE
+**Status:** Implemented and deployed. Instant suggestions with products + categories, keyboard navigation, debounced API.
 
 ### 3. SEO & Open Graph
 **Priority:** High | **Effort:** Medium
@@ -38,18 +35,27 @@ Pre-planned feature implementations with detailed steps. Use these as input when
 **Tech:** React context + localStorage, no new API needed
 **Files:** `App.tsx`, `ProductCard.tsx`, `ProductDetail.tsx`, new `ComparePage.tsx`
 
-### 6. User Profile Enhancements
-**Priority:** Medium | **Effort:** Medium
-**What:** Editable name, saved default address (pre-fills checkout), order status timeline, re-order button
-**DB:** `default_address` column already exists on `users` table
-**API:** `GET /api/profile`, `PATCH /api/profile`
-**Files:** `ProfilePage.tsx`, `CheckoutPage.tsx`, new profile routes
+### 6. ~~User Profile Enhancements~~ ✅ DONE
+**Status:** Implemented. Editable name, saved default address (pre-fills checkout), order history with re-order button.
 
 ### 7. Mobile App (Expo)
 **Priority:** Low (future) | **Effort:** High
 **What:** React Native companion app with same API backend
 **Screens:** Home, Products, Product Detail, Cart, Checkout, Profile
 **Note:** Entire backend API is ready; this is frontend-only work
+
+## Recently Completed (June 2026)
+
+| Feature | Commit | Notes |
+|---------|--------|-------|
+| Search Autocomplete | `9eecf5f` | Products + categories suggestions, keyboard nav |
+| Cart localStorage Validation | `c91b132` | Rejects tampered data (negative prices, invalid items) |
+| Cart Quantity UX | `c91b132` | "Update Cart" for existing items instead of additive |
+| Checkout Form Validation | `c91b132` | Inline error messages, phone format check |
+| Categories Page i18n | `c91b132` | All strings translated (az/ru/en) |
+| Coupon System | `c91b132` | Status code fix + WELCOME10/FLAT20 seeded |
+| Cart Price Refresh | `c91b132` | Checkout fetches live prices, removes stale items |
+| Brand Icon Fallbacks | `c91b132` | Text fallback when CDN icon fails |
 
 ## Detailed Specs
 

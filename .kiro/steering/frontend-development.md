@@ -91,6 +91,46 @@ function MyComponent() {
 
 All user-facing strings MUST use `t()`. Add new keys to `artifacts/store/src/lib/i18n/messages.ts` for all three locales (az, ru, en).
 
+## Cart Context
+
+```tsx
+import { useCart } from "@/lib/cart/context";
+
+function MyComponent() {
+  const { items, subtotal, itemCount, addItem, removeItem, updateQty, getItemQty, clearCart } = useCart();
+  
+  // Check if product is in cart
+  const cartQty = getItemQty(product.id);
+  const isInCart = cartQty > 0;
+  
+  // Use updateQty for existing items (sets exact value)
+  // Use addItem for new items (additive)
+  if (isInCart) updateQty(product.id, newQty);
+  else addItem({ product_id, slug, title, price, image }, qty);
+}
+```
+
+Cart validates localStorage on load — rejects items with negative prices, quantities > 99, or missing required fields.
+
+## Form Validation Pattern
+
+For checkout and other forms, use client-side validation with inline error messages:
+
+```tsx
+const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+// Validate before submit
+const errors: Record<string, string> = {};
+if (!value.trim()) errors.fieldName = t("Checkout.fieldRequired");
+if (Object.keys(errors).length > 0) { setFieldErrors(errors); return; }
+
+// Clear errors on input change
+onChange={(v) => { setValue(v); setFieldErrors(e => ({ ...e, fieldName: "" })); }}
+
+// Display inline error
+{error && <p className="text-destructive text-xs mt-1">{error}</p>}
+```
+
 ## Styling
 
 - Use Tailwind utility classes directly
