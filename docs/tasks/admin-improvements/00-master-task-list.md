@@ -17,7 +17,7 @@
 
 | # | Priority | Task | Effort | Plan File | Status |
 |---|----------|------|--------|-----------|--------|
-| 1 | P0 | [WhatsApp notifications — env vars + Azerbaijani templates](./01-whatsapp-notifications.md) | 2h | 01 | ⬜ |
+| 1 | P0 | [WhatsApp notifications — env vars + retry endpoint](./01-whatsapp-notifications.md) | 1h | 01 | ⬜ |
 | 2 | P0 | [Orders — search by customer name/phone](./02-orders-search.md) | 2h | 02 | ⬜ |
 | 3 | P1 | [Dashboard — low stock alert panel](./03-dashboard-low-stock.md) | 3h | 03 | ⬜ |
 | 4 | P1 | [Dashboard — missing KPIs (customers, cancellation rate, coupon usage)](./04-dashboard-kpis.md) | 3h | 04 | ⬜ |
@@ -34,7 +34,22 @@
 | 15 | P3 | [Mobile-responsive admin sidebar](./15-mobile-responsive-sidebar.md) | 4h | 15 | ⬜ |
 | 16 | P3 | [Admin settings page](./16-admin-settings-page.md) | 6h | 16 | ⬜ |
 
-**Total estimated effort: ~59 hours**
+**Total estimated effort: ~58 hours** (Task 01 reduced from 2h to 1h — templates already exist)
+
+---
+
+## Known Architectural Issues (fix separately)
+
+### 1. `product_categories` vs `product_specs` for category linkage
+`categories.ts` uses `product_specs` rows with `spec_key = "__category"` to link products to categories — NOT the `product_categories` join table. If products are seeded with only `product_categories` rows, they won't appear on category pages. Either:
+- Migrate the category API to use `product_categories` (breaking change, requires data migration)
+- Or ensure all seed/import scripts also create the `product_specs` `__category` rows
+
+### 2. Duplicate `GET /profile/orders` route
+Both `cart.ts` and `orders.ts` define `GET /profile/orders`. Since `ordersRouter` is registered first in `index.ts`, the `cart.ts` version is dead code. The two routes also return different field sets. Remove the one in `cart.ts` to avoid confusion.
+
+### 3. Route ordering critical in Tasks 07 and 09
+When implementing Tasks 07 (CSV export) and 09 (bulk operations), new routes MUST be registered BEFORE the existing `:id` wildcard routes in `admin.ts`. See each plan for specifics.
 
 ---
 
