@@ -23,10 +23,10 @@
 | 4 | P1 | [Dashboard — missing KPIs (customers, cancellation rate, coupon usage)](./04-dashboard-kpis.md) | 3h | 04 | ✅ Done |
 | 5 | P1 | [Products — pagination + search/filter](./05-products-pagination-search.md) | 4h | 05 | ✅ Done |
 | 6 | P1 | [Dashboard — date range selector](./06-dashboard-date-range.md) | 4h | 06 | ✅ Done |
-| 7 | P2 | [Orders — CSV export](./07-orders-csv-export.md) | 3h | 07 | ⬜ |
-| 8 | P2 | [Orders — admin notes + print/invoice view](./08-orders-notes-invoice.md) | 4h | 08 | ⬜ |
-| 9 | P2 | [Products — bulk operations (toggle flags, delete)](./09-products-bulk-ops.md) | 4h | 09 | ⬜ |
-| 10 | P2 | [Products — stock adjustment + duplicate product](./10-products-stock-duplicate.md) | 3h | 10 | ⬜ |
+| 7 | P2 | [Orders — CSV export](./07-orders-csv-export.md) | 3h | 07 | ✅ Done |
+| 8 | P2 | [Orders — admin notes + print/invoice view](./08-orders-notes-invoice.md) | 4h | 08 | ✅ Done |
+| 9 | P2 | [Products — bulk operations (toggle flags, delete)](./09-products-bulk-ops.md) | 4h | 09 | ✅ Done |
+| 10 | P2 | [Products — stock adjustment + duplicate product](./10-products-stock-duplicate.md) | 3h | 10 | ✅ Done |
 | 11 | P2 | [Categories — subcategory management](./11-categories-subcategories.md) | 4h | 11 | ⬜ |
 | 12 | P2 | [Customers/Users admin page](./12-users-admin-page.md) | 6h | 12 | ⬜ |
 | 13 | P2 | [Inventory / Stock report page](./13-inventory-stock-report.md) | 3h | 13 | ⬜ |

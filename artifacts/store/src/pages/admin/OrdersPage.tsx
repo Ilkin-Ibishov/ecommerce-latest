@@ -1,7 +1,9 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useSearch, useLocation } from "wouter";
-import { Search, X } from "lucide-react";
+import { Search, X, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { apiUrl } from "@/lib/api";
+import { adminFetch } from "@/lib/admin-fetch";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-400",
@@ -87,11 +89,31 @@ export default function AdminOrdersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Orders</h1>
-        <span className="text-sm text-muted-foreground">
-          {debouncedSearch ? `${count} result${count !== 1 ? "s" : ""} for "${debouncedSearch}"` : `${count} total`}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">
+            {debouncedSearch ? `${count} result${count !== 1 ? "s" : ""} for "${debouncedSearch}"` : `${count} total`}
+          </span>
+          <button
+            onClick={async () => {
+              const ps = new URLSearchParams();
+              if (status) ps.set("status", status);
+              const res = await adminFetch(`${apiUrl("/admin/orders/export")}?${ps.toString()}`);
+              if (!res.ok) return;
+              const blob = await res.blob();
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
+              a.click();
+              URL.revokeObjectURL(url);
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition"
+          >
+            <Download size={13} /> Export CSV
+          </button>
+        </div>
       </div>
 
       {/* Search + status filters */}

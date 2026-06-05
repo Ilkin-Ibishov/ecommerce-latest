@@ -492,3 +492,13 @@
 .animate-marquee:hover {
   animation-play-state: paused;
 }
+
+/* ── Print styles (admin order detail) ─────────────────────────────────────── */
+@media print {
+  .no-print { display: none !important; }
+  aside, nav, header, footer, button { display: none !important; }
+  .print\:block { display: block !important; }
+  body { background: white !important; color: black !important; font-size: 13px; }
+  .bg-card { border: 1px solid #ccc !important; box-shadow: none !important; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}

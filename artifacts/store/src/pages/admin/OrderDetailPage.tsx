@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
+import { Printer } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -58,6 +59,13 @@ export default function OrderDetailPage({ id }: { id: string }) {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
+
+  // Admin notes state
+  const [adminNotes, setAdminNotes] = useState("");
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesSaved, setNotesSaved] = useState(false);
+
+  // WhatsApp notifications
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [notifsOpen, setNotifsOpen] = useState(false);
   const [testPhone, setTestPhone] = useState("");
@@ -72,6 +80,7 @@ export default function OrderDetailPage({ id }: { id: string }) {
       .then(({ data }: any) => {
         setOrder(data);
         setNewStatus(data?.status ?? "");
+        setAdminNotes(data?.admin_notes ?? "");
         setLoading(false);
       });
   }, [id]);
@@ -106,6 +115,17 @@ export default function OrderDetailPage({ id }: { id: string }) {
     setSaving(false);
   };
 
+  const handleSaveNotes = async () => {
+    setNotesSaving(true);
+    await adminFetch(apiUrl(`/admin/orders/${id}/notes`), {
+      method: "PATCH",
+      body: JSON.stringify({ notes: adminNotes }),
+    });
+    setNotesSaving(false);
+    setNotesSaved(true);
+    setTimeout(() => setNotesSaved(false), 2000);
+  };
+
   const handleTestSend = async () => {
     if (!testPhone) return;
     setTestSending(true); setTestResult("");
@@ -134,16 +154,30 @@ export default function OrderDetailPage({ id }: { id: string }) {
 
   return (
     <div className="space-y-6 max-w-3xl">
-      <div className="flex items-center gap-4">
-        <Link href="/admin/orders" className="text-muted-foreground hover:text-foreground text-sm">← Orders</Link>
+      {/* Header */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <Link href="/admin/orders" className="text-muted-foreground hover:text-foreground text-sm no-print">← Orders</Link>
         <h1 className="text-2xl font-bold">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusClass}`}>
           {STATUS_LABELS[order.status] ?? order.status}
         </span>
+        <button
+          onClick={() => window.print()}
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition no-print"
+        >
+          <Printer size={14} /> Print
+        </button>
       </div>
 
-      {error && <div className="bg-destructive/10 text-destructive text-sm px-4 py-3 rounded-lg">{error}</div>}
+      {/* Print-only store header */}
+      <div className="hidden print:block border-b pb-4 mb-4">
+        <p className="text-lg font-bold">İlk Electronics — Çatdırılma Qaiməsi</p>
+        <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString("az-AZ", { year: "numeric", month: "long", day: "numeric" })}</p>
+      </div>
 
+      {error && <div className="bg-destructive/10 text-destructive text-sm px-4 py-3 rounded-lg no-print">{error}</div>}
+
+      {/* Customer + Order info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-card border border-border rounded-xl p-5 space-y-3">
           <h2 className="font-semibold text-sm">Customer</h2>
@@ -168,6 +202,7 @@ export default function OrderDetailPage({ id }: { id: string }) {
         </div>
       </div>
 
+      {/* Items */}
       <div className="bg-card border border-border rounded-xl p-5 space-y-3">
         <h2 className="font-semibold text-sm">Items</h2>
         <div className="divide-y divide-border">
@@ -182,7 +217,8 @@ export default function OrderDetailPage({ id }: { id: string }) {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-xl p-5 space-y-3">
+      {/* Update Status — hidden on print */}
+      <div className="bg-card border border-border rounded-xl p-5 space-y-3 no-print">
         <h2 className="font-semibold text-sm">Update Status</h2>
         {newStatus === "cancelled" && order.status !== "cancelled" && (
           <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
@@ -204,8 +240,27 @@ export default function OrderDetailPage({ id }: { id: string }) {
         <p className="text-xs text-muted-foreground">WhatsApp bildirişi avtomatik göndəriləcək.</p>
       </div>
 
-      {/* WhatsApp Notifications Log */}
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
+      {/* Admin Notes — hidden on print */}
+      <div className="bg-card border border-border rounded-xl p-5 space-y-3 no-print">
+        <h2 className="font-semibold text-sm">Admin Notes <span className="text-xs font-normal text-muted-foreground">(internal — not visible to customer)</span></h2>
+        <textarea
+          value={adminNotes}
+          onChange={(e) => setAdminNotes(e.target.value)}
+          rows={3}
+          placeholder="Add internal notes about this order…"
+          className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+        />
+        <button
+          onClick={handleSaveNotes}
+          disabled={notesSaving}
+          className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 transition disabled:opacity-50"
+        >
+          {notesSaving ? "Saving…" : notesSaved ? "✓ Saved" : "Save Notes"}
+        </button>
+      </div>
+
+      {/* WhatsApp Notifications Log — hidden on print */}
+      <div className="bg-card border border-border rounded-xl overflow-hidden no-print">
         <button
           onClick={() => setNotifsOpen((v) => !v)}
           className="w-full flex items-center justify-between px-5 py-4 text-sm font-semibold hover:bg-muted/30 transition"

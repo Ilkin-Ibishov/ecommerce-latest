@@ -179,6 +179,42 @@ router.delete("/admin/banners/:id", async (req, res) => {
 
 // ── Orders ────────────────────────────────────────────────────────────────────
 
+// GET /admin/orders/export — CSV download (must be before /:id routes)
+router.get("/admin/orders/export", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const { status, from, to } = req.query as Record<string, string>;
+    let query = (ctx.admin as any)
+      .from("orders")
+      .select("id, status, total_azn, discount_azn, customer_name, customer_phone, delivery_address, notes, created_at")
+      .order("created_at", { ascending: false });
+    if (status) query = query.eq("status", status);
+    if (from) query = query.gte("created_at", new Date(from).toISOString());
+    if (to) query = query.lte("created_at", new Date(to).toISOString());
+    const { data, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+    const orders: any[] = data ?? [];
+    const headers = ["Order ID", "Status", "Customer Name", "Phone", "Address", "Notes", "Total (AZN)", "Discount (AZN)", "Date"];
+    const rows = orders.map((o: any) => [
+      o.id.slice(0, 8).toUpperCase(),
+      o.status,
+      `"${(o.customer_name ?? "").replace(/"/g, '""')}"`,
+      o.customer_phone ?? "",
+      `"${(o.delivery_address ?? "").replace(/"/g, '""')}"`,
+      `"${(o.notes ?? "").replace(/"/g, '""')}"`,
+      Number(o.total_azn).toFixed(2),
+      Number(o.discount_azn ?? 0).toFixed(2),
+      new Date(o.created_at).toLocaleString("az-AZ"),
+    ]);
+    const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const filename = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    return res.send("\uFEFF" + csv); // BOM for Excel UTF-8
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
 router.patch("/admin/orders/:id/status", async (req, res) => {
   try {
     const ctx = await requireAdmin(req);
@@ -235,6 +271,102 @@ router.patch("/admin/orders/:id/status", async (req, res) => {
 
     await (admin as any).from("audit_log").insert({ actor_id: ctx.user.id, action: "update_order_status", entity: "order", entity_id: id, changes: { old_status: oldStatus, status } });
     return res.json({ success: true });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+// Task 08 — Admin notes on orders
+router.patch("/admin/orders/:id/notes", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { notes } = req.body;
+    if (typeof notes !== "string") return res.status(400).json({ error: "notes must be a string" });
+    await (ctx.admin as any).from("orders").update({ admin_notes: notes.trim() || null }).eq("id", rawId);
+    await (ctx.admin as any).from("audit_log").insert({ actor_id: ctx.user.id, action: "update_order_notes", entity: "order", entity_id: rawId, changes: { admin_notes: notes.slice(0, 100) } });
+    return res.json({ success: true });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+// Task 09 — Bulk product operations (must be BEFORE /:id routes)
+// Bulk flag update
+router.patch("/admin/products/bulk-flag", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const { ids, field, value } = req.body as { ids: string[]; field: string; value: boolean };
+    const VALID_FIELDS = ["is_featured", "is_on_sale", "is_deal_of_day"];
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "ids array required" });
+    if (!VALID_FIELDS.includes(field)) return res.status(400).json({ error: "Invalid field" });
+    await (ctx.admin as any).from("products").update({ [field]: !!value }).in("id", ids);
+    await (ctx.admin as any).from("audit_log").insert({ actor_id: ctx.user.id, action: "bulk_flag_products", entity: "product", entity_id: null, changes: { ids, field, value } });
+    return res.json({ success: true, count: ids.length });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+// Bulk delete
+router.delete("/admin/products/bulk", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const { ids } = req.body as { ids: string[] };
+    if (!Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: "ids array required" });
+    await (ctx.admin as any).from("products").delete().in("id", ids);
+    await (ctx.admin as any).from("audit_log").insert({ actor_id: ctx.user.id, action: "bulk_delete_products", entity: "product", entity_id: null, changes: { ids } });
+    return res.json({ success: true, count: ids.length });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+// Task 10 — Quick stock adjustment (4-segment path, no conflict with /:id)
+router.patch("/admin/products/:id/stock", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { stock } = req.body;
+    if (typeof stock !== "number" || stock < 0 || !Number.isInteger(stock)) {
+      return res.status(400).json({ error: "stock must be a non-negative integer" });
+    }
+    await (ctx.admin as any).from("products").update({ stock }).eq("id", rawId);
+    await (ctx.admin as any).from("audit_log").insert({ actor_id: ctx.user.id, action: "adjust_stock", entity: "product", entity_id: rawId, changes: { stock } });
+    return res.json({ success: true });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+// Task 10 — Duplicate product
+router.post("/admin/products/:id/duplicate", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const admin = ctx.admin;
+    const [productRes, specsRes] = await Promise.all([
+      (admin as any).from("products").select("*, product_translations(*), product_images(*), product_categories(category_id)").eq("id", rawId).single(),
+      (admin as any).from("product_specs").select("spec_key, spec_value, sort_order").eq("product_id", rawId).order("sort_order"),
+    ]);
+    if (!productRes.data) return res.status(404).json({ error: "Product not found" });
+    const src = productRes.data;
+    const newSlug = `${src.slug}-copy-${Date.now()}`;
+    const { data: newProduct, error } = await (admin as any).from("products").insert({
+      sku: src.sku ? `${src.sku}-COPY` : null, slug: newSlug, price: src.price,
+      stock: 0, is_featured: false, is_on_sale: src.is_on_sale, is_deal_of_day: false,
+      sort_order: src.sort_order, brand: src.brand, original_price: src.original_price,
+    }).select("id").single();
+    if (error) return res.status(400).json({ error: error.message });
+    if (src.product_translations?.length) {
+      await (admin as any).from("product_translations").insert(src.product_translations.map((t: any) => ({ product_id: newProduct.id, lang_code: t.lang_code, title: `${t.title} (copy)`, description: t.description })));
+    }
+    if (src.product_images?.length) {
+      await (admin as any).from("product_images").insert(src.product_images.map((img: any, i: number) => ({ product_id: newProduct.id, url: img.url, alt_text: img.alt_text, sort_order: i })));
+    }
+    if (src.product_categories?.length) {
+      await (admin as any).from("product_categories").insert(src.product_categories.map((pc: any) => ({ product_id: newProduct.id, category_id: pc.category_id })));
+    }
+    if (specsRes.data?.length) {
+      await (admin as any).from("product_specs").insert(specsRes.data.map((s: any) => ({ product_id: newProduct.id, spec_key: s.spec_key, spec_value: s.spec_value, sort_order: s.sort_order })));
+    }
+    await (admin as any).from("audit_log").insert({ actor_id: ctx.user.id, action: "duplicate_product", entity: "product", entity_id: newProduct.id, changes: { source_id: rawId } });
+    return res.status(201).json({ id: newProduct.id });
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
 });
 
