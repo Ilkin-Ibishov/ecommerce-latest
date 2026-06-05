@@ -17,12 +17,12 @@
 
 | # | Priority | Task | Effort | Plan File | Status |
 |---|----------|------|--------|-----------|--------|
-| 1 | P0 | [WhatsApp notifications — env vars + retry endpoint](./01-whatsapp-notifications.md) | 1h | 01 | ⬜ |
-| 2 | P0 | [Orders — search by customer name/phone](./02-orders-search.md) | 2h | 02 | ⬜ |
-| 3 | P1 | [Dashboard — low stock alert panel](./03-dashboard-low-stock.md) | 3h | 03 | ⬜ |
-| 4 | P1 | [Dashboard — missing KPIs (customers, cancellation rate, coupon usage)](./04-dashboard-kpis.md) | 3h | 04 | ⬜ |
-| 5 | P1 | [Products — pagination + search/filter](./05-products-pagination-search.md) | 4h | 05 | ⬜ |
-| 6 | P1 | [Dashboard — date range selector](./06-dashboard-date-range.md) | 4h | 06 | ⬜ |
+| 1 | P0 | [WhatsApp notifications — env vars + retry endpoint](./01-whatsapp-notifications.md) | 1h | 01 | ✅ (code done; add ULTRAMSG env vars in Vercel dashboard) |
+| 2 | P0 | [Orders — search by customer name/phone](./02-orders-search.md) | 2h | 02 | ✅ Done |
+| 3 | P1 | [Dashboard — low stock alert panel](./03-dashboard-low-stock.md) | 3h | 03 | ✅ Done |
+| 4 | P1 | [Dashboard — missing KPIs (customers, cancellation rate, coupon usage)](./04-dashboard-kpis.md) | 3h | 04 | ✅ Done |
+| 5 | P1 | [Products — pagination + search/filter](./05-products-pagination-search.md) | 4h | 05 | ✅ Done |
+| 6 | P1 | [Dashboard — date range selector](./06-dashboard-date-range.md) | 4h | 06 | ✅ Done |
 | 7 | P2 | [Orders — CSV export](./07-orders-csv-export.md) | 3h | 07 | ⬜ |
 | 8 | P2 | [Orders — admin notes + print/invoice view](./08-orders-notes-invoice.md) | 4h | 08 | ⬜ |
 | 9 | P2 | [Products — bulk operations (toggle flags, delete)](./09-products-bulk-ops.md) | 4h | 09 | ⬜ |

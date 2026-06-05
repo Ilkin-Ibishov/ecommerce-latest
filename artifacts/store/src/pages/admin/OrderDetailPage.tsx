@@ -238,6 +238,17 @@ export default function OrderDetailPage({ id }: { id: string }) {
                     {n.error_message && (
                       <span className="text-red-400 truncate max-w-xs" title={n.error_message}>{n.error_message}</span>
                     )}
+                    {n.status === "failed" && (
+                      <button
+                        onClick={async () => {
+                          await adminFetch(apiUrl(`/admin/notifications/${n.id}/retry`), { method: "POST" });
+                          setSaved((v) => !v);
+                        }}
+                        className="ml-auto px-2 py-0.5 rounded bg-primary/10 text-primary text-xs hover:bg-primary/20 transition shrink-0"
+                      >
+                        Retry
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

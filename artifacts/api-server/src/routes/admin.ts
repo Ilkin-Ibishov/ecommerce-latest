@@ -361,6 +361,28 @@ router.get("/admin/orders/:id/notifications", async (req, res) => {
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
 });
 
+router.post("/admin/notifications/:id/retry", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+    const { data: notif } = await (ctx.admin as any)
+      .from("notifications")
+      .select("*")
+      .eq("id", rawId)
+      .single();
+    if (!notif) return res.status(404).json({ error: "Notification not found" });
+    // Re-queue using existing infrastructure — fire and forget
+    queueNotification({
+      userId: notif.user_id ?? undefined,
+      type: notif.type,
+      recipient: notif.recipient,
+      payload: notif.payload,
+    }).catch(() => {});
+    return res.json({ success: true });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
 // ── Comments ──────────────────────────────────────────────────────────────────
 
 router.patch("/admin/comments/:id", async (req, res) => {
