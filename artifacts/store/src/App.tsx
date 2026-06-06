@@ -32,6 +32,7 @@ import AdminCommentsPage from "@/pages/admin/CommentsPage";
 import AdminAuditPage from "@/pages/admin/AuditPage";
 import BannersPage from "@/pages/admin/BannersPage";
 import AdminUsersPage from "@/pages/admin/UsersPage";
+import AdminSettingsPage from "@/pages/admin/SettingsPage";
 
 const queryClient = new QueryClient();
 const LOCALES = ["az", "ru", "en"];
@@ -73,6 +74,7 @@ function AdminRoutes() {
         <Route path="/admin/categories" component={AdminCategoriesPage} />
         <Route path="/admin/comments" component={AdminCommentsPage} />
         <Route path="/admin/audit" component={AdminAuditPage} />
+        <Route path="/admin/settings" component={AdminSettingsPage} />
         <Route>{() => <Redirect to="/admin" />}</Route>
       </Switch>
     </AdminLayout>

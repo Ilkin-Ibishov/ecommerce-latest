@@ -30,9 +30,9 @@
 | 11 | P2 | [Categories — subcategory management](./11-categories-subcategories.md) | 4h | 11 | ✅ Done |
 | 12 | P2 | [Customers/Users admin page](./12-users-admin-page.md) | 6h | 12 | ✅ Done |
 | 13 | P2 | [Inventory / Stock report page](./13-inventory-stock-report.md) | 3h | 13 | ✅ Done |
-| 14 | P3 | [Dashboard — revenue by category chart](./14-dashboard-revenue-by-category.md) | 4h | 14 | ⬜ |
-| 15 | P3 | [Mobile-responsive admin sidebar](./15-mobile-responsive-sidebar.md) | 4h | 15 | ⬜ |
-| 16 | P3 | [Admin settings page](./16-admin-settings-page.md) | 6h | 16 | ⬜ |
+| 14 | P3 | [Dashboard — revenue by category chart](./14-dashboard-revenue-by-category.md) | 4h | 14 | ✅ Done |
+| 15 | P3 | [Mobile-responsive admin sidebar](./15-mobile-responsive-sidebar.md) | 4h | 15 | ✅ Done |
+| 16 | P3 | [Admin settings page](./16-admin-settings-page.md) | 6h | 16 | ✅ Done |
 
 **Total estimated effort: ~58 hours** (Task 01 reduced from 2h to 1h — templates already exist)
 
@@ -55,28 +55,28 @@ When implementing Tasks 07 (CSV export) and 09 (bulk operations), new routes MUS
 
 ## Sprint Groupings
 
-### Sprint 1 — Fix Broken Things (P0, ~4h)
+### Sprint 1 — Fix Broken Things (P0) ✅ Complete
 - Task 1: WhatsApp env vars + templates
 - Task 2: Orders search
 
-### Sprint 2 — Dashboard & Products Core (P1, ~14h)
+### Sprint 2 — Dashboard & Products Core (P1) ✅ Complete
 - Task 3: Low stock alert
 - Task 4: Missing KPIs
 - Task 5: Products pagination + search
 - Task 6: Dashboard date range
 
-### Sprint 3 — Orders & Products Polish (P2 batch A, ~14h)
+### Sprint 3 — Orders & Products Polish (P2 batch A) ✅ Complete
 - Task 7: Orders CSV export
 - Task 8: Orders notes + invoice
 - Task 9: Products bulk ops
 - Task 10: Products stock adjustment + duplicate
 
-### Sprint 4 — New Sections (P2 batch B, ~13h)
+### Sprint 4 — New Sections (P2 batch B) ✅ Complete
 - Task 11: Categories subcategories
 - Task 12: Users/customers page
 - Task 13: Inventory report
 
-### Sprint 5 — Polish & Analytics (P3, ~14h)
+### Sprint 5 — Polish & Analytics (P3) ✅ Complete
 - Task 14: Revenue by category chart
 - Task 15: Mobile sidebar
 - Task 16: Settings page

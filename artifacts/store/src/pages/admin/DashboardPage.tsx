@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
+  BarChart, Bar,
 } from "recharts";
 import { TrendingUp, TrendingDown, Minus } from "lucide-react";
 
@@ -139,6 +140,7 @@ interface DailyRevenue { date: string; revenue: number }
 interface StatusBucket { name: string; value: number; color: string }
 interface TopProduct { product_id: string; title: string; units: number; revenue: number; image: string | null }
 interface LowStockProduct { id: string; stock: number; title: string; image: string | null }
+interface RevenueByCat { title: string; revenue: number }
 
 // ─── Main Page ────────────────────────────────────────────────
 export default function DashboardPage() {
@@ -163,6 +165,7 @@ export default function DashboardPage() {
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
+  const [revenueByCategory, setRevenueByCategory] = useState<RevenueByCat[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -292,6 +295,51 @@ export default function DashboardPage() {
       (images ?? []).forEach((img: any) => { if (!imageMap.has(img.product_id)) imageMap.set(img.product_id, img.url); });
     }
     setTopProducts(top5Raw.map((p) => ({ ...p, image: imageMap.get(p.product_id) ?? null })));
+
+    // ── Revenue by category (uses product_specs __category rows) ──
+    const productIdsInOrders = [...new Set(items.map((i: any) => i.product_id).filter(Boolean))];
+    if (productIdsInOrders.length > 0) {
+      const { data: catSpecs } = await (supabase as any)
+        .from("product_specs")
+        .select("product_id, spec_value")
+        .eq("spec_key", "__category")
+        .in("product_id", productIdsInOrders);
+
+      if (catSpecs && catSpecs.length > 0) {
+        const catIds = [...new Set((catSpecs as any[]).map((s: any) => s.spec_value))];
+        const { data: catTranslations } = await (supabase as any)
+          .from("category_translations")
+          .select("category_id, title")
+          .eq("lang_code", "az")
+          .in("category_id", catIds);
+
+        const catTitleMap = new Map<string, string>(
+          (catTranslations ?? []).map((t: any) => [t.category_id, t.title])
+        );
+        const prodToCat = new Map<string, string>();
+        (catSpecs as any[]).forEach((s: any) => prodToCat.set(s.product_id, s.spec_value));
+
+        const catRevMap = new Map<string, { title: string; revenue: number }>();
+        items.forEach((item: any) => {
+          const catId = prodToCat.get(item.product_id);
+          if (!catId) return;
+          const title = catTitleMap.get(catId) ?? "Other";
+          const existing = catRevMap.get(catId);
+          if (existing) { existing.revenue += Number(item.line_total); }
+          else { catRevMap.set(catId, { title, revenue: Number(item.line_total) }); }
+        });
+
+        setRevenueByCategory(
+          [...catRevMap.values()]
+            .sort((a, b) => b.revenue - a.revenue)
+            .slice(0, 8)
+        );
+      } else {
+        setRevenueByCategory([]);
+      }
+    } else {
+      setRevenueByCategory([]);
+    }
 
     // ── Status breakdown (all-time) ──
     const allOrders: any[] = allOrdersStatusRes.data ?? [];
@@ -441,6 +489,57 @@ export default function DashboardPage() {
           )}
         </div>
       </div>
+
+      {/* ── Revenue by Category ── */}
+      {!loading && revenueByCategory.length > 0 && (
+        <div className="bg-card border border-border rounded-xl p-5">
+          <h2 className="font-semibold mb-4">Revenue by Category — {dateRange.label}</h2>
+          <ResponsiveContainer width="100%" height={Math.max(160, revenueByCategory.length * 38)}>
+            <BarChart
+              data={revenueByCategory}
+              layout="vertical"
+              margin={{ top: 0, right: 64, bottom: 0, left: 0 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+              <XAxis
+                type="number"
+                tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                tickFormatter={(v) => `${v} ₼`}
+                tickLine={false}
+                axisLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="title"
+                tick={{ fontSize: 11, fill: "hsl(var(--foreground))" }}
+                tickLine={false}
+                axisLine={false}
+                width={130}
+              />
+              <Tooltip
+                formatter={(v: any) => [`${Number(v).toFixed(2)} AZN`, "Revenue"]}
+                contentStyle={{
+                  background: "hsl(var(--popover))",
+                  border: "1px solid hsl(var(--border))",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                }}
+              />
+              <Bar
+                dataKey="revenue"
+                fill="hsl(47 100% 50%)"
+                radius={[0, 4, 4, 0]}
+                label={{
+                  position: "right",
+                  formatter: (v: number) => `${Number(v).toFixed(0)} ₼`,
+                  fontSize: 10,
+                  fill: "hsl(var(--muted-foreground))",
+                }}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
 
       {/* ── Top Products ── */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">

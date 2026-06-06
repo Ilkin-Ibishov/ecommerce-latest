@@ -588,6 +588,40 @@ router.patch("/admin/users/:id/role", async (req, res) => {
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
 });
 
+// ── Store Settings ────────────────────────────────────────────────────────────
+
+router.get("/admin/settings", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const { data } = await (ctx.admin as any)
+      .from("store_settings").select("key, value, description").order("key");
+    const settings: Record<string, string> = {};
+    (data ?? []).forEach((row: any) => { settings[row.key] = row.value; });
+    return res.json(settings);
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+router.patch("/admin/settings", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+    const updates = req.body as Record<string, string>;
+    if (!updates || typeof updates !== "object" || Array.isArray(updates)) {
+      return res.status(400).json({ error: "Body must be a key-value object" });
+    }
+    const rows = Object.entries(updates).map(([key, value]) => ({
+      key, value: String(value), updated_at: new Date().toISOString(),
+    }));
+    await (ctx.admin as any).from("store_settings").upsert(rows, { onConflict: "key" });
+    await (ctx.admin as any).from("audit_log").insert({
+      actor_id: ctx.user.id, action: "update_settings",
+      entity: "store_settings", entity_id: null, changes: updates,
+    });
+    return res.json({ success: true });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
 // ── Comments ──────────────────────────────────────────────────────────────────
 
 router.patch("/admin/comments/:id", async (req, res) => {
