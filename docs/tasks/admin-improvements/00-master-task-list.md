@@ -27,9 +27,9 @@
 | 8 | P2 | [Orders — admin notes + print/invoice view](./08-orders-notes-invoice.md) | 4h | 08 | ✅ Done |
 | 9 | P2 | [Products — bulk operations (toggle flags, delete)](./09-products-bulk-ops.md) | 4h | 09 | ✅ Done |
 | 10 | P2 | [Products — stock adjustment + duplicate product](./10-products-stock-duplicate.md) | 3h | 10 | ✅ Done |
-| 11 | P2 | [Categories — subcategory management](./11-categories-subcategories.md) | 4h | 11 | ⬜ |
-| 12 | P2 | [Customers/Users admin page](./12-users-admin-page.md) | 6h | 12 | ⬜ |
-| 13 | P2 | [Inventory / Stock report page](./13-inventory-stock-report.md) | 3h | 13 | ⬜ |
+| 11 | P2 | [Categories — subcategory management](./11-categories-subcategories.md) | 4h | 11 | ✅ Done |
+| 12 | P2 | [Customers/Users admin page](./12-users-admin-page.md) | 6h | 12 | ✅ Done |
+| 13 | P2 | [Inventory / Stock report page](./13-inventory-stock-report.md) | 3h | 13 | ✅ Done |
 | 14 | P3 | [Dashboard — revenue by category chart](./14-dashboard-revenue-by-category.md) | 4h | 14 | ⬜ |
 | 15 | P3 | [Mobile-responsive admin sidebar](./15-mobile-responsive-sidebar.md) | 4h | 15 | ⬜ |
 | 16 | P3 | [Admin settings page](./16-admin-settings-page.md) | 6h | 16 | ⬜ |

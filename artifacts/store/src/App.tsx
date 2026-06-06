@@ -22,6 +22,7 @@ import AdminLayout from "@/pages/admin/AdminLayout";
 import AdminSetupPage from "@/pages/admin/AdminSetupPage";
 import DashboardPage from "@/pages/admin/DashboardPage";
 import AdminProductsPage from "@/pages/admin/ProductsPage";
+import AdminInventoryPage from "@/pages/admin/InventoryPage";
 import ProductFormPage from "@/pages/admin/ProductFormPage";
 import AdminOrdersPage from "@/pages/admin/OrdersPage";
 import OrderDetailPage from "@/pages/admin/OrderDetailPage";
@@ -30,6 +31,7 @@ import AdminCategoriesPage from "@/pages/admin/CategoriesPage";
 import AdminCommentsPage from "@/pages/admin/CommentsPage";
 import AdminAuditPage from "@/pages/admin/AuditPage";
 import BannersPage from "@/pages/admin/BannersPage";
+import AdminUsersPage from "@/pages/admin/UsersPage";
 
 const queryClient = new QueryClient();
 const LOCALES = ["az", "ru", "en"];
@@ -62,8 +64,10 @@ function AdminRoutes() {
         <Route path="/admin/products/new">{() => <ProductFormPage />}</Route>
         <Route path="/admin/products/:id/edit">{(params) => <ProductFormPage productId={params.id} />}</Route>
         <Route path="/admin/products" component={AdminProductsPage} />
+        <Route path="/admin/inventory" component={AdminInventoryPage} />
         <Route path="/admin/orders/:id">{(params) => <OrderDetailPage id={params.id} />}</Route>
         <Route path="/admin/orders" component={AdminOrdersPage} />
+        <Route path="/admin/users" component={AdminUsersPage} />
         <Route path="/admin/coupons" component={AdminCouponsPage} />
         <Route path="/admin/banners" component={BannersPage} />
         <Route path="/admin/categories" component={AdminCategoriesPage} />

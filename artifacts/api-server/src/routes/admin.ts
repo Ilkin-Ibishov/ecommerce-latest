@@ -515,6 +515,79 @@ router.post("/admin/notifications/:id/retry", async (req, res) => {
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
 });
 
+// ── Users / Customers ─────────────────────────────────────────────────────────
+
+router.get("/admin/users", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+
+    const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10));
+    const pageSize = 30;
+    const offset = (page - 1) * pageSize;
+    const q = String(req.query.q ?? "").trim();
+
+    let query = (ctx.admin as any)
+      .from("users")
+      .select("id, phone, full_name, role, created_at", { count: "exact" })
+      .order("created_at", { ascending: false })
+      .range(offset, offset + pageSize - 1);
+
+    if (q) {
+      const term = `%${q}%`;
+      query = query.or(`full_name.ilike.${term},phone.ilike.${term}`);
+    }
+
+    const { data: users, count, error } = await query;
+    if (error) return res.status(500).json({ error: error.message });
+
+    // Fetch order counts for this page's users in a single query
+    const userIds = (users ?? []).map((u: any) => u.id);
+    const orderCounts: Record<string, number> = {};
+    if (userIds.length > 0) {
+      const { data: orders } = await (ctx.admin as any)
+        .from("orders").select("user_id").in("user_id", userIds);
+      (orders ?? []).forEach((o: any) => {
+        orderCounts[o.user_id] = (orderCounts[o.user_id] ?? 0) + 1;
+      });
+    }
+
+    return res.json({
+      users: (users ?? []).map((u: any) => ({ ...u, order_count: orderCounts[u.id] ?? 0 })),
+      total: count ?? 0,
+      page,
+      pageSize,
+    });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
+router.patch("/admin/users/:id/role", async (req, res) => {
+  try {
+    const ctx = await requireAdmin(req);
+    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+
+    const { role } = req.body;
+    if (!["admin", "customer"].includes(role)) {
+      return res.status(400).json({ error: "role must be admin or customer" });
+    }
+
+    const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+    // Prevent self-demotion
+    if (rawId === ctx.user.id && role !== "admin") {
+      return res.status(400).json({ error: "Cannot remove your own admin role" });
+    }
+
+    await (ctx.admin as any).from("users").update({ role }).eq("id", rawId);
+    await (ctx.admin as any).from("audit_log").insert({
+      actor_id: ctx.user.id, action: "change_user_role",
+      entity: "user", entity_id: rawId, changes: { role },
+    });
+
+    return res.json({ success: true });
+  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+});
+
 // ── Comments ──────────────────────────────────────────────────────────────────
 
 router.patch("/admin/comments/:id", async (req, res) => {

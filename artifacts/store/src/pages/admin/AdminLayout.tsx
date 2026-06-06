@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  LayoutDashboard, Package, ShoppingCart, Tag, FolderOpen,
+  LayoutDashboard, Package, Boxes, ShoppingCart, Users, Tag, FolderOpen,
   MessageSquare, FileText, LogOut, ShieldCheck, Image,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -11,7 +11,9 @@ import { LoginModal } from "@/components/auth/LoginModal";
 const navItems = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/products", label: "Products", icon: Package },
+  { href: "/admin/inventory", label: "Inventory", icon: Boxes },
   { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
+  { href: "/admin/users", label: "Customers", icon: Users },
   { href: "/admin/coupons", label: "Coupons", icon: Tag },
   { href: "/admin/banners", label: "Banners", icon: Image },
   { href: "/admin/categories", label: "Categories", icon: FolderOpen },
