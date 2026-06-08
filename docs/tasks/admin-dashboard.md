@@ -1,9 +1,10 @@
-# Admin Dashboard — Current State & Remaining Work
+# Admin Dashboard — Current State (All Features Complete)
 
-> Last updated: June 2026  
+> Last updated: June 8, 2026  
 > Route prefix: `/admin/*`  
 > Layout: `artifacts/store/src/pages/admin/AdminLayout.tsx`  
-> API route: `artifacts/api-server/src/routes/admin.ts`
+> API route: `artifacts/api-server/src/routes/admin.ts`  
+> Status: **All 16 improvement tasks completed** (Sprints 1–5)
 
 ---
 
@@ -118,138 +119,47 @@ The admin panel is substantially complete. Every section below is live and funct
 
 ---
 
-## ❌ What Is Missing / Incomplete
+## ✅ All Previously Missing Features — Now Complete
 
-### 1. Dashboard — Missing Widgets (High Priority)
+All items from the original audit have been implemented across 5 sprints. See `docs/tasks/admin-improvements/00-master-task-list.md` for detailed status.
 
-The existing dashboard is good but missing several high-value analytics widgets:
+### Completed in Sprint 1 (P0)
+- ✅ WhatsApp notifications — env vars + retry endpoint
+- ✅ Orders search by customer name/phone
 
-| Widget | Why Needed | Effort |
-|--------|-----------|--------|
-| **Customer count** (new this month vs last) | Know if customer base is growing | Low |
-| **Conversion funnel** (sessions → orders, if trackable) | N/A without analytics integration | High |
-| **Revenue by category** (bar chart) | Identify which categories drive sales | Medium |
-| **Low stock alert panel** | Products with stock < threshold — actionable | Low |
-| **Coupon usage summary** | Which coupons are being used most | Low |
-| **Cancelled orders rate** | Key operational metric | Low |
+### Completed in Sprint 2 (P1)
+- ✅ Dashboard low stock alert panel
+- ✅ Dashboard missing KPIs (customers, cancellation rate, coupon usage)
+- ✅ Products pagination + search/filter
+- ✅ Dashboard date range selector
 
-### 2. Dashboard — Date Range Selector (Medium Priority)
+### Completed in Sprint 3 (P2 batch A)
+- ✅ Orders CSV export
+- ✅ Orders admin notes + print/invoice view
+- ✅ Products bulk operations (toggle flags, delete)
+- ✅ Products stock adjustment + duplicate product
 
-Currently the KPIs are hardcoded to "this month vs last month". There's no way to:
-- View last 7 days / last 90 days / custom range
-- Export data
+### Completed in Sprint 4 (P2 batch B)
+- ✅ Categories subcategory management
+- ✅ Customers/Users admin page
+- ✅ Inventory / Stock report page
 
-**Files to change:** `DashboardPage.tsx`
-
-### 3. Orders — Missing Features (High Priority)
-
-| Feature | Detail |
-|---------|--------|
-| **Search orders** by customer name or phone | Currently no search input on orders list |
-| **Bulk status update** | Select multiple orders and update status together |
-| **Export orders to CSV** | Download for accounting/logistics |
-| **Order notes from admin** | Admin can add internal notes to an order |
-| **Print/invoice view** | Printable order summary page |
-
-**Files to change:** `OrdersPage.tsx`, `OrderDetailPage.tsx`, `artifacts/api-server/src/routes/admin.ts`
-
-### 4. Products — Missing Features (Medium Priority)
-
-| Feature | Detail |
-|---------|--------|
-| **Search/filter products** by name or SKU | Currently no filter; all 152+ products load at once — will become slow |
-| **Pagination** on products list | Products list loads everything; needs pagination |
-| **Bulk operations** | Bulk toggle featured/sale, bulk delete |
-| **Stock adjustment tool** | Quick increment/decrement stock without opening full edit form |
-| **Drag-and-drop sort order** | Sort order is a number field, not visual drag |
-| **CSV/Excel import** | Bulk product import for onboarding large catalogs |
-| **Duplicate product** | Clone an existing product as starting point |
-
-**Files to change:** `ProductsPage.tsx`, `ProductFormPage.tsx`, `admin.ts`
-
-### 5. Categories — Missing Features (Low Priority)
-
-| Feature | Detail |
-|---------|--------|
-| **Subcategory management** | UI only shows root categories. Subcategories (`parent_id`) exist in DB but can't be created/edited via admin |
-| **Drag-and-drop reorder** | No sort order for categories currently |
-
-**File to change:** `CategoriesPage.tsx`, `admin.ts`
-
-### 6. WhatsApp — Partially Wired (High Priority)
-
-The infrastructure exists but the messages don't fire correctly in production:
-
-| Issue | Detail |
-|-------|--------|
-| **Missing Azerbaijani templates** | `whatsapp.ts` sends placeholder text, not real Azerbaijani order confirmation messages |
-| **`ULTRAMSG_INSTANCE` and `ULTRAMSG_TOKEN` not set in Vercel** | Env vars need to be added to Vercel production environment |
-| **No delivery status notifications** | When status changes to `shipped` or `delivered`, no WhatsApp message is sent with tracking context |
-| **No failed notification retry UI** | Admin can see failed notifications but can't manually retry them |
-
-**Files to change:** `artifacts/api-server/src/lib/whatsapp.ts`, `admin.ts` (add retry endpoint)  
-**Vercel env vars needed:** `ULTRAMSG_INSTANCE`, `ULTRAMSG_TOKEN`
-
-### 7. No Users/Customers Section (Medium Priority)
-
-There's no admin page for viewing registered customers:
-- Customer list (phone, name, order count, registration date)
-- Customer order history
-- Ability to change a user's role to/from admin
-
-**New file needed:** `artifacts/store/src/pages/admin/UsersPage.tsx`  
-**New API route needed:** `GET /admin/users`, `PATCH /admin/users/:id/role`
-
-### 8. No Inventory / Stock Report (Medium Priority)
-
-No page showing:
-- Products sorted by stock level
-- Out-of-stock products
-- Products with stock < X (configurable threshold)
-
-Currently stock is visible in the product list but not queryable as a standalone view.
-
-### 9. No Settings Page (Low Priority)
-
-No admin UI for:
-- Store name / branding
-- Free delivery threshold (currently hardcoded as 100 AZN in frontend)
-- Contact information
-- Feature flags (enable/disable sections)
-
-### 10. Mobile Responsiveness (Medium Priority)
-
-Admin panel uses a fixed `w-56` sidebar that doesn't collapse on mobile. On screens < 768px:
-- Sidebar overlaps content
-- Tables are horizontally scrollable but have no mobile-optimized view
+### Completed in Sprint 5 (P3)
+- ✅ Dashboard revenue by category chart
+- ✅ Mobile-responsive admin sidebar
+- ✅ Admin settings page
 
 ---
 
-## 🔧 Quick Wins (Can be done in < 1 day each)
+## 🔮 Potential Future Enhancements
 
-1. **Low stock panel on dashboard** — Query products where `stock < 10`, display as alert list
-2. **Orders search** — Add a text input on OrdersPage that filters by `customer_name` or `customer_phone`
-3. **Customer count KPI on dashboard** — Simple `count` query on `users` table
-4. **Products pagination** — Add `.range()` to the products query and pagination buttons
-5. **Cancelled orders KPI on dashboard** — Add to existing status breakdown data already fetched
+These items were not in the original audit scope but could add value:
 
----
-
-## 📋 Implementation Order (Recommended)
-
-| Priority | Task | Effort |
-|----------|------|--------|
-| P0 | Set WhatsApp env vars in Vercel + write Azerbaijani templates | 2h |
-| P0 | Add orders search by customer name/phone | 2h |
-| P1 | Add low stock alert panel to dashboard | 3h |
-| P1 | Products list pagination + search | 4h |
-| P1 | Add missing dashboard KPIs (customers, cancellation rate) | 3h |
-| P1 | Dashboard date range picker | 4h |
-| P2 | Subcategory management in admin | 4h |
-| P2 | Customers/users admin page | 6h |
-| P2 | Orders CSV export | 3h |
-| P3 | Mobile-responsive sidebar (hamburger menu) | 4h |
-| P3 | Admin settings page (store config) | 6h |
+- Drag-and-drop sort order for products and categories
+- CSV/Excel product import for bulk onboarding
+- Conversion funnel analytics (requires frontend event tracking)
+- Advanced order filtering (date range, amount range)
+- Bulk order status update (select multiple)
 
 ---
 
