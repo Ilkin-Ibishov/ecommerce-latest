@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
-import DOMPurify from "isomorphic-dompurify";
+import sanitizeHtmlLib from "sanitize-html";
 
 /**
  * CMS Validation Property Tests
@@ -16,14 +16,17 @@ const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 /** Maximum slug length */
 const MAX_SLUG_LENGTH = 100;
 
-/** DOMPurify configuration matching the one in pages.ts */
-const SANITIZE_CONFIG = {
-  ALLOWED_TAGS: ["p", "h2", "h3", "h4", "strong", "em", "ul", "ol", "li", "a", "img", "br", "blockquote"],
-  ALLOWED_ATTR: ["href", "src", "alt"],
-  ALLOW_DATA_ATTR: false,
+/** sanitize-html configuration matching the one in pages.ts */
+const SANITIZE_CONFIG: sanitizeHtmlLib.IOptions = {
+  allowedTags: ["p", "h2", "h3", "h4", "strong", "em", "ul", "ol", "li", "a", "img", "br", "blockquote"],
+  allowedAttributes: {
+    a: ["href"],
+    img: ["src", "alt"],
+  },
+  disallowedTagsMode: "discard",
 };
 
-const ALLOWED_TAGS_SET = new Set(SANITIZE_CONFIG.ALLOWED_TAGS);
+const ALLOWED_TAGS_SET = new Set(SANITIZE_CONFIG.allowedTags!);
 
 // ─── Slug validation logic (extracted from pages.ts) ─────────────────────────
 
@@ -55,7 +58,7 @@ function isSlugUnique(slug: string, existingPages: Array<{ id: string; slug: str
 // ─── Sanitization helper ─────────────────────────────────────────────────────
 
 function sanitizeHtml(html: string): string {
-  return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+  return sanitizeHtmlLib(html, SANITIZE_CONFIG);
 }
 
 /**

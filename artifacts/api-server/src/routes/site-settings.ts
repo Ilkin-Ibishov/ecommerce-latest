@@ -2,7 +2,7 @@ import { Router, type IRouter } from "express";
 import multer from "multer";
 import { getAdminSupabase, requireAdmin } from "../lib/supabase";
 import { logger } from "../lib/logger";
-import { validateAndUpload, AssetValidationError, type AssetCategory } from "../lib/asset-uploader.js";
+import { validateAndUpload, AssetValidationError, type AssetCategory } from "../lib/asset-uploader";
 
 const router: IRouter = Router();
 

@@ -1,19 +1,22 @@
 import { describe, it, expect } from "vitest";
-import DOMPurify from "isomorphic-dompurify";
+import sanitizeHtmlLib from "sanitize-html";
 
 /**
  * Tests for HTML sanitization in page translations endpoint (Task 4.3).
  * Validates Requirement 7.3: Only safe elements/attributes are preserved.
  */
 
-const SANITIZE_CONFIG = {
-  ALLOWED_TAGS: ["p", "h2", "h3", "h4", "strong", "em", "ul", "ol", "li", "a", "img", "br", "blockquote"],
-  ALLOWED_ATTR: ["href", "src", "alt"],
-  ALLOW_DATA_ATTR: false,
+const SANITIZE_CONFIG: sanitizeHtmlLib.IOptions = {
+  allowedTags: ["p", "h2", "h3", "h4", "strong", "em", "ul", "ol", "li", "a", "img", "br", "blockquote"],
+  allowedAttributes: {
+    a: ["href"],
+    img: ["src", "alt"],
+  },
+  disallowedTagsMode: "discard",
 };
 
 function sanitize(html: string): string {
-  return DOMPurify.sanitize(html, SANITIZE_CONFIG);
+  return sanitizeHtmlLib(html, SANITIZE_CONFIG);
 }
 
 describe("HTML sanitization for page translations", () => {
@@ -47,7 +50,8 @@ describe("HTML sanitization for page translations", () => {
     it("preserves br elements", () => {
       const input = "<p>Line 1<br>Line 2</p>";
       const result = sanitize(input);
-      expect(result).toContain("<br>");
+      // sanitize-html outputs self-closing <br /> which is valid XHTML
+      expect(result).toMatch(/<br\s*\/?>/);
     });
 
     it("preserves blockquote elements", () => {

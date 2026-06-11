@@ -1,16 +1,19 @@
 import { Router, type IRouter } from "express";
-import DOMPurify from "isomorphic-dompurify";
+import sanitizeHtml from "sanitize-html";
 import { getAdminSupabase, requireAdmin } from "../lib/supabase";
 import { logger } from "../lib/logger";
 
 /**
- * DOMPurify configuration for sanitizing page content HTML.
+ * sanitize-html configuration for sanitizing page content HTML.
  * Only allows safe elements and attributes as per Requirements 7.3.
  */
-const SANITIZE_CONFIG = {
-  ALLOWED_TAGS: ["p", "h2", "h3", "h4", "strong", "em", "ul", "ol", "li", "a", "img", "br", "blockquote"],
-  ALLOWED_ATTR: ["href", "src", "alt"],
-  ALLOW_DATA_ATTR: false,
+const SANITIZE_CONFIG: sanitizeHtml.IOptions = {
+  allowedTags: ["p", "h2", "h3", "h4", "strong", "em", "ul", "ol", "li", "a", "img", "br", "blockquote"],
+  allowedAttributes: {
+    a: ["href"],
+    img: ["src", "alt"],
+  },
+  disallowedTagsMode: "discard",
 };
 
 const router: IRouter = Router();
@@ -569,9 +572,9 @@ router.put("/admin/pages/:id/translations/:locale", async (req, res): Promise<vo
       return;
     }
 
-    // Sanitize HTML content using DOMPurify (Requirements 7.3)
+    // Sanitize HTML content using sanitize-html (Requirements 7.3)
     const sanitizedContent = content != null && typeof content === "string"
-      ? DOMPurify.sanitize(content, SANITIZE_CONFIG)
+      ? sanitizeHtml(content, SANITIZE_CONFIG)
       : "";
 
     // Upsert the translation
