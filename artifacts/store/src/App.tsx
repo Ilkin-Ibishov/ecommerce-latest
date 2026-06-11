@@ -4,6 +4,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { CartProvider } from "@/lib/cart/context";
 import { I18nProvider } from "@/lib/i18n/context";
+import { SettingsProvider } from "@/lib/settings/context";
+import { ThemeApplier } from "@/lib/settings/ThemeApplier";
 import StorefrontHeader from "@/components/storefront/Header";
 import StorefrontFooter from "@/components/storefront/Footer";
 
@@ -17,6 +19,7 @@ import CheckoutPage from "@/pages/storefront/CheckoutPage";
 import ProfilePage from "@/pages/storefront/ProfilePage";
 import WishlistPage from "@/pages/storefront/WishlistPage";
 import { DeliveryPage, ReturnsPage, TermsPage } from "@/pages/storefront/PoliciesPage";
+import CmsPage from "@/pages/storefront/CmsPage";
 
 import AdminLayout from "@/pages/admin/AdminLayout";
 import AdminSetupPage from "@/pages/admin/AdminSetupPage";
@@ -33,6 +36,8 @@ import AdminAuditPage from "@/pages/admin/AuditPage";
 import BannersPage from "@/pages/admin/BannersPage";
 import AdminUsersPage from "@/pages/admin/UsersPage";
 import AdminSettingsPage from "@/pages/admin/SettingsPage";
+import AdminPagesPage from "@/pages/admin/PagesPage";
+import PageEditorPage from "@/pages/admin/PageEditorPage";
 
 const queryClient = new QueryClient();
 const LOCALES = ["az", "ru", "en"];
@@ -47,13 +52,16 @@ function ScrollToTop() {
 
 function StorefrontLayout({ locale, children }: { locale: string; children: React.ReactNode }) {
   return (
-    <I18nProvider locale={locale}>
-      <div className="min-h-screen flex flex-col">
-        <StorefrontHeader locale={locale} />
-        <main className="flex-1 pb-16 md:pb-0">{children}</main>
-        <StorefrontFooter locale={locale} />
-      </div>
-    </I18nProvider>
+    <SettingsProvider>
+      <ThemeApplier />
+      <I18nProvider locale={locale}>
+        <div className="min-h-screen flex flex-col">
+          <StorefrontHeader locale={locale} />
+          <main className="flex-1 pb-16 md:pb-0">{children}</main>
+          <StorefrontFooter locale={locale} />
+        </div>
+      </I18nProvider>
+    </SettingsProvider>
   );
 }
 
@@ -75,6 +83,8 @@ function AdminRoutes() {
         <Route path="/admin/comments" component={AdminCommentsPage} />
         <Route path="/admin/audit" component={AdminAuditPage} />
         <Route path="/admin/settings" component={AdminSettingsPage} />
+        <Route path="/admin/pages/:id/edit">{(params) => <PageEditorPage pageId={params.id} />}</Route>
+        <Route path="/admin/pages" component={AdminPagesPage} />
         <Route>{() => <Redirect to="/admin" />}</Route>
       </Switch>
     </AdminLayout>
@@ -97,6 +107,7 @@ function StorefrontRoutes({ locale }: { locale: string }) {
         <Route path={`/${locale}/policies/delivery`}>{() => <DeliveryPage locale={locale} />}</Route>
         <Route path={`/${locale}/policies/returns`}>{() => <ReturnsPage locale={locale} />}</Route>
         <Route path={`/${locale}/policies/terms`}>{() => <TermsPage locale={locale} />}</Route>
+        <Route path={`/${locale}/page/:slug`}>{(params) => <CmsPage locale={locale} slug={params.slug} />}</Route>
         <Route>{() => <Redirect to={`/${locale}`} />}</Route>
       </Switch>
     </StorefrontLayout>

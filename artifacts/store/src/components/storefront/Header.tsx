@@ -9,7 +9,39 @@ import AnnouncementBar from "./AnnouncementBar";
 import { useCart } from "@/lib/cart/context";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n/context";
+import { useSettings } from "@/lib/settings/context";
 import { apiUrl } from "@/lib/api";
+
+// ─── Navigation Pages Hook ───────────────────────────────────────────────────
+
+interface NavPage {
+  id: string;
+  slug: string;
+  title: string;
+  show_in_header: boolean;
+  show_in_footer: boolean;
+  sort_order: number;
+}
+
+function useHeaderPages(locale: string): NavPage[] {
+  const [pages, setPages] = useState<NavPage[]>([]);
+
+  useEffect(() => {
+    fetch(apiUrl(`/pages?locale=${locale}`))
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: NavPage[]) => {
+        const headerPages = data
+          .filter((p) => p.show_in_header)
+          .sort((a, b) => a.sort_order - b.sort_order);
+        setPages(headerPages);
+      })
+      .catch(() => setPages([]));
+  }, [locale]);
+
+  return pages;
+}
+
+// ─── Header Component ────────────────────────────────────────────────────────
 
 export default function StorefrontHeader({ locale }: { locale: string }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -20,6 +52,8 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
   const [user, setUser] = useState<any>(null);
   const { itemCount } = useCart();
   const { t } = useI18n();
+  const { settings, getStoreName } = useSettings();
+  const headerPages = useHeaderPages(locale);
   const supabase = createClient();
 
   useEffect(() => {
@@ -34,23 +68,31 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
     setUserMenuOpen(false);
   };
 
+  const storeName = getStoreName(locale);
+
   return (
     <>
       <AnnouncementBar />
 
-      <header className="sticky top-0 z-40 bg-gray-950 border-b border-gray-800">
+      <header className="sticky top-0 z-40 bg-[hsl(var(--header-bg,var(--secondary)))] border-b border-[hsl(var(--border))]">
         <div className="container mx-auto px-3 sm:px-4">
 
           {/* Main row */}
           <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
 
-            {/* Logo — transparent PNG on dark header */}
+            {/* Logo — use logo_url from settings or display store name */}
             <Link href={`/${locale}`} className="shrink-0 flex items-center py-1">
-              <img
-                src="/logo.png"
-                alt="İlk Electronics"
-                className="h-10 sm:h-12 w-auto object-contain"
-              />
+              {settings.logo_url ? (
+                <img
+                  src={settings.logo_url}
+                  alt={storeName}
+                  className="h-10 sm:h-12 w-auto object-contain"
+                />
+              ) : (
+                <span className="text-lg sm:text-xl font-bold text-[hsl(var(--primary))]">
+                  {storeName}
+                </span>
+              )}
             </Link>
 
             {/* Desktop search bar */}
@@ -60,8 +102,17 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
 
             {/* Desktop nav links */}
             <nav className="hidden lg:flex items-center gap-5 text-sm shrink-0">
-              <Link href={`/${locale}/products`} className="text-gray-300 hover:text-yellow-400 transition font-medium">{t("Header.products")}</Link>
-              <Link href={`/${locale}/categories`} className="text-gray-300 hover:text-yellow-400 transition font-medium">{t("Header.categories")}</Link>
+              <Link href={`/${locale}/products`} className="text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] transition font-medium">{t("Header.products")}</Link>
+              <Link href={`/${locale}/categories`} className="text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] transition font-medium">{t("Header.categories")}</Link>
+              {headerPages.map((page) => (
+                <Link
+                  key={page.id}
+                  href={`/${locale}/page/${page.slug}`}
+                  className="text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] transition font-medium"
+                >
+                  {page.title}
+                </Link>
+              ))}
             </nav>
 
             {/* Action icons */}
@@ -69,23 +120,23 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
 
               {/* Mobile search toggle */}
               <button onClick={() => setSearchOpen(!searchOpen)}
-                className="md:hidden p-2 rounded-lg text-gray-300 hover:text-yellow-400 hover:bg-gray-800 transition" aria-label="Search">
+                className="md:hidden p-2 rounded-lg text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] transition" aria-label="Search">
                 <Search size={20} />
               </button>
 
               {user && (
                 <Link href={`/${locale}/wishlist`}
-                  className="hidden sm:flex p-2 rounded-lg text-gray-300 hover:text-yellow-400 hover:bg-gray-800 transition" aria-label="Wishlist">
+                  className="hidden sm:flex p-2 rounded-lg text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] transition" aria-label="Wishlist">
                   <Heart size={20} />
                 </Link>
               )}
 
               {/* Cart */}
               <button onClick={() => setCartOpen(true)}
-                className="hidden md:flex relative p-2 rounded-lg text-gray-300 hover:text-yellow-400 hover:bg-gray-800 transition" aria-label="Cart">
+                className="hidden md:flex relative p-2 rounded-lg text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] transition" aria-label="Cart">
                 <ShoppingCart size={20} />
                 {itemCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-primary text-primary-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground,0_0%_100%))] text-[10px] font-bold rounded-full flex items-center justify-center">
                     {itemCount > 9 ? "9+" : itemCount}
                   </span>
                 )}
@@ -95,8 +146,8 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
               <div className="relative hidden md:block">
                 <button
                   onClick={() => user ? setUserMenuOpen((v) => !v) : setLoginOpen(true)}
-                  className="p-2 rounded-lg text-gray-300 hover:text-yellow-400 hover:bg-gray-800 transition" aria-label="Account">
-                  <User size={20} className={user ? "text-yellow-400" : ""} />
+                  className="p-2 rounded-lg text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] transition" aria-label="Account">
+                  <User size={20} className={user ? "text-[hsl(var(--primary))]" : ""} />
                 </button>
                 {userMenuOpen && user && (
                   <>
@@ -127,7 +178,7 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
               <LocaleSwitcher currentLocale={locale} />
 
               {/* Hamburger — tablet */}
-              <button className="hidden sm:flex md:hidden p-2 rounded-lg text-gray-300 hover:text-yellow-400 hover:bg-gray-800 transition"
+              <button className="hidden sm:flex md:hidden p-2 rounded-lg text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] transition"
                 onClick={() => setMobileOpen(!mobileOpen)}>
                 {mobileOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
@@ -143,29 +194,39 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
 
           {/* Tablet nav dropdown */}
           {mobileOpen && (
-            <div className="sm:flex md:hidden flex-col border-t border-gray-800 py-3 space-y-1">
+            <div className="sm:flex md:hidden flex-col border-t border-[hsl(var(--border))] py-3 space-y-1">
               <Link href={`/${locale}/products`}
-                className="block px-2 py-2 rounded text-gray-300 hover:text-yellow-400 hover:bg-gray-800 text-sm"
+                className="block px-2 py-2 rounded text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] text-sm"
                 onClick={() => setMobileOpen(false)}>{t("Header.products")}</Link>
               <Link href={`/${locale}/categories`}
-                className="block px-2 py-2 rounded text-gray-300 hover:text-yellow-400 hover:bg-gray-800 text-sm"
+                className="block px-2 py-2 rounded text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] text-sm"
                 onClick={() => setMobileOpen(false)}>{t("Header.categories")}</Link>
+              {headerPages.map((page) => (
+                <Link
+                  key={page.id}
+                  href={`/${locale}/page/${page.slug}`}
+                  className="block px-2 py-2 rounded text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] text-sm"
+                  onClick={() => setMobileOpen(false)}
+                >
+                  {page.title}
+                </Link>
+              ))}
               {user ? (
                 <>
                   <Link href={`/${locale}/profile`}
-                    className="block px-2 py-2 rounded text-gray-300 hover:text-yellow-400 hover:bg-gray-800 text-sm"
+                    className="block px-2 py-2 rounded text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] text-sm"
                     onClick={() => setMobileOpen(false)}>{t("Header.myOrders")}</Link>
                   <Link href={`/${locale}/wishlist`}
-                    className="block px-2 py-2 rounded text-gray-300 hover:text-yellow-400 hover:bg-gray-800 text-sm"
+                    className="block px-2 py-2 rounded text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] text-sm"
                     onClick={() => setMobileOpen(false)}>{t("Header.wishlist")}</Link>
                   <button onClick={() => { handleSignOut(); setMobileOpen(false); }}
-                    className="block w-full text-left px-2 py-2 rounded text-sm text-red-400 hover:bg-gray-800">
+                    className="block w-full text-left px-2 py-2 rounded text-sm text-destructive hover:bg-[hsl(var(--muted)/0.2)]">
                     {t("Header.signOut")}
                   </button>
                 </>
               ) : (
                 <button onClick={() => { setLoginOpen(true); setMobileOpen(false); }}
-                  className="block w-full text-left px-2 py-2 rounded text-gray-300 hover:text-yellow-400 hover:bg-gray-800 text-sm">
+                  className="block w-full text-left px-2 py-2 rounded text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] text-sm">
                   {t("Header.signIn")}
                 </button>
               )}
@@ -200,10 +261,10 @@ function LocaleSwitcher({ currentLocale }: { currentLocale: string }) {
   };
 
   return (
-    <div className="flex items-center gap-0.5 border border-gray-700 rounded-lg overflow-hidden">
+    <div className="flex items-center gap-0.5 border border-[hsl(var(--border))] rounded-lg overflow-hidden">
       {locales.map((l) => (
         <button key={l} onClick={() => switchLocale(l)}
-          className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-medium transition ${currentLocale === l ? "bg-yellow-500 text-gray-900" : "text-gray-400 hover:text-yellow-400 hover:bg-gray-800"}`}>
+          className={`px-1.5 sm:px-2 py-1 text-[10px] sm:text-xs font-medium transition ${currentLocale === l ? "bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground,0_0%_100%))]" : "text-[hsl(var(--foreground)/0.5)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)]"}`}>
           {l.toUpperCase()}
         </button>
       ))}
@@ -303,7 +364,7 @@ function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
       <div ref={containerRef} className="relative w-full">
         <form onSubmit={handleSubmit} className="flex w-full gap-2">
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[hsl(var(--muted))] pointer-events-none" />
             <input
               type="search"
               value={query}
@@ -311,12 +372,12 @@ function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
               onKeyDown={handleKeyDown}
               onFocus={() => { if (query.trim().length >= 2) setShowSuggestions(true); }}
               placeholder={t("Header.searchPlaceholder")}
-              className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-700 bg-gray-800 text-gray-100 placeholder-gray-500 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 transition"
+              className="w-full pl-9 pr-4 py-2 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.1)] text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))] focus:border-[hsl(var(--primary))] transition"
               autoComplete="off"
             />
           </div>
           <button type="submit"
-            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition shrink-0">
+            className="px-4 py-2 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground,0_0%_100%))] text-sm font-semibold hover:bg-[hsl(var(--primary)/0.9)] transition shrink-0">
             {t("Header.search")}
           </button>
         </form>
@@ -345,15 +406,15 @@ function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
           onKeyDown={handleKeyDown}
           onFocus={() => { if (query.trim().length >= 2) setShowSuggestions(true); }}
           placeholder={t("Header.searchPlaceholder")}
-          className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 transition ${dark ? "border-gray-700 bg-gray-800 text-gray-100 placeholder-gray-500 focus:ring-yellow-500" : "border-border bg-background focus:ring-ring"}`}
+          className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 transition ${dark ? "border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.1)] text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted))] focus:ring-[hsl(var(--primary))]" : "border-border bg-background focus:ring-ring"}`}
           autoComplete="off"
         />
         <button type="submit"
-          className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-semibold hover:bg-primary/90 transition">
+          className="px-4 py-2 rounded-lg bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground,0_0%_100%))] text-sm font-semibold hover:bg-[hsl(var(--primary)/0.9)] transition">
           {t("Header.search")}
         </button>
         <button type="button" onClick={onClose}
-          className={`px-3 py-2 rounded-lg text-sm transition ${dark ? "text-gray-400 hover:bg-gray-800" : "hover:bg-accent"}`}>{t("Header.cancel")}</button>
+          className={`px-3 py-2 rounded-lg text-sm transition ${dark ? "text-[hsl(var(--muted))] hover:bg-[hsl(var(--muted)/0.2)]" : "hover:bg-accent"}`}>{t("Header.cancel")}</button>
       </form>
       <SearchSuggestions
         products={suggestions.products}

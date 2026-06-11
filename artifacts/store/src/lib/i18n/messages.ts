@@ -290,6 +290,11 @@ const messages: Record<string, Record<string, any>> = {
       successTitle: "Daxil oldunuz!",
       successMessage: "Uğurla daxil oldunuz.",
     },
+    CmsPage: {
+      notFound: "Səhifə tapılmadı",
+      notFoundDescription: "Axtardığınız səhifə mövcud deyil və ya dərc olunmayıb.",
+      loadError: "Səhifə yüklənə bilmədi. Zəhmət olmasa yenidən cəhd edin.",
+    },
   },
   ru: {
     HomePage: {
@@ -582,6 +587,11 @@ const messages: Record<string, Record<string, any>> = {
       successTitle: "Вы вошли!",
       successMessage: "Успешный вход в систему.",
     },
+    CmsPage: {
+      notFound: "Страница не найдена",
+      notFoundDescription: "Запрашиваемая страница не существует или не опубликована.",
+      loadError: "Не удалось загрузить страницу. Пожалуйста, попробуйте ещё раз.",
+    },
   },
   en: {
     HomePage: {
@@ -873,6 +883,11 @@ const messages: Record<string, Record<string, any>> = {
       saving: "Saving...",
       successTitle: "You're in!",
       successMessage: "Successfully signed in.",
+    },
+    CmsPage: {
+      notFound: "Page not found",
+      notFoundDescription: "The page you're looking for does not exist or is not published.",
+      loadError: "Could not load the page. Please try again.",
     },
   },
 };

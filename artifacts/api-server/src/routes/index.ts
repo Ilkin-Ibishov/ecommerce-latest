@@ -15,6 +15,8 @@ import migrationRouter from "./migration";
 import bannersRouter from "./banners";
 import categoriesRouter from "./categories";
 import profileRouter from "./profile";
+import siteSettingsRouter from "./site-settings";
+import pagesRouter from "./pages";
 
 const router: IRouter = Router();
 
@@ -33,6 +35,8 @@ router.use(searchRouter);
 router.use(migrationRouter);
 router.use(bannersRouter);
 router.use(categoriesRouter);
+router.use(siteSettingsRouter);
+router.use(pagesRouter);
 
 // Dev/test routes — only active outside production
 if (process.env.NODE_ENV !== "production") {

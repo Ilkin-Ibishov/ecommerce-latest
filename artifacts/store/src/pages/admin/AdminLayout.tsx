@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Package, Boxes, ShoppingCart, Users, Tag, FolderOpen,
   MessageSquare, FileText, LogOut, ShieldCheck, Image, Menu, X, Settings2,
+  BookOpen,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
@@ -19,6 +20,7 @@ const navItems = [
   { href: "/admin/categories", label: "Categories", icon: FolderOpen },
   { href: "/admin/comments", label: "Comments", icon: MessageSquare },
   { href: "/admin/audit", label: "Audit Log", icon: FileText },
+  { href: "/admin/pages", label: "Pages", icon: BookOpen },
   { href: "/admin/settings", label: "Settings", icon: Settings2 },
 ];
 
