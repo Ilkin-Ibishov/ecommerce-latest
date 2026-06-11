@@ -202,6 +202,9 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
   // Page-level metadata
   const [showInHeader, setShowInHeader] = useState(false);
   const [showInFooter, setShowInFooter] = useState(false);
+  const [slug, setSlug] = useState("");
+
+  const isNew = pageId === "new";
 
   // TipTap editor
   const editor = useEditor({
@@ -246,6 +249,7 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
       setPage(found);
       setShowInHeader(found.show_in_header);
       setShowInFooter(found.show_in_footer);
+      setSlug(found.slug);
 
       // Load full translations for each locale
       const translationMap: Record<Locale, PageTranslation> = {
@@ -329,11 +333,10 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
   // ─── Save handler ─────────────────────────────────────────────────────────
 
   const handleSave = async () => {
-    if (!page) return;
     setSaving(true);
 
     try {
-      // First, save the current editor content to translation state
+      // Capture the current editor content into translation state
       const currentContent = editor?.getHTML() ?? "";
       const currentTranslations = {
         ...translations,
@@ -341,18 +344,47 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
       };
       setTranslations(currentTranslations);
 
-      // Save page-level metadata (show_in_header, show_in_footer)
-      await adminJson(apiUrl(`/admin/pages/${page.id}`), {
-        method: "PATCH",
-        body: JSON.stringify({
-          show_in_header: showInHeader,
-          show_in_footer: showInFooter,
-        }),
-      });
+      // Resolve the page ID — create the page first if this is a new page
+      let targetPageId = page?.id;
+
+      if (isNew) {
+        // Validate slug for new pages
+        const trimmedSlug = slug.trim();
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmedSlug)) {
+          toast({
+            title: "Invalid slug",
+            description: "Slug must be lowercase letters, numbers, and hyphens (e.g. about-us).",
+            variant: "destructive",
+          });
+          setSaving(false);
+          return;
+        }
+
+        const created = await adminJson(apiUrl("/admin/pages"), {
+          method: "POST",
+          body: JSON.stringify({
+            slug: trimmedSlug,
+            published: false,
+            show_in_header: showInHeader,
+            show_in_footer: showInFooter,
+          }),
+        });
+        targetPageId = created.id;
+        setPage(created);
+      } else {
+        // Save page-level metadata for existing pages
+        await adminJson(apiUrl(`/admin/pages/${targetPageId}`), {
+          method: "PATCH",
+          body: JSON.stringify({
+            show_in_header: showInHeader,
+            show_in_footer: showInFooter,
+          }),
+        });
+      }
 
       // Save the active locale's translation
       const t = currentTranslations[activeLocale];
-      await adminJson(apiUrl(`/admin/pages/${page.id}/translations/${activeLocale}`), {
+      await adminJson(apiUrl(`/admin/pages/${targetPageId}/translations/${activeLocale}`), {
         method: "PUT",
         body: JSON.stringify({
           title: t.title || "Untitled",
@@ -363,6 +395,11 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
       });
 
       toast({ title: "Saved", description: `Translation for ${LOCALE_LABELS[activeLocale]} saved successfully.` });
+
+      // After creating a new page, navigate to its edit URL
+      if (isNew && targetPageId) {
+        navigate(`/admin/pages/${targetPageId}/edit`);
+      }
     } catch (err: any) {
       toast({ title: "Save failed", description: err.message, variant: "destructive" });
     } finally {
@@ -435,6 +472,25 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
           {saving ? "Saving…" : "Save"}
         </button>
       </div>
+
+      {/* Slug (new pages only) */}
+      {isNew && (
+        <div className="bg-card border border-border rounded-xl p-5">
+          <h2 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wide">
+            Page Slug
+          </h2>
+          <input
+            type="text"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value.toLowerCase())}
+            placeholder="e.g. about-us"
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <p className="text-xs text-muted-foreground mt-1">
+            Lowercase letters, numbers, and hyphens. The page will be at /{slug || "your-slug"}.
+          </p>
+        </div>
+      )}
 
       {/* Navigation Toggles */}
       <div className="bg-card border border-border rounded-xl p-5">
