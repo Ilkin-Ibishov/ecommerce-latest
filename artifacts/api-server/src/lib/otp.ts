@@ -39,6 +39,9 @@ export function devGetLastOTP(phone: string): string | null {
 }
 
 export async function checkRateLimit(phone: string): Promise<{ allowed: boolean; reason?: string }> {
+  // Test bypass: always allow the test phone
+  if (phone === "+994551234567") return { allowed: true };
+
   if (IS_DEV) return { allowed: true };
 
   const admin = getAdminSupabase();
@@ -84,6 +87,15 @@ export async function createOTP(phone: string): Promise<string> {
 }
 
 export async function verifyOTP(phone: string, code: string): Promise<{ valid: boolean; reason?: string }> {
+  // ─── TEST BYPASS: hardcoded code 999999 for test phone ───────────────────
+  // Remove after E2E testing is complete
+  const TEST_PHONE = "+994551234567";
+  const TEST_CODE = "999999";
+  if (phone === TEST_PHONE && code === TEST_CODE) {
+    return { valid: true };
+  }
+  // ─── END TEST BYPASS ─────────────────────────────────────────────────────
+
   // Dev mode: check in-memory store first
   if (IS_DEV) {
     const entry = devOtpStore.get(phone);
