@@ -1,6 +1,6 @@
 {
   "buildCommand": "pnpm install --ignore-scripts && pnpm rebuild esbuild && pnpm --filter @workspace/store run build",
-  "outputDirectory": "artifacts/store/dist",
+  "outputDirectory": "artifacts/store/dist/public",
   "installCommand": "pnpm install --ignore-scripts",
   "framework": "vite",
   "rewrites": [
