@@ -203,8 +203,21 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
   const [showInHeader, setShowInHeader] = useState(false);
   const [showInFooter, setShowInFooter] = useState(false);
   const [slug, setSlug] = useState("");
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [validationErrors, setValidationErrors] = useState<{ slug?: string; title?: string }>({});
 
   const isNew = pageId === "new";
+
+  /** Convert a title string to a URL-friendly slug */
+  const generateSlug = (text: string): string => {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^\w\s-]/g, "") // remove non-word chars except spaces/hyphens
+      .replace(/\s+/g, "-")     // spaces → hyphens
+      .replace(/-+/g, "-")      // collapse multiple hyphens
+      .replace(/^-+|-+$/g, ""); // trim leading/trailing hyphens
+  };
 
   // TipTap editor
   const editor = useEditor({
@@ -333,32 +346,64 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
   // ─── Save handler ─────────────────────────────────────────────────────────
 
   const handleSave = async () => {
+    // Clear previous validation errors
+    setValidationErrors({});
+
+    // Capture the current editor content into translation state
+    const currentContent = editor?.getHTML() ?? "";
+    const currentTranslations = {
+      ...translations,
+      [activeLocale]: { ...translations[activeLocale], content: currentContent },
+    };
+    setTranslations(currentTranslations);
+
+    // ─── Validation (before setting saving state) ───────────────────────
+    const errors: { slug?: string; title?: string } = {};
+
+    if (isNew) {
+      // Auto-generate slug from title if still empty
+      let trimmedSlug = slug.trim();
+      if (!trimmedSlug && currentTranslations.az.title) {
+        trimmedSlug = generateSlug(currentTranslations.az.title);
+        setSlug(trimmedSlug);
+      }
+      if (!trimmedSlug && currentTranslations[activeLocale].title) {
+        trimmedSlug = generateSlug(currentTranslations[activeLocale].title);
+        setSlug(trimmedSlug);
+      }
+
+      if (!trimmedSlug) {
+        errors.slug = "Slug is required. Enter a page slug or fill in the title to auto-generate one.";
+      } else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmedSlug)) {
+        errors.slug = "Slug must be lowercase letters, numbers, and hyphens (e.g. about-us).";
+      }
+    }
+
+    // Title is required for the active locale
+    const activeTitle = currentTranslations[activeLocale].title.trim();
+    if (!activeTitle) {
+      errors.title = "Title is required.";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      toast({
+        title: "Validation failed",
+        description: Object.values(errors).join(" "),
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // ─── Proceed with save ──────────────────────────────────────────────
     setSaving(true);
 
     try {
-      // Capture the current editor content into translation state
-      const currentContent = editor?.getHTML() ?? "";
-      const currentTranslations = {
-        ...translations,
-        [activeLocale]: { ...translations[activeLocale], content: currentContent },
-      };
-      setTranslations(currentTranslations);
-
       // Resolve the page ID — create the page first if this is a new page
       let targetPageId = page?.id;
 
       if (isNew) {
-        // Validate slug for new pages
         const trimmedSlug = slug.trim();
-        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmedSlug)) {
-          toast({
-            title: "Invalid slug",
-            description: "Slug must be lowercase letters, numbers, and hyphens (e.g. about-us).",
-            variant: "destructive",
-          });
-          setSaving(false);
-          return;
-        }
 
         const created = await adminJson(apiUrl("/admin/pages"), {
           method: "POST",
@@ -482,13 +527,23 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
           <input
             type="text"
             value={slug}
-            onChange={(e) => setSlug(e.target.value.toLowerCase())}
-            placeholder="e.g. about-us"
-            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+            onChange={(e) => {
+              setSlug(e.target.value.toLowerCase().replace(/\s+/g, "-"));
+              setSlugManuallyEdited(true);
+              setValidationErrors((prev) => ({ ...prev, slug: undefined }));
+            }}
+            placeholder="e.g. about-us (auto-generated from title)"
+            className={`w-full px-3 py-2 rounded-lg border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring ${
+              validationErrors.slug ? "border-destructive" : "border-border"
+            }`}
           />
-          <p className="text-xs text-muted-foreground mt-1">
-            Lowercase letters, numbers, and hyphens. The page will be at /{slug || "your-slug"}.
-          </p>
+          {validationErrors.slug ? (
+            <p className="text-destructive text-xs mt-1">{validationErrors.slug}</p>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-1">
+              Lowercase letters, numbers, and hyphens. The page will be at /{slug || "your-slug"}.
+            </p>
+          )}
         </div>
       )}
 
@@ -536,11 +591,24 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
             <input
               type="text"
               value={currentTranslation.title}
-              onChange={(e) => updateField("title", e.target.value)}
+              onChange={(e) => {
+                updateField("title", e.target.value);
+                setValidationErrors((prev) => ({ ...prev, title: undefined }));
+                // Auto-generate slug from the az title for new pages
+                if (isNew && activeLocale === "az" && !slugManuallyEdited) {
+                  setSlug(generateSlug(e.target.value));
+                  setValidationErrors((prev) => ({ ...prev, slug: undefined }));
+                }
+              }}
               maxLength={200}
               placeholder="Page title…"
-              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              className={`w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring ${
+                validationErrors.title ? "border-destructive" : "border-border"
+              }`}
             />
+            {validationErrors.title && (
+              <p className="text-destructive text-xs mt-1">{validationErrors.title}</p>
+            )}
           </div>
 
           {/* TipTap Editor */}
