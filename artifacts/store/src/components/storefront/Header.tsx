@@ -179,7 +179,7 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
 
               {/* Hamburger — tablet */}
               <button className="hidden sm:flex md:hidden p-2 rounded-lg text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] transition"
-                onClick={() => setMobileOpen(!mobileOpen)}>
+                onClick={() => setMobileOpen(!mobileOpen)} aria-label={mobileOpen ? "Close menu" : "Open menu"}>
                 {mobileOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
             </div>

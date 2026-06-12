@@ -103,7 +103,7 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
               <span className="text-sm bg-primary text-primary-foreground rounded-full px-2 py-0.5 font-medium">{itemCount}</span>
             )}
           </h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-accent transition">
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-accent transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" aria-label="Close cart">
             <X size={20} />
           </button>
         </div>
@@ -157,19 +157,22 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
                     <p className="text-primary font-bold text-sm mt-1">{item.price.toFixed(2)} AZN</p>
                     <div className="flex items-center gap-0 mt-2 border border-border rounded-lg w-fit touch-manipulation">
                       <button onClick={() => updateQty(item.product_id, item.quantity - 1)}
-                        className="w-9 h-9 flex items-center justify-center hover:bg-accent active:bg-accent transition rounded-l-lg text-muted-foreground">
+                        className="w-9 h-9 flex items-center justify-center hover:bg-accent active:bg-accent transition rounded-l-lg text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        aria-label="Decrease quantity">
                         <Minus size={14} />
                       </button>
                       <span className="w-9 text-center text-sm font-medium">{item.quantity}</span>
                       <button onClick={() => updateQty(item.product_id, item.quantity + 1)}
-                        className="w-9 h-9 flex items-center justify-center hover:bg-accent active:bg-accent transition rounded-r-lg text-muted-foreground">
+                        className="w-9 h-9 flex items-center justify-center hover:bg-accent active:bg-accent transition rounded-r-lg text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        aria-label="Increase quantity">
                         <Plus size={14} />
                       </button>
                     </div>
                   </div>
                   <div className="flex flex-col items-end justify-between shrink-0">
                     <button onClick={() => removeItem(item.product_id)}
-                      className="text-muted-foreground hover:text-destructive active:text-destructive transition p-2 -m-1 touch-manipulation">
+                      className="text-muted-foreground hover:text-destructive active:text-destructive transition p-2 -m-1 touch-manipulation focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
+                      aria-label="Remove item">
                       <Trash2 size={16} />
                     </button>
                     <p className="text-sm font-bold">{(item.price * item.quantity).toFixed(2)} AZN</p>
