@@ -112,7 +112,7 @@ const messages: Record<string, Record<string, any>> = {
       installment: "Ayda cəmi {amount} AZN — {months} aya bölün",
       payOnDelivery: "💰 Çatdırılmada ödəniş",
       payOnDeliveryDesc: "Sifarişiniz çatanda AZN ilə ödəyin. Kart lazım deyil.",
-      freeDeliveryOver: "📦 Pulsuz çatdırılma 50 AZN-dən yuxarı sifarişlərə",
+      freeDeliveryOver: "📦 Pulsuz çatdırılma 100 AZN-dən yuxarı sifarişlərə",
       writeReview: "Rəy yazın",
       signInToReview: "Daxil olun",
       signInToReviewSuffix: "ki, rəy yaza biləsiniz.",
@@ -145,6 +145,10 @@ const messages: Record<string, Record<string, any>> = {
     },
     RecentlyViewed: {
       title: "Son baxılan məhsullar",
+    },
+    ProductPage: {
+      notFound: "Məhsul tapılmadı",
+      notFoundBack: "Bütün məhsullara qayıt",
     },
     Categories: {
       title: "Kateqoriyalar",
@@ -409,7 +413,7 @@ const messages: Record<string, Record<string, any>> = {
       installment: "Всего {amount} AZN/мес — рассрочка на {months} мес",
       payOnDelivery: "💰 Оплата при доставке",
       payOnDeliveryDesc: "Оплатите в AZN при получении. Карта не нужна.",
-      freeDeliveryOver: "📦 Бесплатная доставка для заказов от 50 AZN",
+      freeDeliveryOver: "📦 Бесплатная доставка для заказов от 100 AZN",
       writeReview: "Написать отзыв",
       signInToReview: "Войдите",
       signInToReviewSuffix: "чтобы оставить отзыв.",
@@ -442,6 +446,10 @@ const messages: Record<string, Record<string, any>> = {
     },
     RecentlyViewed: {
       title: "Недавно просмотренные",
+    },
+    ProductPage: {
+      notFound: "Товар не найден",
+      notFoundBack: "Вернуться ко всем товарам",
     },
     Categories: {
       title: "Категории",
@@ -706,7 +714,7 @@ const messages: Record<string, Record<string, any>> = {
       installment: "Only {amount} AZN/month — split into {months} months",
       payOnDelivery: "💰 Pay on Delivery",
       payOnDeliveryDesc: "Pay in AZN when your order arrives. No card needed.",
-      freeDeliveryOver: "📦 Free delivery for orders over 50 AZN",
+      freeDeliveryOver: "📦 Free delivery for orders over 100 AZN",
       writeReview: "Write a Review",
       signInToReview: "Sign in",
       signInToReviewSuffix: "to leave a review.",
@@ -739,6 +747,10 @@ const messages: Record<string, Record<string, any>> = {
     },
     RecentlyViewed: {
       title: "Recently Viewed",
+    },
+    ProductPage: {
+      notFound: "Product not found",
+      notFoundBack: "Back to all products",
     },
     Categories: {
       title: "Categories",

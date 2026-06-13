@@ -3,11 +3,13 @@ import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import ProductDetail from "@/components/storefront/ProductDetail";
 import { trackView } from "@/components/storefront/RecentlyViewed";
+import { useI18n } from "@/lib/i18n/context";
 
 export default function ProductPage({ locale, slug }: { locale: string; slug: string }) {
   const [product, setProduct] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     const supabase = createClient();
@@ -74,8 +76,8 @@ export default function ProductPage({ locale, slug }: { locale: string; slug: st
   );
   if (notFound) return (
     <div className="container mx-auto px-4 py-16 text-center">
-      <h1 className="text-2xl font-bold mb-4">Məhsul tapılmadı</h1>
-      <a href={`/${locale}/products`} className="text-primary hover:underline">Bütün məhsullara qayıt</a>
+      <h1 className="text-2xl font-bold mb-4">{t("ProductPage.notFound")}</h1>
+      <a href={`/${locale}/products`} className="text-primary hover:underline">{t("ProductPage.notFoundBack")}</a>
     </div>
   );
 
