@@ -68,8 +68,14 @@ jobs:
       - name: Seed test data
         run: pnpm run seed:test
 
+      - name: Build API server
+        run: pnpm --filter @workspace/api-server run build
+
       - name: Start API server
         run: pnpm --filter @workspace/api-server run start &
+        env:
+          PORT: "5000"
+          NODE_ENV: development
 
       - name: Wait for API health endpoint
         run: |
@@ -92,6 +98,8 @@ jobs:
         run: pnpm --filter @workspace/store run dev &
         env:
           VITE_API_BASE_URL: http://localhost:5000/api
+          VITE_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
 
       - name: Wait for store server
         run: |
