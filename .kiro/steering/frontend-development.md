@@ -137,3 +137,30 @@ onChange={(v) => { setValue(v); setFieldErrors(e => ({ ...e, fieldName: "" })); 
 - Use `cn()` from `@/lib/utils` for conditional classes
 - Mobile-first responsive design (`md:`, `lg:` breakpoints)
 - Dark mode not currently implemented
+
+## Testing
+
+### Unit Tests (vitest)
+
+Run: `pnpm exec vitest --run --project store-unit`
+
+Test files go in `artifacts/store/src/__tests__/*.test.ts`. Use `@/` imports (resolved via vitest alias).
+
+Key test files:
+- `i18n-hardcoded-strings.test.ts` — All 15 components have translation keys
+- `i18n-preservation.test.ts` — Existing keys unchanged after modifications
+- `i18n-consistency.test.ts` — All locales have identical key structure, no empty strings
+- `cart-validation.test.ts` — Cart localStorage tampering prevention (property tests)
+
+### E2E Tests (Playwright)
+
+Run: `pnpm --filter @workspace/store run test:e2e`
+
+Config: `artifacts/store/playwright.config.ts`
+Tests in: `artifacts/store/tests/e2e/*.spec.ts`
+
+Set `BASE_URL` env var to test against deployed URL instead of localhost.
+
+### Accessibility
+
+All icon-only buttons must have `aria-label`. All interactive elements need `focus-visible:ring-1 focus-visible:ring-ring`. Use the `Button` component from `ui/button.tsx` when possible — it has focus styles built in. For raw `<button>` elements, add focus styles manually.

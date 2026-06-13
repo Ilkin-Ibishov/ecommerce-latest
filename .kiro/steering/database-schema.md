@@ -28,6 +28,10 @@ The canonical schema lives in `supabase/schema.sql`. Reference it via:
 | `comments` | Product reviews with ratings (admin-moderated) |
 | `notifications` | WhatsApp/notification queue (pending/sent/failed) |
 | `audit_log` | Admin action audit trail |
+| `pages` | CMS pages (slug, published, header/footer nav, sort order) |
+| `page_translations` | Localized page content (title, content, SEO meta) |
+| `site_settings` | White-label config (colors, fonts, logo, contact) |
+| `product_categories` | Many-to-many junction (product_id, category_id) |
 | `otp_requests` | OTP rate limiting (hashed codes, expiry) |
 | `banners` | Homepage banners (title, image, CTA, sort order) |
 

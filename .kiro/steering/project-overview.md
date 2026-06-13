@@ -22,6 +22,10 @@ inclusion: always
 - Stock changes: always use RPC `decrement_stock_safe` / `increment_stock`
 - Locale routing: `/az/`, `/ru/`, `/en/` prefixes on storefront; `/admin/` no prefix
 
-**Commands:** `pnpm run typecheck` · `pnpm run build`
+**Commands:** `pnpm run typecheck` · `pnpm run build` · `pnpm run test` (unit) · `pnpm --filter @workspace/store run test:e2e` (E2E)
+
+**Testing:** 3-layer strategy — unit/property (vitest, 700+ tests), E2E (Playwright, 4 specs), exploratory (ScoutQA CLI)
+
+**CI/CD:** GitHub Actions on every push to `main`. Two jobs: `unit` (typecheck + 415 unit tests, fast gate) and `integration-e2e` (API + E2E with Supabase). Node 22.
 
 > For full details use `#project-details` or see `.kiro/steering/project-details.md`
