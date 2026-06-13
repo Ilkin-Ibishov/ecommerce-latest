@@ -7,9 +7,39 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  # ─── Reliable gate: typecheck + pure unit/property tests ──────────────────
+  # No external dependencies (no DB secrets, no running servers, no browsers).
+  # This job must always pass and gates every push to main.
+  unit:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        run: pnpm run typecheck
+
+      - name: Run unit tests (store)
+        run: pnpm exec vitest --run --project store-unit
+
+  # ─── Integration + E2E: requires Supabase secrets and running servers ─────
+  # Runs only after the unit gate passes. Needs repo secrets:
+  # SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
+  integration-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: unit
 
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -30,7 +60,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps
+        run: pnpm --filter @workspace/store exec playwright install --with-deps chromium
 
       - name: Seed test data
         run: pnpm run seed:test
@@ -52,6 +82,9 @@ jobs:
           done
           echo "API server is healthy"
 
+      - name: Run API integration tests
+        run: pnpm exec vitest --run --project api-integration --project env-validation
+
       - name: Start store dev server
         run: pnpm --filter @workspace/store run dev &
         env:
@@ -59,7 +92,7 @@ jobs:
 
       - name: Wait for store server
         run: |
-          timeout=30
+          timeout=60
           elapsed=0
           until curl -sf http://localhost:3000 > /dev/null 2>&1; do
             if [ $elapsed -ge $timeout ]; then
@@ -71,15 +104,12 @@ jobs:
           done
           echo "Store server is ready"
 
-      - name: Run tests
-        run: pnpm test
-
       - name: Run E2E tests
         run: pnpm --filter @workspace/store run test:e2e
         env:
           BASE_URL: http://localhost:3000
 
-      - name: Upload E2E test artifacts
+      - name: Upload E2E artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v4
         with:

@@ -6,7 +6,12 @@ export default defineConfig({
     name: "store-unit",
     root: import.meta.dirname,
     include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
-    exclude: ["tests/e2e/**", "tests/components/**"],
+    exclude: [
+      "tests/e2e/**",
+      "tests/components/**",
+      // WIP: empty test file (no suites yet) from product-image-management — re-enable once it has tests
+      "tests/image-proxy.property.test.ts",
+    ],
     environment: "node",
   },
   resolve: {
