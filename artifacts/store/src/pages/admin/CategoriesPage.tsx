@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 
 interface SubCategory {
   id: string;
@@ -39,6 +40,7 @@ export default function AdminCategoriesPage() {
   const [editing, setEditing] = useState<Category | SubCategory | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [confirmState, setConfirmState] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => {} });
 
   const load = () => {
     const supabase = createClient();
@@ -104,9 +106,16 @@ export default function AdminCategoriesPage() {
     const msg = subCount > 0
       ? `Delete "${catName}" and its ${subCount} subcategory(s)? This cannot be undone.`
       : `Delete "${catName}"?`;
-    if (!confirm(msg)) return;
-    await adminFetch(apiUrl(`/admin/categories/${id}`), { method: "DELETE" });
-    load();
+    setConfirmState({
+      open: true,
+      title: "Delete Category",
+      message: msg,
+      onConfirm: async () => {
+        setConfirmState((s) => ({ ...s, open: false }));
+        await adminFetch(apiUrl(`/admin/categories/${id}`), { method: "DELETE" });
+        load();
+      },
+    });
   };
 
   const parentName = form.parent_id
@@ -254,6 +263,16 @@ export default function AdminCategoriesPage() {
           </table>
         </div>
       </div>
+
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel="Delete"
+        destructive={true}
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState((s) => ({ ...s, open: false }))}
+      />
     </div>
   );
 }

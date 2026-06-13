@@ -29,6 +29,9 @@ const WSRV_BASE = "https://wsrv.nl/";
  * collision when it contains query strings or special characters.
  */
 export function getProxyUrl(rawUrl: string, preset: ImagePreset): string {
+  // Idempotence guard: avoid double-proxying URLs already going through wsrv.nl
+  if (rawUrl.includes("wsrv.nl")) return rawUrl;
+
   const config = PRESETS[preset];
   const params = new URLSearchParams();
   params.set("url", rawUrl);

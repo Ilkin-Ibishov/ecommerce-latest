@@ -475,22 +475,22 @@ router.post("/admin/whatsapp/test", async (req, res) => {
   } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
 });
 
-router.get("/admin/orders/:id/notifications", async (req, res) => {
+router.get("/admin/orders/:id/notifications", async (req, res): Promise<void> => {
+  const ctx = await requireAdmin(req);
+  if (!ctx) { res.status(403).json({ error: "Forbidden" }); return; }
+
   try {
-    const ctx = await requireAdmin(req);
-    if (!ctx) return res.status(403).json({ error: "Forbidden" });
-    const { id } = req.params;
     const { data, error } = await (ctx.admin as any)
-      .from("notifications")
-      .select("id, type, channel, recipient, status, sent_at, created_at, attempts, error_message")
-      .filter("payload->>order_id", "eq", id)
+      .from("notification_queue")
+      .select("*")
+      .eq("order_id", req.params.id)
       .order("created_at", { ascending: false });
-    if (error) {
-      if (error.code === "42P01") return res.json([]);
-      throw error;
-    }
-    return res.json(data ?? []);
-  } catch (err) { req.log.error(err); return res.status(500).json({ error: "Internal server error" }); }
+    if (error) throw error;
+    res.json(data ?? []);
+  } catch (err) {
+    req.log.warn({ err, orderId: req.params.id }, "Failed to fetch notifications — table may not exist");
+    res.json([]);
+  }
 });
 
 router.post("/admin/notifications/:id/retry", async (req, res) => {

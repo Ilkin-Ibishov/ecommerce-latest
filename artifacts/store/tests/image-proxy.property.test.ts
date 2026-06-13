@@ -55,3 +55,78 @@ const presetArb = fc.constantFrom<ImagePreset>("thumbnail", "gallery", "lightbox
  * URL-encoded original URL, and the correct width, height, quality, output, and fit
  * parameters matching the preset configuration.
  */
+
+describe("Feature: product-image-management, Property 1: Proxy URL format correctness", () => {
+  it("generates a wsrv.nl URL with correct preset params for any URL + preset", () => {
+    fc.assert(
+      fc.property(validHttpsUrlArb, presetArb, (rawUrl, preset) => {
+        const proxyUrl = getProxyUrl(rawUrl, preset);
+        const config = PRESETS[preset];
+
+        // Base
+        expect(proxyUrl.startsWith("https://wsrv.nl/?")).toBe(true);
+
+        const parsed = new URL(proxyUrl);
+        // Encoded original URL round-trips through the url param
+        expect(parsed.searchParams.get("url")).toBe(rawUrl);
+        // Preset dimensions and quality
+        expect(parsed.searchParams.get("w")).toBe(String(config.width));
+        expect(parsed.searchParams.get("h")).toBe(String(config.height));
+        expect(parsed.searchParams.get("q")).toBe(String(config.quality));
+        expect(parsed.searchParams.get("output")).toBe("webp");
+        expect(parsed.searchParams.get("fit")).toBe(config.fit);
+      }),
+      { numRuns: 100 }
+    );
+  });
+});
+
+// ─── Property 2: Proxy URL round-trip encoding ─────────────────────────────────
+
+describe("Feature: product-image-management, Property 2: Proxy URL round-trip encoding", () => {
+  it("extractOriginalUrl recovers the original URL for any valid URL", () => {
+    fc.assert(
+      fc.property(validHttpsUrlArb, presetArb, (rawUrl, preset) => {
+        const proxyUrl = getProxyUrl(rawUrl, preset);
+        expect(extractOriginalUrl(proxyUrl)).toBe(rawUrl);
+      }),
+      { numRuns: 100 }
+    );
+  });
+
+  it("round-trips URLs containing query parameters without collision", () => {
+    fc.assert(
+      fc.property(httpsUrlWithQueryArb, presetArb, (rawUrl, preset) => {
+        const proxyUrl = getProxyUrl(rawUrl, preset);
+        // The original query string must survive encoding/decoding intact
+        expect(extractOriginalUrl(proxyUrl)).toBe(rawUrl);
+      }),
+      { numRuns: 100 }
+    );
+  });
+});
+
+// ─── Property 10: Proxy URL idempotence ────────────────────────────────────────
+
+describe("Feature: product-image-management, Property 10: Proxy URL idempotence", () => {
+  it("produces identical output for identical inputs", () => {
+    fc.assert(
+      fc.property(validHttpsUrlArb, presetArb, (rawUrl, preset) => {
+        expect(getProxyUrl(rawUrl, preset)).toBe(getProxyUrl(rawUrl, preset));
+      }),
+      { numRuns: 100 }
+    );
+  });
+
+  it("does not double-proxy an already-proxied URL", () => {
+    fc.assert(
+      fc.property(validHttpsUrlArb, presetArb, (rawUrl, preset) => {
+        const once = getProxyUrl(rawUrl, preset);
+        const twice = getProxyUrl(once, preset);
+        // Idempotence guard: a wsrv.nl URL is returned unchanged
+        expect(twice).toBe(once);
+      }),
+      { numRuns: 100 }
+    );
+  });
+});

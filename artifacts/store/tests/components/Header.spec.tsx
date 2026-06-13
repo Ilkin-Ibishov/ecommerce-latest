@@ -1,6 +1,8 @@
 import { test, expect } from "@playwright/experimental-ct-react";
 import StorefrontHeader from "@/components/storefront/Header";
 import { CartProvider } from "@/lib/cart/context";
+import { SettingsProvider } from "@/lib/settings/context";
+import { I18nProvider } from "@/lib/i18n/context";
 import { Router } from "wouter";
 
 test("desktop nav visible", async ({ mount, page }) => {
@@ -9,7 +11,11 @@ test("desktop nav visible", async ({ mount, page }) => {
   const component = await mount(
     <CartProvider>
       <Router>
-        <StorefrontHeader locale="az" />
+        <SettingsProvider>
+          <I18nProvider locale="az">
+            <StorefrontHeader locale="az" />
+          </I18nProvider>
+        </SettingsProvider>
       </Router>
     </CartProvider>,
   );
@@ -17,8 +23,9 @@ test("desktop nav visible", async ({ mount, page }) => {
   // Scope assertions to the <header> element (excludes MobileBottomNav)
   const header = component.locator("header");
 
-  // Logo image visible
-  await expect(header.locator('img[alt="İlk Electronics"]')).toBeVisible();
+  // Logo link to the storefront home is visible (logo renders as either an
+  // <img> when a logo_url is configured, or the store name text otherwise).
+  await expect(header.locator('a[href="/az"]').first()).toBeVisible();
 
   // Desktop nav links visible (within the header's <nav> element)
   const desktopNav = header.locator("nav");
@@ -35,7 +42,11 @@ test("mobile menu toggle", async ({ mount, page }) => {
   const component = await mount(
     <CartProvider>
       <Router>
-        <StorefrontHeader locale="az" />
+        <SettingsProvider>
+          <I18nProvider locale="az">
+            <StorefrontHeader locale="az" />
+          </I18nProvider>
+        </SettingsProvider>
       </Router>
     </CartProvider>,
   );
@@ -43,21 +54,18 @@ test("mobile menu toggle", async ({ mount, page }) => {
   // Scope to the <header> element (excludes MobileBottomNav)
   const header = component.locator("header");
 
-  // The mobile dropdown is conditionally rendered (mobileOpen state),
-  // so before clicking the hamburger, the dropdown panel doesn't exist.
-  // We verify this by checking the dropdown container div with border-t class.
-  await expect(header.locator('[class*="border-t"][class*="border-gray-800"][class*="py-3"]')).toHaveCount(0);
+  // The tablet dropdown panel (border-t div) is conditionally rendered only
+  // when mobileOpen is true, so it doesn't exist before clicking.
+  const dropdown = header.locator("div.border-t");
+  await expect(dropdown).toHaveCount(0);
 
-  // The hamburger menu toggle is "hidden sm:flex md:hidden" — visible only at 640–767px.
-  // At this viewport, it renders a Menu icon (lucide-react SVG with class "lucide-menu").
-  const hamburger = header.locator("button:visible").filter({
-    has: page.locator("svg.lucide-menu"),
-  });
+  // The hamburger toggle is "hidden sm:flex md:hidden" — visible at 640–767px.
+  // It carries aria-label "Open menu" when closed.
+  const hamburger = header.getByRole("button", { name: "Open menu" });
   await hamburger.click();
 
-  // After clicking, the mobile nav panel with "Məhsullar" and "Kateqoriyalar" links becomes visible.
-  // The dropdown links have "block" class and are inside the header (not MobileBottomNav).
-  const mobilePanel = header.locator("div.border-t");
-  await expect(mobilePanel.getByRole("link", { name: "Məhsullar" })).toBeVisible();
-  await expect(mobilePanel.getByRole("link", { name: "Kateqoriyalar" })).toBeVisible();
+  // After clicking, the tablet dropdown panel appears with the nav links.
+  await expect(dropdown).toHaveCount(1);
+  await expect(dropdown.getByRole("link", { name: "Məhsullar" })).toBeVisible();
+  await expect(dropdown.getByRole("link", { name: "Kateqoriyalar" })).toBeVisible();
 });

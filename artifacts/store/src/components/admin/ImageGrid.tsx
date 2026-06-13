@@ -3,6 +3,7 @@ import { Trash2, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiUrl } from "@/lib/api";
 import { getProxyUrl } from "@/lib/image-proxy";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 
 export interface ProductImage {
   id: string;
@@ -35,6 +36,7 @@ export function ImageGrid({ productId, images, onReorder, onDelete }: ImageGridP
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [isReordering, setIsReordering] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<{ open: boolean; title: string; message: string; onConfirm: () => void }>({ open: false, title: "", message: "", onConfirm: () => {} });
   const dragCounter = useRef(0);
 
   const sorted = [...images].sort((a, b) => a.sort_order - b.sort_order);
@@ -61,25 +63,30 @@ export function ImageGrid({ productId, images, onReorder, onDelete }: ImageGridP
   }
 
   async function handleDelete(imageId: string) {
-    const confirmed = window.confirm("Are you sure you want to delete this image?");
-    if (!confirmed) return;
-
-    setIsDeleting(imageId);
-    try {
-      const res = await fetch(apiUrl(`/admin/products/${productId}/images/${imageId}`), {
-        method: "DELETE",
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
-        },
-      });
-      if (res.ok) {
-        onDelete();
-      }
-    } catch {
-      // Silently fail
-    } finally {
-      setIsDeleting(null);
-    }
+    setConfirmState({
+      open: true,
+      title: "Delete Image",
+      message: "Are you sure you want to delete this image?",
+      onConfirm: async () => {
+        setConfirmState((s) => ({ ...s, open: false }));
+        setIsDeleting(imageId);
+        try {
+          const res = await fetch(apiUrl(`/admin/products/${productId}/images/${imageId}`), {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("admin_token")}`,
+            },
+          });
+          if (res.ok) {
+            onDelete();
+          }
+        } catch {
+          // Silently fail
+        } finally {
+          setIsDeleting(null);
+        }
+      },
+    });
   }
 
   function handleDragStart(e: React.DragEvent, imageId: string) {
@@ -151,75 +158,87 @@ export function ImageGrid({ productId, images, onReorder, onDelete }: ImageGridP
   }
 
   return (
-    <div
-      className={cn(
-        "grid grid-cols-2 md:grid-cols-3 gap-3",
-        isReordering && "opacity-60 pointer-events-none"
-      )}
-    >
-      {sorted.map((image) => {
-        const isPrimary = image.sort_order === 0;
-        const isDragging = draggedId === image.id;
-        const isDragOver = dragOverId === image.id;
-        const badgeStyle = SOURCE_BADGE_STYLES[image.source] ?? SOURCE_BADGE_STYLES.paste;
+    <>
+      <div
+        className={cn(
+          "grid grid-cols-2 md:grid-cols-3 gap-3",
+          isReordering && "opacity-60 pointer-events-none"
+        )}
+      >
+        {sorted.map((image) => {
+          const isPrimary = image.sort_order === 0;
+          const isDragging = draggedId === image.id;
+          const isDragOver = dragOverId === image.id;
+          const badgeStyle = SOURCE_BADGE_STYLES[image.source] ?? SOURCE_BADGE_STYLES.paste;
 
-        return (
-          <div
-            key={image.id}
-            draggable
-            onDragStart={(e) => handleDragStart(e, image.id)}
-            onDragEnd={handleDragEnd}
-            onDragEnter={(e) => handleDragEnter(e, image.id)}
-            onDragLeave={handleDragLeave}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, image.id)}
-            className={cn(
-              "relative group rounded-lg border overflow-hidden bg-card transition-all",
-              isDragging && "opacity-40 scale-95",
-              isDragOver && "border-blue-500 border-2 ring-2 ring-blue-500/30",
-              !isDragging && !isDragOver && "border-border"
-            )}
-          >
-            {/* Image preview */}
-            <div className="aspect-square">
-              <img
-                src={getProxyUrl(image.url, "thumbnail")}
-                alt={image.alt_text ?? "Product image"}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-            </div>
-
-            {/* Drag handle */}
-            <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 text-white rounded p-0.5 cursor-grab active:cursor-grabbing">
-              <GripVertical className="w-4 h-4" />
-            </div>
-
-            {/* Delete button */}
-            <button
-              type="button"
-              onClick={() => handleDelete(image.id)}
-              disabled={isDeleting === image.id}
-              className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 hover:bg-red-600 text-white rounded p-1 cursor-pointer disabled:opacity-50"
-              aria-label="Delete image"
+          return (
+            <div
+              key={image.id}
+              draggable
+              onDragStart={(e) => handleDragStart(e, image.id)}
+              onDragEnd={handleDragEnd}
+              onDragEnter={(e) => handleDragEnter(e, image.id)}
+              onDragLeave={handleDragLeave}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, image.id)}
+              className={cn(
+                "relative group rounded-lg border overflow-hidden bg-card transition-all",
+                isDragging && "opacity-40 scale-95",
+                isDragOver && "border-blue-500 border-2 ring-2 ring-blue-500/30",
+                !isDragging && !isDragOver && "border-border"
+              )}
             >
-              <Trash2 className="w-3.5 h-3.5" />
-            </button>
-
-            {/* Source badge */}
-            <div className={cn("absolute bottom-1 left-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full", badgeStyle)}>
-              {image.source}
-            </div>
-
-            {/* Primary indicator */}
-            {isPrimary && (
-              <div className="absolute bottom-1 right-1 bg-amber-100 text-amber-800 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
-                Primary
+              {/* Image preview */}
+              <div className="aspect-square">
+                <img
+                  src={getProxyUrl(image.url, "thumbnail")}
+                  alt={image.alt_text ?? "Product image"}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
               </div>
-            )}
-          </div>
-        );
-      })}
-    </div>
+
+              {/* Drag handle */}
+              <div className="absolute top-1 left-1 opacity-0 group-hover:opacity-100 transition-opacity bg-black/50 text-white rounded p-0.5 cursor-grab active:cursor-grabbing">
+                <GripVertical className="w-4 h-4" />
+              </div>
+
+              {/* Delete button */}
+              <button
+                type="button"
+                onClick={() => handleDelete(image.id)}
+                disabled={isDeleting === image.id}
+                className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity bg-red-500 hover:bg-red-600 text-white rounded p-1 cursor-pointer disabled:opacity-50"
+                aria-label="Delete image"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+
+              {/* Source badge */}
+              <div className={cn("absolute bottom-1 left-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full", badgeStyle)}>
+                {image.source}
+              </div>
+
+              {/* Primary indicator */}
+              {isPrimary && (
+                <div className="absolute bottom-1 right-1 bg-amber-100 text-amber-800 text-[10px] font-medium px-1.5 py-0.5 rounded-full">
+                  Primary
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <ConfirmDialog
+        open={confirmState.open}
+        title={confirmState.title}
+        message={confirmState.message}
+        confirmLabel="Delete"
+        destructive={true}
+        onConfirm={confirmState.onConfirm}
+        onCancel={() => setConfirmState((s) => ({ ...s, open: false }))}
+      />
+    </>
   );
 }

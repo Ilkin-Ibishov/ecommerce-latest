@@ -9,7 +9,9 @@
     "serve": "vite preview --config vite.config.ts --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:e2e": "playwright test --config playwright.config.ts",
-    "test:e2e:ci": "playwright test --config playwright.config.ts --reporter=github"
+    "test:e2e:ci": "playwright test --config playwright.config.ts --reporter=github",
+    "test:ct": "playwright test --config playwright-ct.config.ts",
+    "test:ct:ci": "playwright test --config playwright-ct.config.ts --reporter=github"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

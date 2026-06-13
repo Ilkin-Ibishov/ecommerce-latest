@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearch } from "wouter";
+import { Link, useSearch, useLocation } from "wouter";
 import { createClient } from "@/lib/supabase/client";
 
 const ACTION_COLORS: Record<string, string> = {
@@ -11,7 +11,9 @@ const ACTION_COLORS: Record<string, string> = {
 
 export default function AdminAuditPage() {
   const search = useSearch();
-  const page = Math.max(1, parseInt(new URLSearchParams(search).get("page") ?? "1", 10));
+  const [, setLocation] = useLocation();
+  const params = new URLSearchParams(search);
+  const page = Math.max(1, parseInt(params.get("page") ?? "1", 10));
   const pageSize = 50;
   const offset = (page - 1) * pageSize;
 
@@ -19,20 +21,107 @@ export default function AdminAuditPage() {
   const [count, setCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Filter state
+  const [actionFilter, setActionFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Distinct action types for the dropdown
+  const [actionTypes, setActionTypes] = useState<string[]>([]);
+
+  // Fetch distinct action types once on mount
   useEffect(() => {
     const supabase = createClient();
     (supabase as any).from("audit_log")
+      .select("action")
+      .then(({ data }: any) => {
+        const distinct = [...new Set((data ?? []).map((r: any) => r.action))].sort() as string[];
+        setActionTypes(distinct);
+      });
+  }, []);
+
+  // Fetch logs with filters applied
+  useEffect(() => {
+    setLoading(true);
+    const supabase = createClient();
+    let query = (supabase as any).from("audit_log")
       .select("*, users(full_name)", { count: "exact" })
-      .order("created_at", { ascending: false })
+      .order("created_at", { ascending: false });
+
+    if (actionFilter) {
+      query = query.eq("action", actionFilter);
+    }
+    if (dateFrom) {
+      query = query.gte("created_at", dateFrom);
+    }
+    if (dateTo) {
+      query = query.lte("created_at", dateTo + "T23:59:59");
+    }
+
+    query
       .range(offset, offset + pageSize - 1)
-      .then(({ data, count: total }: any) => { setLogs(data ?? []); setCount(total ?? 0); setLoading(false); });
-  }, [page]);
+      .then(({ data, count: total }: any) => {
+        setLogs(data ?? []);
+        setCount(total ?? 0);
+        setLoading(false);
+      });
+  }, [page, actionFilter, dateFrom, dateTo]);
+
+  // Reset to page 1 when filters change
+  const handleActionFilterChange = (value: string) => {
+    setActionFilter(value);
+    setLocation("/admin/audit?page=1");
+  };
+
+  const handleDateFromChange = (value: string) => {
+    setDateFrom(value);
+    setLocation("/admin/audit?page=1");
+  };
+
+  const handleDateToChange = (value: string) => {
+    setDateTo(value);
+    setLocation("/admin/audit?page=1");
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold">Audit Log</h1>
         <span className="text-sm text-muted-foreground">{count} entries</span>
+      </div>
+
+      {/* Filter toolbar */}
+      <div className="flex flex-wrap items-center gap-3">
+        <select
+          value={actionFilter}
+          onChange={(e) => handleActionFilterChange(e.target.value)}
+          className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm"
+        >
+          <option value="">All actions</option>
+          {actionTypes.map((action) => (
+            <option key={action} value={action}>{action}</option>
+          ))}
+        </select>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted-foreground">From:</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => handleDateFromChange(e.target.value)}
+            className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm"
+          />
+        </div>
+
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted-foreground">To:</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => handleDateToChange(e.target.value)}
+            className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm"
+          />
+        </div>
       </div>
 
       <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -49,7 +138,7 @@ export default function AdminAuditPage() {
             {loading ? (
               <tr><td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">Loading...</td></tr>
             ) : logs.length === 0 ? (
-              <tr><td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">No audit entries yet.</td></tr>
+              <tr><td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">No audit entries found.</td></tr>
             ) : logs.map((log: any) => (
               <tr key={log.id} className="border-b border-border/50 hover:bg-muted/20">
                 <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>

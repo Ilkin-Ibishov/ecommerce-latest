@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from "react";
 import { Link, useLocation } from "wouter";
-import { Upload, X, Plus, Trash2, GripVertical } from "lucide-react";
+import { Upload, X, Plus, Trash2, GripVertical, AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch, adminJson } from "@/lib/admin-fetch";
@@ -37,6 +37,8 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [loadingProduct, setLoadingProduct] = useState(!!productId);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const supabase = createClient();
@@ -54,6 +56,11 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
             .eq("product_id", productId)
             .order("sort_order"),
         ]);
+        if (productRes.error) {
+          setLoadError(productRes.error.message || "Unknown error loading product");
+          setLoadingProduct(false);
+          return;
+        }
         const data = productRes.data;
         if (data) {
           setSku(data.sku ?? "");
@@ -76,7 +83,7 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
         setLoadingProduct(false);
       })();
     }
-  }, [productId]);
+  }, [productId, retryCount]);
 
   const setTranslationField = (lang: string, field: "title" | "description", value: string) => {
     setTranslations((prev) => prev.map((t) => t.lang_code === lang ? { ...t, [field]: value } : t));
@@ -132,6 +139,26 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
 
   const currentT = translations.find((t) => t.lang_code === activeLang)!;
   if (loadingProduct) return <div className="text-muted-foreground">Loading...</div>;
+
+  if (loadError) return (
+    <div className="space-y-6 max-w-3xl">
+      <div className="flex items-center gap-4">
+        <Link href="/admin/products" className="text-muted-foreground hover:text-foreground text-sm">← Products</Link>
+        <h1 className="text-2xl font-bold">Edit Product</h1>
+      </div>
+      <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3">
+        <AlertTriangle className="text-red-400 shrink-0" size={20} />
+        <div className="flex-1">
+          <p className="font-medium text-red-400">Failed to load product data</p>
+          <p className="text-sm text-muted-foreground">{loadError}</p>
+        </div>
+        <button onClick={() => { setLoadError(null); setLoadingProduct(true); setRetryCount(c => c + 1); }}
+          className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-sm hover:bg-red-500/30 transition">
+          Retry
+        </button>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-6 max-w-3xl">

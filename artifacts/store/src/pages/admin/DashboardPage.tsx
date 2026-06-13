@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
 import { AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { getProxyUrl } from "@/lib/image-proxy";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -440,7 +441,7 @@ export default function DashboardPage() {
             {lowStockProducts.map((p) => (
               <div key={p.id} className="flex items-center gap-3 px-5 py-2.5 hover:bg-muted/20 transition">
                 <div className="w-8 h-8 rounded-lg bg-muted overflow-hidden shrink-0">
-                  {p.image ? <img src={p.image} alt={p.title} className="w-full h-full object-cover" /> : <div className="w-full h-full bg-muted" />}
+                  {p.image ? <img src={getProxyUrl(p.image, "thumbnail")} alt={p.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = p.image!; }} /> : <div className="w-full h-full bg-muted" />}
                 </div>
                 <span className="flex-1 text-sm truncate">{p.title}</span>
                 <Link href={`/admin/products/${p.id}/edit`} className="text-xs text-primary hover:underline shrink-0">Edit</Link>
@@ -577,7 +578,7 @@ export default function DashboardPage() {
                       <td className="px-6 py-3">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-lg bg-muted shrink-0 overflow-hidden">
-                            {p.image ? <img src={p.image} alt={p.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground/40 text-xs">?</div>}
+                            {p.image ? <img src={getProxyUrl(p.image, "thumbnail")} alt={p.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = p.image!; }} /> : <div className="w-full h-full flex items-center justify-center text-muted-foreground/40 text-xs">?</div>}
                           </div>
                           {isReal ? (
                             <Link href={`/admin/products/${p.product_id}/edit`} className="font-medium hover:text-primary transition line-clamp-1">{p.title}</Link>

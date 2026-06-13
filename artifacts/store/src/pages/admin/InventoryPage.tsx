@@ -2,17 +2,26 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { createClient } from "@/lib/supabase/client";
 import { StockCell } from "@/components/admin/StockCell";
+import { SearchInput } from "@/components/admin/SearchInput";
+import { SortableHeader } from "@/components/admin/SortableHeader";
+import { CategoryFilter } from "@/components/admin/CategoryFilter";
+import { CSVExportButton } from "@/components/admin/CSVExportButton";
+import { getProxyUrl } from "@/lib/image-proxy";
 
 type Filter = "all" | "out_of_stock" | "low_stock" | "healthy";
+type SortKey = "name" | "price" | "stock" | "value";
+type SortDir = "asc" | "desc";
 
 interface InventoryProduct {
   id: string;
   slug: string;
+  sku: string | null;
   price: number;
   stock: number;
   brand: string | null;
   title: string;
   image: string | null;
+  categoryIds: string[];
 }
 
 function SummaryCard({ label, value, color, sub }: {
@@ -31,24 +40,30 @@ export default function AdminInventoryPage() {
   const [products, setProducts] = useState<InventoryProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
+  const [search, setSearch] = useState("");
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
 
   useEffect(() => {
     const supabase = createClient();
     (async () => {
       const { data } = await (supabase as any)
         .from("products")
-        .select("id, slug, price, stock, brand, product_translations(lang_code, title), product_images(url, sort_order)")
+        .select("id, slug, sku, price, stock, brand, product_translations(lang_code, title), product_images(url, sort_order), product_categories(category_id)")
         .order("stock", { ascending: true }); // out-of-stock first
 
       const mapped: InventoryProduct[] = (data ?? []).map((p: any) => ({
         id: p.id,
         slug: p.slug,
+        sku: p.sku ?? null,
         price: Number(p.price),
         stock: p.stock,
         brand: p.brand ?? null,
         title: (p.product_translations as any[])?.find((t: any) => t.lang_code === "az")?.title
           ?? (p.product_translations as any[])?.[0]?.title ?? "Unknown",
         image: [...(p.product_images ?? [])].sort((a: any, b: any) => a.sort_order - b.sort_order)[0]?.url ?? null,
+        categoryIds: (p.product_categories ?? []).map((pc: any) => pc.category_id),
       }));
 
       setProducts(mapped);
@@ -62,19 +77,71 @@ export default function AdminInventoryPage() {
   const healthyStock = products.filter((p) => p.stock >= 10).length;
   const totalValue = products.reduce((sum, p) => sum + p.price * p.stock, 0);
 
-  // Client-side filter (all data loaded — 152 products is fine in memory)
-  const filteredProducts = products.filter((p) => {
-    if (filter === "out_of_stock") return p.stock === 0;
-    if (filter === "low_stock") return p.stock > 0 && p.stock < 10;
-    if (filter === "healthy") return p.stock >= 10;
-    return true;
-  });
+  // Client-side filtering pipeline: stock filter → search → category
+  const filteredProducts = products
+    .filter((p) => {
+      if (filter === "out_of_stock") return p.stock === 0;
+      if (filter === "low_stock") return p.stock > 0 && p.stock < 10;
+      if (filter === "healthy") return p.stock >= 10;
+      return true;
+    })
+    .filter((p) => {
+      if (!search) return true;
+      const q = search.toLowerCase();
+      return (
+        p.title.toLowerCase().includes(q) ||
+        p.slug.toLowerCase().includes(q) ||
+        (p.brand?.toLowerCase().includes(q) ?? false)
+      );
+    })
+    .filter((p) => {
+      if (!categoryFilter) return true;
+      return p.categoryIds.includes(categoryFilter);
+    });
+
+  // Client-side sorting
+  const sortedProducts = sortKey
+    ? [...filteredProducts].sort((a, b) => {
+        let cmp = 0;
+        switch (sortKey) {
+          case "name":
+            cmp = a.title.localeCompare(b.title);
+            break;
+          case "price":
+            cmp = a.price - b.price;
+            break;
+          case "stock":
+            cmp = a.stock - b.stock;
+            break;
+          case "value":
+            cmp = (a.price * a.stock) - (b.price * b.stock);
+            break;
+        }
+        return sortDir === "asc" ? cmp : -cmp;
+      })
+    : filteredProducts;
+
+  const handleSort = (key: string, dir: "asc" | "desc") => {
+    setSortKey(key as SortKey);
+    setSortDir(dir);
+  };
 
   const FILTERS: { key: Filter; label: string }[] = [
     { key: "all", label: "All" },
     { key: "out_of_stock", label: "Out of Stock" },
     { key: "low_stock", label: "Low Stock (<10)" },
     { key: "healthy", label: "Healthy" },
+  ];
+
+  // CSV columns configuration
+  const csvColumns: { key: keyof InventoryProduct | ((row: InventoryProduct) => string | number); header: string }[] = [
+    { key: "title", header: "Product Name" },
+    { key: "sku", header: "SKU" },
+    { key: "brand", header: "Brand" },
+    { key: (row) => row.categoryIds.length > 0 ? row.categoryIds.join("; ") : "", header: "Category" },
+    { key: (row) => row.price.toFixed(2), header: "Price (AZN)" },
+    { key: "stock", header: "Stock" },
+    { key: (row) => (row.price * row.stock).toFixed(2), header: "Value (AZN)" },
   ];
 
   return (
@@ -147,17 +214,66 @@ export default function AdminInventoryPage() {
         ))}
       </div>
 
+      {/* Toolbar: Search, Category Filter, CSV Export */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <SearchInput
+          placeholder="Search by name, slug, or brand..."
+          value={search}
+          onChange={setSearch}
+        />
+        <CategoryFilter
+          value={categoryFilter}
+          onFilter={setCategoryFilter}
+        />
+        <div className="ml-auto">
+          <CSVExportButton
+            data={sortedProducts}
+            columns={csvColumns}
+            filename="inventory-export"
+          />
+        </div>
+      </div>
+
       {/* Table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[560px] text-sm">
+          <table className="w-full min-w-[700px] text-sm">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                <th className="text-left px-4 py-3 font-medium">Product</th>
+                <SortableHeader
+                  label="Product"
+                  sortKey="name"
+                  currentSort={sortKey}
+                  currentDir={sortDir}
+                  onSort={handleSort}
+                  className="text-left"
+                />
+                <th className="text-left px-4 py-3 font-medium">SKU</th>
                 <th className="text-left px-4 py-3 font-medium">Brand</th>
-                <th className="text-right px-4 py-3 font-medium">Price</th>
-                <th className="text-right px-4 py-3 font-medium">Stock</th>
-                <th className="text-right px-4 py-3 font-medium">Value</th>
+                <SortableHeader
+                  label="Price"
+                  sortKey="price"
+                  currentSort={sortKey}
+                  currentDir={sortDir}
+                  onSort={handleSort}
+                  className="text-right"
+                />
+                <SortableHeader
+                  label="Stock"
+                  sortKey="stock"
+                  currentSort={sortKey}
+                  currentDir={sortDir}
+                  onSort={handleSort}
+                  className="text-right"
+                />
+                <SortableHeader
+                  label="Value"
+                  sortKey="value"
+                  currentSort={sortKey}
+                  currentDir={sortDir}
+                  onSort={handleSort}
+                  className="text-right"
+                />
               </tr>
             </thead>
             <tbody>
@@ -166,18 +282,19 @@ export default function AdminInventoryPage() {
                   <tr key={i} className="border-b border-border/50">
                     <td className="px-4 py-3"><div className="h-4 bg-muted animate-pulse rounded w-48" /></td>
                     <td className="px-4 py-3"><div className="h-4 bg-muted animate-pulse rounded w-16" /></td>
+                    <td className="px-4 py-3"><div className="h-4 bg-muted animate-pulse rounded w-16" /></td>
                     <td className="px-4 py-3 text-right"><div className="h-4 bg-muted animate-pulse rounded w-20 ml-auto" /></td>
                     <td className="px-4 py-3 text-right"><div className="h-4 bg-muted animate-pulse rounded w-12 ml-auto" /></td>
                     <td className="px-4 py-3 text-right"><div className="h-4 bg-muted animate-pulse rounded w-20 ml-auto" /></td>
                   </tr>
                 ))
-              ) : filteredProducts.length === 0 ? (
+              ) : sortedProducts.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="px-4 py-12 text-center text-muted-foreground">
+                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
                     No products match this filter.
                   </td>
                 </tr>
-              ) : filteredProducts.map((p) => (
+              ) : sortedProducts.map((p) => (
                 <tr
                   key={p.id}
                   className={`border-b border-border/50 hover:bg-muted/20 transition ${
@@ -188,7 +305,7 @@ export default function AdminInventoryPage() {
                     <div className="flex items-center gap-3">
                       <div className="w-9 h-9 rounded-lg bg-muted overflow-hidden shrink-0">
                         {p.image
-                          ? <img src={p.image} alt={p.title} className="w-full h-full object-cover" />
+                          ? <img src={getProxyUrl(p.image, "thumbnail")} alt={p.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = p.image!; }} />
                           : <div className="w-full h-full bg-muted" />}
                       </div>
                       <Link
@@ -199,6 +316,7 @@ export default function AdminInventoryPage() {
                       </Link>
                     </div>
                   </td>
+                  <td className="px-4 py-3 text-muted-foreground text-xs font-mono">{p.sku ?? "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground text-xs">{p.brand ?? "—"}</td>
                   <td className="px-4 py-3 text-right">{p.price.toFixed(2)} AZN</td>
                   <td className="px-4 py-3 text-right">
@@ -216,14 +334,14 @@ export default function AdminInventoryPage() {
                 </tr>
               ))}
             </tbody>
-            {!loading && filteredProducts.length > 0 && (
+            {!loading && sortedProducts.length > 0 && (
               <tfoot>
                 <tr className="border-t-2 border-border bg-muted/20">
-                  <td colSpan={4} className="px-4 py-3 font-semibold text-right text-sm">
-                    {filter === "all" ? "Total Inventory Value:" : `Subtotal (${FILTERS.find((f) => f.key === filter)?.label}):`}
+                  <td colSpan={5} className="px-4 py-3 font-semibold text-right text-sm">
+                    {filter === "all" && !search && !categoryFilter ? "Total Inventory Value:" : `Subtotal (filtered):`}
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-primary">
-                    {filteredProducts.reduce((sum, p) => sum + p.price * p.stock, 0).toFixed(2)} AZN
+                    {sortedProducts.reduce((sum, p) => sum + p.price * p.stock, 0).toFixed(2)} AZN
                   </td>
                 </tr>
               </tfoot>
