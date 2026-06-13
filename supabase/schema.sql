@@ -109,8 +109,10 @@ create table if not exists public.product_images (
   product_id uuid not null references public.products(id) on delete cascade,
   url        text not null,
   alt_text   text,
-  sort_order integer not null default 0
+  sort_order integer not null default 0,
+  source     text not null default 'paste' check (source in ('search', 'barcode', 'paste', 'upload'))
 );
+create unique index if not exists idx_product_images_url on public.product_images(product_id, url);
 alter table public.product_images enable row level security;
 create policy "ProdImages: public read" on public.product_images for select using (true);
 create policy "ProdImages: admin write" on public.product_images for all using (

@@ -6,7 +6,7 @@ import { logger } from "./logger.js";
 // Types
 // ---------------------------------------------------------------------------
 
-export type AssetCategory = "logo" | "favicon";
+export type AssetCategory = "logo" | "favicon" | "product";
 
 export interface UploadOptions {
   category: AssetCategory;
@@ -41,6 +41,7 @@ const MAX_FAVICON_SIZE = 512 * 1024; // 512 KB for favicon
 const CATEGORY_FOLDER: Record<AssetCategory, string> = {
   logo: "logos",
   favicon: "favicons",
+  product: "products",
 };
 
 // ---------------------------------------------------------------------------

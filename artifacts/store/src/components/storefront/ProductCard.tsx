@@ -3,6 +3,7 @@ import { Link } from "wouter";
 import { ShoppingCart, Check, Star } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
 import { useI18n } from "@/lib/i18n/context";
+import { getProxyUrl } from "@/lib/image-proxy";
 
 interface Props {
   slug: string;
@@ -67,10 +68,15 @@ export default function ProductCard({
       <div className="relative aspect-square bg-muted overflow-hidden">
         {image ? (
           <img
-            src={image}
+            src={getProxyUrl(image, "thumbnail")}
             alt={title}
             className="product-card-img object-cover w-full h-full group-hover:scale-105 transition-transform duration-300"
             loading="lazy"
+            onError={(e) => {
+              if (e.currentTarget.src !== image) {
+                e.currentTarget.src = image;
+              }
+            }}
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">

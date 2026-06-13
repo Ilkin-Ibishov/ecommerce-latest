@@ -17,6 +17,7 @@ import categoriesRouter from "./categories";
 import profileRouter from "./profile";
 import siteSettingsRouter from "./site-settings";
 import pagesRouter from "./pages";
+import productImagesRouter from "./product-images";
 
 const router: IRouter = Router();
 
@@ -37,6 +38,7 @@ router.use(bannersRouter);
 router.use(categoriesRouter);
 router.use(siteSettingsRouter);
 router.use(pagesRouter);
+router.use(productImagesRouter);
 
 // Dev/test routes — only active outside production
 if (process.env.NODE_ENV !== "production") {

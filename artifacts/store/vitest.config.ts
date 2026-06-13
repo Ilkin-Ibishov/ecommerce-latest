@@ -5,7 +5,7 @@ export default defineConfig({
   test: {
     name: "store-unit",
     root: import.meta.dirname,
-    include: ["src/**/*.test.ts"],
+    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
     environment: "node",
   },
   resolve: {

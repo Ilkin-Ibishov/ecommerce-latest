@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch, adminJson } from "@/lib/admin-fetch";
 import imageCompression from "browser-image-compression";
+import { ProductImagePanel } from "@/components/admin/ProductImagePanel";
 
 const LANGS = ["az", "ru", "en"];
 const LANG_LABELS: Record<string, string> = { az: "Azərbaycan", ru: "Русский", en: "English" };
@@ -220,29 +221,35 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
         )}
       </div>
 
-      <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="font-semibold">Images</h2>
-          <p className="text-xs text-muted-foreground">Auto-compressed to WebP on upload</p>
+      {productId ? (
+        <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+          <ProductImagePanel productId={productId} />
         </div>
-        <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-          {images.map((img, i) => (
-            <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-border bg-muted">
-              <img src={img.url} alt="" className="object-cover w-full h-full" />
-              <button onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
-                className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">
-                <X size={10} />
-              </button>
-            </div>
-          ))}
-          <button onClick={() => fileRef.current?.click()} disabled={uploading}
-            className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 hover:border-primary/50 transition text-muted-foreground disabled:opacity-50">
-            <Upload size={20} />
-            <span className="text-xs">{uploading ? "Compressing…" : "Upload"}</span>
-          </button>
+      ) : (
+        <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-semibold">Images</h2>
+            <p className="text-xs text-muted-foreground">Save product first to manage images with full controls</p>
+          </div>
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
+            {images.map((img, i) => (
+              <div key={i} className="relative aspect-square rounded-lg overflow-hidden border border-border bg-muted">
+                <img src={img.url} alt="" className="object-cover w-full h-full" />
+                <button onClick={() => setImages((prev) => prev.filter((_, idx) => idx !== i))}
+                  className="absolute top-1 right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-xs">
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+            <button onClick={() => fileRef.current?.click()} disabled={uploading}
+              className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 hover:border-primary/50 transition text-muted-foreground disabled:opacity-50">
+              <Upload size={20} />
+              <span className="text-xs">{uploading ? "Compressing…" : "Upload"}</span>
+            </button>
+          </div>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
         </div>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-      </div>
+      )}
 
       {allCategories.length > 0 && (
         <div className="bg-card border border-border rounded-xl p-5 space-y-4">

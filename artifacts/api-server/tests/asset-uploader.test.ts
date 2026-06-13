@@ -201,6 +201,11 @@ describe("generateFilename", () => {
     expect(filename).toMatch(/^favicons\/\d+-[a-f0-9]{16}\.jpg$/);
   });
 
+  it("generates product filenames in products/ folder", () => {
+    const filename = generateFilename("product", "webp");
+    expect(filename).toMatch(/^products\/\d+-[a-f0-9]{16}\.webp$/);
+  });
+
   it("generates unique filenames on consecutive calls", () => {
     const names = new Set<string>();
     for (let i = 0; i < 100; i++) {
