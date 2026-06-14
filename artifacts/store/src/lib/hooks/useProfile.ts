@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { userFetch } from "@/lib/user-fetch";
 
 export interface UserProfile {
   full_name: string | null;
@@ -19,9 +20,7 @@ export function useProfile() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) { setProfile(null); setLoading(false); return; }
-      const res = await fetch(apiUrl("/profile"), {
-        headers: { Authorization: `Bearer ${session.access_token}` },
-      });
+      const res = await userFetch(apiUrl("/profile"));
       if (res.ok) setProfile(await res.json());
     } catch {}
     setLoading(false);
@@ -41,9 +40,9 @@ export function useProfile() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session?.access_token) return false;
-      const res = await fetch(apiUrl("/profile"), {
+      const res = await userFetch(apiUrl("/profile"), {
         method: "PATCH",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${session.access_token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(updates),
       });
       if (res.ok) {

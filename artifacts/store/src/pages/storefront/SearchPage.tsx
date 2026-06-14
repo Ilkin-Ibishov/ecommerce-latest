@@ -4,6 +4,7 @@ import { Tag } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n/context";
 import { apiUrl } from "@/lib/api";
+import { ProductGrid } from "@/components/storefront/ProductGrid";
 
 interface SearchResult {
   id: string;
@@ -118,17 +119,7 @@ export default function SearchPage({ locale }: { locale: string }) {
       )}
 
       {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {[...Array(8)].map((_, i) => (
-            <div key={i} className="rounded-xl border border-border overflow-hidden animate-pulse">
-              <div className="aspect-square bg-muted" />
-              <div className="p-3 space-y-2">
-                <div className="h-4 bg-muted rounded" />
-                <div className="h-4 bg-muted rounded w-1/2" />
-              </div>
-            </div>
-          ))}
-        </div>
+        <ProductGrid products={[]} loading={true} locale={locale} />
       ) : results.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-lg font-medium mb-2">{t("Search.noResults")}</p>
@@ -136,24 +127,17 @@ export default function SearchPage({ locale }: { locale: string }) {
           <Link href={`/${locale}/products`} className="text-primary text-sm hover:underline">{t("Search.browseAll")}</Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-          {results.map((product) => (
-            <Link key={product.id ?? product.slug} href={`/${locale}/products/${product.slug}`}
-              className="group rounded-xl border border-border overflow-hidden hover:shadow-md transition">
-              <div className="aspect-square bg-muted overflow-hidden">
-                {product.image ? (
-                  <img src={product.image} alt={product.title} className="object-cover w-full h-full group-hover:scale-105 transition duration-300" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-muted-foreground text-xs">No image</div>
-                )}
-              </div>
-              <div className="p-3">
-                <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition">{product.title}</h3>
-                <p className="font-bold text-primary mt-1">{Number(product.price).toFixed(2)} AZN</p>
-              </div>
-            </Link>
-          ))}
-        </div>
+        <ProductGrid
+          products={results.map((product) => ({
+            id: product.id ?? product.slug,
+            slug: product.slug,
+            title: product.title,
+            price: product.price,
+            image: product.image,
+          }))}
+          loading={false}
+          locale={locale}
+        />
       )}
     </div>
   );

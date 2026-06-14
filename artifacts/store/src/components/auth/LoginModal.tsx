@@ -131,7 +131,7 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
-        await (supabase as any).from("users").update({ full_name: fullName.trim() }).eq("id", user.id);
+        await supabase.from("users").update({ full_name: fullName.trim() }).eq("id", user.id);
       }
       setStep("success");
       setTimeout(() => { onSuccess?.(); handleClose(); }, 1200);

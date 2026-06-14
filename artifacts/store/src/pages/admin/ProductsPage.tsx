@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useSearch, useLocation } from "wouter";
-import { Plus, Pencil, Trash2, Copy, X, DollarSign } from "lucide-react";
+import { Plus, Pencil, Trash2, Copy } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -11,133 +11,14 @@ import { SortableHeader } from "@/components/admin/SortableHeader";
 import { CategoryFilter } from "@/components/admin/CategoryFilter";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { PriceCell } from "@/components/admin/PriceCell";
+import { Pagination } from "@/components/admin/Pagination";
+import { TableEmptyState } from "@/components/admin/TableEmptyState";
+import { BulkPriceModal } from "@/components/admin/BulkPriceModal";
+import { BulkBar } from "@/components/admin/BulkBar";
+import { getTranslatedField } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
 type FlagFilter = "" | "featured" | "sale" | "deal" | "low_stock" | "out_of_stock";
-
-// ── Bulk Price Update Modal ────────────────────────────────────────────────
-function BulkPriceModal({ open, onClose, selectedProducts, onComplete }: {
-  open: boolean;
-  onClose: () => void;
-  selectedProducts: { id: string; price: number }[];
-  onComplete: () => void;
-}) {
-  const [mode, setMode] = useState<"percentage" | "fixed">("percentage");
-  const [value, setValue] = useState("");
-  const [processing, setProcessing] = useState(false);
-  const [progress, setProgress] = useState(0);
-
-  if (!open) return null;
-
-  const handleConfirm = async () => {
-    const numValue = parseFloat(value);
-    if (isNaN(numValue) || numValue < 0) return;
-    setProcessing(true);
-    setProgress(0);
-
-    for (let i = 0; i < selectedProducts.length; i++) {
-      const product = selectedProducts[i];
-      const newPrice = mode === "percentage"
-        ? product.price * (1 - numValue / 100)
-        : numValue;
-      await adminFetch(apiUrl(`/admin/products/${product.id}`), {
-        method: "PATCH",
-        body: JSON.stringify({ price: Math.max(0, Math.round(newPrice * 100) / 100) }),
-      });
-      setProgress(i + 1);
-    }
-
-    setProcessing(false);
-    setValue("");
-    onComplete();
-    onClose();
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black/50" onClick={!processing ? onClose : undefined} />
-      <div className="relative bg-card border border-border rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl">
-        <h3 className="font-semibold text-lg">Bulk Price Update</h3>
-        <p className="text-sm text-muted-foreground mt-1">
-          Update price for {selectedProducts.length} selected product{selectedProducts.length !== 1 ? "s" : ""}
-        </p>
-
-        <div className="mt-4 space-y-3">
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="radio" name="priceMode" checked={mode === "percentage"} onChange={() => setMode("percentage")} />
-            Percentage discount
-          </label>
-          <label className="flex items-center gap-2 text-sm cursor-pointer">
-            <input type="radio" name="priceMode" checked={mode === "fixed"} onChange={() => setMode("fixed")} />
-            Set fixed price
-          </label>
-
-          <input
-            type="number" min={0} step="0.01" value={value}
-            onChange={(e) => setValue(e.target.value)}
-            placeholder={mode === "percentage" ? "Discount %" : "New price (AZN)"}
-            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            disabled={processing}
-          />
-
-          {processing && (
-            <div className="space-y-1">
-              <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
-                <div className="bg-primary h-full transition-all" style={{ width: `${(progress / selectedProducts.length) * 100}%` }} />
-              </div>
-              <p className="text-xs text-muted-foreground">{progress} / {selectedProducts.length} updated</p>
-            </div>
-          )}
-        </div>
-
-        <div className="flex justify-end gap-3 mt-6">
-          <button onClick={onClose} disabled={processing}
-            className="px-4 py-2 rounded-lg border border-border text-sm font-medium text-muted-foreground hover:bg-muted transition disabled:opacity-50">
-            Cancel
-          </button>
-          <button onClick={handleConfirm} disabled={processing || !value}
-            className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50">
-            {processing ? "Updating…" : "Apply"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Bulk action toolbar ────────────────────────────────────────────────────
-function BulkBar({ count, onFlag, onDelete, onBulkPrice, onClear }: {
-  count: number;
-  onFlag: (field: string, value: boolean) => void;
-  onDelete: () => void;
-  onBulkPrice: () => void;
-  onClear: () => void;
-}) {
-  if (count === 0) return null;
-  const Btn = ({ label, onClick, destructive, icon }: { label: string; onClick: () => void; destructive?: boolean; icon?: React.ReactNode }) => (
-    <button onClick={onClick}
-      className={`px-3 py-1 rounded-lg text-xs font-medium transition inline-flex items-center gap-1.5 ${
-        destructive ? "bg-red-500/20 text-red-400 hover:bg-red-500/30" : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
-      }`}
-    >
-      {icon}{label}
-    </button>
-  );
-  return (
-    <div className="flex items-center gap-2 flex-wrap px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-xl text-sm">
-      <span className="font-medium text-primary">{count} selected</span>
-      <div className="flex gap-1.5 ml-2 flex-wrap">
-        <Btn label="Set Featured" onClick={() => onFlag("is_featured", true)} />
-        <Btn label="Unset Featured" onClick={() => onFlag("is_featured", false)} />
-        <Btn label="Set On Sale" onClick={() => onFlag("is_on_sale", true)} />
-        <Btn label="Unset On Sale" onClick={() => onFlag("is_on_sale", false)} />
-        <Btn label="Bulk Price" onClick={onBulkPrice} icon={<DollarSign size={12} />} />
-        <Btn label="Delete" onClick={onDelete} destructive />
-      </div>
-      <button onClick={onClear} className="ml-auto text-muted-foreground hover:text-foreground"><X size={14} /></button>
-    </div>
-  );
-}
 
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function AdminProductsPage() {
@@ -425,17 +306,18 @@ export default function AdminProductsPage() {
               {loading ? (
                 <tr><td colSpan={colSpan} className="px-4 py-12 text-center text-muted-foreground">Loading…</td></tr>
               ) : products.length === 0 ? (
-                <tr><td colSpan={colSpan} className="px-4 py-12 text-center text-muted-foreground">
-                  {searchQuery || flagFilter || categoryFilter
-                    ? "No products match the current filters."
-                    : <span>No products yet. <Link href="/admin/products/new" className="text-primary hover:underline">Add the first one.</Link></span>
+                <TableEmptyState
+                  colSpan={colSpan}
+                  message={
+                    searchQuery || flagFilter || categoryFilter
+                      ? "No products match the current filters."
+                      : <span>No products yet. <Link href="/admin/products/new" className="text-primary hover:underline">Add the first one.</Link></span>
                   }
-                </td></tr>
+                />
               ) : products.map((p: any) => {
                 const sortedImgs = [...(p.product_images ?? [])].sort((a: any, b: any) => a.sort_order - b.sort_order);
                 const img = sortedImgs[0]?.url ?? null;
-                const title = p.product_translations?.find((t: any) => t.lang_code === "az")?.title
-                  ?? p.product_translations?.[0]?.title ?? "Untitled";
+                const title = getTranslatedField(p.product_translations, "az", "title", "Untitled");
                 return (
                   <tr key={p.id} className={`border-b border-border/50 hover:bg-muted/20 transition ${selected.has(p.id) ? "bg-primary/5" : ""}`}>
                     <td className="px-4 py-3">
@@ -498,33 +380,7 @@ export default function AdminProductsPage() {
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-1.5">
-          {page > 1 && (
-            <Link href={buildPageHref(page - 1)} className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted text-sm text-muted-foreground transition">
-              ← Prev
-            </Link>
-          )}
-          {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
-            const p = totalPages <= 7 ? i + 1 : Math.max(1, Math.min(page - 3, totalPages - 6)) + i;
-            return (
-              <Link key={p} href={buildPageHref(p)}
-                className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm transition ${
-                  p === page ? "bg-primary text-primary-foreground" : "border border-border hover:bg-muted text-muted-foreground"
-                }`}
-              >
-                {p}
-              </Link>
-            );
-          })}
-          {page < totalPages && (
-            <Link href={buildPageHref(page + 1)} className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted text-sm text-muted-foreground transition">
-              Next →
-            </Link>
-          )}
-          <span className="text-xs text-muted-foreground ml-2">Page {page} of {totalPages}</span>
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} buildHref={buildPageHref} />
 
       {/* Task 5.4: Bulk Price Modal */}
       <BulkPriceModal

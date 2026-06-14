@@ -1,9 +1,15 @@
-import { useEffect, useState, useCallback } from "react";
-import { Link, useSearch, useLocation } from "wouter";
-import { Search, X, Download } from "lucide-react";
+import { useCallback } from "react";
+import { Link, useSearch } from "wouter";
+import { Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
+import { useAdminList } from "@/lib/hooks/useAdminList";
+import { getOrders, type OrderRow } from "@/lib/queries/orders";
+import { DataTable, type Column } from "@/components/admin/DataTable";
+import { Pagination } from "@/components/admin/Pagination";
+import { TableEmptyState } from "@/components/admin/TableEmptyState";
+import { SearchInput } from "@/components/admin/SearchInput";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-400",
@@ -17,65 +23,92 @@ const STATUS_COLORS: Record<string, string> = {
 
 const STATUSES = ["pending", "phone_verified", "courier_assigned", "shipped", "delivered", "refused_at_delivery", "cancelled"];
 
-export default function AdminOrdersPage() {
-  const search = useSearch();
-  const [, navigate] = useLocation();
-  const params = new URLSearchParams(search);
-  const status = params.get("status") ?? "";
-  const page = Math.max(1, parseInt(params.get("page") ?? "1", 10));
-  const pageSize = 30;
-  const offset = (page - 1) * pageSize;
+const PAGE_SIZE = 30;
 
-  // Local search input state — debounced before being used in the query
-  const [searchInput, setSearchInput] = useState(params.get("q") ?? "");
-  const [debouncedSearch, setDebouncedSearch] = useState(params.get("q") ?? "");
+// Column set / labels / cell rendering preserved byte-for-byte from the prior
+// hand-rolled table (R6.3, R6.5, R6.6).
+const COLUMNS: Column<OrderRow>[] = [
+  {
+    key: "order",
+    header: "Order",
+    align: "left",
+    cell: (o) => (
+      <Link href={`/admin/orders/${o.id}`} className="font-mono text-xs text-primary hover:underline">
+        #{String(o.id).slice(0, 8).toUpperCase()}
+      </Link>
+    ),
+  },
+  {
+    key: "customer",
+    header: "Customer",
+    align: "left",
+    cell: (o) => (
+      <>
+        <div className="font-medium">{o.customer_name}</div>
+        <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
+      </>
+    ),
+  },
+  {
+    key: "address",
+    header: "Address",
+    align: "left",
+    className: "text-muted-foreground text-xs max-w-[160px] truncate",
+    cell: (o) => o.delivery_address,
+  },
+  {
+    key: "status",
+    header: "Status",
+    align: "left",
+    cell: (o) => (
+      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[o.status] ?? "bg-muted text-muted-foreground"}`}>
+        {String(o.status).replace(/_/g, " ")}
+      </span>
+    ),
+  },
+  {
+    key: "total",
+    header: "Total",
+    align: "right",
+    className: "font-medium",
+    cell: (o) => `${Number(o.total_azn).toFixed(2)} AZN`,
+  },
+  {
+    key: "date",
+    header: "Date",
+    align: "right",
+    className: "text-muted-foreground text-xs",
+    cell: (o) => new Date(o.created_at).toLocaleDateString(),
+  },
+];
 
-  const [orders, setOrders] = useState<any[]>([]);
-  const [count, setCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+/**
+ * Orders list view. Keyed by the active status tab so a status change remounts
+ * and refetches (the bound `status` filter is not a `useAdminList` input). The
+ * hook owns URL-driven pagination + the 350 ms debounced search; the status-tab
+ * filters, CSV export, columns, and URL query params (page/q/status) are
+ * preserved exactly.
+ */
+function OrdersListView({ status }: { status: string }) {
+  const fetcher = useCallback(
+    (args: { offset: number; limit: number; search: string; signal: AbortSignal }) =>
+      getOrders(createClient(), {
+        offset: args.offset,
+        limit: args.limit,
+        search: args.search,
+        status,
+      }),
+    [status],
+  );
 
-  // Debounce: wait 350ms after user stops typing before running the query
-  useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(searchInput), 350);
-    return () => clearTimeout(t);
-  }, [searchInput]);
+  const { rows, count, loading, page, totalPages, search, searchInput, setSearchInput } = useAdminList<OrderRow>({
+    fetcher,
+    basePath: "/admin/orders",
+    pageSize: PAGE_SIZE,
+  });
 
-  // Sync the URL when debounced search changes
-  useEffect(() => {
-    const p = new URLSearchParams();
-    if (debouncedSearch) p.set("q", debouncedSearch);
-    if (status) p.set("status", status);
-    // Always reset to page 1 on new search
-    const qs = p.toString();
-    navigate(`/admin/orders${qs ? `?${qs}` : ""}`, { replace: true });
-  }, [debouncedSearch]);
-
-  const load = useCallback(async () => {
-    const supabase = createClient();
-    setLoading(true);
-    let query = (supabase as any)
-      .from("orders")
-      .select("id, status, total_azn, discount_azn, customer_name, customer_phone, delivery_address, created_at", { count: "exact" })
-      .order("created_at", { ascending: false })
-      .range(offset, offset + pageSize - 1);
-
-    if (status) query = query.eq("status", status);
-
-    if (debouncedSearch.trim()) {
-      const term = `%${debouncedSearch.trim()}%`;
-      query = query.or(`customer_name.ilike.${term},customer_phone.ilike.${term}`);
-    }
-
-    const { data, count: total } = await query;
-    setOrders(data ?? []);
-    setCount(total ?? 0);
-    setLoading(false);
-  }, [status, page, debouncedSearch]);
-
-  useEffect(() => { load(); }, [load]);
-
-  const totalPages = Math.ceil(count / pageSize);
-
+  // Preserves the prior URL-state behavior, including the `status` param:
+  // page omitted when 1, status/q omitted when empty.
   const buildHref = (p: number, s?: string, q?: string) => {
     const ps = new URLSearchParams();
     if (p > 1) ps.set("page", String(p));
@@ -85,15 +118,13 @@ export default function AdminOrdersPage() {
     return `/admin/orders${qs ? `?${qs}` : ""}`;
   };
 
-  const clearSearch = () => { setSearchInput(""); setDebouncedSearch(""); };
-
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">Orders</h1>
         <div className="flex items-center gap-3">
           <span className="text-sm text-muted-foreground">
-            {debouncedSearch ? `${count} result${count !== 1 ? "s" : ""} for "${debouncedSearch}"` : `${count} total`}
+            {search ? `${count} result${count !== 1 ? "s" : ""} for "${search}"` : `${count} total`}
           </span>
           <button
             onClick={async () => {
@@ -118,30 +149,20 @@ export default function AdminOrdersPage() {
 
       {/* Search + status filters */}
       <div className="flex flex-col sm:flex-row gap-3">
-        {/* Search input */}
-        <div className="relative">
-          <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search by name or phone…"
-            className="pl-8 pr-8 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring w-56"
-          />
-          {searchInput && (
-            <button
-              onClick={clearSearch}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-            >
-              <X size={13} />
-            </button>
-          )}
-        </div>
+        {/* Search input — debounce owned by useAdminList (350 ms); SearchInput
+            forwards keystrokes immediately so the committed-search timing is
+            preserved (R6.4). */}
+        <SearchInput
+          value={searchInput}
+          onChange={setSearchInput}
+          placeholder="Search by name or phone…"
+          debounceMs={0}
+        />
 
         {/* Status tabs */}
         <div className="flex gap-2 flex-wrap">
           <Link
-            href={buildHref(1, "", debouncedSearch)}
+            href={buildHref(1, "", search)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${!status ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
           >
             All
@@ -149,7 +170,7 @@ export default function AdminOrdersPage() {
           {STATUSES.map((s) => (
             <Link
               key={s}
-              href={buildHref(1, s, debouncedSearch)}
+              href={buildHref(1, s, search)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${status === s ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:bg-muted"}`}
             >
               {s.replace(/_/g, " ")}
@@ -158,65 +179,27 @@ export default function AdminOrdersPage() {
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead>
-              <tr className="border-b border-border text-muted-foreground">
-                <th className="text-left px-4 py-3 font-medium">Order</th>
-                <th className="text-left px-4 py-3 font-medium">Customer</th>
-                <th className="text-left px-4 py-3 font-medium">Address</th>
-                <th className="text-left px-4 py-3 font-medium">Status</th>
-                <th className="text-right px-4 py-3 font-medium">Total</th>
-                <th className="text-right px-4 py-3 font-medium">Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">Loading…</td></tr>
-              ) : orders.length === 0 ? (
-                <tr><td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                  {debouncedSearch ? `No orders found for "${debouncedSearch}"` : "No orders found."}
-                </td></tr>
-              ) : orders.map((o: any) => (
-                <tr key={o.id} className="border-b border-border/50 hover:bg-muted/20 transition">
-                  <td className="px-4 py-3">
-                    <Link href={`/admin/orders/${o.id}`} className="font-mono text-xs text-primary hover:underline">
-                      #{String(o.id).slice(0, 8).toUpperCase()}
-                    </Link>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{o.customer_name}</div>
-                    <div className="text-xs text-muted-foreground">{o.customer_phone}</div>
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground text-xs max-w-[160px] truncate">{o.delivery_address}</td>
-                  <td className="px-4 py-3">
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[o.status] ?? "bg-muted text-muted-foreground"}`}>
-                      {String(o.status).replace(/_/g, " ")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right font-medium">{Number(o.total_azn).toFixed(2)} AZN</td>
-                  <td className="px-4 py-3 text-right text-muted-foreground text-xs">{new Date(o.created_at).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      <DataTable<OrderRow>
+        columns={COLUMNS}
+        rows={rows}
+        loading={loading}
+        getRowKey={(o) => String(o.id)}
+        empty={
+          <TableEmptyState
+            colSpan={6}
+            message={search ? `No orders found for "${search}"` : "No orders found."}
+          />
+        }
+      />
 
-      {totalPages > 1 && (
-        <div className="flex justify-center gap-2">
-          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-            <Link
-              key={p}
-              href={buildHref(p, status, debouncedSearch)}
-              className={`w-8 h-8 flex items-center justify-center rounded text-sm transition ${p === page ? "bg-primary text-primary-foreground" : "bg-muted/50 hover:bg-muted text-muted-foreground"}`}
-            >
-              {p}
-            </Link>
-          ))}
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} buildHref={(p) => buildHref(p, status, search)} />
     </div>
   );
+}
+
+export default function AdminOrdersPage() {
+  const search = useSearch();
+  const status = new URLSearchParams(search).get("status") ?? "";
+  // Remount on status change so the status-bound fetcher refetches.
+  return <OrdersListView key={status} status={status} />;
 }

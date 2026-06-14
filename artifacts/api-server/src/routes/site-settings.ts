@@ -1,7 +1,9 @@
-import { Router, type IRouter } from "express";
+import { Router, type IRouter, type Request, type Response } from "express";
 import multer from "multer";
-import { getAdminSupabase, requireAdmin } from "../lib/supabase";
-import { logger } from "../lib/logger";
+import type { Database } from "@workspace/supabase-types";
+import { getAdminSupabase } from "../lib/supabase";
+import { requireAdmin } from "../middlewares/requireAdmin";
+import { writeAudit } from "../lib/audit";
 import { validateAndUpload, AssetValidationError, type AssetCategory } from "../lib/asset-uploader";
 
 const router: IRouter = Router();
@@ -154,42 +156,13 @@ const DEFAULT_SETTINGS = {
 };
 
 /**
- * Fire-and-forget audit log writer for site settings updates.
- * Logs errors but never blocks the response.
- */
-function logSettingsAudit(
-  admin: any,
-  actorId: string,
-  entityId: string,
-  changes: Record<string, unknown>
-): void {
-  (admin as any)
-    .from("audit_log")
-    .insert({
-      actor_id: actorId,
-      action: "update_settings",
-      entity: "site_settings",
-      entity_id: entityId,
-      changes,
-    })
-    .then(({ error }: { error: any }) => {
-      if (error) {
-        logger.error({ error, actorId, entityId }, "Failed to write settings audit log");
-      }
-    })
-    .catch((err: unknown) => {
-      logger.error({ err, actorId, entityId }, "Unexpected error writing settings audit log");
-    });
-}
-
-/**
  * GET /api/site-settings
  * Public endpoint — returns the full site_settings row or defaults.
  */
 router.get("/site-settings", async (req, res): Promise<void> => {
   const supabase = getAdminSupabase();
 
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("site_settings")
     .select("*")
     .single();
@@ -209,12 +182,8 @@ router.get("/site-settings", async (req, res): Promise<void> => {
  * Ignores unrecognized fields, validates colors and fonts JSONB.
  * Returns 400 with field-level error details on validation failure.
  */
-router.patch("/site-settings", async (req, res): Promise<void> => {
-  const ctx = await requireAdmin(req);
-  if (!ctx) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+router.patch("/site-settings", requireAdmin, async (req, res): Promise<void> => {
+  const ctx = { admin: req.admin!, user: req.user! };
 
   const body = req.body as Record<string, unknown>;
 
@@ -229,7 +198,7 @@ router.patch("/site-settings", async (req, res): Promise<void> => {
   // If no valid fields provided, return early with success (nothing to update)
   if (Object.keys(updates).length === 0) {
     const supabase = getAdminSupabase();
-    const { data } = await (supabase as any)
+    const { data } = await supabase
       .from("site_settings")
       .select("*")
       .single();
@@ -265,9 +234,9 @@ router.patch("/site-settings", async (req, res): Promise<void> => {
   updates.updated_at = new Date().toISOString();
 
   const supabase = getAdminSupabase();
-  const { data, error } = await (supabase as any)
+  const { data, error } = await supabase
     .from("site_settings")
-    .update(updates)
+    .update(updates as Database["public"]["Tables"]["site_settings"]["Update"])
     .eq("id", "00000000-0000-0000-0000-000000000001")
     .select("*")
     .single();
@@ -283,7 +252,7 @@ router.patch("/site-settings", async (req, res): Promise<void> => {
   // Fire-and-forget audit log — only include the fields the admin actually changed
   const auditChanges = { ...updates };
   delete auditChanges.updated_at;
-  logSettingsAudit(supabase, ctx.user.id, "00000000-0000-0000-0000-000000000001", auditChanges);
+  writeAudit({ admin: ctx.admin, req, actorId: ctx.user.id, action: "update_settings", entityType: "site_settings", entityId: "00000000-0000-0000-0000-000000000001", details: auditChanges });
 
   res.json(data);
 });
@@ -300,18 +269,14 @@ const upload = multer({ storage: multer.memoryStorage() });
  * Validates and uploads the file, then updates the corresponding URL in site_settings.
  */
 async function handleAssetUpload(
-  req: any,
-  res: any,
+  req: Request,
+  res: Response,
   category: AssetCategory,
   urlField: "logo_url" | "favicon_url"
 ): Promise<void> {
-  const ctx = await requireAdmin(req);
-  if (!ctx) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+  const ctx = { admin: req.admin!, user: req.user! };
 
-  const file = (req as any).file as Express.Multer.File | undefined;
+  const file = req.file as Express.Multer.File | undefined;
   if (!file) {
     res.status(400).json({ error: "No file provided. Use form field name 'file'." });
     return;
@@ -319,13 +284,16 @@ async function handleAssetUpload(
 
   // Fetch current settings to get previousUrl for cleanup
   const supabase = getAdminSupabase();
-  const { data: currentSettings } = await (supabase as any)
+  const { data: currentSettings } = await supabase
     .from("site_settings")
     .select(urlField)
     .eq("id", "00000000-0000-0000-0000-000000000001")
     .single();
 
-  const previousUrl = currentSettings?.[urlField] ?? null;
+  const previousUrl =
+    (currentSettings as { logo_url?: string | null; favicon_url?: string | null } | null)?.[
+      urlField
+    ] ?? null;
 
   try {
     const result = await validateAndUpload({
@@ -341,9 +309,9 @@ async function handleAssetUpload(
       updated_at: new Date().toISOString(),
     };
 
-    const { error: updateError } = await (supabase as any)
+    const { error: updateError } = await supabase
       .from("site_settings")
-      .update(updatePayload)
+      .update(updatePayload as Database["public"]["Tables"]["site_settings"]["Update"])
       .eq("id", "00000000-0000-0000-0000-000000000001");
 
     if (updateError) {
@@ -368,7 +336,7 @@ async function handleAssetUpload(
  * POST /api/site-settings/upload/logo
  * Admin-only — upload a logo image.
  */
-router.post("/site-settings/upload/logo", upload.single("file"), async (req, res): Promise<void> => {
+router.post("/site-settings/upload/logo", upload.single("file"), requireAdmin, async (req, res): Promise<void> => {
   await handleAssetUpload(req, res, "logo", "logo_url");
 });
 
@@ -376,7 +344,7 @@ router.post("/site-settings/upload/logo", upload.single("file"), async (req, res
  * POST /api/site-settings/upload/favicon
  * Admin-only — upload a favicon image.
  */
-router.post("/site-settings/upload/favicon", upload.single("file"), async (req, res): Promise<void> => {
+router.post("/site-settings/upload/favicon", upload.single("file"), requireAdmin, async (req, res): Promise<void> => {
   await handleAssetUpload(req, res, "favicon", "favicon_url");
 });
 

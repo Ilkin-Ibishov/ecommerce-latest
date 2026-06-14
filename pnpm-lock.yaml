@@ -197,6 +197,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/supabase-types':
+        specifier: workspace:*
+        version: link:../supabase-types
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
@@ -230,6 +233,9 @@ importers:
       scrape-google-images:
         specifier: ^1.0.4
         version: 1.0.4(puppeteer-core@22.15.0)(typescript@5.9.3)
+      zod:
+        specifier: 'catalog:'
+        version: 3.25.76
     devDependencies:
       '@types/cookie-parser':
         specifier: ^1.4.10
@@ -610,6 +616,9 @@ importers:
       '@workspace/api-client-react':
         specifier: workspace:*
         version: link:../../lib/api-client-react
+      '@workspace/supabase-types':
+        specifier: workspace:*
+        version: link:../supabase-types
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
@@ -685,6 +694,12 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 3.25.76
+
+  artifacts/supabase-types:
+    devDependencies:
+      typescript:
+        specifier: ~5.9.3
+        version: 5.9.3
 
   lib/api-client-react:
     dependencies:

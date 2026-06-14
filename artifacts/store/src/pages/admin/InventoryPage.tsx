@@ -6,7 +6,9 @@ import { SearchInput } from "@/components/admin/SearchInput";
 import { SortableHeader } from "@/components/admin/SortableHeader";
 import { CategoryFilter } from "@/components/admin/CategoryFilter";
 import { CSVExportButton } from "@/components/admin/CSVExportButton";
+import { TableEmptyState } from "@/components/admin/TableEmptyState";
 import { getProxyUrl } from "@/lib/image-proxy";
+import { getTranslatedField } from "@/lib/utils";
 
 type Filter = "all" | "out_of_stock" | "low_stock" | "healthy";
 type SortKey = "name" | "price" | "stock" | "value";
@@ -48,22 +50,21 @@ export default function AdminInventoryPage() {
   useEffect(() => {
     const supabase = createClient();
     (async () => {
-      const { data } = await (supabase as any)
+      const { data } = await supabase
         .from("products")
         .select("id, slug, sku, price, stock, brand, product_translations(lang_code, title), product_images(url, sort_order), product_categories(category_id)")
         .order("stock", { ascending: true }); // out-of-stock first
 
-      const mapped: InventoryProduct[] = (data ?? []).map((p: any) => ({
+      const mapped: InventoryProduct[] = (data ?? []).map((p) => ({
         id: p.id,
         slug: p.slug,
         sku: p.sku ?? null,
         price: Number(p.price),
         stock: p.stock,
         brand: p.brand ?? null,
-        title: (p.product_translations as any[])?.find((t: any) => t.lang_code === "az")?.title
-          ?? (p.product_translations as any[])?.[0]?.title ?? "Unknown",
-        image: [...(p.product_images ?? [])].sort((a: any, b: any) => a.sort_order - b.sort_order)[0]?.url ?? null,
-        categoryIds: (p.product_categories ?? []).map((pc: any) => pc.category_id),
+        title: getTranslatedField(p.product_translations, "az", "title", "Unknown"),
+        image: [...(p.product_images ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0]?.url ?? null,
+        categoryIds: (p.product_categories ?? []).map((pc) => pc.category_id),
       }));
 
       setProducts(mapped);
@@ -289,11 +290,7 @@ export default function AdminInventoryPage() {
                   </tr>
                 ))
               ) : sortedProducts.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="px-4 py-12 text-center text-muted-foreground">
-                    No products match this filter.
-                  </td>
-                </tr>
+                <TableEmptyState colSpan={6} message="No products match this filter." />
               ) : sortedProducts.map((p) => (
                 <tr
                   key={p.id}

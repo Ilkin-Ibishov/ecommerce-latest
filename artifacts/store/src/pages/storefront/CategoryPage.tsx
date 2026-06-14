@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { apiUrl } from "@/lib/api";
-import ProductCard from "@/components/storefront/ProductCard";
+import { ProductGrid } from "@/components/storefront/ProductGrid";
+import { useI18n } from "@/lib/i18n/context";
+import { getTranslatedField } from "@/lib/utils";
 import { ArrowUpDown, ChevronDown } from "lucide-react";
 
 const SORT_OPTIONS = [
-  { value: "sort_order", label: "Tövsiyə edilən" },
-  { value: "price_asc", label: "Qiymət: Aşağıdan yuxarı" },
-  { value: "price_desc", label: "Qiymət: Yuxarıdan aşağı" },
-  { value: "newest", label: "Ən yeni" },
+  { value: "sort_order", labelKey: "CategoryPage.sortRecommended" },
+  { value: "price_asc", labelKey: "CategoryPage.sortPriceAsc" },
+  { value: "price_desc", labelKey: "CategoryPage.sortPriceDesc" },
+  { value: "newest", labelKey: "CategoryPage.sortNewest" },
 ];
 
 export default function CategoryPage({ locale, slug }: { locale: string; slug: string }) {
   const search = useSearch();
+  const { t } = useI18n();
   const params = new URLSearchParams(search);
   const page = Math.max(1, parseInt(params.get("page") ?? "1", 10));
   const sortParam = params.get("sort") ?? "sort_order";
@@ -45,16 +48,16 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
     load();
   }, [slug, page, sortParam]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">Yüklənir…</div>;
+  if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">{t("CategoryPage.loading")}</div>;
   if (notFound) return (
     <div className="container mx-auto px-4 py-16 text-center">
-      <h1 className="text-2xl font-bold mb-4">Kateqoriya tapılmadı</h1>
-      <Link href={`/${locale}/categories`} className="text-primary hover:underline">Kateqoriyalara qayıt</Link>
+      <h1 className="text-2xl font-bold mb-4">{t("CategoryPage.notFound")}</h1>
+      <Link href={`/${locale}/categories`} className="text-primary hover:underline">{t("CategoryPage.backToCategories")}</Link>
     </div>
   );
 
   const getTitle = (translations: any[]) =>
-    translations?.find((t: any) => t.lang_code === locale)?.title ?? translations?.[0]?.title ?? "Untitled";
+    getTranslatedField(translations, locale, "title", t("CategoryPage.untitled"));
 
   const catTitle = category ? getTitle(category.category_translations) : "";
   const totalPages = Math.ceil(count / pageSize);
@@ -74,9 +77,9 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <nav className="text-sm text-muted-foreground mb-6 flex items-center gap-1 flex-wrap">
-        <Link href={`/${locale}`} className="hover:text-foreground">Ana səhifə</Link>
+        <Link href={`/${locale}`} className="hover:text-foreground">{t("CategoryPage.home")}</Link>
         <span>/</span>
-        <Link href={`/${locale}/categories`} className="hover:text-foreground">Kateqoriyalar</Link>
+        <Link href={`/${locale}/categories`} className="hover:text-foreground">{t("CategoryPage.categories")}</Link>
         <span>/</span>
         <span className="text-foreground">{catTitle}</span>
       </nav>
@@ -84,7 +87,7 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold">{catTitle}</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">{count} məhsul</p>
+          <p className="text-sm text-muted-foreground mt-0.5">{t("CategoryPage.productCount").replace("{count}", String(count))}</p>
         </div>
         {/* Sort */}
         <div className="relative">
@@ -93,7 +96,7 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border text-sm hover:bg-accent transition"
           >
             <ArrowUpDown size={14} />
-            {currentSort.label}
+            {t(currentSort.labelKey)}
             <ChevronDown size={13} className={`transition-transform ${sortOpen ? "rotate-180" : ""}`} />
           </button>
           {sortOpen && (
@@ -104,7 +107,7 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
                   <Link key={opt.value} href={buildUrl({ sort: opt.value })}
                     onClick={() => setSortOpen(false)}
                     className={`block px-4 py-2.5 text-sm transition hover:bg-accent ${sortParam === opt.value ? "text-primary font-semibold bg-primary/5" : ""}`}>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </Link>
                 ))}
               </div>
@@ -115,28 +118,26 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
 
       {products.length === 0 ? (
         <div className="text-center py-24 text-muted-foreground">
-          <p className="text-xl">Bu kateqoriyada məhsul yoxdur</p>
-          <Link href={`/${locale}/products`} className="text-primary text-sm hover:underline mt-2 block">Bütün məhsullara bax</Link>
+          <p className="text-xl">{t("CategoryPage.noProducts")}</p>
+          <Link href={`/${locale}/products`} className="text-primary text-sm hover:underline mt-2 block">{t("CategoryPage.browseAll")}</Link>
         </div>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
-          {products.map((product: any) => (
-            <ProductCard
-              key={product.id}
-              productId={product.id}
-              slug={product.slug}
-              title={getTitle(product.product_translations)}
-              price={product.price}
-              originalPrice={product.original_price}
-              image={product.product_images?.[0]?.url ?? null}
-              isOnSale={product.is_on_sale}
-              isDealOfDay={product.is_deal_of_day}
-              stock={product.stock}
-              brand={product.brand}
-              locale={locale}
-            />
-          ))}
-        </div>
+        <ProductGrid
+          products={products.map((product: any) => ({
+            id: product.id,
+            slug: product.slug,
+            title: getTitle(product.product_translations),
+            price: product.price,
+            original_price: product.original_price,
+            image: product.product_images?.[0]?.url ?? null,
+            is_on_sale: product.is_on_sale,
+            is_deal_of_day: product.is_deal_of_day,
+            stock: product.stock,
+            brand: product.brand,
+          }))}
+          loading={false}
+          locale={locale}
+        />
       )}
 
       {totalPages > 1 && (

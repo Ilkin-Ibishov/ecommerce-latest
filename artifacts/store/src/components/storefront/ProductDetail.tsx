@@ -1,13 +1,17 @@
-import { useState, useEffect, useRef } from "react";
-import { ShoppingCart, Minus, Plus, Check, MessageSquare, Send, Star, ZoomIn, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShoppingCart, Minus, Plus, Check, MessageSquare, Send, Star, ZoomIn } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
 import { useI18n } from "@/lib/i18n/context";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { getTranslatedField } from "@/lib/utils";
 import { WishlistButton } from "./WishlistButton";
 import { LoginModal } from "@/components/auth/LoginModal";
 import RecentlyViewed from "./RecentlyViewed";
 import ProductCard from "./ProductCard";
+import { StarInput } from "./product-detail/StarInput";
+import { StarDisplay } from "./product-detail/StarDisplay";
+import { ImageLightbox } from "./product-detail/ImageLightbox";
 
 interface Props {
   product: any;
@@ -20,106 +24,6 @@ interface Props {
 }
 
 const INSTALLMENT_MONTHS = 12;
-
-function StarInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const [hovered, setHovered] = useState(0);
-  return (
-    <div className="flex gap-1" onMouseLeave={() => setHovered(0)}>
-      {[1, 2, 3, 4, 5].map((s) => (
-        <button
-          key={s}
-          type="button"
-          onClick={() => onChange(s)}
-          onMouseEnter={() => setHovered(s)}
-          className="p-0.5 focus:outline-none"
-          aria-label={`${s} ulduz`}
-        >
-          <Star
-            size={22}
-            className={s <= (hovered || value) ? "fill-yellow-400 text-yellow-400" : "text-muted-foreground"}
-          />
-        </button>
-      ))}
-    </div>
-  );
-}
-
-function StarDisplay({ rating, count }: { rating: number; count: number }) {
-  const { t } = useI18n();
-  return (
-    <div className="flex items-center gap-1.5">
-      {[1, 2, 3, 4, 5].map((s) => (
-        <Star
-          key={s}
-          size={16}
-          className={s <= Math.round(rating) ? "fill-yellow-400 text-yellow-400" : "fill-muted text-muted"}
-        />
-      ))}
-      <span className="text-sm font-semibold">{rating.toFixed(1)}</span>
-      <span className="text-sm text-muted-foreground">({count} {t("ProductDetail.reviewCount")})</span>
-    </div>
-  );
-}
-
-function ImageLightbox({ images, initial, onClose }: { images: any[]; initial: number; onClose: () => void }) {
-  const [idx, setIdx] = useState(initial);
-  const prev = () => setIdx((i) => (i - 1 + images.length) % images.length);
-  const next = () => setIdx((i) => (i + 1) % images.length);
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-      if (e.key === "ArrowLeft") prev();
-      if (e.key === "ArrowRight") next();
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, []);
-
-  return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center" onClick={onClose}>
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition"
-      >
-        <X size={20} />
-      </button>
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={(e) => { e.stopPropagation(); prev(); }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition"
-          >
-            <ChevronLeft size={20} />
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); next(); }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition"
-          >
-            <ChevronRight size={20} />
-          </button>
-        </>
-      )}
-      <img
-        src={images[idx]?.url}
-        alt=""
-        className="max-h-[85vh] max-w-[90vw] object-contain rounded-lg"
-        onClick={(e) => e.stopPropagation()}
-      />
-      {images.length > 1 && (
-        <div className="absolute bottom-4 flex gap-2">
-          {images.map((_, i) => (
-            <button
-              key={i}
-              onClick={(e) => { e.stopPropagation(); setIdx(i); }}
-              className={`w-2 h-2 rounded-full transition ${i === idx ? "bg-white" : "bg-white/40"}`}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function ProductDetail({ product, images, translation, comments: initialComments, locale, specs, related }: Props) {
   const [mainImage, setMainImage] = useState(images[0] ?? null);
@@ -222,8 +126,7 @@ export default function ProductDetail({ product, images, translation, comments: 
     : null;
 
   const getRelatedTitle = (p: any) =>
-    p.product_translations?.find((tr: any) => tr.lang_code === locale)?.title
-    ?? p.product_translations?.[0]?.title ?? "Məhsul";
+    getTranslatedField(p.product_translations, locale, "title", "Məhsul");
 
   return (
     <div className="container mx-auto px-4 py-8">

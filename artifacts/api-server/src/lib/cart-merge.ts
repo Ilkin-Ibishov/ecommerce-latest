@@ -15,7 +15,10 @@ export function mergeGuestCart(
   guestCart: CartEntry[],
 ): MergeResult {
   const result = new Map<string, number>(
-    userCart.map((item) => [item.product_id, item.quantity]),
+    userCart.map((item) => [
+      item.product_id,
+      Math.min(item.quantity, MAX_QUANTITY),
+    ]),
   );
 
   let itemsMerged = 0;

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { getTranslatedField } from "@/lib/utils";
 
 interface SubCategory {
   id: string;
@@ -28,9 +29,7 @@ const EMPTY_FORM = {
 };
 
 function getTitle(translations: { lang_code: string; title: string }[], lang = "az"): string {
-  return translations.find((t) => t.lang_code === lang)?.title
-    ?? translations[0]?.title
-    ?? "Untitled";
+  return getTranslatedField(translations, lang, "title", "Untitled");
 }
 
 export default function AdminCategoriesPage() {
@@ -44,12 +43,15 @@ export default function AdminCategoriesPage() {
 
   const load = () => {
     const supabase = createClient();
-    (supabase as any)
+    supabase
       .from("categories")
       .select("*, category_translations(*), subcategories:categories!parent_id(id, slug, category_translations(*))")
       .is("parent_id", null)
       .order("id")
-      .then(({ data }: any) => { setCategories(data ?? []); setLoading(false); });
+      // TODO(types): the self-referential aliased relation (subcategories) resolves
+      // to a generated shape that differs from the local Category interface; cast the
+      // typed result to the view model rather than reverting to `(supabase as any)`.
+      .then(({ data }) => { setCategories((data ?? []) as unknown as Category[]); setLoading(false); });
   };
 
   useEffect(() => { load(); }, []);

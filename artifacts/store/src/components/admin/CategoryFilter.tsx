@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getTranslatedField } from "@/lib/utils";
 
 interface CategoryFilterProps {
   value: string | null;
@@ -11,18 +12,15 @@ export function CategoryFilter({ value, onFilter }: CategoryFilterProps) {
 
   useEffect(() => {
     const supabase = createClient();
-    (supabase as any)
+    supabase
       .from("categories")
       .select("id, category_translations(lang_code, title)")
       .order("id")
-      .then(({ data }: any) => {
+      .then(({ data }) => {
         setCategories(
-          (data ?? []).map((c: any) => ({
+          (data ?? []).map((c) => ({
             id: c.id,
-            title:
-              c.category_translations?.find(
-                (t: any) => t.lang_code === "az",
-              )?.title ?? c.id,
+            title: getTranslatedField(c.category_translations, "az", "title", c.id),
           })),
         );
       });

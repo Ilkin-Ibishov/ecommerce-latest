@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
-import { Link, useSearch, useLocation } from "wouter";
+import { useCallback, useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import { createClient } from "@/lib/supabase/client";
+import { useAdminList } from "@/lib/hooks/useAdminList";
+import { DataTable, type Column } from "@/components/admin/DataTable";
+import { Pagination } from "@/components/admin/Pagination";
+import { TableEmptyState } from "@/components/admin/TableEmptyState";
 
 const ACTION_COLORS: Record<string, string> = {
   create_product: "text-green-400",
@@ -9,79 +13,113 @@ const ACTION_COLORS: Record<string, string> = {
   update_order_status: "text-yellow-400",
 };
 
-export default function AdminAuditPage() {
-  const search = useSearch();
-  const [, setLocation] = useLocation();
-  const params = new URLSearchParams(search);
-  const page = Math.max(1, parseInt(params.get("page") ?? "1", 10));
-  const pageSize = 50;
-  const offset = (page - 1) * pageSize;
+const PAGE_SIZE = 50;
 
-  const [logs, setLogs] = useState<any[]>([]);
-  const [count, setCount] = useState(0);
-  const [loading, setLoading] = useState(true);
+interface AuditLogRow {
+  id: string;
+  created_at: string;
+  action: string;
+  entity: string | null;
+  entity_id: string | null;
+  users: { full_name: string | null } | null;
+}
 
-  // Filter state
-  const [actionFilter, setActionFilter] = useState("");
-  const [dateFrom, setDateFrom] = useState("");
-  const [dateTo, setDateTo] = useState("");
+// Column set / labels / cell rendering preserved from the prior hand-rolled
+// table (R6.3, R6.5, R6.6). The dynamic per-row action color moves into a span
+// inside the cell (DataTable cell classes are static per column).
+const COLUMNS: Column<AuditLogRow>[] = [
+  {
+    key: "time",
+    header: "Time",
+    align: "left",
+    className: "text-muted-foreground text-xs whitespace-nowrap",
+    cell: (log) => new Date(log.created_at).toLocaleString(),
+  },
+  {
+    key: "admin",
+    header: "Admin",
+    align: "left",
+    className: "text-xs",
+    cell: (log) => log.users?.full_name ?? "Unknown",
+  },
+  {
+    key: "action",
+    header: "Action",
+    align: "left",
+    className: "text-xs font-mono",
+    cell: (log) => (
+      <span className={ACTION_COLORS[log.action] ?? "text-muted-foreground"}>{log.action}</span>
+    ),
+  },
+  {
+    key: "entity",
+    header: "Entity",
+    align: "left",
+    className: "text-xs text-muted-foreground",
+    cell: (log) => (
+      <>
+        {log.entity}
+        {log.entity_id && <> · <span className="font-mono">{String(log.entity_id).slice(0, 8)}</span></>}
+      </>
+    ),
+  },
+];
 
-  // Distinct action types for the dropdown
-  const [actionTypes, setActionTypes] = useState<string[]>([]);
+/**
+ * Audit-log list view. Keyed by the active filter combination (outer component)
+ * so a filter change remounts and refetches (the bound filters are not
+ * `useAdminList` inputs, mirroring the OrdersPage status-tab pattern). The hook
+ * owns URL-driven pagination; this page has no search, so no `<SearchInput>` is
+ * rendered and the committed search stays empty. The action/date filters,
+ * columns, and `?page=` URL behavior are preserved.
+ */
+function AuditListView({
+  actionFilter,
+  dateFrom,
+  dateTo,
+  actionTypes,
+  onActionFilterChange,
+  onDateFromChange,
+  onDateToChange,
+}: {
+  actionFilter: string;
+  dateFrom: string;
+  dateTo: string;
+  actionTypes: string[];
+  onActionFilterChange: (value: string) => void;
+  onDateFromChange: (value: string) => void;
+  onDateToChange: (value: string) => void;
+}) {
+  // Fetcher runs the page's existing Supabase query unchanged: same
+  // select/count, order, optional eq/gte/lte filters, and range window.
+  const fetcher = useCallback(
+    async (args: { offset: number; limit: number; search: string; signal: AbortSignal }) => {
+      const supabase = createClient();
+      let query = supabase.from("audit_log")
+        .select("*, users(full_name)", { count: "exact" })
+        .order("created_at", { ascending: false });
 
-  // Fetch distinct action types once on mount
-  useEffect(() => {
-    const supabase = createClient();
-    (supabase as any).from("audit_log")
-      .select("action")
-      .then(({ data }: any) => {
-        const distinct = [...new Set((data ?? []).map((r: any) => r.action))].sort() as string[];
-        setActionTypes(distinct);
-      });
-  }, []);
+      if (actionFilter) {
+        query = query.eq("action", actionFilter);
+      }
+      if (dateFrom) {
+        query = query.gte("created_at", dateFrom);
+      }
+      if (dateTo) {
+        query = query.lte("created_at", dateTo + "T23:59:59");
+      }
 
-  // Fetch logs with filters applied
-  useEffect(() => {
-    setLoading(true);
-    const supabase = createClient();
-    let query = (supabase as any).from("audit_log")
-      .select("*, users(full_name)", { count: "exact" })
-      .order("created_at", { ascending: false });
+      const { data, count } = await query.range(args.offset, args.offset + args.limit - 1);
+      return { rows: (data ?? []) as unknown as AuditLogRow[], count: count ?? 0 };
+    },
+    [actionFilter, dateFrom, dateTo],
+  );
 
-    if (actionFilter) {
-      query = query.eq("action", actionFilter);
-    }
-    if (dateFrom) {
-      query = query.gte("created_at", dateFrom);
-    }
-    if (dateTo) {
-      query = query.lte("created_at", dateTo + "T23:59:59");
-    }
-
-    query
-      .range(offset, offset + pageSize - 1)
-      .then(({ data, count: total }: any) => {
-        setLogs(data ?? []);
-        setCount(total ?? 0);
-        setLoading(false);
-      });
-  }, [page, actionFilter, dateFrom, dateTo]);
-
-  // Reset to page 1 when filters change
-  const handleActionFilterChange = (value: string) => {
-    setActionFilter(value);
-    setLocation("/admin/audit?page=1");
-  };
-
-  const handleDateFromChange = (value: string) => {
-    setDateFrom(value);
-    setLocation("/admin/audit?page=1");
-  };
-
-  const handleDateToChange = (value: string) => {
-    setDateTo(value);
-    setLocation("/admin/audit?page=1");
-  };
+  const { rows: logs, count, loading, page, totalPages } = useAdminList<AuditLogRow>({
+    fetcher,
+    basePath: "/admin/audit",
+    pageSize: PAGE_SIZE,
+  });
 
   return (
     <div className="space-y-6">
@@ -94,7 +132,7 @@ export default function AdminAuditPage() {
       <div className="flex flex-wrap items-center gap-3">
         <select
           value={actionFilter}
-          onChange={(e) => handleActionFilterChange(e.target.value)}
+          onChange={(e) => onActionFilterChange(e.target.value)}
           className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm"
         >
           <option value="">All actions</option>
@@ -108,7 +146,7 @@ export default function AdminAuditPage() {
           <input
             type="date"
             value={dateFrom}
-            onChange={(e) => handleDateFromChange(e.target.value)}
+            onChange={(e) => onDateFromChange(e.target.value)}
             className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm"
           />
         </div>
@@ -118,52 +156,71 @@ export default function AdminAuditPage() {
           <input
             type="date"
             value={dateTo}
-            onChange={(e) => handleDateToChange(e.target.value)}
+            onChange={(e) => onDateToChange(e.target.value)}
             className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm"
           />
         </div>
       </div>
 
-      <div className="bg-card border border-border rounded-xl overflow-hidden">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border text-muted-foreground">
-              <th className="text-left px-4 py-3 font-medium">Time</th>
-              <th className="text-left px-4 py-3 font-medium">Admin</th>
-              <th className="text-left px-4 py-3 font-medium">Action</th>
-              <th className="text-left px-4 py-3 font-medium">Entity</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">Loading...</td></tr>
-            ) : logs.length === 0 ? (
-              <tr><td colSpan={4} className="px-4 py-12 text-center text-muted-foreground">No audit entries found.</td></tr>
-            ) : logs.map((log: any) => (
-              <tr key={log.id} className="border-b border-border/50 hover:bg-muted/20">
-                <td className="px-4 py-3 text-muted-foreground text-xs whitespace-nowrap">{new Date(log.created_at).toLocaleString()}</td>
-                <td className="px-4 py-3 text-xs">{log.users?.full_name ?? "Unknown"}</td>
-                <td className={`px-4 py-3 text-xs font-mono ${ACTION_COLORS[log.action] ?? "text-muted-foreground"}`}>{log.action}</td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">
-                  {log.entity}
-                  {log.entity_id && <> · <span className="font-mono">{String(log.entity_id).slice(0, 8)}</span></>}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <DataTable<AuditLogRow>
+        columns={COLUMNS}
+        rows={logs}
+        loading={loading}
+        getRowKey={(log) => String(log.id)}
+        empty={<TableEmptyState colSpan={4} message="No audit entries found." />}
+      />
 
-      {count > pageSize && (
-        <div className="flex justify-center gap-2">
-          {Array.from({ length: Math.ceil(count / pageSize) }, (_, i) => i + 1).map((p) => (
-            <Link key={p} href={`/admin/audit?page=${p}`}
-              className={`w-9 h-9 flex items-center justify-center rounded-lg text-sm font-medium transition ${p === page ? "bg-primary text-primary-foreground" : "border border-border hover:bg-accent"}`}>
-              {p}
-            </Link>
-          ))}
-        </div>
-      )}
+      <Pagination page={page} totalPages={totalPages} buildHref={(p) => `/admin/audit?page=${p}`} />
     </div>
+  );
+}
+
+export default function AdminAuditPage() {
+  const [, setLocation] = useLocation();
+
+  // Filter state lives in the outer component so it survives the inner view's
+  // remount (which is keyed by the filter combination to force a refetch).
+  const [actionFilter, setActionFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  // Distinct action types for the dropdown, fetched once on mount.
+  const [actionTypes, setActionTypes] = useState<string[]>([]);
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.from("audit_log")
+      .select("action")
+      .then(({ data }) => {
+        const distinct = [...new Set((data ?? []).map((r) => r.action))].sort() as string[];
+        setActionTypes(distinct);
+      });
+  }, []);
+
+  // Filter changes reset to page 1 (preserving the prior URL behavior) and, via
+  // the key change below, remount the list view so it refetches.
+  const handleActionFilterChange = (value: string) => {
+    setActionFilter(value);
+    setLocation("/admin/audit?page=1");
+  };
+  const handleDateFromChange = (value: string) => {
+    setDateFrom(value);
+    setLocation("/admin/audit?page=1");
+  };
+  const handleDateToChange = (value: string) => {
+    setDateTo(value);
+    setLocation("/admin/audit?page=1");
+  };
+
+  return (
+    <AuditListView
+      key={`${actionFilter}|${dateFrom}|${dateTo}`}
+      actionFilter={actionFilter}
+      dateFrom={dateFrom}
+      dateTo={dateTo}
+      actionTypes={actionTypes}
+      onActionFilterChange={handleActionFilterChange}
+      onDateFromChange={handleDateFromChange}
+      onDateToChange={handleDateToChange}
+    />
   );
 }

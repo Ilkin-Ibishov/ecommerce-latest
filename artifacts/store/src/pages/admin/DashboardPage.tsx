@@ -3,80 +3,15 @@ import { Link } from "wouter";
 import { AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getProxyUrl } from "@/lib/image-proxy";
+import { getTranslatedField } from "@/lib/utils";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
   BarChart, Bar,
 } from "recharts";
-import { TrendingUp, TrendingDown, Minus } from "lucide-react";
-
-// ─── Date range presets ───────────────────────────────────────
-type DatePreset = "7d" | "30d" | "thisMonth" | "90d";
-
-interface DateRange {
-  from: Date;
-  to: Date;
-  compareFrom: Date;
-  compareTo: Date;
-  label: string;
-}
-
-function getDateRange(preset: DatePreset): DateRange {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
-
-  switch (preset) {
-    case "7d": {
-      const from = new Date(today.getTime() - 6 * 86400000); from.setHours(0, 0, 0, 0);
-      const compareFrom = new Date(from.getTime() - 7 * 86400000);
-      return { from, to: today, compareFrom, compareTo: new Date(from.getTime() - 1), label: "Last 7 days" };
-    }
-    case "30d": {
-      const from = new Date(today.getTime() - 29 * 86400000); from.setHours(0, 0, 0, 0);
-      const compareFrom = new Date(from.getTime() - 30 * 86400000);
-      return { from, to: today, compareFrom, compareTo: new Date(from.getTime() - 1), label: "Last 30 days" };
-    }
-    case "90d": {
-      const from = new Date(today.getTime() - 89 * 86400000); from.setHours(0, 0, 0, 0);
-      const compareFrom = new Date(from.getTime() - 90 * 86400000);
-      return { from, to: today, compareFrom, compareTo: new Date(from.getTime() - 1), label: "Last 90 days" };
-    }
-    case "thisMonth":
-    default: {
-      const from = new Date(now.getFullYear(), now.getMonth(), 1);
-      const compareFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const compareTo = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-      return { from, to: today, compareFrom, compareTo, label: "This month" };
-    }
-  }
-}
-
-// ─── Helpers ──────────────────────────────────────────────────
-function deltaClass(pct: number | null) {
-  if (pct === null) return "text-muted-foreground";
-  if (pct > 0) return "text-green-400";
-  if (pct < 0) return "text-red-400";
-  return "text-muted-foreground";
-}
-
-function DeltaIcon({ pct, inverted = false }: { pct: number | null; inverted?: boolean }) {
-  if (pct === null || pct === 0) return <Minus size={11} className="text-muted-foreground" />;
-  const isGood = inverted ? pct < 0 : pct > 0;
-  return isGood
-    ? <TrendingUp size={11} className="text-green-400" />
-    : <TrendingDown size={11} className="text-red-400" />;
-}
-
-function formatPct(pct: number | null): string {
-  if (pct === null) return "—";
-  if (!isFinite(pct)) return pct > 0 ? "+∞%" : "—";
-  return `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`;
-}
-
-function computeDelta(current: number, prev: number): number | null {
-  if (prev === 0) return null;
-  return ((current - prev) / prev) * 100;
-}
+import { getDateRange, type DatePreset, type DateRange } from "@/lib/dashboard-date-range";
+import { KpiCard, computeDelta } from "@/components/admin/dashboard/KpiCard";
+import { Skeleton, RevenueTooltip } from "@/components/admin/dashboard/DashboardWidgets";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-400",
@@ -99,42 +34,6 @@ const PIE_COLORS: Record<string, string> = {
 };
 
 const LOW_STOCK_THRESHOLD = 10;
-
-// ─── Sub-components ───────────────────────────────────────────
-function KpiCard({
-  label, value, sub, accent, pct, invertDelta = false,
-}: {
-  label: string; value: string | number; sub?: string; accent: string; pct: number | null; invertDelta?: boolean;
-}) {
-  return (
-    <div className="bg-card border border-border rounded-xl p-5 flex flex-col gap-2">
-      <p className="text-xs text-muted-foreground uppercase tracking-wide">{label}</p>
-      <p className={`text-2xl font-bold ${accent}`}>{value}</p>
-      <div className="flex items-center gap-1.5">
-        <DeltaIcon pct={pct} inverted={invertDelta} />
-        <span className={`text-xs font-medium ${invertDelta && pct !== null ? (pct < 0 ? "text-green-400" : pct > 0 ? "text-red-400" : "text-muted-foreground") : deltaClass(pct)}`}>
-          {formatPct(pct)}
-        </span>
-        <span className="text-xs text-muted-foreground">vs prior period</span>
-      </div>
-      {sub && <p className="text-xs text-muted-foreground -mt-1">{sub}</p>}
-    </div>
-  );
-}
-
-function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse bg-muted rounded ${className}`} />;
-}
-
-function RevenueTooltip({ active, payload, label }: any) {
-  if (!active || !payload?.length) return null;
-  return (
-    <div className="bg-popover border border-border rounded-lg px-3 py-2 text-xs shadow-lg">
-      <p className="text-muted-foreground mb-1">{label}</p>
-      <p className="font-bold text-primary">{Number(payload[0].value).toFixed(2)} AZN</p>
-    </div>
-  );
-}
 
 // ─── Types ────────────────────────────────────────────────────
 interface DailyRevenue { date: string; revenue: number }
@@ -353,8 +252,7 @@ export default function DashboardPage() {
 
     // ── Low stock ──
     const lowStockData = (lowStockRes.data ?? []).map((p: any) => {
-      const title = (p.product_translations as any[])?.find((t: any) => t.lang_code === "az")?.title
-        ?? (p.product_translations as any[])?.[0]?.title ?? "Unknown";
+      const title = getTranslatedField(p.product_translations as any[], "az", "title", "Unknown");
       const sortedImgs = [...(p.product_images ?? [])].sort((a: any, b: any) => a.sort_order - b.sort_order);
       return { id: p.id, stock: p.stock, title, image: sortedImgs[0]?.url ?? null };
     });

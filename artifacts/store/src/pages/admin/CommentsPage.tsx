@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { getTranslatedField } from "@/lib/utils";
 
 export default function AdminCommentsPage() {
   const [comments, setComments] = useState<any[]>([]);
@@ -13,10 +14,10 @@ export default function AdminCommentsPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    (supabase as any).from("comments")
+    supabase.from("comments")
       .select("*, users(full_name, phone), products(slug, product_translations(lang_code, title))")
       .order("created_at", { ascending: false })
-      .then(({ data }: any) => { setComments(data ?? []); setLoading(false); });
+      .then(({ data }) => { setComments(data ?? []); setLoading(false); });
   }, []);
 
   const approve = async (id: string, approved: boolean) => {
@@ -131,7 +132,7 @@ function Section({ title, comments, onApprove, onDelete, selectedComments, onTog
       ) : (
         <div className="space-y-3">
           {comments.map((c) => {
-            const productTitle = (c.products?.product_translations as any[])?.find((t: any) => t.lang_code === "az")?.title ?? c.products?.slug ?? "Unknown product";
+            const productTitle = getTranslatedField(c.products?.product_translations as any[], "az", "title", c.products?.slug ?? "Unknown product");
             return (
               <div key={c.id} className="bg-card border border-border rounded-xl p-4 flex gap-4">
                 {showCheckboxes && onToggleSelect && (

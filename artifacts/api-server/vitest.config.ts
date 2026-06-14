@@ -5,7 +5,6 @@ export default defineConfig({
     name: "api-integration",
     root: import.meta.dirname,
     include: ["tests/**/*.test.ts"],
-    exclude: ["tests/env-validation.test.ts"],
     setupFiles: ["tests/setup.ts"],
     environment: "node",
     testTimeout: 30_000,

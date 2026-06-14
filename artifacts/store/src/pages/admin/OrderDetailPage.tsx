@@ -74,10 +74,10 @@ export default function OrderDetailPage({ id }: { id: string }) {
 
   useEffect(() => {
     const supabase = createClient();
-    (supabase as any).from("orders")
+    supabase.from("orders")
       .select("*, order_items(*, products(slug, product_translations(lang_code,title))), coupons(code)")
       .eq("id", id).single()
-      .then(({ data }: any) => {
+      .then(({ data }) => {
         setOrder(data);
         setNewStatus(data?.status ?? "");
         setAdminNotes(data?.admin_notes ?? "");

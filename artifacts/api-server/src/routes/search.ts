@@ -20,32 +20,32 @@ router.get("/search/suggest", async (req, res): Promise<void> => {
   const pattern = `%${query}%`;
 
   // Fetch top 6 product suggestions
-  const productsPromise = (admin as any)
+  const productsPromise = admin
     .from("product_translations")
     .select("product_id, title, products(id, slug, price, product_images(url, sort_order))")
     .eq("lang_code", lang)
     .ilike("title", pattern)
     .limit(6)
-    .then(({ data }: any) =>
-      (data ?? []).map((pt: any) => ({
+    .then(({ data }) =>
+      (data ?? []).map((pt) => ({
         id: pt.products?.id ?? pt.product_id,
         slug: pt.products?.slug,
         title: pt.title,
         price: pt.products?.price,
         image: pt.products?.product_images
-          ?.sort((a: any, b: any) => (a.sort_order ?? 0) - (b.sort_order ?? 0))?.[0]?.url ?? null,
+          ?.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))?.[0]?.url ?? null,
       }))
     );
 
   // Fetch top 3 category suggestions
-  const categoriesPromise = (admin as any)
+  const categoriesPromise = admin
     .from("category_translations")
     .select("category_id, title, categories(id, slug)")
     .eq("lang_code", lang)
     .ilike("title", pattern)
     .limit(3)
-    .then(({ data }: any) =>
-      (data ?? []).map((ct: any) => ({
+    .then(({ data }) =>
+      (data ?? []).map((ct) => ({
         id: ct.categories?.id ?? ct.category_id,
         slug: ct.categories?.slug,
         title: ct.title,

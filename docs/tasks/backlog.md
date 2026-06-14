@@ -1,305 +1,134 @@
-# Admin Panel Backlog
+# Architecture Refactoring Backlog
 
-## Task 1: Fix product edit page — 3 errors preventing product data load
+> Generated from a full architecture audit (frontend, backend, cross-cutting) of the white-label e-commerce monorepo.
+> Prioritized by risk-adjusted value. None are emergencies — this is accumulated copy-paste / type-safety debt.
 
-**Priority:** CRITICAL  
-**Pages affected:** Admin Products → Edit, Admin Inventory → Edit
+## Top finding: shared packages exist but aren't adopted
 
-### Issues observed:
-
-#### 1.1 — `product_categories` relationship not found (400 Bad Request)
-- **URL:** `GET /rest/v1/products?select=*,product_translations(*),product_images(*),product_categories(category_id)&id=eq.{id}`
-- **Error:** `PGRST200 — Could not find a relationship between 'products' and 'product_categories' in the schema cache`
-- **Root cause:** The `product_categories` table exists in `supabase/schema.sql` with proper FK to `products(id)`, but PostgREST's schema cache doesn't see it. This means either:
-  - (a) The table was never migrated to the production Supabase instance, OR
-  - (b) The schema cache needs a reload (Supabase dashboard → Settings → API → Reload schema)
-- **Fix:** Verify the table exists in production. If not, run the migration. If it does, reload the PostgREST schema cache. As a code-level resilience fix, make the `ProductFormPage.tsx` query gracefully handle the case where `product_categories` join fails (catch error, fetch categories separately).
-
-#### 1.2 — Product images route returns 404
-- **URL:** `GET /api/admin/products/{id}/images`
-- **Error:** 404 Not Found
-- **Root cause:** The `product-images.ts` route uses a `productExists()` helper that queries the `products` table. If the product doesn't exist in the DB, it returns 404. However, the more likely cause is that the **API server deployed to Railway hasn't been redeployed** with the new `product-images.ts` route file. The code was just pushed to `main` but Railway may need a rebuild.
-- **Fix:** Verify the Railway deployment includes the latest code. If the route is there but still 404, investigate whether the product ID is valid.
-
-#### 1.3 — Order notifications endpoint 500
-- **URL:** `GET /api/admin/orders/{id}/notifications`
-- **Error:** 500 Internal Server Error
-- **Root cause:** Likely a missing table or column that the notifications query references. Needs server-side log investigation.
-- **Fix:** Check Railway deploy logs for the stack trace. Fix the underlying query/table issue.
-
-### Files involved:
-- `artifacts/store/src/pages/admin/ProductFormPage.tsx` (line 50 — the Supabase query)
-- `artifacts/api-server/src/routes/product-images.ts` (productExists helper)
-- `artifacts/api-server/src/routes/admin.ts` (notifications endpoint)
+The monorepo already has `@workspace/db` (Drizzle schema + types), `@workspace/api-zod` (generated Zod schemas + types from the OpenAPI spec), and `@workspace/api-client-react` (typed React client). They are imported in **exactly one file** (`health.ts`). Everywhere else, both packages access Supabase data through `(supabase as any)` / `(req: any)` / `.map((x: any) => ...)`. Adopting these existing packages is the highest-leverage fix.
 
 ---
 
-## Task 2: Inventory page UX & business improvements
+## HIGH IMPACT
 
-**Priority:** P1–P4 (phased)  
-**Page:** Admin → Inventory (`artifacts/store/src/pages/admin/InventoryPage.tsx`)
+### H1 — The `as any` epidemic (type safety)
+**Severity:** HIGH
+**Scope:** Both packages (store + api-server)
+Domain types (Product, Order, Category, CartItem, User) are effectively untyped. `(supabase as any)`, `(req: any)`, `.map((p: any) => ...)` appear across most storefront pages, admin pages, and API routes. Only `health.ts` imports the generated shared types.
+**Fix:** Adopt `SupabaseClient<Database>` + existing generated types from `@workspace/db` / `@workspace/api-zod`. Replace `as any` Supabase access incrementally, file by file. Single source of truth tied to `supabase/schema.sql`.
+**Files:** `artifacts/api-server/src/lib/supabase.ts`, `routes/admin.ts`, `routes/orders.ts`, `routes/products.ts`; `artifacts/store/src/pages/**`.
 
-### Current state:
-- Summary cards (out-of-stock, low stock, healthy) ✓
-- Filter tabs with counts ✓
-- Inline stock editing via StockCell ✓
-- Row highlighting for critical items ✓
-- Total inventory value in footer ✓
+### H2 — `requireAdmin` / user-auth duplicated ~55 times
+**Severity:** HIGH
+`requireAdmin(req)` is re-called inline in ~40+ admin handlers; user-token auth boilerplate repeats in ~15 more (orders/cart/wishlist/comments/profile). `middlewares/` is empty except `.gitkeep`.
+**Fix:** Extract real Express middleware: `requireAdmin`, `requireUser`. Attach `req.admin` / `req.user` context.
+**Files:** `artifacts/api-server/src/middlewares/` (new), `routes/admin.ts`, `routes/pages.ts`, `routes/product-images.ts`, `routes/site-settings.ts`, `routes/orders.ts`, `routes/cart.ts`, `routes/wishlist.ts`, `routes/comments.ts`, `routes/profile.ts`.
 
-### Missing capabilities (prioritized):
+### H3 — Tested pure functions exist but are NEVER used (correctness bug)
+**Severity:** HIGH
+`lib/coupon-calc.ts` (`calculateDiscount`) and `lib/cart-merge.ts` (`mergeGuestCart`) are fully tested but never imported. `orders.ts`, `coupons.ts`, and `cart.ts` re-implement the logic inline with **divergent behavior** (orders.ts skips `Math.round`; cart paths miss the `MAX_QUANTITY` cap).
+**Fix:** Wire in the existing tested functions everywhere coupon math / cart merge happens. Lowest-risk, highest-value fix.
+**Files:** `artifacts/api-server/src/routes/orders.ts`, `routes/coupons.ts`, `routes/cart.ts`, `lib/coupon-calc.ts`, `lib/cart-merge.ts`.
 
-#### P1 — Quick wins (low effort, high impact)
-- **Search bar** — Debounced text search across product name and SKU (same pattern as orders page)
-- **Column sorting** — Clickable column headers to sort by name, price, stock, value (toggle asc/desc)
-- **SKU column** — Add SKU to the table between Product and Brand
+### H4 — Admin "list page" pattern duplicated across 7+ pages
+**Severity:** HIGH
+Every admin list page (Products, Orders, Users, Inventory, Coupons, Comments, Audit) re-implements load/count/loading state, URL-driven pagination, and debounced search by hand. Pagination JSX in `ProductsPage` and `UsersPage` is byte-identical. `OrdersPage`/`UsersPage` re-type the internals of the existing `SearchInput` component instead of using it.
+**Fix:** Extract `useAdminList()` hook + `<DataTable>` / `<Pagination>` / `<TableEmptyState>` components. Replace bespoke search blocks with existing `SearchInput`.
+**Files:** `artifacts/store/src/pages/admin/{ProductsPage,OrdersPage,UsersPage,InventoryPage,CouponsPage,CommentsPage,AuditPage}.tsx`, `components/admin/` (new shared).
 
-#### P2 — Medium effort, high value
-- **Bulk stock update** — Checkbox selection + action bar to set/increment stock for multiple items at once ("Shipment received" workflow)
-- **CSV export** — Export filtered inventory list to CSV with all columns
-- **Category filter** — Dropdown to filter by product category
+### H5 — Raw Supabase queries scattered instead of a data layer
+**Severity:** HIGH
+The same product select (`product_images + product_translations + product_categories`) is rebuilt in 4 places; the category-tree query is duplicated verbatim between admin and storefront. Mixed access styles (direct Supabase vs REST API) across pages.
+**Fix:** Centralize into `lib/queries/` with reusable select fragments and typed wrappers (`getProducts()`, `getCategoriesTree()`, `getOrders()`).
+**Files:** `artifacts/store/src/lib/queries/` (new); callers in `pages/admin/*` and `pages/storefront/*`.
 
-#### P3 — Nice-to-have
-- **Configurable low-stock threshold** — Per-product or global setting instead of hardcoded `<10`
-- **Stock change indicators** — Show recent stock changes (↑/↓ arrows with delta)
+### H6 — `getTitle` translation-picker reimplemented ~20 times
+**Severity:** HIGH (volume), low risk
+`translations.find(t => t.lang_code === locale)?.title ?? translations[0]?.title ?? "Untitled"` appears in ~20 call sites (some hardcode `"az"`, some use `locale` field).
+**Fix:** One `getTranslatedField(translations, locale, field, fallback)` util in `lib/utils.ts` (handle both `lang_code` and `locale` key shapes).
+**Files:** `artifacts/store/src/lib/utils.ts` (new helper); ~20 callers.
 
-#### P4 — Future enhancements
-- **Stock audit log** — History of who changed stock, when, and by how much
-- **Sales velocity** — Average units sold per day/week to predict stockout dates
-- **Dead stock detection** — Flag items with stock > 0 but zero sales in 30+ days
-- **Reorder suggestions** — Based on velocity and current stock, suggest reorder quantities
-
-### Files involved:
-- `artifacts/store/src/pages/admin/InventoryPage.tsx`
-- `artifacts/store/src/components/admin/StockCell.tsx`
-- `artifacts/api-server/src/routes/admin.ts` (stock endpoints)
-
-
----
-
-## Task 3: Products page UX & business improvements
-
-**Priority:** P1–P4 (phased)  
-**Page:** Admin → Products (`artifacts/store/src/pages/admin/ProductsPage.tsx`)
-
-### Current state (what works):
-- Pagination (25/page) with URL state ✓
-- Search by slug with 350ms debounce ✓
-- Flag filter dropdown (featured, sale, deal, low_stock, out_of_stock) ✓
-- Bulk selection + bulk actions (set/unset featured, set/unset sale, delete) ✓
-- Inline stock editing via StockCell ✓
-- Duplicate product action ✓
-- Image preview (first image by sort_order) ✓
-- Columns: Product (image+name), Slug, Brand, Price, Stock, Flags, Actions ✓
-
-### Missing capabilities (prioritized):
-
-#### P1 — High impact, lower effort
-- **Search by product name** — Currently `ilike("slug", ...)` only; should search across `product_translations.title` OR `slug` OR `brand`. This is the #1 usability issue
-- **Column sorting** — Clickable headers to sort by name, price, stock, created_at (toggle asc/desc). Currently fixed to `sort_order`
-
-#### P2 — Medium effort, high value
-- **Category column + category filter** — Show which categories each product belongs to; add category dropdown filter alongside the flag dropdown
-- **Bulk price update** — Select products → "Apply % discount" or "Set sale price" action in bulk bar
-- **SKU column** — Fetch and display SKU (add to Supabase query select, add column)
-- **Created/Updated date column** — Show when products were added/last modified; enable date sort
-
-#### P3 — Nice-to-have
-- **Inline price editing** — Same pattern as StockCell but for price field
-- **Product status (draft/active/archived)** — Lifecycle management; currently all products are implicitly "active"
-- **CSV import/export** — Bulk catalog management for larger operations
-- **Image count badge** — Small number overlay on the product thumbnail showing how many images it has
-
-#### P4 — Future enhancements
-- **Sales count per product** — Aggregate from order_items; show lifetime units sold
-- **Cross-page bulk select** — "Select all 152 products" option for mass operations beyond current page
-- **Price change history** — Audit trail for price modifications
-- **AI-assisted product descriptions** — Generate missing translations from existing ones
-
-### Key technical note:
-The search-by-name issue requires either:
-(a) Server-side search endpoint (like orders page uses trigram indexes), OR
-(b) Using a PostgREST `or` filter with `product_translations` text search (complex with nested relations)
-
-Recommended approach: Add a `search_text` generated column on `products` that concatenates slug + brand + az title, then ilike on that.
-
-### Files involved:
-- `artifacts/store/src/pages/admin/ProductsPage.tsx`
-- `artifacts/store/src/components/admin/StockCell.tsx` (pattern for inline PriceCell)
-- `artifacts/api-server/src/routes/admin.ts` (bulk endpoints)
-
+### H7 — `admin.ts` is 648 lines spanning 8 domains
+**Severity:** HIGH (maintainability)
+**Fix:** Split into `routes/admin/*` by domain (products, coupons, banners, inventory, audit, etc.), aggregated by an `admin/index.ts`.
+**Files:** `artifacts/api-server/src/routes/admin.ts` → `routes/admin/`.
 
 ---
 
-## Consolidation Note: Tasks 2 & 3 share components
+## MEDIUM IMPACT
 
-Tasks 2 (Inventory) and 3 (Products) should be implemented together as a **single spec** since they share overlapping needs. Here's the shared component plan:
+### M1 — No central error handler
+`app.ts` has no error middleware despite Express 5 auto-forwarding async errors; ~60 handlers carry identical try/catch+500 boilerplate. `search.ts` / `categories.ts` have no try/catch *and* leak `err.message` to clients.
+**Fix:** Add a central `errorHandler` middleware (Express 5 auto-forwards). Remove redundant try/catch where the handler just returns 500. Stop leaking `err.message`.
+**Files:** `artifacts/api-server/src/app.ts`, `middlewares/errorHandler.ts` (new), all routes.
 
-### Shared reusable components to create in `components/admin/`:
+### M2 — Zod referenced in steering but used nowhere
+Validation is ad-hoc; `admin.ts` product/coupon/banner writes have no validation at all.
+**Fix:** Adopt Zod schemas from `@workspace/api-zod` (or local schemas) via a `validate()` middleware. Start with admin write endpoints.
+**Files:** `artifacts/api-server/src/middlewares/validate.ts` (new), `routes/admin.ts`.
 
-| Component | Used by | Purpose |
-|-----------|---------|---------|
-| `SortableHeader.tsx` | Products, Inventory | Clickable column header with asc/desc arrow indicator |
-| `SearchInput.tsx` | Products, Inventory | Debounced search input with icon + clear button (already exists on Products but hardcoded inline) |
-| `CategoryFilter.tsx` | Products, Inventory | Dropdown for filtering by category |
-| `StockCell.tsx` | Products, Inventory | Already shared ✓ |
-| `PriceCell.tsx` | Products, (Inventory) | Inline editable price (same pattern as StockCell) |
-| `CSVExportButton.tsx` | Products, Inventory | Export current filtered view to CSV |
-| `BulkActionBar.tsx` | Products, (Inventory) | Already exists on Products, extract + generalize for both pages |
+### M3 — Inconsistent delete-confirmation UX
+`ConfirmDialog` component exists (used by 3 pages), but `BannersPage`/`UsersPage` use native `confirm()` and `PagesPage` hand-builds its own modal. The `confirmState` object is copy-pasted.
+**Fix:** Standardize all destructive actions on `ConfirmDialog`; wrap in a `useConfirm()` hook.
+**Files:** `artifacts/store/src/components/admin/ConfirmDialog.tsx`, `pages/admin/{BannersPage,UsersPage,PagesPage,ProductsPage,CategoriesPage}.tsx`.
 
-### Shared backend work:
+### M4 — Audit-log writes duplicated ~25× in 3 styles
+Blocking inline writes in `admin.ts` vs fire-and-forget helpers in `pages.ts` / `site-settings.ts`.
+**Fix:** Single `lib/audit.ts` with one consistent (fire-and-forget, logged-on-failure) API.
+**Files:** `artifacts/api-server/src/lib/audit.ts` (new), all admin write routes.
 
-| Endpoint/Feature | Used by | Purpose |
-|------------------|---------|---------|
-| Product full-text search | Products, Inventory | `search_text` generated column or server-side search endpoint |
-| Category filter query | Products, Inventory | Same Supabase join/filter logic |
-| SKU in select | Products, Inventory | Add to the query `select(...)` |
+### M5 — i18n is one 918-line file typed as `any`
+`messages.ts` holds all 3 locales inline; `t(key: string)` is untyped so typos silently return the key. Consistency enforced only by runtime tests.
+**Fix:** Split per-locale (`messages/az.ts`, `ru.ts`, `en.ts`) with a shared `MessageSchema` type; derive a union key type for `t()`.
+**Files:** `artifacts/store/src/lib/i18n/messages.ts` → `lib/i18n/messages/`, `context.tsx`.
 
-### Implementation strategy:
-1. **Phase 1 — Shared primitives:** Create `SortableHeader`, extract `SearchInput`, create `CategoryFilter`
-2. **Phase 2 — Backend:** Add `search_text` column, update queries to include SKU + categories
-3. **Phase 3 — Inventory page:** Add search, sorting, SKU column, category filter, CSV export
-4. **Phase 4 — Products page:** Switch search to full-text, add sorting, add category column/filter, add SKU column
-5. **Phase 5 — Bonus:** Inline price editing, bulk price update, image count badge
+### M6 — Storefront product grid + loading states duplicated
+Grid block repeated in `ProductsPage`/`CategoryPage`; `SearchPage`/`WishlistPage` hand-roll cards instead of using `ProductCard`; `SearchPage` hand-rolls its own skeleton. `CategoryPage` has hardcoded Azerbaijani strings (violates i18n rule). `SORT_OPTIONS` dropdown duplicated.
+**Fix:** Extract `<ProductGrid>` + `<SortDropdown>`; route loading through existing `ProductSkeletonGrid`; move hardcoded strings to `messages.ts`.
+**Files:** `artifacts/store/src/components/storefront/` (new), `pages/storefront/{ProductsPage,CategoryPage,SearchPage,WishlistPage,HomePage}.tsx`.
 
-This avoids duplicating 5+ components and ensures consistent UX across both pages.
+### M7 — Inline CRUD form + modal pattern duplicated
+`CategoriesPage`, `CouponsPage`, `BannersPage` each define near-identical labeled-input helpers and `openNew`/`openEdit`/`handleSave`/`handleDelete` logic.
+**Fix:** Shared `<FormField>` / `<NumberField>` + `<CrudModal>` wrapper; optional `useCrudResource({ endpoint })` hook.
+**Files:** `artifacts/store/src/components/admin/` (new), `pages/admin/{CategoriesPage,CouponsPage,BannersPage}.tsx`.
 
-
----
-
-## Task 4: Bugs found during admin panel testing (Playwright + code review)
-
-**Priority:** Mixed (CRITICAL to LOW)  
-**Tested via:** Playwright MCP browser session + source code analysis
-
----
-
-### Bug 4.1 — Product images blocked by CORB/ORB (Unsplash URLs)
-**Severity:** HIGH  
-**Pages:** Products list, Inventory, Dashboard (Low Stock), Product Edit  
-**Symptom:** All product images using Unsplash URLs fail with `ERR_BLOCKED_BY_ORB` (Cross-Origin Read Blocking). Images show as broken/empty in the admin panel.  
-**Root cause:** Unsplash URLs with `w=600&q=80&auto=format&fit=crop` query params trigger ORB in Chromium. The images are being loaded as `<img>` tags which normally bypass CORB, but the response may be returning with incorrect MIME type headers from Unsplash CDN.  
-**Impact:** Admin can't see any product thumbnails in the Products table, Inventory table, or Dashboard.  
-**Fix options:**
-1. Route all product images through `wsrv.nl` proxy (already implemented for storefront ProductCard — should apply same pattern in admin)
-2. Replace Unsplash demo images with properly-hosted images (Supabase Storage)
+### M8 — Files over 400 lines mixing responsibilities
+`PageEditorPage` 663, `DashboardPage` 657, `ProductsPage` (admin) 548, `ProductDetail` 514, `Header` 431, `ProfilePage` 405.
+**Fix:** Extract inline modals/widgets/sub-components into their own files.
+**Files:** as listed above.
 
 ---
 
-### Bug 4.2 — Product edit page completely empty (400 on product_categories)
-**Severity:** CRITICAL  
-**Pages:** Products → Edit, Inventory → Edit  
-**Symptom:** Editing any product shows a blank form with no data populated.  
-**Network:** `GET /rest/v1/products?select=*,product_translations(*),product_images(*),product_categories(category_id)` → 400  
-**Error:** `PGRST200 — Could not find a relationship between 'products' and 'product_categories'`  
-**Root cause:** The `product_categories` table exists in `supabase/schema.sql` but was never migrated to the production Supabase database. PostgREST schema cache doesn't know about it.  
-**Fix:**
-1. Run the migration to create `product_categories` table in production
-2. Reload PostgREST schema cache (Supabase dashboard → Settings → API → Reload schema)
-3. As code resilience: catch the error and fetch categories separately, or remove `product_categories` from the join if not needed
+## LOW IMPACT
+
+### L1 — Supabase env-var resolution duplicated in 3 files
+Store client, api-server, and test setup each re-implement the VITE→non-prefixed normalization. RPC calls (`decrement_stock_safe`, `increment_stock`, `search_products`) use `as any` with no typed wrapper.
+**Fix:** One shared env util; typed RPC wrapper functions (`decrementStockSafe()`, etc.).
+**Files:** `artifacts/store/src/lib/supabase/client.ts`, `artifacts/api-server/src/lib/supabase.ts`, `tests/setup.ts`.
+
+### L2 — Inconsistent test layout
+Store splits unit tests between `src/__tests__/` and `tests/` with no rule; store has no `tests/helpers/` (api-server has a good one). WIP exclusions in vitest configs indicate dead/disabled tests.
+**Fix:** Pick one store unit-test location; add `tests/helpers/`; resolve excluded tests.
+**Files:** `artifacts/store/vitest.config.ts`, test dirs.
+
+### L3 — Config could hoist further
+No root `vitest.workspace.ts`; repeated `"types": ["node"]` and identical `typecheck` scripts; redundant `--config` flags.
+**Fix:** Add root `vitest.workspace.ts`; hoist shared compilerOptions to `tsconfig.base.json`.
+**Files:** root configs, `tsconfig.base.json`.
+
+### L4 — Dead code
+`GET /profile/orders` defined twice (cart.ts copy is dead); unused `BASE` const in `lib/api.ts`; `lib/admin-fetch.ts` auth-header logic re-implemented in `useProfile.ts` and `WishlistPage.tsx`.
+**Fix:** Remove dead copies; provide a shared `userFetch`/`getAuthHeader` helper.
+**Files:** `artifacts/api-server/src/routes/cart.ts`, `artifacts/store/src/lib/api.ts`, `lib/hooks/useProfile.ts`, `pages/storefront/WishlistPage.tsx`.
 
 ---
 
-### Bug 4.3 — Product images API returns 404
-**Severity:** HIGH  
-**Pages:** Product Edit (ProductImagePanel)  
-**Symptom:** `GET /api/admin/products/:id/images` returns 404  
-**Root cause:** The Railway-deployed API server hasn't been redeployed with the new `product-images.ts` route. The Vercel deployment has the latest code, but the Railway backend (which serves `/api/*`) may be stale.  
-**Fix:** Verify Railway has auto-deployed from `main`. If not, trigger a manual redeploy.
+## Recommended sequencing (risk-adjusted)
 
----
+1. **H3** — wire in unused `coupon-calc`/`cart-merge` (tiny, fixes correctness divergence)
+2. **H2 + M1** — auth middleware + central error handler (removes most boilerplate, improves security consistency)
+3. **H1** — adopt generated types, kill `as any` incrementally
+4. **H4 + H5** — `useAdminList` hook + shared table/pagination + data layer (collapses 7 admin pages)
+5. Follow-up: H6, H7, M2–M8, L1–L4
 
-### Bug 4.4 — Missing PWA icon (icon-192.png)
-**Severity:** LOW  
-**Pages:** All pages  
-**Console warning:** `Error while trying to use the following icon from the Manifest: https://ecommerce-latest-api-server.vercel.app/icon-192.png (Download error or resource isn't a valid image)`  
-**Fix:** Add a valid `icon-192.png` to the `public/` folder, or update the manifest to remove the icon reference.
-
----
-
-### Bug 4.5 — Order notifications endpoint 500 error
-**Severity:** MEDIUM  
-**Pages:** Order Detail page  
-**Symptom:** `GET /api/admin/orders/:id/notifications` returns 500  
-**Root cause:** Likely the `notification_queue` table or related table doesn't exist in production, or a column is missing.  
-**Fix:** Check Railway server logs for the stack trace. Ensure the notifications table exists in production DB.
-
----
-
-### Bug 4.6 — Dashboard: Unsplash images in Low Stock section and Top Products fail
-**Severity:** MEDIUM  
-**Pages:** Dashboard  
-**Symptom:** Product thumbnails in "Low Stock Alert" and "Top Products" sections show as broken images.  
-**Root cause:** Same as Bug 4.1 — Unsplash URLs blocked by ORB.  
-**Fix:** Same as Bug 4.1.
-
----
-
-## Task 5: UX/Design issues found during admin panel analysis
-
-**Priority:** LOW to MEDIUM (quality-of-life)
-
----
-
-### UX 5.1 — Product edit form shows empty even on error
-**Severity:** MEDIUM  
-**Page:** Product Edit  
-**Issue:** When the Supabase query fails (400), the form renders with empty fields. There's no error message shown to the user. The admin doesn't know why the product data isn't loading.  
-**Fix:** Add error handling in the `useEffect` — if `productRes.error` exists, show an error banner like "Failed to load product data. Please try again."
-
----
-
-### UX 5.2 — No "last updated" timestamp on product edit
-**Severity:** LOW  
-**Page:** Product Edit  
-**Issue:** Admin can't see when a product was last modified. Useful for audit trail.  
-**Fix:** Display `updated_at` timestamp in the form header.
-
----
-
-### UX 5.3 — No delete confirmation feedback
-**Severity:** LOW  
-**Pages:** Products, Categories, Coupons, Comments  
-**Issue:** `window.confirm()` is used for delete confirmations. This is functional but not polished — no custom modal, no undo option. Accidental deletes are irreversible.  
-**Fix:** Replace `window.confirm()` with a custom confirmation dialog component (or at minimum, add a toast "Product deleted" with undo for 5 seconds).
-
----
-
-### UX 5.4 — Coupons page has no pagination
-**Severity:** LOW  
-**Page:** Coupons  
-**Issue:** All coupons are loaded at once with no pagination. For small catalogs this is fine, but won't scale.  
-**Fix:** Add pagination if coupon count exceeds 50.
-
----
-
-### UX 5.5 — Categories page has no search
-**Severity:** LOW  
-**Page:** Categories  
-**Issue:** No way to search/filter categories. With 11 categories it's manageable, but if the catalog grows it becomes harder to find what you need.  
-
----
-
-### UX 5.6 — Comments page lacks bulk approve
-**Severity:** LOW  
-**Page:** Comments  
-**Issue:** Each comment must be approved individually. No "approve all" or select + bulk approve.  
-
----
-
-### UX 5.7 — Audit log has no filtering by action type or date range
-**Severity:** LOW  
-**Page:** Audit Log  
-**Issue:** Can only paginate through entries. No way to filter by action type (create_product, update_order_status, etc.) or date range.  
-
----
-
-### UX 5.8 — Dashboard revenue chart Y-axis values overlap at "2550₼" and "3400₼"
-**Severity:** LOW  
-**Page:** Dashboard  
-**Issue:** The Y-axis formatter concatenates number and ₼ without a space, and at certain values the labels overlap or look cramped. E.g., "2550₼" vs "2550 ₼".  
-**Fix:** Add a space before the currency symbol in the axis formatter.
-
----
-
-### UX 5.9 — ~~Admin sidebar doesn't highlight current page~~ FALSE POSITIVE
-**Status:** NOT A BUG — sidebar already has active state logic (`bg-primary/20 text-primary font-medium`). Verified in `AdminLayout.tsx` line 138-145.
+Steps 1–4 capture ~80% of the value.

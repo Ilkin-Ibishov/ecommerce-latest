@@ -3,6 +3,7 @@ import cors from "cors";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
+import { errorHandler } from "./middlewares/errorHandler";
 
 const app: Express = express();
 
@@ -30,5 +31,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+// Central error handler — registered AFTER routes (R4.1); exactly one, last.
+app.use(errorHandler);
 
 export default app;

@@ -4,6 +4,9 @@ import { Plus, Pencil, Trash2, FileText } from "lucide-react";
 import { adminFetch, adminJson } from "@/lib/admin-fetch";
 import { apiUrl } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { useConfirm } from "@/lib/hooks/useConfirm";
+import { getTranslatedField } from "@/lib/utils";
 
 interface PageTranslation {
   id: string;
@@ -25,19 +28,14 @@ interface PageItem {
 }
 
 function getTitle(translations: PageTranslation[]): string {
-  return (
-    translations.find((t) => t.locale === "az")?.title ??
-    translations[0]?.title ??
-    "Untitled"
-  );
+  return getTranslatedField(translations as unknown as Record<string, unknown>[], "az", "title", "Untitled");
 }
 
 export default function PagesPage() {
   const [pages, setPages] = useState<PageItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [deleteConfirm, setDeleteConfirm] = useState<PageItem | null>(null);
-  const [deleting, setDeleting] = useState(false);
   const sortTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  const { confirm, dialogProps } = useConfirm();
 
   const load = async () => {
     try {
@@ -111,19 +109,21 @@ export default function PagesPage() {
     sortTimers.current.set(page.id, timer);
   }, []);
 
-  const handleDelete = async () => {
-    if (!deleteConfirm) return;
-    setDeleting(true);
-    try {
-      await adminFetch(apiUrl(`/admin/pages/${deleteConfirm.id}`), { method: "DELETE" });
-      toast({ title: "Deleted", description: `"${getTitle(deleteConfirm.page_translations)}" has been deleted.` });
-      setDeleteConfirm(null);
-      await load();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    } finally {
-      setDeleting(false);
-    }
+  const handleDelete = (page: PageItem) => {
+    confirm({
+      title: "Delete Page",
+      message: `Are you sure you want to delete "${getTitle(page.page_translations)}"? This action cannot be undone.`,
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await adminFetch(apiUrl(`/admin/pages/${page.id}`), { method: "DELETE" });
+          toast({ title: "Deleted", description: `"${getTitle(page.page_translations)}" has been deleted.` });
+          await load();
+        } catch (err: any) {
+          toast({ title: "Error", description: err.message, variant: "destructive" });
+        }
+      },
+    });
   };
 
   if (loading) {
@@ -248,7 +248,7 @@ export default function PagesPage() {
                           </Link>
                           {!page.is_system && (
                             <button
-                              onClick={() => setDeleteConfirm(page)}
+                              onClick={() => handleDelete(page)}
                               className="p-1.5 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition"
                               title="Delete"
                             >
@@ -267,32 +267,7 @@ export default function PagesPage() {
       )}
 
       {/* Delete Confirmation Dialog */}
-      {deleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-          <div className="bg-background border border-border rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
-            <h2 className="font-bold text-lg">Delete Page</h2>
-            <p className="text-sm text-muted-foreground">
-              Are you sure you want to delete "{getTitle(deleteConfirm.page_translations)}"?
-              This action cannot be undone.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="flex-1 py-2.5 bg-destructive text-destructive-foreground rounded-lg font-medium hover:bg-destructive/90 transition disabled:opacity-50"
-              >
-                {deleting ? "Deleting…" : "Delete"}
-              </button>
-              <button
-                onClick={() => setDeleteConfirm(null)}
-                className="px-5 py-2.5 bg-muted/50 text-muted-foreground rounded-lg hover:bg-muted transition text-sm"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog {...dialogProps} confirmLabel="Delete" />
     </div>
   );
 }

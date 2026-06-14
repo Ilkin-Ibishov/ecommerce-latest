@@ -5,13 +5,9 @@ export default defineConfig({
   test: {
     name: "store-unit",
     root: import.meta.dirname,
-    include: ["src/**/*.test.ts", "tests/**/*.test.ts"],
-    exclude: [
-      "tests/e2e/**",
-      "tests/components/**",
-      // WIP: empty test file (no suites yet) from product-image-management — re-enable once it has tests
-      "tests/image-proxy.property.test.ts",
-    ],
+    // All vitest unit/property tests live under src/__tests__ (and co-located src/**/*.test.ts).
+    // Playwright specs (tests/e2e/*.spec.ts, tests/components/*.spec.tsx) are not matched by this glob.
+    include: ["src/**/*.test.ts"],
     environment: "node",
   },
   resolve: {

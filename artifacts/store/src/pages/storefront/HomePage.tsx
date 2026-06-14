@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link } from "wouter";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n/context";
+import { getTranslatedField } from "@/lib/utils";
 import ProductCard from "@/components/storefront/ProductCard";
 import BouncingLoader from "@/components/ui/BouncingLoader";
 import TrustBadges from "@/components/storefront/TrustBadges";
@@ -69,8 +70,7 @@ function ProductGrid({ title, products, locale, showSaleBadge }: {
       <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">{title}</h2>
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
         {products.map((product: any) => {
-          const name = product.product_translations?.find((t: any) => t.lang_code === locale)?.title
-            ?? product.product_translations?.[0]?.title ?? "Product";
+          const name = getTranslatedField(product.product_translations, locale, "title", "Product");
           return (
             <ProductCard
               key={product.id}
@@ -187,8 +187,7 @@ export default function HomePage({ locale }: { locale: string }) {
           <h2 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6">{t("HomePage.sections.categories")}</h2>
           <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 sm:gap-4">
             {categories.map((cat: any) => {
-              const title = cat.category_translations?.find((t: any) => t.lang_code === locale)?.title
-                ?? cat.category_translations?.[0]?.title ?? "Category";
+              const title = getTranslatedField(cat.category_translations, locale, "title", "Category");
               return (
                 <Link key={cat.id} href={`/${locale}/categories/${cat.slug}`}
                   className="flex flex-col items-center gap-1.5 sm:gap-2 p-2.5 sm:p-4 rounded-xl border border-border hover:border-primary/50 hover:bg-accent hover:-translate-y-1 transition-all duration-200 group">
@@ -237,8 +236,7 @@ export default function HomePage({ locale }: { locale: string }) {
               <div className="flex-1 flex flex-col justify-center gap-2">
                 <span className="text-xs font-semibold uppercase tracking-wide text-orange-600">{t("HomePage.sections.dealOfDay")}</span>
                 <h3 className="text-xl sm:text-2xl font-bold">
-                  {dealOfDay.product_translations?.find((tr: any) => tr.lang_code === locale)?.title
-                    ?? dealOfDay.product_translations?.[0]?.title ?? "Product"}
+                  {getTranslatedField(dealOfDay.product_translations, locale, "title", "Product")}
                 </h3>
                 <div className="flex items-baseline gap-2 flex-wrap">
                   <p className="text-2xl sm:text-3xl font-bold text-primary">{Number(dealOfDay.price).toFixed(2)} AZN</p>

@@ -51,7 +51,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         setChecking(false);
         return;
       }
-      const { data } = await (supabase as any).from("users").select("role").eq("id", user.id).single();
+      const { data } = await supabase.from("users").select("role").eq("id", user.id).single();
       if (data?.role === "admin") {
         setAuthed(true);
       } else {

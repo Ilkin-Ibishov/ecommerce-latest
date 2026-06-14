@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { Filter, ArrowUpDown, ChevronDown, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
-import ProductCard from "@/components/storefront/ProductCard";
+import { ProductGrid } from "@/components/storefront/ProductGrid";
 import BouncingLoader from "@/components/ui/BouncingLoader";
 import { useI18n } from "@/lib/i18n/context";
+import { getTranslatedField } from "@/lib/utils";
 
 const SORT_OPTIONS = [
   { value: "sort_order", labelKey: "Products.sortRecommended" },
@@ -81,7 +82,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
   }, [sale, deal, page, sortParam, brandParam, inStockParam, priceMinParam, priceMaxParam]);
 
   const getTitle = (translations: any[] | null) =>
-    translations?.find((t: any) => t.lang_code === locale)?.title ?? translations?.[0]?.title ?? "Untitled";
+    getTranslatedField(translations, locale, "title", "Untitled");
 
   const totalPages = Math.ceil(count / pageSize);
 
@@ -333,24 +334,22 @@ export default function ProductsPage({ locale }: { locale: string }) {
               <Link href={`/${locale}/products`} className="text-primary text-sm hover:underline mt-2 block">{t("Products.resetFilters")}</Link>
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
-              {products.map((product: any) => (
-                <ProductCard
-                  key={product.id}
-                  productId={product.id}
-                  slug={product.slug}
-                  title={getTitle(product.product_translations)}
-                  price={product.price}
-                  originalPrice={product.original_price}
-                  image={product.product_images?.[0]?.url ?? null}
-                  isOnSale={product.is_on_sale}
-                  isDealOfDay={product.is_deal_of_day}
-                  stock={product.stock}
-                  brand={product.brand}
-                  locale={locale}
-                />
-              ))}
-            </div>
+            <ProductGrid
+              products={products.map((product: any) => ({
+                id: product.id,
+                slug: product.slug,
+                title: getTitle(product.product_translations),
+                price: product.price,
+                original_price: product.original_price,
+                image: product.product_images?.[0]?.url ?? null,
+                is_on_sale: product.is_on_sale,
+                is_deal_of_day: product.is_deal_of_day,
+                stock: product.stock,
+                brand: product.brand,
+              }))}
+              loading={false}
+              locale={locale}
+            />
           )}
 
           {totalPages > 1 && (

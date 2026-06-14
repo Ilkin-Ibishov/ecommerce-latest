@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAdmin } from "../lib/supabase";
+import { requireAdmin } from "../middlewares/requireAdmin";
 
 const router = Router();
 
@@ -72,46 +72,33 @@ async function runSql(sql: string): Promise<{ ok: boolean; error?: string }> {
   return { ok: false, error: "No Supabase SQL endpoint available. Run the SQL manually in Supabase Studio." };
 }
 
-router.post("/admin/migrate", async (req, res) => {
-  try {
-    const ctx = await requireAdmin(req);
-    if (!ctx) return res.status(403).json({ error: "Forbidden" });
+router.post("/admin/migrate", requireAdmin, async (req, res) => {
+  const statements = MIGRATION_SQL
+    .split("\n")
+    .map(l => l.trim())
+    .join("\n")
+    .split(";")
+    .map(s => s.trim())
+    .filter(s => s.length > 0);
 
-    const statements = MIGRATION_SQL
-      .split("\n")
-      .map(l => l.trim())
-      .join("\n")
-      .split(";")
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+  const results: Array<{ sql: string; ok: boolean; error?: string }> = [];
 
-    const results: Array<{ sql: string; ok: boolean; error?: string }> = [];
-
-    for (const stmt of statements) {
-      const result = await runSql(stmt + ";");
-      results.push({ sql: stmt.split("\n")[0], ...result });
-    }
-
-    const allOk = results.every(r => r.ok);
-
-    return res.json({
-      ok: allOk,
-      results,
-      manualSql: allOk ? undefined : MIGRATION_SQL,
-    });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
+  for (const stmt of statements) {
+    const result = await runSql(stmt + ";");
+    results.push({ sql: stmt.split("\n")[0], ...result });
   }
+
+  const allOk = results.every(r => r.ok);
+
+  return res.json({
+    ok: allOk,
+    results,
+    manualSql: allOk ? undefined : MIGRATION_SQL,
+  });
 });
 
-router.get("/admin/migrate/sql", async (req, res) => {
-  try {
-    const ctx = await requireAdmin(req);
-    if (!ctx) return res.status(403).json({ error: "Forbidden" });
-    return res.json({ sql: MIGRATION_SQL });
-  } catch (err: any) {
-    return res.status(500).json({ error: err.message });
-  }
+router.get("/admin/migrate/sql", requireAdmin, async (req, res) => {
+  return res.json({ sql: MIGRATION_SQL });
 });
 
 export default router;

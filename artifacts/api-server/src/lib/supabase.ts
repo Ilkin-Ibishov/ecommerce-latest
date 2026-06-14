@@ -1,18 +1,18 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@workspace/supabase-types";
+import { resolveSupabaseEnv } from "./env";
 
-const url = process.env.VITE_SUPABASE_URL ?? process.env.SUPABASE_URL ?? "";
-const anonKey = process.env.VITE_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? "";
-const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "";
+const { url, anonKey, serviceKey } = resolveSupabaseEnv(process.env);
 
-export function getSupabase(accessToken?: string) {
-  return createClient(url, anonKey, {
+export function getSupabase(accessToken?: string): SupabaseClient<Database> {
+  return createClient<Database>(url, anonKey, {
     global: accessToken ? { headers: { Authorization: `Bearer ${accessToken}` } } : {},
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }
 
-export function getAdminSupabase() {
-  return createClient(url, serviceKey || anonKey, {
+export function getAdminSupabase(): SupabaseClient<Database> {
+  return createClient<Database>(url, serviceKey || anonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

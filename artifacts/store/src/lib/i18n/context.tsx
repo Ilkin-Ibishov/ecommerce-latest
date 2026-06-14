@@ -1,9 +1,9 @@
 import { createContext, useContext, type ReactNode } from "react";
-import { getT } from "./messages";
+import { getT, type TranslationKey } from "./messages";
 
 interface I18nContextValue {
   locale: string;
-  t: (key: string) => string;
+  t: (key: TranslationKey) => string;
 }
 
 const I18nContext = createContext<I18nContextValue>({

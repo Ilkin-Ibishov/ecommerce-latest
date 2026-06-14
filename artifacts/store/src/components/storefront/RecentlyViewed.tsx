@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n/context";
+import { getTranslatedField } from "@/lib/utils";
 
 const STORAGE_KEY = "ilk_recently_viewed";
 const MAX_ITEMS = 8;
@@ -47,8 +48,7 @@ export default function RecentlyViewed({ locale, excludeId }: { locale: string; 
   if (products.length === 0) return null;
 
   const getTitle = (p: any) =>
-    p.product_translations?.find((tr: any) => tr.lang_code === locale)?.title
-    ?? p.product_translations?.[0]?.title ?? "";
+    getTranslatedField(p.product_translations, locale, "title", "");
 
   return (
     <section className="border-t border-border pt-10 mt-10">

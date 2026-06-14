@@ -1,6 +1,9 @@
 import { Router, type IRouter } from "express";
 import multer from "multer";
-import { requireAdmin, getAdminSupabase } from "../lib/supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@workspace/supabase-types";
+import { getAdminSupabase } from "../lib/supabase";
+import { requireAdmin } from "../middlewares/requireAdmin";
 import { searchImages, isSearchCooldownActive } from "../lib/image-search";
 import { validateBarcode, lookupBarcode } from "../lib/barcode-lookup";
 import { checkDailyLimit, incrementDailyCount } from "../lib/rate-limiter";
@@ -36,8 +39,8 @@ function paramStr(value: string | string[]): string {
 /**
  * Verify that a product exists. Returns true if found, false otherwise.
  */
-async function productExists(admin: any, productId: string): Promise<boolean> {
-  const { data } = await (admin as any)
+async function productExists(admin: SupabaseClient<Database>, productId: string): Promise<boolean> {
+  const { data } = await admin
     .from("products")
     .select("id")
     .eq("id", productId)
@@ -48,8 +51,8 @@ async function productExists(admin: any, productId: string): Promise<boolean> {
 /**
  * Get the current image count for a product.
  */
-async function getImageCount(admin: any, productId: string): Promise<number> {
-  const { count } = await (admin as any)
+async function getImageCount(admin: SupabaseClient<Database>, productId: string): Promise<number> {
+  const { count } = await admin
     .from("product_images")
     .select("id", { count: "exact", head: true })
     .eq("product_id", productId);
@@ -59,8 +62,8 @@ async function getImageCount(admin: any, productId: string): Promise<number> {
 /**
  * Get the next sort_order value for a product.
  */
-async function getNextSortOrder(admin: any, productId: string): Promise<number> {
-  const { data } = await (admin as any)
+async function getNextSortOrder(admin: SupabaseClient<Database>, productId: string): Promise<number> {
+  const { data } = await admin
     .from("product_images")
     .select("sort_order")
     .eq("product_id", productId)
@@ -89,12 +92,8 @@ function extractStoragePath(url: string): string | null {
  * GET /api/admin/products/:id/images
  * List all images for a product, sorted by sort_order ascending.
  */
-router.get("/admin/products/:id/images", async (req, res): Promise<void> => {
-  const ctx = await requireAdmin(req);
-  if (!ctx) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+router.get("/admin/products/:id/images", requireAdmin, async (req, res): Promise<void> => {
+  const ctx = { admin: req.admin!, user: req.user! };
 
   const productId = paramStr(req.params.id);
 
@@ -104,7 +103,7 @@ router.get("/admin/products/:id/images", async (req, res): Promise<void> => {
     return;
   }
 
-  const { data, error } = await (ctx.admin as any)
+  const { data, error } = await ctx.admin
     .from("product_images")
     .select("id, product_id, url, alt_text, sort_order, source, created_at")
     .eq("product_id", productId)
@@ -124,12 +123,8 @@ router.get("/admin/products/:id/images", async (req, res): Promise<void> => {
  * Add an image from a URL (paste, search selection, or barcode selection).
  * Body: { url: string, alt_text?: string, source: string }
  */
-router.post("/admin/products/:id/images", async (req, res): Promise<void> => {
-  const ctx = await requireAdmin(req);
-  if (!ctx) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+router.post("/admin/products/:id/images", requireAdmin, async (req, res): Promise<void> => {
+  const ctx = { admin: req.admin!, user: req.user! };
 
   const productId = paramStr(req.params.id);
 
@@ -171,7 +166,7 @@ router.post("/admin/products/:id/images", async (req, res): Promise<void> => {
   }
 
   // Check for duplicate URL
-  const { data: duplicate } = await (ctx.admin as any)
+  const { data: duplicate } = await ctx.admin
     .from("product_images")
     .select("id")
     .eq("product_id", productId)
@@ -185,7 +180,7 @@ router.post("/admin/products/:id/images", async (req, res): Promise<void> => {
 
   const sortOrder = await getNextSortOrder(ctx.admin, productId);
 
-  const { data: newImage, error } = await (ctx.admin as any)
+  const { data: newImage, error } = await ctx.admin
     .from("product_images")
     .insert({
       product_id: productId,
@@ -221,12 +216,8 @@ router.post("/admin/products/:id/images", async (req, res): Promise<void> => {
  * Search for candidate images via Google Images scraping.
  * Body: { query: string }
  */
-router.post("/admin/products/:id/images/search", async (req, res): Promise<void> => {
-  const ctx = await requireAdmin(req);
-  if (!ctx) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+router.post("/admin/products/:id/images/search", requireAdmin, async (req, res): Promise<void> => {
+  const ctx = { admin: req.admin!, user: req.user! };
 
   const productId = paramStr(req.params.id);
 
@@ -269,12 +260,8 @@ router.post("/admin/products/:id/images/search", async (req, res): Promise<void>
  * Look up product images via barcode (EAN/UPC).
  * Body: { barcode: string }
  */
-router.post("/admin/products/:id/images/barcode", async (req, res): Promise<void> => {
-  const ctx = await requireAdmin(req);
-  if (!ctx) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+router.post("/admin/products/:id/images/barcode", requireAdmin, async (req, res): Promise<void> => {
+  const ctx = { admin: req.admin!, user: req.user! };
 
   const productId = paramStr(req.params.id);
 
@@ -331,12 +318,9 @@ router.post("/admin/products/:id/images/barcode", async (req, res): Promise<void
 router.post(
   "/admin/products/:id/images/upload",
   upload.single("file"),
+  requireAdmin,
   async (req, res): Promise<void> => {
-    const ctx = await requireAdmin(req);
-    if (!ctx) {
-      res.status(403).json({ error: "Forbidden" });
-      return;
-    }
+    const ctx = { admin: req.admin!, user: req.user! };
 
     const productId = paramStr(req.params.id);
 
@@ -353,7 +337,7 @@ router.post(
       return;
     }
 
-    const file = (req as any).file as Express.Multer.File | undefined;
+    const file = req.file as Express.Multer.File | undefined;
     if (!file) {
       res.status(400).json({ error: "No file provided. Use form field name 'file'." });
       return;
@@ -369,7 +353,7 @@ router.post(
       // Store the returned CDN URL as a product_image
       const sortOrder = await getNextSortOrder(ctx.admin, productId);
 
-      const { data: newImage, error } = await (ctx.admin as any)
+      const { data: newImage, error } = await ctx.admin
         .from("product_images")
         .insert({
           product_id: productId,
@@ -418,12 +402,8 @@ router.post(
  * Reorder images by providing image_ids in desired order.
  * Body: { image_ids: string[] }
  */
-router.patch("/admin/products/:id/images/reorder", async (req, res): Promise<void> => {
-  const ctx = await requireAdmin(req);
-  if (!ctx) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+router.patch("/admin/products/:id/images/reorder", requireAdmin, async (req, res): Promise<void> => {
+  const ctx = { admin: req.admin!, user: req.user! };
 
   const productId = paramStr(req.params.id);
 
@@ -441,7 +421,7 @@ router.patch("/admin/products/:id/images/reorder", async (req, res): Promise<voi
   }
 
   // Fetch all current images for the product
-  const { data: currentImages, error: fetchError } = await (ctx.admin as any)
+  const { data: currentImages, error: fetchError } = await ctx.admin
     .from("product_images")
     .select("id")
     .eq("product_id", productId);
@@ -452,7 +432,7 @@ router.patch("/admin/products/:id/images/reorder", async (req, res): Promise<voi
     return;
   }
 
-  const currentIds = new Set((currentImages ?? []).map((img: any) => img.id));
+  const currentIds = new Set((currentImages ?? []).map((img) => img.id));
   const providedIds = new Set(image_ids);
 
   // Validate: provided IDs must match exactly the product's images
@@ -470,7 +450,7 @@ router.patch("/admin/products/:id/images/reorder", async (req, res): Promise<voi
 
   // Update sort_order sequentially
   for (let i = 0; i < image_ids.length; i++) {
-    const { error: updateError } = await (ctx.admin as any)
+    const { error: updateError } = await ctx.admin
       .from("product_images")
       .update({ sort_order: i })
       .eq("id", image_ids[i])
@@ -484,7 +464,7 @@ router.patch("/admin/products/:id/images/reorder", async (req, res): Promise<voi
   }
 
   // Return the updated images
-  const { data: updatedImages } = await (ctx.admin as any)
+  const { data: updatedImages } = await ctx.admin
     .from("product_images")
     .select("id, product_id, url, alt_text, sort_order, source, created_at")
     .eq("product_id", productId)
@@ -499,12 +479,8 @@ router.patch("/admin/products/:id/images/reorder", async (req, res): Promise<voi
  * Delete a single product image. Reassigns sort_order to maintain contiguity.
  * If the image was uploaded (source='upload'), also deletes from Supabase Storage.
  */
-router.delete("/admin/products/:id/images/:imageId", async (req, res): Promise<void> => {
-  const ctx = await requireAdmin(req);
-  if (!ctx) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+router.delete("/admin/products/:id/images/:imageId", requireAdmin, async (req, res): Promise<void> => {
+  const ctx = { admin: req.admin!, user: req.user! };
 
   const productId = paramStr(req.params.id);
   const imageId = paramStr(req.params.imageId);
@@ -516,7 +492,7 @@ router.delete("/admin/products/:id/images/:imageId", async (req, res): Promise<v
   }
 
   // Fetch the image to verify it belongs to this product
-  const { data: image, error: fetchError } = await (ctx.admin as any)
+  const { data: image, error: fetchError } = await ctx.admin
     .from("product_images")
     .select("id, url, source, sort_order")
     .eq("id", imageId)
@@ -529,7 +505,7 @@ router.delete("/admin/products/:id/images/:imageId", async (req, res): Promise<v
   }
 
   // Delete the record
-  const { error: deleteError } = await (ctx.admin as any)
+  const { error: deleteError } = await ctx.admin
     .from("product_images")
     .delete()
     .eq("id", imageId);
@@ -541,7 +517,7 @@ router.delete("/admin/products/:id/images/:imageId", async (req, res): Promise<v
   }
 
   // Reassign sort_order to maintain contiguity
-  const { data: remainingImages, error: remainingError } = await (ctx.admin as any)
+  const { data: remainingImages, error: remainingError } = await ctx.admin
     .from("product_images")
     .select("id")
     .eq("product_id", productId)
@@ -549,7 +525,7 @@ router.delete("/admin/products/:id/images/:imageId", async (req, res): Promise<v
 
   if (!remainingError && remainingImages) {
     for (let i = 0; i < remainingImages.length; i++) {
-      await (ctx.admin as any)
+      await ctx.admin
         .from("product_images")
         .update({ sort_order: i })
         .eq("id", remainingImages[i].id);

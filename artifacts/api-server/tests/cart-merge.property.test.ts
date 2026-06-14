@@ -183,3 +183,66 @@ describe("Cart Merge Property Tests", () => {
     );
   });
 });
+
+// Feature: architecture-refactoring, Property 4: Merged cart quantities never exceed MAX_QUANTITY
+describe("Cart Merge Property Tests (architecture-refactoring)", () => {
+  /** Generate a cart with possibly-large quantities over a small shared id space to force overlap */
+  function arbitraryCart(): fc.Arbitrary<CartEntry[]> {
+    return fc
+      .array(
+        fc.record({
+          // Small id space (1-15) so user and guest carts frequently overlap
+          product_id: fc.integer({ min: 1, max: 15 }).map((n) => `product-${n}`),
+          // Arbitrarily large quantities to exercise the MAX_QUANTITY cap
+          quantity: fc.integer({ min: 1, max: 500 }),
+        }),
+        { minLength: 0, maxLength: 12 },
+      )
+      .map((entries) => {
+        // Deduplicate by product_id within a single cart (last write wins)
+        const map = new Map<string, number>();
+        for (const e of entries) {
+          map.set(e.product_id, e.quantity);
+        }
+        return Array.from(map.entries()).map(([product_id, quantity]) => ({
+          product_id,
+          quantity,
+        }));
+      });
+  }
+
+  /**
+   * Property 4: Merged cart quantities never exceed MAX_QUANTITY
+   * Feature: architecture-refactoring, Property 4
+   * Validates: Requirements 2.6
+   *
+   * For any user cart and any guest cart (including overlapping product_ids and
+   * arbitrarily large quantities), every line item in the merged cart has
+   * quantity <= MAX_QUANTITY (99) and equals min(userQty + guestQty, 99) for
+   * that product, where a missing side contributes 0.
+   */
+  it("Property 4: Merged cart quantities never exceed MAX_QUANTITY", () => {
+    fc.assert(
+      fc.property(arbitraryCart(), arbitraryCart(), (userCart, guestCart) => {
+        const { mergedCart } = mergeGuestCart(userCart, guestCart);
+
+        const userMap = new Map(userCart.map((e) => [e.product_id, e.quantity]));
+        const guestMap = new Map(
+          guestCart.map((e) => [e.product_id, e.quantity]),
+        );
+
+        for (const line of mergedCart) {
+          const userQty = userMap.get(line.product_id) ?? 0;
+          const guestQty = guestMap.get(line.product_id) ?? 0;
+          const expected = Math.min(userQty + guestQty, MAX_QUANTITY);
+
+          // Cap: never exceeds MAX_QUANTITY
+          expect(line.quantity).toBeLessThanOrEqual(MAX_QUANTITY);
+          // Exact value: min(userQty + guestQty, 99)
+          expect(line.quantity).toBe(expected);
+        }
+      }),
+      { numRuns: 200 },
+    );
+  });
+});

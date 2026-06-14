@@ -4,6 +4,7 @@ import { apiUrl } from "@/lib/api";
 import ProductDetail from "@/components/storefront/ProductDetail";
 import { trackView } from "@/components/storefront/RecentlyViewed";
 import { useI18n } from "@/lib/i18n/context";
+import { getTranslatedField } from "@/lib/utils";
 
 export default function ProductPage({ locale, slug }: { locale: string; slug: string }) {
   const [product, setProduct] = useState<any>(null);
@@ -27,9 +28,12 @@ export default function ProductPage({ locale, slug }: { locale: string; slug: st
       if (!data) { setNotFound(true); setLoading(false); return; }
 
       const sortedImages = [...(data.product_images ?? [])].sort((a: any, b: any) => a.sort_order - b.sort_order);
-      const translation = (data.product_translations as any[]).find((t: any) => t.lang_code === locale)
-        ?? (data.product_translations as any[])[0]
-        ?? { title: "Product", description: null };
+      const picked = (data.product_translations as any[]).find((t: any) => t.lang_code === locale)
+        ?? (data.product_translations as any[])[0];
+      const translation = {
+        title: getTranslatedField(data.product_translations as any[], locale, "title", "Product"),
+        description: picked?.description ?? null,
+      };
 
       const [commentsRes, specsRes, relatedRes] = await Promise.all([
         supabase

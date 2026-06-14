@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { escapeCSV } from "../src/components/admin/CSVExportButton";
+import { escapeCSV } from "../components/admin/CSVExportButton";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure logic mirrored from the admin pages. The page components keep this logic

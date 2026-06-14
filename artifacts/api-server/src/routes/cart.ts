@@ -1,105 +1,85 @@
 import { Router } from "express";
-import { getSupabase, getAdminSupabase } from "../lib/supabase";
+import { getAdminSupabase } from "../lib/supabase";
+import { requireUser } from "../middlewares/requireUser";
+import { mergeGuestCart, type CartEntry } from "../lib/cart-merge";
 
 const router = Router();
 
-router.post("/cart/merge", async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    const supabase = getSupabase(token);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
+function toCartEntry(item: { product_id: string; quantity: number }): CartEntry {
+  return { product_id: item.product_id, quantity: item.quantity };
+}
 
-    const { session_id } = req.body;
-    if (!session_id) return res.status(400).json({ error: "session_id required" });
+router.post("/cart/merge", requireUser, async (req, res) => {
+  const user = { id: req.authUser!.id };
 
-    const admin = getAdminSupabase();
+  const { session_id } = req.body;
+  if (!session_id) return res.status(400).json({ error: "session_id required" });
 
-    const { data: guestItems } = await (admin as any)
-      .from("cart_items")
-      .select("*")
-      .eq("session_id", session_id)
-      .is("user_id", null);
+  const admin = getAdminSupabase();
 
-    if (!guestItems?.length) return res.json({ merged: 0 });
+  const { data: guestItems } = await admin
+    .from("cart_items")
+    .select("*")
+    .eq("session_id", session_id)
+    .is("user_id", null);
 
-    const { data: userItems } = await (admin as any)
-      .from("cart_items")
-      .select("product_id, quantity, id")
-      .eq("user_id", user.id);
+  if (!guestItems?.length) return res.json({ merged: 0 });
 
-    const userMap = new Map<string, any>((userItems ?? []).map((i: any) => [i.product_id, i]));
+  const { data: userItems } = await admin
+    .from("cart_items")
+    .select("product_id, quantity, id")
+    .eq("user_id", user.id);
 
-    for (const guestItem of guestItems) {
-      const existing = userMap.get(guestItem.product_id);
-      if (existing) {
-        await (admin as any)
-          .from("cart_items")
-          .update({ quantity: existing.quantity + guestItem.quantity })
-          .eq("id", existing.id);
-      } else {
-        await (admin as any)
-          .from("cart_items")
-          .insert({ user_id: user.id, product_id: guestItem.product_id, quantity: guestItem.quantity });
-      }
+  const userMap = new Map((userItems ?? []).map((i) => [i.product_id, i]));
+
+  const merged = mergeGuestCart(
+    (userItems ?? []).map((i) => toCartEntry(i)),
+    guestItems.map((i) => toCartEntry(i)),
+  );
+  const mergedQuantityByProduct = new Map<string, number>(
+    merged.mergedCart.map((entry) => [entry.product_id, entry.quantity]),
+  );
+  const guestProductIds = new Set<string>(
+    guestItems.map((i) => i.product_id),
+  );
+
+  for (const product_id of guestProductIds) {
+    const quantity = mergedQuantityByProduct.get(product_id)!;
+    const existing = userMap.get(product_id);
+    if (existing) {
+      await admin
+        .from("cart_items")
+        .update({ quantity })
+        .eq("id", existing.id);
+    } else {
+      // TODO(types): cart_items.Insert requires session_id in the generated schema,
+      // but user-cart rows are inserted without it; cast retained to preserve runtime
+      // behavior until the schema/types are reconciled.
+      await (admin as any)
+        .from("cart_items")
+        .insert({ user_id: user.id, product_id, quantity });
     }
-
-    await (admin as any)
-      .from("cart_items")
-      .delete()
-      .eq("session_id", session_id)
-      .is("user_id", null);
-
-    return res.json({ merged: guestItems.length });
-  } catch (err) {
-    req.log.error(err);
-    return res.status(500).json({ error: "Internal server error" });
   }
+
+  await admin
+    .from("cart_items")
+    .delete()
+    .eq("session_id", session_id)
+    .is("user_id", null);
+
+  return res.json({ merged: guestItems.length });
 });
 
-router.get("/cart", async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    const supabase = getSupabase(token);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
+router.get("/cart", requireUser, async (req, res) => {
+  const user = { id: req.authUser!.id };
 
-    const admin = getAdminSupabase();
-    const { data } = await (admin as any)
-      .from("cart_items")
-      .select("id, quantity, products(id, slug, price, product_images(*), product_translations(*))")
-      .eq("user_id", user.id);
+  const admin = getAdminSupabase();
+  const { data } = await admin
+    .from("cart_items")
+    .select("id, quantity, products(id, slug, price, product_images(*), product_translations(*))")
+    .eq("user_id", user.id);
 
-    return res.json(data ?? []);
-  } catch (err) {
-    req.log.error(err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-});
-
-router.get("/profile/orders", async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    const supabase = getSupabase(token);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
-
-    const admin = getAdminSupabase();
-    const { data } = await (admin as any)
-      .from("orders")
-      .select("id, status, total_azn, discount_azn, customer_name, customer_phone, delivery_address, notes, created_at, order_items(id, product_title_snapshot, product_price_snapshot, quantity, line_total)")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false })
-      .limit(50);
-
-    return res.json(data ?? []);
-  } catch (err) {
-    req.log.error(err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
+  return res.json(data ?? []);
 });
 
 export default router;

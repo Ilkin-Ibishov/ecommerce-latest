@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import { resolve } from "path";
+import { resolveSupabaseEnv } from "../src/lib/env";
 
 // Load .env from repo root
 config({ path: resolve(import.meta.dirname, "../../../.env") });
@@ -7,11 +8,12 @@ config({ path: resolve(import.meta.dirname, "../../../.env") });
 // Normalize VITE_-prefixed vars to their non-prefixed equivalents
 // (the .env file uses VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY for the frontend,
 //  but tests and the api-server also accept the non-prefixed form)
-if (!process.env.SUPABASE_URL && process.env.VITE_SUPABASE_URL) {
-  process.env.SUPABASE_URL = process.env.VITE_SUPABASE_URL;
+const resolvedEnv = resolveSupabaseEnv(process.env);
+if (!process.env.SUPABASE_URL && resolvedEnv.url) {
+  process.env.SUPABASE_URL = resolvedEnv.url;
 }
-if (!process.env.SUPABASE_ANON_KEY && process.env.VITE_SUPABASE_ANON_KEY) {
-  process.env.SUPABASE_ANON_KEY = process.env.VITE_SUPABASE_ANON_KEY;
+if (!process.env.SUPABASE_ANON_KEY && resolvedEnv.anonKey) {
+  process.env.SUPABASE_ANON_KEY = resolvedEnv.anonKey;
 }
 
 const REQUIRED_VARS = [

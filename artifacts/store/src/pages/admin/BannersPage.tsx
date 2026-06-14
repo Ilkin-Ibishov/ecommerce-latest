@@ -3,6 +3,8 @@ import { Plus, Pencil, Trash2, Upload, X, ImageIcon, Eye, EyeOff } from "lucide-
 import { createClient } from "@/lib/supabase/client";
 import { adminFetch, adminJson } from "@/lib/admin-fetch";
 import { apiUrl } from "@/lib/api";
+import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
+import { useConfirm } from "@/lib/hooks/useConfirm";
 import imageCompression from "browser-image-compression";
 
 interface Banner {
@@ -31,6 +33,7 @@ export default function BannersPage() {
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const { confirm, dialogProps } = useConfirm();
 
   const load = async () => {
     const supabase = createClient();
@@ -91,13 +94,19 @@ export default function BannersPage() {
     } catch (e: any) { setError(e.message); setSaving(false); }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this banner?")) return;
-    setDeleting(id);
-    try {
-      await adminFetch(apiUrl(`/admin/banners/${id}`), { method: "DELETE" });
-      await load();
-    } finally { setDeleting(null); }
+  const handleDelete = (id: string) => {
+    confirm({
+      title: "Delete Banner",
+      message: "Delete this banner?",
+      destructive: true,
+      onConfirm: async () => {
+        setDeleting(id);
+        try {
+          await adminFetch(apiUrl(`/admin/banners/${id}`), { method: "DELETE" });
+          await load();
+        } finally { setDeleting(null); }
+      },
+    });
   };
 
   const toggleActive = async (b: Banner) => {
@@ -245,6 +254,8 @@ export default function BannersPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog {...dialogProps} confirmLabel="Delete" />
     </div>
   );
 }

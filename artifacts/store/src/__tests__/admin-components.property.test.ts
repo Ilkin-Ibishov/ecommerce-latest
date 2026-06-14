@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import * as fc from "fast-check";
-import { escapeCSV } from "../src/components/admin/CSVExportButton";
+import { escapeCSV } from "../components/admin/CSVExportButton";
 
 // ─── Property 1: CSV escaping round-trip ────────────────────────────────────────
 

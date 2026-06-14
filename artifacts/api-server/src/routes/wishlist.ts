@@ -1,76 +1,51 @@
 import { Router } from "express";
-import { getSupabase, getAdminSupabase } from "../lib/supabase";
+import { getAdminSupabase } from "../lib/supabase";
+import { requireUser } from "../middlewares/requireUser";
 
 const router = Router();
 
-router.get("/wishlist", async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    const supabase = getSupabase(token);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
+router.get("/wishlist", requireUser, async (req, res) => {
+  const user = { id: req.authUser!.id };
 
-    const admin = getAdminSupabase();
-    const { data } = await (admin as any)
-      .from("wishlists")
-      .select("id, product_id, created_at, products(id, slug, price, product_images(*), product_translations(*))")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
+  const admin = getAdminSupabase();
+  const { data } = await admin
+    .from("wishlists")
+    .select("id, product_id, created_at, products(id, slug, price, product_images(*), product_translations(*))")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
 
-    return res.json(data ?? []);
-  } catch (err) {
-    req.log.error(err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
+  return res.json(data ?? []);
 });
 
-router.post("/wishlist", async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    const supabase = getSupabase(token);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
+router.post("/wishlist", requireUser, async (req, res) => {
+  const user = { id: req.authUser!.id };
 
-    const { product_id } = req.body;
-    if (!product_id) return res.status(400).json({ error: "product_id required" });
+  const { product_id } = req.body;
+  if (!product_id) return res.status(400).json({ error: "product_id required" });
 
-    const admin = getAdminSupabase();
-    const { data, error } = await (admin as any)
-      .from("wishlists")
-      .upsert({ user_id: user.id, product_id }, { onConflict: "user_id,product_id", ignoreDuplicates: true })
-      .select("id")
-      .single();
+  const admin = getAdminSupabase();
+  const { data, error } = await admin
+    .from("wishlists")
+    .upsert({ user_id: user.id, product_id }, { onConflict: "user_id,product_id", ignoreDuplicates: true })
+    .select("id")
+    .single();
 
-    if (error) return res.status(400).json({ error: error.message });
-    return res.status(201).json({ id: data?.id });
-  } catch (err) {
-    req.log.error(err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
+  if (error) return res.status(400).json({ error: error.message });
+  return res.status(201).json({ id: data?.id });
 });
 
-router.delete("/wishlist/:productId", async (req, res) => {
-  try {
-    const token = req.headers.authorization?.replace("Bearer ", "");
-    if (!token) return res.status(401).json({ error: "Unauthorized" });
-    const supabase = getSupabase(token);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return res.status(401).json({ error: "Unauthorized" });
+router.delete("/wishlist/:productId", requireUser, async (req, res) => {
+  const user = { id: req.authUser!.id };
 
-    const admin = getAdminSupabase();
-    await (admin as any)
-      .from("wishlists")
-      .delete()
-      .eq("user_id", user.id)
-      .eq("product_id", req.params.productId);
+  const admin = getAdminSupabase();
+  const productId = Array.isArray(req.params.productId) ? req.params.productId[0] : req.params.productId;
+  await admin
+    .from("wishlists")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("product_id", productId);
 
-    return res.json({ success: true });
-  } catch (err) {
-    req.log.error(err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
+  return res.json({ success: true });
 });
 
 export default router;

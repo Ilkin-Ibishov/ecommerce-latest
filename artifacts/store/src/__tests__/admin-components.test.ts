@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { escapeCSV } from "../src/components/admin/CSVExportButton";
+import { escapeCSV } from "../components/admin/CSVExportButton";
 
 // ─── CSVExportButton — escapeCSV() ──────────────────────────────────────────────
 

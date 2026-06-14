@@ -3,9 +3,11 @@ import { Link } from "wouter";
 import { Heart, Trash2, ShoppingCart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { userFetch } from "@/lib/user-fetch";
 import { useCart } from "@/lib/cart/context";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { useI18n } from "@/lib/i18n/context";
+import { getTranslatedField } from "@/lib/utils";
 
 export default function WishlistPage({ locale }: { locale: string }) {
   const [user, setUser] = useState<any>(null);
@@ -30,32 +32,24 @@ export default function WishlistPage({ locale }: { locale: string }) {
     return () => subscription.unsubscribe();
   }, []);
 
-  const getAuthHeader = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    return { Authorization: `Bearer ${session?.access_token}` };
-  };
-
   const loadWishlist = async (_u: any) => {
     setLoading(true);
     try {
-      const headers = await getAuthHeader();
-      const res = await fetch(apiUrl("/wishlist"), { headers });
+      const res = await userFetch(apiUrl("/wishlist"));
       if (res.ok) setItems(await res.json());
     } catch {}
     setLoading(false);
   };
 
   const removeItem = async (productId: string) => {
-    const headers = await getAuthHeader();
-    await fetch(apiUrl(`/wishlist/${productId}`), { method: "DELETE", headers });
+    await userFetch(apiUrl(`/wishlist/${productId}`), { method: "DELETE" });
     setItems((prev) => prev.filter((i) => i.product_id !== productId));
   };
 
   const addToCart = (item: any) => {
     const product = item.products;
     if (!product) return;
-    const title = product.product_translations?.find((t: any) => t.lang_code === locale)?.title
-      ?? product.product_translations?.[0]?.title ?? "Product";
+    const title = getTranslatedField(product.product_translations, locale, "title", "Product");
     addItem({
       product_id: product.id,
       slug: product.slug,
@@ -100,8 +94,7 @@ export default function WishlistPage({ locale }: { locale: string }) {
           {items.map((item: any) => {
             const product = item.products;
             if (!product) return null;
-            const title = product.product_translations?.find((t: any) => t.lang_code === locale)?.title
-              ?? product.product_translations?.[0]?.title ?? "Product";
+            const title = getTranslatedField(product.product_translations, locale, "title", "Product");
             const img = product.product_images?.[0]?.url ?? null;
             return (
               <div key={item.id} className="group rounded-xl border border-border overflow-hidden">
