@@ -21,14 +21,22 @@ artifacts/store/src/
 │   └── admin/                 # Admin pages (DashboardPage, ProductsPage, etc.)
 ├── lib/
 │   ├── api.ts                 # apiUrl() helper
-│   ├── utils.ts               # cn() utility
+│   ├── utils.ts               # cn() utility + getTranslatedField(translations, locale, field, fallback)
 │   ├── admin-fetch.ts         # Admin API fetch wrapper
+│   ├── user-fetch.ts          # userFetch()/getAuthHeader() — authed non-admin fetch
+│   ├── env.ts                 # resolveSupabaseEnv() (mirrors api-server lib/env.ts)
 │   ├── cart/context.tsx        # Cart React context
-│   ├── i18n/context.tsx        # I18n React context
-│   ├── i18n/messages.ts        # Translation strings
-│   ├── supabase/              # Supabase client setup
-│   └── hooks/                 # Custom hooks
-└── hooks/                     # Additional hooks
+│   ├── i18n/context.tsx        # I18n React context (t typed as MessageKey | (string & {}))
+│   ├── i18n/messages/          # Per-locale modules: az.ts, ru.ts, en.ts + schema.ts + index.ts (getT)
+│   ├── queries/               # Centralized Supabase reads (getProducts/getCategoriesTree/getOrders + select fragments)
+│   ├── supabase/              # Supabase browser client (typed SupabaseClient<Database>)
+│   └── hooks/                 # useAdminList, useConfirm, useProfile, ...
+└── hooks/                     # Additional hooks (use-mobile, use-toast)
+
+Shared admin building blocks live in `components/admin/`: `useAdminList` (hook in `lib/hooks/`) +
+`DataTable` / `Pagination` / `TableEmptyState`, plus `ConfirmDialog` (+ `useConfirm`), `SearchInput`,
+`SortableHeader`, `CategoryFilter`, `StockCell`, `PriceCell`, `CSVExportButton`, `BulkBar`, `BulkPriceModal`.
+Storefront shared blocks: `ProductGrid`, `SortDropdown`, `ProductCard`, `ProductSkeletonGrid`.
 ```
 
 ## Adding a New Page
@@ -89,7 +97,28 @@ function MyComponent() {
 }
 ```
 
-All user-facing strings MUST use `t()`. Add new keys to `artifacts/store/src/lib/i18n/messages.ts` for all three locales (az, ru, en).
+All user-facing strings MUST use `t()`. Translations live in per-locale modules `artifacts/store/src/lib/i18n/messages/{az,ru,en}.ts` (NOT the old single `messages.ts`). Add new keys to ALL THREE locale files (the `i18n-consistency` test enforces identical key structure). `t()` accepts `MessageKey | (string & {})` so known keys get autocomplete while dynamic keys still compile.
+
+## Admin list pages (useAdminList + shared table)
+
+Admin list pages should use the `useAdminList` hook + shared components rather than hand-rolling load/count/loading/debounce/pagination:
+
+```tsx
+import { useAdminList } from "@/lib/hooks/useAdminList";
+import { DataTable, type Column } from "@/components/admin/DataTable";
+import { Pagination } from "@/components/admin/Pagination";
+import { TableEmptyState } from "@/components/admin/TableEmptyState";
+import { SearchInput } from "@/components/admin/SearchInput";
+import { getOrders } from "@/lib/queries/orders";
+
+const { rows, count, loading, page, totalPages, search, searchInput, setSearchInput } =
+  useAdminList({ fetcher: (a) => getOrders(createClient(), a), basePath: "/admin/orders", pageSize: 30 });
+// <SearchInput value={searchInput} onChange={setSearchInput} debounceMs={0} />  (hook owns the 350ms debounce)
+// <DataTable columns={cols} rows={rows} loading={loading} empty={<TableEmptyState .../>} getRowKey={r=>r.id} />
+// <Pagination page={page} totalPages={totalPages} buildHref={...} />
+```
+
+OrdersPage/UsersPage/AuditPage use this. Pages with heavy local state (Products/Inventory bulk-select + inline edits, Comments/Coupons CRUD/card views, Wishlist) intentionally keep their own structure but still adopt the shared pieces where clean. Centralize Supabase reads in `lib/queries/`. Confirm destructive actions with `useConfirm()` + `<ConfirmDialog>`. Pick localized fields with `getTranslatedField()` from `@/lib/utils`.
 
 ## Cart Context
 
@@ -144,7 +173,7 @@ onChange={(v) => { setValue(v); setFieldErrors(e => ({ ...e, fieldName: "" })); 
 
 Run: `pnpm exec vitest --run --project store-unit`
 
-Test files go in `artifacts/store/src/__tests__/*.test.ts`. Use `@/` imports (resolved via vitest alias).
+Vitest unit/property test files live in `artifacts/store/src/__tests__/*.test.ts` (consolidated here — the config `include` is `src/**/*.test.ts`). Shared fixtures/helpers live in `artifacts/store/tests/helpers/`. Playwright component tests are `tests/components/*.spec.tsx` (run via `test:ct`); E2E is `tests/e2e/*.spec.ts`. Use `@/` imports (resolved via vitest alias).
 
 Key test files:
 - `i18n-hardcoded-strings.test.ts` — All 15 components have translation keys

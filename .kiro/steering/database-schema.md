@@ -48,6 +48,16 @@ pending → phone_verified → courier_assigned → shipped → delivered
 - All IDs are UUID (`gen_random_uuid()`)
 - All tables have RLS enabled
 - Translations use `lang_code IN ('az', 'ru', 'en')`
-- Stock changes MUST use RPC: `decrement_stock_safe()` / `increment_stock()`
+- Stock changes MUST use RPC: `decrement_stock_safe()` / `increment_stock()` (via the typed wrappers in `api-server/src/lib/rpc.ts`)
 - Search uses `tsvector` with `'simple'` config + `unaccent`
 - `updated_at` is auto-managed by triggers
+
+## Typed access
+
+The Supabase `Database` type (and the `Tables<"...">` row helper) is generated into the
+`@workspace/supabase-types` package (`artifacts/supabase-types/`). Both packages type their
+Supabase clients as `SupabaseClient<Database>` and derive row types via `Tables<"products">` etc.
+Regenerate after schema changes: `supabase gen types typescript ... > artifacts/supabase-types/src/database.types.ts`.
+NOTE: the live DB is ahead of the checked-in `supabase/schema.sql` snapshot (e.g. `products.search_text`,
+`product_specs`, `pages`/`page_translations`, `site_settings`, `banners`); the generated types reflect the live schema.
+The Drizzle package `@workspace/db` is a SEPARATE thing — it does NOT export the Supabase `Database` type.
