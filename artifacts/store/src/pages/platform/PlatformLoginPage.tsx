@@ -16,7 +16,7 @@ export default function PlatformLoginPage() {
     setLoading(true);
 
     const client = getControlPlaneClient();
-    const { error: authError } = await client.auth.signInWithPassword({
+    const { data, error: authError } = await client.auth.signInWithPassword({
       email: email.trim(),
       password,
     });
@@ -27,8 +27,28 @@ export default function PlatformLoginPage() {
       return;
     }
 
+    // Create a server-side control_plane_session
+    const token = data.session?.access_token;
+    if (token) {
+      try {
+        const { platformFetch } = await import("@/lib/platform/fetch");
+        const res = await platformFetch("/platform/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({ error: "Session creation failed" }));
+          // If MFA is required, show that error
+          setError(body.error ?? `Session failed (${res.status})`);
+          setLoading(false);
+          return;
+        }
+      } catch {
+        // Non-critical — session may already exist or endpoint may not be deployed yet
+      }
+    }
+
     // Auth state change listener in PlatformAuthProvider will pick up the session
-    // and the guard will redirect to /platform
     setLoading(false);
   };
 

@@ -341,4 +341,96 @@ router.delete(
   },
 );
 
+// ---------------------------------------------------------------------------
+// POST /platform/auth/login — Simple login (creates session without MFA)
+//
+// For admins with mfa_enabled=false, this provides a simpler login path.
+// Verifies the bearer token, checks platform_admins membership, and
+// creates a control_plane_session with mfa_verified=false.
+//
+// If mfa_enabled=true for the admin, this route returns 403 and the client
+// must use /platform/auth/session (which requires MFA challenge).
+// ---------------------------------------------------------------------------
+router.post(
+  "/platform/auth/login",
+  async (req: Request, res: Response): Promise<void> => {
+    const token = extractToken(req);
+
+    if (!token) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    // Verify user via Supabase Auth
+    const authClient = getAuthClient(token);
+    const {
+      data: { user },
+      error: authError,
+    } = await authClient.auth.getUser();
+
+    if (authError || !user) {
+      res.status(401).json({ error: "Unauthorized" });
+      return;
+    }
+
+    const userId = user.id;
+    const cp = getControlPlaneSupabase();
+
+    // Verify user is a platform_admin
+    const { data: adminRow, error: adminError } = await cp
+      .from("platform_admins")
+      .select("user_id, mfa_enabled")
+      .eq("user_id", userId)
+      .single();
+
+    if (adminError || !adminRow) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    // If MFA is enabled, require full MFA session creation flow
+    if (adminRow.mfa_enabled) {
+      res.status(403).json({ error: "MFA required. Use /platform/auth/session." });
+      return;
+    }
+
+    // End any existing active sessions for this user (enforce single-session)
+    await cp
+      .from("control_plane_sessions")
+      .update({ ended_at: new Date().toISOString(), end_reason: "new_session" })
+      .eq("user_id", userId)
+      .is("ended_at", null);
+
+    // Create a new session (mfa_verified=false since MFA not required)
+    const now = new Date().toISOString();
+    const { data: session, error: sessionError } = await cp
+      .from("control_plane_sessions")
+      .insert({
+        user_id: userId,
+        mfa_verified: false,
+        started_at: now,
+        last_seen_at: now,
+      })
+      .select("id")
+      .single();
+
+    if (sessionError || !session) {
+      req.log?.error?.({ err: sessionError }, "session creation failed");
+      res.status(500).json({ error: "Internal server error" });
+      return;
+    }
+
+    // Audit successful sign-in
+    writePlatformAudit({
+      actorId: userId,
+      action: "session_created",
+      entity: "control_plane_session",
+      entityId: session.id,
+      changes: { ip: req.ip ?? "unknown", mfa: false, timestamp: now },
+    });
+
+    res.json({ data: { session_id: session.id } });
+  },
+);
+
 export default router;
