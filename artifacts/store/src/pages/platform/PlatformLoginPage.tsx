@@ -38,7 +38,6 @@ export default function PlatformLoginPage() {
         });
         if (!res.ok) {
           const body = await res.json().catch(() => ({ error: "Session creation failed" }));
-          // If MFA is required, show that error
           setError(body.error ?? `Session failed (${res.status})`);
           setLoading(false);
           return;
@@ -48,8 +47,9 @@ export default function PlatformLoginPage() {
       }
     }
 
-    // Auth state change listener in PlatformAuthProvider will pick up the session
-    setLoading(false);
+    // Force full page reload so PlatformAuthProvider initializes with session already active
+    // This avoids the race condition where dashboard fetches fire before server session exists
+    window.location.reload();
   };
 
   return (

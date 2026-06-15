@@ -156,7 +156,7 @@ function PlatformLayout({ children }: { children: React.ReactNode }) {
 }
 
 function PlatformAuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, loading } = usePlatformAuth();
+  const { user, loading, serverSessionReady } = usePlatformAuth();
 
   if (loading) {
     return (
@@ -166,7 +166,7 @@ function PlatformAuthGuard({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!user) {
+  if (!user || !serverSessionReady) {
     return <PlatformLoginPage />;
   }
 
