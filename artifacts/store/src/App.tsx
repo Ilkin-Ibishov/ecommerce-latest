@@ -40,6 +40,12 @@ import AdminPagesPage from "@/pages/admin/PagesPage";
 import PageEditorPage from "@/pages/admin/PageEditorPage";
 import NotificationCenterPage from "@/pages/admin/NotificationCenterPage";
 
+import StoreDashboardPage from "@/pages/platform/StoreDashboardPage";
+import StoreDetailPage from "@/pages/platform/StoreDetailPage";
+import PlansPage from "@/pages/platform/PlansPage";
+import BillingPage from "@/pages/platform/BillingPage";
+import AnalyticsPage from "@/pages/platform/AnalyticsPage";
+
 const queryClient = new QueryClient();
 const LOCALES = ["az", "ru", "en"];
 
@@ -116,10 +122,49 @@ function StorefrontRoutes({ locale }: { locale: string }) {
   );
 }
 
+function PlatformLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SettingsProvider>
+      <ThemeApplier />
+      <I18nProvider locale="en">
+        <div className="min-h-screen flex flex-col">
+          <header className="border-b bg-background px-6 py-3 flex items-center justify-between">
+            <span className="text-lg font-bold">Platform Control Plane</span>
+            <nav className="flex items-center gap-4 text-sm">
+              <a href="/platform" className="hover:underline">Stores</a>
+              <a href="/platform/plans" className="hover:underline">Plans</a>
+              <a href="/platform/billing" className="hover:underline">Billing</a>
+              <a href="/platform/analytics" className="hover:underline">Analytics</a>
+            </nav>
+          </header>
+          <main className="flex-1 p-6">{children}</main>
+        </div>
+      </I18nProvider>
+    </SettingsProvider>
+  );
+}
+
+function PlatformRoutes() {
+  return (
+    <PlatformLayout>
+      <Switch>
+        <Route path="/platform" component={StoreDashboardPage} />
+        <Route path="/platform/stores/:id">{(params) => <StoreDetailPage />}</Route>
+        <Route path="/platform/plans" component={PlansPage} />
+        <Route path="/platform/billing" component={BillingPage} />
+        <Route path="/platform/analytics" component={AnalyticsPage} />
+        <Route>{() => <Redirect to="/platform" />}</Route>
+      </Switch>
+    </PlatformLayout>
+  );
+}
+
 function Router() {
   return (
     <Switch>
       <Route path="/">{() => <Redirect to="/az" />}</Route>
+      <Route path="/platform">{() => <PlatformRoutes />}</Route>
+      <Route path="/platform/*">{() => <PlatformRoutes />}</Route>
       <Route path="/admin/setup" component={AdminSetupPage} />
       <Route path="/admin">{() => <AdminRoutes />}</Route>
       <Route path="/admin/*">{() => <AdminRoutes />}</Route>
