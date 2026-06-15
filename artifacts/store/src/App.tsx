@@ -38,6 +38,7 @@ import AdminUsersPage from "@/pages/admin/UsersPage";
 import AdminSettingsPage from "@/pages/admin/SettingsPage";
 import AdminPagesPage from "@/pages/admin/PagesPage";
 import PageEditorPage from "@/pages/admin/PageEditorPage";
+import NotificationCenterPage from "@/pages/admin/NotificationCenterPage";
 
 const queryClient = new QueryClient();
 const LOCALES = ["az", "ru", "en"];
@@ -83,6 +84,7 @@ function AdminRoutes() {
         <Route path="/admin/comments" component={AdminCommentsPage} />
         <Route path="/admin/audit" component={AdminAuditPage} />
         <Route path="/admin/settings" component={AdminSettingsPage} />
+        <Route path="/admin/notifications" component={NotificationCenterPage} />
         <Route path="/admin/pages/:id/edit">{(params) => <PageEditorPage pageId={params.id} />}</Route>
         <Route path="/admin/pages" component={AdminPagesPage} />
         <Route>{() => <Redirect to="/admin" />}</Route>

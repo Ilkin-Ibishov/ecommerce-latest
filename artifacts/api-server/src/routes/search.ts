@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { getAdminSupabase } from "../lib/supabase";
+import { platformStatus } from "../middlewares/platformStatus";
 
 const router = Router();
 
 // GET /api/search/suggest?q=...&locale=az
-router.get("/search/suggest", async (req, res): Promise<void> => {
+router.get("/search/suggest", platformStatus("storefront_read"), async (req, res): Promise<void> => {
   const q = Array.isArray(req.query.q) ? req.query.q[0] : req.query.q;
   const locale = Array.isArray(req.query.locale) ? req.query.locale[0] : req.query.locale;
 

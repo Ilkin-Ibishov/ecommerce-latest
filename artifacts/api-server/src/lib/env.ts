@@ -27,3 +27,19 @@ export function resolveSupabaseEnv(source: Record<string, string | undefined>): 
     serviceKey: source.SUPABASE_SERVICE_ROLE_KEY ?? "",
   };
 }
+
+/**
+ * Control_Plane Supabase environment resolution (R9.1, R9.7, R9.8).
+ *
+ * The Control_Plane uses a SEPARATE Supabase project from any Store.
+ * These vars point to the Control_Plane database only — never a store DB.
+ */
+export function resolveControlPlaneEnv(source: Record<string, string | undefined>): {
+  url: string;
+  serviceKey: string;
+} {
+  return {
+    url: source.CONTROL_PLANE_SUPABASE_URL ?? "",
+    serviceKey: source.CONTROL_PLANE_SUPABASE_SERVICE_KEY ?? "",
+  };
+}

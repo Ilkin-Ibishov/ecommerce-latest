@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { getAdminSupabase } from "../lib/supabase";
+import { platformStatus } from "../middlewares/platformStatus";
 
 const router = Router();
 
-// POST /api/products/prices — bulk price check for cart items
-router.post("/products/prices", async (req, res) => {
+// POST /api/products/prices — bulk price check for cart items (storefront_read gated)
+router.post("/products/prices", platformStatus("storefront_read"), async (req, res) => {
   const { product_ids } = req.body;
   if (!Array.isArray(product_ids) || product_ids.length === 0) {
     res.status(400).json({ error: "product_ids array is required" });
@@ -30,9 +31,9 @@ router.post("/products/prices", async (req, res) => {
 });
 
 // GET /api/products/:id/related — uses product_specs (product_categories table doesn't exist)
-router.get("/products/:id/related", async (req, res) => {
+router.get("/products/:id/related", platformStatus("storefront_read"), async (req, res) => {
   const admin = getAdminSupabase();
-  const { id } = req.params;
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   // Find categories for this product via product_specs
   const { data: catSpecs } = await admin
@@ -69,12 +70,13 @@ router.get("/products/:id/related", async (req, res) => {
 });
 
 // GET /api/products/:id/specs
-router.get("/products/:id/specs", async (req, res) => {
+router.get("/products/:id/specs", platformStatus("storefront_read"), async (req, res) => {
   const admin = getAdminSupabase();
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { data } = await admin
     .from("product_specs")
     .select("id, spec_key, spec_value, sort_order")
-    .eq("product_id", req.params.id)
+    .eq("product_id", id)
     .neq("spec_key", "__category")
     .order("sort_order");
   return res.json(data ?? []);

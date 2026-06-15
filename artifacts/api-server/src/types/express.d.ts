@@ -4,6 +4,8 @@
 //   - `user` / `admin`     → set by requireAdmin (admin = service-role client)
 //   - `authUser`           → set by requireUser
 //   - `validatedBody`      → set by validate(schema)
+//   - `superAdmin`         → set by requireSuperAdmin (control-plane auth)
+//   - `serviceActor`       → set by requireServiceCredential (scheduler/system auth)
 //
 // Shared across middlewares (requireAdmin, requireUser, validate) so the
 // augmentation lives in exactly one place. Picked up via tsconfig `include: ["src"]`.
@@ -17,6 +19,8 @@ declare global {
       admin?: SupabaseClient<Database>; // service-role client, attached by requireAdmin
       authUser?: { id: string }; // attached by requireUser
       validatedBody?: unknown; // attached by validate()
+      superAdmin?: { userId: string; sessionId: string }; // attached by requireSuperAdmin
+      serviceActor?: { type: "system" }; // attached by requireServiceCredential
     }
   }
 }

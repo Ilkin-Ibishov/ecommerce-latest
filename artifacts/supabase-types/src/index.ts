@@ -4,9 +4,18 @@
 // `Tables<>` row-type helper from here so the typed Supabase client
 // (`SupabaseClient<Database>`) and `Tables<"products">`-derived row types
 // resolve to one generated schema.
+//
+// The `ControlPlaneDatabase` type represents the CONTROL_PLANE Supabase
+// project's schema — a completely separate database from the store `Database`.
 
 export type { Database } from "./database.types";
 export type { Json } from "./database.types";
+
+export type {
+  ControlPlaneDatabase,
+  ControlPlaneTables,
+  ControlPlanJson,
+} from "./control-plane-database.types";
 
 import type { Database } from "./database.types";
 

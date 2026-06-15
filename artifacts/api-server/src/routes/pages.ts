@@ -4,6 +4,7 @@ import type { Database, Json } from "@workspace/supabase-types";
 import { getAdminSupabase } from "../lib/supabase";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { writeAudit } from "../lib/audit";
+import { platformStatus } from "../middlewares/platformStatus";
 
 /**
  * sanitize-html configuration for sanitizing page content HTML.
@@ -31,7 +32,7 @@ const SLUG_REGEX = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
  * Public endpoint — returns published pages with nav flags, ordered by sort_order ascending.
  * Accepts optional ?locale=xx query param to return titles in the requested locale.
  */
-router.get("/pages", async (req, res): Promise<void> => {
+router.get("/pages", platformStatus("storefront_read"), async (req, res): Promise<void> => {
   const supabase = getAdminSupabase();
   const locale = (req.query.locale as string) ?? "az";
   const resolvedLocale: Locale = SUPPORTED_LOCALES.includes(locale as Locale)
@@ -77,7 +78,7 @@ router.get("/pages", async (req, res): Promise<void> => {
  * Accepts ?locale=xx query param. Falls back: requested locale → az → 404.
  * Only returns published pages.
  */
-router.get("/pages/:slug", async (req, res): Promise<void> => {
+router.get("/pages/:slug", platformStatus("storefront_read"), async (req, res): Promise<void> => {
   const supabase = getAdminSupabase();
   const raw = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
   const slug = raw;

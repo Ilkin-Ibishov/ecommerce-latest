@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { getAdminSupabase } from "../lib/supabase";
+import { platformStatus } from "../middlewares/platformStatus";
 
 const router = Router();
 
-router.get("/banners", async (req, res) => {
+router.get("/banners", platformStatus("storefront_read"), async (req, res) => {
   const admin = getAdminSupabase();
   const { data, error } = await admin
     .from("banners")

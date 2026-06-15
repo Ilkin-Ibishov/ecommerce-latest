@@ -5,6 +5,7 @@ import { getAdminSupabase } from "../lib/supabase";
 import { requireAdmin } from "../middlewares/requireAdmin";
 import { writeAudit } from "../lib/audit";
 import { validateAndUpload, AssetValidationError, type AssetCategory } from "../lib/asset-uploader";
+import { platformStatus } from "../middlewares/platformStatus";
 
 const router: IRouter = Router();
 
@@ -159,7 +160,7 @@ const DEFAULT_SETTINGS = {
  * GET /api/site-settings
  * Public endpoint — returns the full site_settings row or defaults.
  */
-router.get("/site-settings", async (req, res): Promise<void> => {
+router.get("/site-settings", platformStatus("storefront_read"), async (req, res): Promise<void> => {
   const supabase = getAdminSupabase();
 
   const { data, error } = await supabase

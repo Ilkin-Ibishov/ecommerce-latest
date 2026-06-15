@@ -7,7 +7,8 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "gen:control-plane": "supabase gen types typescript --project-id \"$CONTROL_PLANE_SUPABASE_PROJECT_REF\" > src/control-plane-database.types.ts"
   },
   "devDependencies": {
     "typescript": "~5.9.3"

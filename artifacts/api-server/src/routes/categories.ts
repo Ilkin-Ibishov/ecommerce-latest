@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { getAdminSupabase } from "../lib/supabase";
+import { platformStatus } from "../middlewares/platformStatus";
 
 const router = Router();
 
 // GET /api/categories/:slug/products
 // Returns products for a category using product_specs (workaround for missing product_categories table)
-router.get("/categories/:slug/products", async (req, res) => {
+router.get("/categories/:slug/products", platformStatus("storefront_read"), async (req, res) => {
   const admin = getAdminSupabase();
   const slug = Array.isArray(req.params.slug) ? req.params.slug[0] : req.params.slug;
   const page = Math.max(1, parseInt((req.query.page as string) ?? "1", 10));
@@ -55,7 +56,7 @@ router.get("/categories/:slug/products", async (req, res) => {
 });
 
 // GET /api/categories — list all categories with translations
-router.get("/categories", async (req, res) => {
+router.get("/categories", platformStatus("storefront_read"), async (req, res) => {
   const admin = getAdminSupabase();
   const { data } = await admin
     .from("categories")

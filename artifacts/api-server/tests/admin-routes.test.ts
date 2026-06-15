@@ -56,6 +56,8 @@ function indexOf(method: string, path: string): number {
 
 // The complete inventory of admin endpoints the split must preserve (R9.4).
 const EXPECTED_ROUTES = [
+  // usage.ts
+  "GET /admin/usage",
   // products.ts
   "POST /admin/upload",
   "POST /admin/products",

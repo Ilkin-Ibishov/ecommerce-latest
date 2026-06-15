@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Tables } from "@workspace/supabase-types";
 import { getAdminSupabase } from "../lib/supabase";
 import { requireUser } from "../middlewares/requireUser";
+import { platformStatus } from "../middlewares/platformStatus";
 import { queueNotification } from "../lib/notifications";
 import { calculateDiscount } from "../lib/coupon-calc";
 import { decrementStockSafe } from "../lib/rpc";
@@ -13,7 +14,7 @@ interface OrderItemInput {
   quantity: number;
 }
 
-router.post("/orders", requireUser, async (req, res) => {
+router.post("/orders", platformStatus("order_submit"), requireUser, async (req, res) => {
   const user = { id: req.authUser!.id };
 
   const { items, customer_name, customer_phone, delivery_address, notes, coupon_code } = req.body;

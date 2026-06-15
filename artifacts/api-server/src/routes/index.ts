@@ -18,6 +18,8 @@ import profileRouter from "./profile";
 import siteSettingsRouter from "./site-settings";
 import pagesRouter from "./pages";
 import productImagesRouter from "./product-images";
+import platformRouter from "./platform";
+import storeMetricsRouter from "./store-metrics";
 
 const router: IRouter = Router();
 
@@ -39,6 +41,8 @@ router.use(categoriesRouter);
 router.use(siteSettingsRouter);
 router.use(pagesRouter);
 router.use(productImagesRouter);
+router.use(storeMetricsRouter);
+router.use(platformRouter);
 
 // Dev/test routes — only active outside production
 if (process.env.NODE_ENV !== "production") {

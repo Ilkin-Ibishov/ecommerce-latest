@@ -2,6 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { getAdminSupabase } from "../../lib/supabase";
 import { requireAdmin } from "../../middlewares/requireAdmin";
+import { enforceQuota } from "../../middlewares/enforceQuota";
 import { validate } from "../../middlewares/validate";
 import { CreateProductSchema, UpdateProductSchema } from "./schemas";
 import { writeAudit } from "../../lib/audit";
@@ -37,7 +38,7 @@ router.post("/admin/upload", upload.single("file"), requireAdmin, async (req: an
   return res.json({ url: publicUrl });
 });
 
-router.post("/admin/products", requireAdmin, validate(CreateProductSchema), async (req, res) => {
+router.post("/admin/products", requireAdmin, enforceQuota("products"), validate(CreateProductSchema), async (req, res) => {
   const ctx = { admin: req.admin!, user: req.user! };
   const { sku, slug, price, stock, is_featured, is_on_sale, is_deal_of_day, sort_order,
     brand, original_price, translations, images, category_ids, specs } = req.body;
