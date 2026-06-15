@@ -31,6 +31,13 @@ import { logger } from "../lib/logger";
 export function enforceQuota(resource: string, requested = 1) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
+      // Skip quota enforcement entirely if platform integration isn't configured
+      const quotaUrl = process.env.PLATFORM_QUOTA_URL;
+      if (!quotaUrl) {
+        next();
+        return;
+      }
+
       // 1. Fetch effective limits from Control_Plane
       const limits = await fetchQuotaLimits();
       const limit = getEffectiveLimit(limits, resource);
