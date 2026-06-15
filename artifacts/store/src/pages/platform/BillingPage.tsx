@@ -10,7 +10,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import { apiUrl } from "@/lib/api";
+import { platformFetch } from "@/lib/platform/fetch";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -76,7 +76,7 @@ export default function BillingPage() {
     const controller = new AbortController();
     setStoresLoading(true);
 
-    fetch(apiUrl("/platform/stores?pageSize=200"), { signal: controller.signal })
+    platformFetch("/platform/stores?pageSize=200", { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Failed to fetch stores (${res.status})`);
         return res.json();
@@ -108,7 +108,7 @@ export default function BillingPage() {
       setLoading(true);
       setError(null);
       try {
-        const res = await fetch(apiUrl(`/platform/stores/${storeId}/invoices`));
+        const res = await platformFetch(`/platform/stores/${storeId}/invoices`);
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
           throw new Error(body.error ?? `Request failed (${res.status})`);
@@ -137,7 +137,7 @@ export default function BillingPage() {
   const handleMarkPaid = async (invoiceId: string) => {
     setMarkingPaidId(invoiceId);
     try {
-      const res = await fetch(apiUrl(`/platform/invoices/${invoiceId}/pay`), {
+      const res = await platformFetch(`/platform/invoices/${invoiceId}/pay`, {
         method: "POST",
       });
       if (!res.ok) {

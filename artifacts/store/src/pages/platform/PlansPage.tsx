@@ -6,7 +6,7 @@ import { Pagination } from "@/components/admin/Pagination";
 import { TableEmptyState } from "@/components/admin/TableEmptyState";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useConfirm } from "@/lib/hooks/useConfirm";
-import { apiUrl } from "@/lib/api";
+import { platformFetch } from "@/lib/platform/fetch";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
@@ -53,7 +53,7 @@ export default function PlansPage() {
       params.set("page", String(page));
       params.set("pageSize", String(args.limit));
 
-      const res = await fetch(apiUrl(`/platform/plans?${params.toString()}`), {
+      const res = await platformFetch(`/platform/plans?${params.toString()}`, {
         signal: args.signal,
       });
       if (!res.ok) throw new Error(`Failed to fetch plans: ${res.status}`);
@@ -126,11 +126,11 @@ export default function PlansPage() {
     setSubmitting(true);
     try {
       const url = editingId
-        ? apiUrl(`/platform/plans/${editingId}`)
-        : apiUrl("/platform/plans");
+        ? `/platform/plans/${editingId}`
+        : "/platform/plans";
       const method = editingId ? "PATCH" : "POST";
 
-      const res = await fetch(url, {
+      const res = await platformFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -155,7 +155,7 @@ export default function PlansPage() {
       message: t("Platform.plans.archiveConfirmMessage"),
       destructive: true,
       onConfirm: async () => {
-        await fetch(apiUrl(`/platform/plans/${row.id}/archive`), { method: "POST" });
+        await platformFetch(`/platform/plans/${row.id}/archive`, { method: "POST" });
         window.location.reload();
       },
     });
@@ -167,7 +167,7 @@ export default function PlansPage() {
       message: t("Platform.plans.deleteConfirmMessage"),
       destructive: true,
       onConfirm: async () => {
-        await fetch(apiUrl(`/platform/plans/${row.id}`), { method: "DELETE" });
+        await platformFetch(`/platform/plans/${row.id}`, { method: "DELETE" });
         window.location.reload();
       },
     });

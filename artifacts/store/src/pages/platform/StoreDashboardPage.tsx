@@ -5,7 +5,7 @@ import { useAdminList } from "@/lib/hooks/useAdminList";
 import { DataTable, type Column } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
 import { TableEmptyState } from "@/components/admin/TableEmptyState";
-import { apiUrl } from "@/lib/api";
+import { platformFetch } from "@/lib/platform/fetch";
 import { cn } from "@/lib/utils";
 
 const PAGE_SIZE = 20;
@@ -64,7 +64,7 @@ function StoreDashboardView({ subscriptionStatus }: { subscriptionStatus: string
         params.set("subscription_status", subscriptionStatus);
       }
 
-      const res = await fetch(apiUrl(`/platform/stores?${params.toString()}`), {
+      const res = await platformFetch(`/platform/stores?${params.toString()}`, {
         signal: args.signal,
       });
       if (!res.ok) throw new Error(`Failed to fetch stores: ${res.status}`);
@@ -233,12 +233,12 @@ function StoreDashboardView({ subscriptionStatus }: { subscriptionStatus: string
 }
 
 async function handleSuspend(storeId: string) {
-  await fetch(apiUrl(`/platform/stores/${storeId}/suspend`), { method: "POST" });
+  await platformFetch(`/platform/stores/${storeId}/suspend`, { method: "POST" });
   window.location.reload();
 }
 
 async function handleReactivate(storeId: string) {
-  await fetch(apiUrl(`/platform/stores/${storeId}/reactivate`), { method: "POST" });
+  await platformFetch(`/platform/stores/${storeId}/reactivate`, { method: "POST" });
   window.location.reload();
 }
 

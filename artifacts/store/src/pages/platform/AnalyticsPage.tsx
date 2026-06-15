@@ -10,7 +10,7 @@
  */
 import { useState, useEffect, useCallback } from "react";
 import { useI18n } from "@/lib/i18n/context";
-import { apiUrl } from "@/lib/api";
+import { platformFetch } from "@/lib/platform/fetch";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -92,8 +92,8 @@ export default function AnalyticsPage() {
         if (fromDate) params.set("from", fromDate);
         if (toDate) params.set("to", toDate);
 
-        const res = await fetch(
-          apiUrl(`/platform/analytics?${params.toString()}`),
+        const res = await platformFetch(
+          `/platform/analytics?${params.toString()}`,
         );
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "wouter";
 import { useI18n } from "@/lib/i18n/context";
-import { apiUrl } from "@/lib/api";
+import { platformFetch } from "@/lib/platform/fetch";
 import { cn } from "@/lib/utils";
 
 interface StoreDetail {
@@ -61,7 +61,7 @@ export default function StoreDetailPage() {
     setLoading(true);
     setError(null);
 
-    fetch(apiUrl(`/platform/stores/${storeId}`), { signal: controller.signal })
+    platformFetch(`/platform/stores/${storeId}`, { signal: controller.signal })
       .then((res) => {
         if (!res.ok) throw new Error(`Failed to fetch store: ${res.status}`);
         return res.json();
@@ -236,16 +236,16 @@ function MetricCard({ label, value }: { label: string; value: string }) {
 }
 
 async function handleSuspend(storeId: string) {
-  await fetch(apiUrl(`/platform/stores/${storeId}/suspend`), { method: "POST" });
+  await platformFetch(`/platform/stores/${storeId}/suspend`, { method: "POST" });
   window.location.reload();
 }
 
 async function handleReactivate(storeId: string) {
-  await fetch(apiUrl(`/platform/stores/${storeId}/reactivate`), { method: "POST" });
+  await platformFetch(`/platform/stores/${storeId}/reactivate`, { method: "POST" });
   window.location.reload();
 }
 
 async function handleActivate(storeId: string) {
-  await fetch(apiUrl(`/platform/stores/${storeId}/activate`), { method: "POST" });
+  await platformFetch(`/platform/stores/${storeId}/activate`, { method: "POST" });
   window.location.reload();
 }
