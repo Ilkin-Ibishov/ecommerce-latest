@@ -10,7 +10,9 @@
     "env": {
       "VITE_API_URL": "https://api-server-production-2fcc.up.railway.app/api",
       "VITE_SUPABASE_URL": "https://pnzhfqgrlcmwjzcdduxh.supabase.co",
-      "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBuemhmcWdybGNtd2p6Y2RkdXhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDM3NjAsImV4cCI6MjA5NDA3OTc2MH0.jT8SqGmNT-i6AKyS7Mu_QjeL5tIJbkOxXB-Wb37WOV4"
+      "VITE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBuemhmcWdybGNtd2p6Y2RkdXhoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1MDM3NjAsImV4cCI6MjA5NDA3OTc2MH0.jT8SqGmNT-i6AKyS7Mu_QjeL5tIJbkOxXB-Wb37WOV4",
+      "VITE_CONTROL_PLANE_SUPABASE_URL": "https://bffnmbsjahgmvhaqyugz.supabase.co",
+      "VITE_CONTROL_PLANE_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJmZm5tYnNqYWhnbXZoYXF5dWd6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1MDM4MDgsImV4cCI6MjA5NzA3OTgwOH0.IvyjYZ4kvpfDj4TP_-V3W0Ee26r300wz_IiV0ceJdq4"
     }
   }
 }

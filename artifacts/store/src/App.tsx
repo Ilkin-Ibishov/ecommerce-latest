@@ -45,6 +45,8 @@ import StoreDetailPage from "@/pages/platform/StoreDetailPage";
 import PlansPage from "@/pages/platform/PlansPage";
 import BillingPage from "@/pages/platform/BillingPage";
 import AnalyticsPage from "@/pages/platform/AnalyticsPage";
+import PlatformLoginPage from "@/pages/platform/PlatformLoginPage";
+import { PlatformAuthProvider, usePlatformAuth } from "@/lib/platform/context";
 
 const queryClient = new QueryClient();
 const LOCALES = ["az", "ru", "en"];
@@ -123,6 +125,7 @@ function StorefrontRoutes({ locale }: { locale: string }) {
 }
 
 function PlatformLayout({ children }: { children: React.ReactNode }) {
+  const { signOut, user } = usePlatformAuth();
   return (
     <SettingsProvider>
       <ThemeApplier />
@@ -135,6 +138,14 @@ function PlatformLayout({ children }: { children: React.ReactNode }) {
               <a href="/platform/plans" className="hover:underline">Plans</a>
               <a href="/platform/billing" className="hover:underline">Billing</a>
               <a href="/platform/analytics" className="hover:underline">Analytics</a>
+              {user && (
+                <button
+                  onClick={() => signOut()}
+                  className="text-xs text-muted-foreground hover:text-foreground transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded px-2 py-1"
+                >
+                  Sign Out
+                </button>
+              )}
             </nav>
           </header>
           <main className="flex-1 p-6">{children}</main>
@@ -144,18 +155,40 @@ function PlatformLayout({ children }: { children: React.ReactNode }) {
   );
 }
 
+function PlatformAuthGuard({ children }: { children: React.ReactNode }) {
+  const { user, loading } = usePlatformAuth();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <span className="text-muted-foreground text-sm">Loading...</span>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <PlatformLoginPage />;
+  }
+
+  return <>{children}</>;
+}
+
 function PlatformRoutes() {
   return (
-    <PlatformLayout>
-      <Switch>
-        <Route path="/platform" component={StoreDashboardPage} />
-        <Route path="/platform/stores/:id">{(params) => <StoreDetailPage />}</Route>
-        <Route path="/platform/plans" component={PlansPage} />
-        <Route path="/platform/billing" component={BillingPage} />
-        <Route path="/platform/analytics" component={AnalyticsPage} />
-        <Route>{() => <Redirect to="/platform" />}</Route>
-      </Switch>
-    </PlatformLayout>
+    <PlatformAuthProvider>
+      <PlatformAuthGuard>
+        <PlatformLayout>
+          <Switch>
+            <Route path="/platform" component={StoreDashboardPage} />
+            <Route path="/platform/stores/:id">{(params) => <StoreDetailPage />}</Route>
+            <Route path="/platform/plans" component={PlansPage} />
+            <Route path="/platform/billing" component={BillingPage} />
+            <Route path="/platform/analytics" component={AnalyticsPage} />
+            <Route>{() => <Redirect to="/platform" />}</Route>
+          </Switch>
+        </PlatformLayout>
+      </PlatformAuthGuard>
+    </PlatformAuthProvider>
   );
 }
 
