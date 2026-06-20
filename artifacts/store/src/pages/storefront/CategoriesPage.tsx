@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "wouter";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/lib/i18n/context";
+import BouncingLoader from "@/components/ui/BouncingLoader";
 
 export default function CategoriesPage({ locale }: { locale: string }) {
   const [categories, setCategories] = useState<any[]>([]);
@@ -20,7 +21,7 @@ export default function CategoriesPage({ locale }: { locale: string }) {
   const getTitle = (translations: any[] | null) =>
     translations?.find((t: any) => t.lang_code === locale)?.title ?? translations?.[0]?.title ?? "Untitled";
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">{t("Common.loading")}</div>;
+  if (loading) return <div className="flex items-center justify-center min-h-[60vh]"><BouncingLoader /></div>;
 
   return (
     <div className="container mx-auto px-4 py-8">

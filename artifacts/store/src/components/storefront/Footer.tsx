@@ -81,19 +81,19 @@ export default function StorefrontFooter({ locale }: { locale: string }) {
             {hasSocialLinks && (
               <div className="flex items-center gap-3 mt-4">
                 {instagramUrl && (
-                  <a href={instagramUrl} target="_blank" rel="noreferrer"
+                  <a href={instagramUrl} target="_blank" rel="noreferrer" aria-label="Instagram"
                     className="w-8 h-8 rounded-lg bg-muted hover:bg-primary hover:text-primary-foreground flex items-center justify-center transition">
                     <Instagram size={15} />
                   </a>
                 )}
                 {facebookUrl && (
-                  <a href={facebookUrl} target="_blank" rel="noreferrer"
+                  <a href={facebookUrl} target="_blank" rel="noreferrer" aria-label="Facebook"
                     className="w-8 h-8 rounded-lg bg-muted hover:bg-primary hover:text-primary-foreground flex items-center justify-center transition">
                     <Facebook size={15} />
                   </a>
                 )}
                 {telegramUrl && (
-                  <a href={telegramUrl} target="_blank" rel="noreferrer"
+                  <a href={telegramUrl} target="_blank" rel="noreferrer" aria-label="Telegram"
                     className="w-8 h-8 rounded-lg bg-muted hover:bg-primary hover:text-primary-foreground flex items-center justify-center transition">
                     <Send size={15} />
                   </a>

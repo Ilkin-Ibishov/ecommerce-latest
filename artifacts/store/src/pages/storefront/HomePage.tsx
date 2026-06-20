@@ -137,7 +137,7 @@ export default function HomePage({ locale }: { locale: string }) {
 
   if (loading) return (
     <div className="container mx-auto px-4">
-      <BouncingLoader label="Yüklənir…" className="min-h-[60vh]" />
+      <BouncingLoader className="min-h-[60vh]" />
     </div>
   );
 

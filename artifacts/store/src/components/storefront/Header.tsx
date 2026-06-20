@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { ShoppingCart, Search, User, Menu, X, Heart, LogOut, Package } from "lucide-react";
 import CartDrawer from "./CartDrawer";
 import { LoginModal } from "@/components/auth/LoginModal";
@@ -70,6 +70,7 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
   };
 
   const storeName = getStoreName(locale);
+  const [, navigate] = useLocation();
 
   return (
     <>
@@ -241,7 +242,14 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
         locale={locale}
         onSearchClick={() => setSearchOpen(true)}
         onCartClick={() => setCartOpen(true)}
-        onAccountClick={() => user ? setUserMenuOpen(true) : setLoginOpen(true)}
+        onAccountClick={() => {
+          if (user) {
+            // Navigate to profile on mobile (dropdown is desktop-only)
+            navigate(`/${locale}/profile`);
+          } else {
+            setLoginOpen(true);
+          }
+        }}
       />
 
       <CartDrawer open={cartOpen} onClose={() => setCartOpen(false)} locale={locale} />

@@ -87,12 +87,12 @@ export default function ProductCard({
         {/* Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
           {discount && !outOfStock && (
-            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+            <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
               -{discount}%
             </span>
           )}
           {isOnSale && !discount && !outOfStock && (
-            <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+            <span className="bg-red-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
               {t("ProductCard.sale")}
             </span>
           )}

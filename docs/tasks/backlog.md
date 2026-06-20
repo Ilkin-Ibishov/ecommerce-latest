@@ -132,3 +132,22 @@ No root `vitest.workspace.ts`; repeated `"types": ["node"]` and identical `typec
 5. Follow-up: H6, H7, M2–M8, L1–L4
 
 Steps 1–4 capture ~80% of the value.
+
+
+---
+
+## ScoutQA Findings — Quick Fixes
+
+### S1 — Add maxLength attributes to checkout form inputs
+**Severity:** LOW (UX hygiene)
+**Scope:** `artifacts/store/src/pages/storefront/CheckoutPage.tsx`
+Checkout form inputs (name, phone, address, notes, coupon code) lack `maxLength` HTML attributes. While the server accepts any length (PostgreSQL text has no limit), adding client-side limits improves UX and prevents accidental abuse.
+**Fix:** Add `maxLength` prop to the `Field` component and individual inputs:
+- Name: 100
+- Phone: 20
+- Address: 500
+- Notes: 500
+- Coupon code: 50
+
+Also consider adding `maxLength` to the server-side validation in `POST /orders` body parsing.
+**Files:** `artifacts/store/src/pages/storefront/CheckoutPage.tsx`, optionally `artifacts/api-server/src/routes/orders.ts`.

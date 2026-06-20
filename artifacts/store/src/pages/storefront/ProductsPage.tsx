@@ -248,12 +248,12 @@ export default function ProductsPage({ locale }: { locale: string }) {
         {/* Desktop sidebar */}
         <aside className="hidden md:block w-56 shrink-0">
           <div className="bg-card border border-border rounded-xl p-4 sticky top-20">
-            <h3 className="font-semibold mb-4 flex items-center gap-2">
+            <h2 className="font-semibold mb-4 flex items-center gap-2">
               <Filter size={16} /> {t("Products.filters")}
               {activeFilterCount > 0 && (
                 <span className="ml-auto text-xs text-primary font-medium">{activeFilterCount} {t("Products.active")}</span>
               )}
-            </h3>
+            </h2>
             <FilterSidebar />
           </div>
         </aside>
@@ -327,7 +327,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
           )}
 
           {loading ? (
-            <BouncingLoader label={t("Products.loading")} className="py-32" />
+            <BouncingLoader className="py-32" />
           ) : products.length === 0 ? (
             <div className="text-center py-24 text-muted-foreground">
               <p className="text-xl">{t("Products.noProductsFound")}</p>
