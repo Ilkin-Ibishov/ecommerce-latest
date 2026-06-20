@@ -96,13 +96,13 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
         className={`fixed top-0 right-0 z-50 h-full w-full max-w-md bg-background shadow-2xl flex flex-col transition-transform duration-300 ${open ? "translate-x-0" : "translate-x-full"}`}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
-          <h2 className="font-bold text-lg flex items-center gap-2">
+          <div className="font-bold text-lg flex items-center gap-2">
             <ShoppingBag size={20} />
             {t("CartDrawer.cart")}
             {itemCount > 0 && (
               <span className="text-sm bg-primary text-primary-foreground rounded-full px-2 py-0.5 font-medium">{itemCount}</span>
             )}
-          </h2>
+          </div>
           <button onClick={onClose} className="p-2 rounded-lg hover:bg-accent transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" aria-label="Close cart">
             <X size={20} />
           </button>

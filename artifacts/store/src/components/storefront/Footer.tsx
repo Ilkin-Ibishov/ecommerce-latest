@@ -117,10 +117,10 @@ export default function StorefrontFooter({ locale }: { locale: string }) {
           <div>
             <h4 className="font-semibold mb-3 text-sm text-foreground">{t("Footer.info")}</h4>
             <ul className="space-y-2 text-sm">
-              {footerPages.map((page) => (
+              {footerPages.filter((page) => page.title).map((page) => (
                 <li key={page.id}>
-                  <Link href={`/${locale}/page/${page.slug}`} className="hover:text-primary transition">
-                    {page.title}
+                  <Link href={`/${locale}/page/${page.slug}`} className="hover:text-primary transition" aria-label={page.title || page.slug}>
+                    {page.title || page.slug}
                   </Link>
                 </li>
               ))}

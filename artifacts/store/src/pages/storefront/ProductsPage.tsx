@@ -248,12 +248,12 @@ export default function ProductsPage({ locale }: { locale: string }) {
         {/* Desktop sidebar */}
         <aside className="hidden md:block w-56 shrink-0">
           <div className="bg-card border border-border rounded-xl p-4 sticky top-20">
-            <h2 className="font-semibold mb-4 flex items-center gap-2">
+            <div className="font-semibold mb-4 flex items-center gap-2" role="heading" aria-level={2}>
               <Filter size={16} /> {t("Products.filters")}
               {activeFilterCount > 0 && (
                 <span className="ml-auto text-xs text-primary font-medium">{activeFilterCount} {t("Products.active")}</span>
               )}
-            </h2>
+            </div>
             <FilterSidebar />
           </div>
         </aside>
