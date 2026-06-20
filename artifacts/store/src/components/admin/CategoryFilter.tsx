@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getTranslatedField } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/context";
 
 interface CategoryFilterProps {
   value: string | null;
@@ -8,6 +9,7 @@ interface CategoryFilterProps {
 }
 
 export function CategoryFilter({ value, onFilter }: CategoryFilterProps) {
+  const { t } = useI18n();
   const [categories, setCategories] = useState<{ id: string; title: string }[]>([]);
 
   useEffect(() => {
@@ -32,7 +34,7 @@ export function CategoryFilter({ value, onFilter }: CategoryFilterProps) {
       onChange={(e) => onFilter(e.target.value || null)}
       className="px-3 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none"
     >
-      <option value="">All categories</option>
+      <option value="">{t("Admin.Common.allCategories")}</option>
       {categories.map((c) => (
         <option key={c.id} value={c.id}>
           {c.title}

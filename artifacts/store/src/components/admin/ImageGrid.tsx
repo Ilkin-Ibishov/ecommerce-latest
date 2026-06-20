@@ -3,6 +3,7 @@ import { Trash2, GripVertical } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { apiUrl } from "@/lib/api";
 import { getProxyUrl } from "@/lib/image-proxy";
+import { useI18n } from "@/lib/i18n/context";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 
 export interface ProductImage {
@@ -32,6 +33,7 @@ const SOURCE_BADGE_STYLES: Record<string, string> = {
  * delete confirmation, source badges, and primary indicator.
  */
 export function ImageGrid({ productId, images, onReorder, onDelete }: ImageGridProps) {
+  const { t } = useI18n();
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [isReordering, setIsReordering] = useState(false);
@@ -235,6 +237,7 @@ export function ImageGrid({ productId, images, onReorder, onDelete }: ImageGridP
         title={confirmState.title}
         message={confirmState.message}
         confirmLabel="Delete"
+        cancelLabel={t("Admin.Common.cancel")}
         destructive={true}
         onConfirm={confirmState.onConfirm}
         onCancel={() => setConfirmState((s) => ({ ...s, open: false }))}

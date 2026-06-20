@@ -8,6 +8,7 @@ import ImageExtension from "@tiptap/extension-image";
 import { adminJson } from "@/lib/admin-fetch";
 import { apiUrl } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n/context";
 import { EditorToolbar } from "@/components/admin/page-editor/EditorToolbar";
 import { ToggleSwitch } from "@/components/admin/page-editor/ToggleSwitch";
 
@@ -48,6 +49,7 @@ const LOCALE_LABELS: Record<Locale, string> = { az: "Azərbaycan", ru: "Русс
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function PageEditorPage({ pageId }: { pageId: string }) {
+  const { t } = useI18n();
   const [, navigate] = useLocation();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -235,22 +237,22 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
       }
 
       if (!trimmedSlug) {
-        errors.slug = "Slug is required. Enter a page slug or fill in the title to auto-generate one.";
+        errors.slug = t("Admin.PageEditor.slugRequired");
       } else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(trimmedSlug)) {
-        errors.slug = "Slug must be lowercase letters, numbers, and hyphens (e.g. about-us).";
+        errors.slug = t("Admin.PageEditor.slugInvalid");
       }
     }
 
     // Title is required for the active locale
     const activeTitle = currentTranslations[activeLocale].title.trim();
     if (!activeTitle) {
-      errors.title = "Title is required.";
+      errors.title = t("Admin.PageEditor.titleRequired");
     }
 
     if (Object.keys(errors).length > 0) {
       setValidationErrors(errors);
       toast({
-        title: "Validation failed",
+        title: t("Admin.PageEditor.validationFailed"),
         description: Object.values(errors).join(" "),
         variant: "destructive",
       });
@@ -290,25 +292,25 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
       }
 
       // Save the active locale's translation
-      const t = currentTranslations[activeLocale];
+      const tr = currentTranslations[activeLocale];
       await adminJson(apiUrl(`/admin/pages/${targetPageId}/translations/${activeLocale}`), {
         method: "PUT",
         body: JSON.stringify({
-          title: t.title || "Untitled",
-          content: t.content,
-          meta_title: t.meta_title || null,
-          meta_description: t.meta_description || null,
+          title: tr.title || "Untitled",
+          content: tr.content,
+          meta_title: tr.meta_title || null,
+          meta_description: tr.meta_description || null,
         }),
       });
 
-      toast({ title: "Saved", description: `Translation for ${LOCALE_LABELS[activeLocale]} saved successfully.` });
+      toast({ title: t("Admin.PageEditor.saved"), description: t("Admin.PageEditor.savedDescription").replace("{locale}", LOCALE_LABELS[activeLocale]) });
 
       // After creating a new page, navigate to its edit URL
       if (isNew && targetPageId) {
         navigate(`/admin/pages/${targetPageId}/edit`);
       }
     } catch (err: any) {
-      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+      toast({ title: t("Admin.PageEditor.validationFailed"), description: err.message, variant: "destructive" });
     } finally {
       setSaving(false);
     }
@@ -336,9 +338,9 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
   if (!page && pageId !== "new") {
     return (
       <div className="text-center py-20 text-muted-foreground">
-        <p>Page not found.</p>
+        <p>{t("Admin.PageEditor.notFound")}</p>
         <Link href="/admin/pages" className="text-primary underline mt-2 inline-block">
-          Back to pages
+          {t("Admin.PageEditor.backToPages")}
         </Link>
       </div>
     );
@@ -361,11 +363,11 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
           </Link>
           <div>
             <h1 className="text-2xl font-bold">
-              {page ? `Edit: ${page.slug}` : "New Page"}
+              {page ? t("Admin.PageEditor.editPage").replace("{slug}", page.slug) : t("Admin.PageEditor.newPage")}
             </h1>
             {page?.is_system && (
               <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 border border-blue-500/20 mt-1">
-                System Page
+                {t("Admin.PageEditor.systemPage")}
               </span>
             )}
           </div>
@@ -376,7 +378,7 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
           className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50"
         >
           {saving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
-          {saving ? "Saving…" : "Save"}
+          {saving ? t("Admin.Common.saving") : t("Admin.Common.save")}
         </button>
       </div>
 
@@ -384,7 +386,7 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
       {isNew && (
         <div className="bg-card border border-border rounded-xl p-5">
           <h2 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wide">
-            Page Slug
+            {t("Admin.PageEditor.pageSlug")}
           </h2>
           <input
             type="text"
@@ -394,7 +396,7 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
               setSlugManuallyEdited(true);
               setValidationErrors((prev) => ({ ...prev, slug: undefined }));
             }}
-            placeholder="e.g. about-us (auto-generated from title)"
+            placeholder={t("Admin.PageEditor.slugPlaceholder")}
             className={`w-full px-3 py-2 rounded-lg border bg-background text-sm font-mono focus:outline-none focus:ring-2 focus:ring-ring ${
               validationErrors.slug ? "border-destructive" : "border-border"
             }`}
@@ -403,7 +405,7 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
             <p className="text-destructive text-xs mt-1">{validationErrors.slug}</p>
           ) : (
             <p className="text-xs text-muted-foreground mt-1">
-              Lowercase letters, numbers, and hyphens. The page will be at /{slug || "your-slug"}.
+              {t("Admin.PageEditor.slugHint").replace("{slug}", slug || "your-slug")}
             </p>
           )}
         </div>
@@ -412,16 +414,16 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
       {/* Navigation Toggles */}
       <div className="bg-card border border-border rounded-xl p-5">
         <h2 className="font-semibold text-sm mb-3 text-muted-foreground uppercase tracking-wide">
-          Navigation Placement
+          {t("Admin.PageEditor.navigationPlacement")}
         </h2>
         <div className="flex gap-6">
           <ToggleSwitch
-            label="Show in header"
+            label={t("Admin.PageEditor.showInHeader")}
             checked={showInHeader}
             onChange={setShowInHeader}
           />
           <ToggleSwitch
-            label="Show in footer"
+            label={t("Admin.PageEditor.showInFooter")}
             checked={showInFooter}
             onChange={setShowInFooter}
           />
@@ -449,7 +451,7 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
         <div className="p-5 space-y-4">
           {/* Title field */}
           <div className="space-y-1">
-            <label className="block text-sm font-medium">Title</label>
+            <label className="block text-sm font-medium">{t("Admin.PageEditor.title")}</label>
             <input
               type="text"
               value={currentTranslation.title}
@@ -463,7 +465,7 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
                 }
               }}
               maxLength={200}
-              placeholder="Page title…"
+              placeholder={t("Admin.PageEditor.titlePlaceholder")}
               className={`w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring ${
                 validationErrors.title ? "border-destructive" : "border-border"
               }`}
@@ -475,7 +477,7 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
 
           {/* TipTap Editor */}
           <div className="space-y-1">
-            <label className="block text-sm font-medium">Content</label>
+            <label className="block text-sm font-medium">{t("Admin.PageEditor.content")}</label>
             <div className="border border-border rounded-lg overflow-hidden bg-background">
               <EditorToolbar editor={editor} />
               <EditorContent editor={editor} />
@@ -487,36 +489,36 @@ export default function PageEditorPage({ pageId }: { pageId: string }) {
       {/* SEO Fields */}
       <div className="bg-card border border-border rounded-xl p-5 space-y-4">
         <h2 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-          SEO
+          {t("Admin.PageEditor.seo")}
         </h2>
 
         <div className="space-y-1">
-          <label className="block text-sm font-medium">Meta Title</label>
+          <label className="block text-sm font-medium">{t("Admin.PageEditor.metaTitle")}</label>
           <input
             type="text"
             value={currentTranslation.meta_title}
             onChange={(e) => updateField("meta_title", e.target.value)}
             maxLength={160}
-            placeholder="SEO page title (max 160 characters)"
+            placeholder={t("Admin.PageEditor.metaTitlePlaceholder")}
             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           />
           <p className="text-xs text-muted-foreground">
-            {currentTranslation.meta_title.length}/160 characters
+            {t("Admin.PageEditor.metaTitleCount").replace("{count}", String(currentTranslation.meta_title.length))}
           </p>
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm font-medium">Meta Description</label>
+          <label className="block text-sm font-medium">{t("Admin.PageEditor.metaDescription")}</label>
           <textarea
             value={currentTranslation.meta_description}
             onChange={(e) => updateField("meta_description", e.target.value)}
             maxLength={500}
             rows={3}
-            placeholder="SEO description (max 500 characters)"
+            placeholder={t("Admin.PageEditor.metaDescPlaceholder")}
             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
           />
           <p className="text-xs text-muted-foreground">
-            {currentTranslation.meta_description.length}/500 characters
+            {t("Admin.PageEditor.metaDescCount").replace("{count}", String(currentTranslation.meta_description.length))}
           </p>
         </div>
       </div>

@@ -6,6 +6,7 @@ import { apiUrl } from "@/lib/api";
 import { adminFetch, adminJson } from "@/lib/admin-fetch";
 import imageCompression from "browser-image-compression";
 import { ProductImagePanel } from "@/components/admin/ProductImagePanel";
+import { useI18n } from "@/lib/i18n/context";
 
 const LANGS = ["az", "ru", "en"];
 const LANG_LABELS: Record<string, string> = { az: "Azərbaycan", ru: "Русский", en: "English" };
@@ -15,6 +16,7 @@ interface ImageItem { url: string; alt_text: string }
 interface SpecRow { key: string; value: string }
 
 export default function ProductFormPage({ productId }: { productId?: string }) {
+  const { t } = useI18n();
   const [, navigate] = useLocation();
   const fileRef = useRef<HTMLInputElement>(null);
   const [activeLang, setActiveLang] = useState("az");
@@ -113,7 +115,7 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
 
   const handleSave = async () => {
     if (!slug.trim() || !translations.some((t) => t.title.trim())) {
-      setError("Please fill in slug and at least one title."); return;
+      setError(t("Admin.ProductForm.validationError")); return;
     }
     setSaving(true); setError("");
     const body = {
@@ -138,23 +140,23 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
   };
 
   const currentT = translations.find((t) => t.lang_code === activeLang)!;
-  if (loadingProduct) return <div className="text-muted-foreground">Loading...</div>;
+  if (loadingProduct) return <div className="text-muted-foreground">{t("Admin.Common.loading")}</div>;
 
   if (loadError) return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-4">
-        <Link href="/admin/products" className="text-muted-foreground hover:text-foreground text-sm">← Products</Link>
-        <h1 className="text-2xl font-bold">Edit Product</h1>
+        <Link href="/admin/products" className="text-muted-foreground hover:text-foreground text-sm">{t("Admin.ProductForm.backToProducts")}</Link>
+        <h1 className="text-2xl font-bold">{t("Admin.ProductForm.editProduct")}</h1>
       </div>
       <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex items-center gap-3">
         <AlertTriangle className="text-red-400 shrink-0" size={20} />
         <div className="flex-1">
-          <p className="font-medium text-red-400">Failed to load product data</p>
+          <p className="font-medium text-red-400">{t("Admin.ProductForm.loadError")}</p>
           <p className="text-sm text-muted-foreground">{loadError}</p>
         </div>
         <button onClick={() => { setLoadError(null); setLoadingProduct(true); setRetryCount(c => c + 1); }}
           className="px-3 py-1.5 rounded-lg bg-red-500/20 text-red-400 text-sm hover:bg-red-500/30 transition">
-          Retry
+          {t("Admin.Common.retry")}
         </button>
       </div>
     </div>
@@ -163,30 +165,30 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
   return (
     <div className="space-y-6 max-w-3xl">
       <div className="flex items-center gap-4">
-        <Link href="/admin/products" className="text-muted-foreground hover:text-foreground text-sm transition">← Products</Link>
-        <h1 className="text-2xl font-bold">{productId ? "Edit Product" : "New Product"}</h1>
+        <Link href="/admin/products" className="text-muted-foreground hover:text-foreground text-sm transition">{t("Admin.ProductForm.backToProducts")}</Link>
+        <h1 className="text-2xl font-bold">{productId ? t("Admin.ProductForm.editProduct") : t("Admin.ProductForm.newProduct")}</h1>
       </div>
 
       {error && <div className="bg-destructive/10 text-destructive text-sm px-4 py-3 rounded-lg">{error}</div>}
 
       <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-        <h2 className="font-semibold">Basic Info</h2>
+        <h2 className="font-semibold">{t("Admin.ProductForm.basicInfo")}</h2>
         <div className="grid grid-cols-2 gap-4">
-          <F label="SKU (optional)" value={sku} onChange={setSku} placeholder="e.g. PROD-001" />
-          <F label="Slug" value={slug} onChange={setSlug} placeholder="product-slug" />
-          <N label="Price (AZN)" value={price} onChange={setPrice} />
-          <N label="Original Price (AZN, optional)" value={originalPrice} onChange={setOriginalPrice} placeholder="0 = no strikethrough" />
-          <F label="Brand (optional)" value={brand} onChange={setBrand} placeholder="e.g. Samsung" />
-          <N label="Stock" value={stock} onChange={setStock} integer />
-          <N label="Sort Order" value={sortOrder} onChange={setSortOrder} integer />
+          <F label={t("Admin.ProductForm.labelSku")} value={sku} onChange={setSku} placeholder={t("Admin.ProductForm.placeholderSku")} />
+          <F label={t("Admin.ProductForm.labelSlug")} value={slug} onChange={setSlug} placeholder={t("Admin.ProductForm.placeholderSlug")} />
+          <N label={t("Admin.ProductForm.labelPrice")} value={price} onChange={setPrice} />
+          <N label={t("Admin.ProductForm.labelOriginalPrice")} value={originalPrice} onChange={setOriginalPrice} placeholder={t("Admin.ProductForm.placeholderOriginalPrice")} />
+          <F label={t("Admin.ProductForm.labelBrand")} value={brand} onChange={setBrand} placeholder={t("Admin.ProductForm.placeholderBrand")} />
+          <N label={t("Admin.ProductForm.labelStock")} value={stock} onChange={setStock} integer />
+          <N label={t("Admin.ProductForm.labelSortOrder")} value={sortOrder} onChange={setSortOrder} integer />
         </div>
         {originalPrice > 0 && originalPrice > price && (
           <p className="text-xs text-green-600 font-medium">
-            ✓ {Math.round(((originalPrice - price) / originalPrice) * 100)}% endirim göstəriləcək
+            ✓ {t("Admin.ProductForm.discountHint").replace("{percent}", String(Math.round(((originalPrice - price) / originalPrice) * 100)))}
           </p>
         )}
         <div className="flex gap-6">
-          {([["Featured", isFeatured, setIsFeatured], ["On Sale", isOnSale, setIsOnSale], ["Deal of Day", isDeal, setIsDeal]] as const).map(([label, val, setter]: any) => (
+          {([[t("Admin.ProductForm.checkFeatured"), isFeatured, setIsFeatured], [t("Admin.ProductForm.checkOnSale"), isOnSale, setIsOnSale], [t("Admin.ProductForm.checkDealOfDay"), isDeal, setIsDeal]] as const).map(([label, val, setter]: any) => (
             <label key={label as string} className="flex items-center gap-2 text-sm cursor-pointer">
               <input type="checkbox" checked={val as boolean} onChange={(e) => setter(e.target.checked)} className="w-4 h-4" />
               {label as string}
@@ -196,7 +198,7 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
       </div>
 
       <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-        <h2 className="font-semibold">Translations</h2>
+        <h2 className="font-semibold">{t("Admin.ProductForm.translations")}</h2>
         <div className="flex gap-2">
           {LANGS.map((l) => (
             <button key={l} onClick={() => setActiveLang(l)}
@@ -205,11 +207,11 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
             </button>
           ))}
         </div>
-        <F label="Title" value={currentT.title} onChange={(v) => setTranslationField(activeLang, "title", v)} placeholder={`Product title in ${activeLang}`} />
+        <F label={t("Admin.ProductForm.labelTitle")} value={currentT.title} onChange={(v) => setTranslationField(activeLang, "title", v)} placeholder={t("Admin.ProductForm.placeholderTitle").replace("{lang}", activeLang)} />
         <div>
-          <label className="block text-sm font-medium mb-1">Description</label>
+          <label className="block text-sm font-medium mb-1">{t("Admin.ProductForm.labelDescription")}</label>
           <textarea value={currentT.description} onChange={(e) => setTranslationField(activeLang, "description", e.target.value)}
-            rows={4} placeholder={`Description in ${activeLang}`}
+            rows={4} placeholder={t("Admin.ProductForm.placeholderDescription").replace("{lang}", activeLang)}
             className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
         </div>
       </div>
@@ -217,25 +219,25 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
       {/* Technical Specs */}
       <div className="bg-card border border-border rounded-xl p-5 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="font-semibold">Technical Specs</h2>
+          <h2 className="font-semibold">{t("Admin.ProductForm.technicalSpecs")}</h2>
           <button onClick={addSpec}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-sm hover:bg-primary/20 transition">
-            <Plus size={14} /> Add Row
+            <Plus size={14} /> {t("Admin.ProductForm.addRow")}
           </button>
         </div>
         {specs.length === 0 ? (
-          <p className="text-sm text-muted-foreground italic">No specs yet. Click "Add Row" to add technical details.</p>
+          <p className="text-sm text-muted-foreground italic">{t("Admin.ProductForm.emptySpecs")}</p>
         ) : (
           <div className="space-y-2">
             {specs.map((spec, i) => (
               <div key={i} className="flex items-center gap-2">
                 <GripVertical size={16} className="text-muted-foreground/40 shrink-0" />
                 <input
-                  type="text" value={spec.key} placeholder="Spec name (e.g. RAM)"
+                  type="text" value={spec.key} placeholder={t("Admin.ProductForm.placeholderSpecKey")}
                   onChange={(e) => setSpecField(i, "key", e.target.value)}
                   className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 <input
-                  type="text" value={spec.value} placeholder="Value (e.g. 8 GB)"
+                  type="text" value={spec.value} placeholder={t("Admin.ProductForm.placeholderSpecValue")}
                   onChange={(e) => setSpecField(i, "value", e.target.value)}
                   className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
                 <button onClick={() => removeSpec(i)}
@@ -255,8 +257,8 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
       ) : (
         <div className="bg-card border border-border rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="font-semibold">Images</h2>
-            <p className="text-xs text-muted-foreground">Save product first to manage images with full controls</p>
+            <h2 className="font-semibold">{t("Admin.ProductForm.images")}</h2>
+            <p className="text-xs text-muted-foreground">{t("Admin.ProductForm.imageHint")}</p>
           </div>
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
             {images.map((img, i) => (
@@ -271,7 +273,7 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
             <button onClick={() => fileRef.current?.click()} disabled={uploading}
               className="aspect-square rounded-lg border-2 border-dashed border-border flex flex-col items-center justify-center gap-1 hover:border-primary/50 transition text-muted-foreground disabled:opacity-50">
               <Upload size={20} />
-              <span className="text-xs">{uploading ? "Compressing…" : "Upload"}</span>
+              <span className="text-xs">{uploading ? t("Admin.ProductForm.uploading") : t("Admin.ProductForm.upload")}</span>
             </button>
           </div>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
@@ -280,7 +282,7 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
 
       {allCategories.length > 0 && (
         <div className="bg-card border border-border rounded-xl p-5 space-y-4">
-          <h2 className="font-semibold">Categories</h2>
+          <h2 className="font-semibold">{t("Admin.ProductForm.categories")}</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {allCategories.map((cat) => {
               const title = cat.category_translations?.find((t: any) => t.lang_code === "az")?.title ?? cat.slug;
@@ -301,10 +303,10 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
       <div className="flex gap-3">
         <button onClick={handleSave} disabled={saving}
           className="px-6 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition disabled:opacity-50">
-          {saving ? "Saving…" : "Save Product"}
+          {saving ? t("Admin.Common.saving") : t("Admin.ProductForm.saveProduct")}
         </button>
         <Link href="/admin/products" className="px-6 py-2.5 bg-muted/50 text-muted-foreground rounded-lg hover:bg-muted transition text-sm">
-          Cancel
+          {t("Admin.Common.cancel")}
         </Link>
       </div>
     </div>

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { createClient } from "@/lib/supabase/client";
 import { useAdminList } from "@/lib/hooks/useAdminList";
+import { useI18n } from "@/lib/i18n/context";
 import { DataTable, type Column } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
 import { TableEmptyState } from "@/components/admin/TableEmptyState";
@@ -24,46 +25,8 @@ interface AuditLogRow {
   users: { full_name: string | null } | null;
 }
 
-// Column set / labels / cell rendering preserved from the prior hand-rolled
-// table (R6.3, R6.5, R6.6). The dynamic per-row action color moves into a span
-// inside the cell (DataTable cell classes are static per column).
-const COLUMNS: Column<AuditLogRow>[] = [
-  {
-    key: "time",
-    header: "Time",
-    align: "left",
-    className: "text-muted-foreground text-xs whitespace-nowrap",
-    cell: (log) => new Date(log.created_at).toLocaleString(),
-  },
-  {
-    key: "admin",
-    header: "Admin",
-    align: "left",
-    className: "text-xs",
-    cell: (log) => log.users?.full_name ?? "Unknown",
-  },
-  {
-    key: "action",
-    header: "Action",
-    align: "left",
-    className: "text-xs font-mono",
-    cell: (log) => (
-      <span className={ACTION_COLORS[log.action] ?? "text-muted-foreground"}>{log.action}</span>
-    ),
-  },
-  {
-    key: "entity",
-    header: "Entity",
-    align: "left",
-    className: "text-xs text-muted-foreground",
-    cell: (log) => (
-      <>
-        {log.entity}
-        {log.entity_id && <> · <span className="font-mono">{String(log.entity_id).slice(0, 8)}</span></>}
-      </>
-    ),
-  },
-];
+// Columns are built inside the component so they can access `t()`.
+// See `AuditListView` below.
 
 /**
  * Audit-log list view. Keyed by the active filter combination (outer component)
@@ -90,6 +53,47 @@ function AuditListView({
   onDateFromChange: (value: string) => void;
   onDateToChange: (value: string) => void;
 }) {
+  const { t } = useI18n();
+
+  // Columns built here so they have access to `t()`.
+  const columns: Column<AuditLogRow>[] = [
+    {
+      key: "time",
+      header: t("Admin.Audit.columnTime"),
+      align: "left",
+      className: "text-muted-foreground text-xs whitespace-nowrap",
+      cell: (log) => new Date(log.created_at).toLocaleString(),
+    },
+    {
+      key: "admin",
+      header: t("Admin.Audit.columnAdmin"),
+      align: "left",
+      className: "text-xs",
+      cell: (log) => log.users?.full_name ?? t("Admin.Audit.unknownAdmin"),
+    },
+    {
+      key: "action",
+      header: t("Admin.Audit.columnAction"),
+      align: "left",
+      className: "text-xs font-mono",
+      cell: (log) => (
+        <span className={ACTION_COLORS[log.action] ?? "text-muted-foreground"}>{log.action}</span>
+      ),
+    },
+    {
+      key: "entity",
+      header: t("Admin.Audit.columnEntity"),
+      align: "left",
+      className: "text-xs text-muted-foreground",
+      cell: (log) => (
+        <>
+          {log.entity}
+          {log.entity_id && <> · <span className="font-mono">{String(log.entity_id).slice(0, 8)}</span></>}
+        </>
+      ),
+    },
+  ];
+
   // Fetcher runs the page's existing Supabase query unchanged: same
   // select/count, order, optional eq/gte/lte filters, and range window.
   const fetcher = useCallback(
@@ -124,8 +128,8 @@ function AuditListView({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Audit Log</h1>
-        <span className="text-sm text-muted-foreground">{count} entries</span>
+        <h1 className="text-2xl font-bold">{t("Admin.Audit.title")}</h1>
+        <span className="text-sm text-muted-foreground">{t("Admin.Audit.entries").replace("{count}", String(count))}</span>
       </div>
 
       {/* Filter toolbar */}
@@ -135,14 +139,14 @@ function AuditListView({
           onChange={(e) => onActionFilterChange(e.target.value)}
           className="px-3 py-1.5 rounded-lg border border-border bg-card text-sm"
         >
-          <option value="">All actions</option>
+          <option value="">{t("Admin.Audit.filterAllActions")}</option>
           {actionTypes.map((action) => (
             <option key={action} value={action}>{action}</option>
           ))}
         </select>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs text-muted-foreground">From:</label>
+          <label className="text-xs text-muted-foreground">{t("Admin.Audit.filterFrom")}</label>
           <input
             type="date"
             value={dateFrom}
@@ -152,7 +156,7 @@ function AuditListView({
         </div>
 
         <div className="flex items-center gap-2">
-          <label className="text-xs text-muted-foreground">To:</label>
+          <label className="text-xs text-muted-foreground">{t("Admin.Audit.filterTo")}</label>
           <input
             type="date"
             value={dateTo}
@@ -163,11 +167,11 @@ function AuditListView({
       </div>
 
       <DataTable<AuditLogRow>
-        columns={COLUMNS}
+        columns={columns}
         rows={logs}
         loading={loading}
         getRowKey={(log) => String(log.id)}
-        empty={<TableEmptyState colSpan={4} message="No audit entries found." />}
+        empty={<TableEmptyState colSpan={4} message={t("Admin.Audit.emptyState")} />}
       />
 
       <Pagination page={page} totalPages={totalPages} buildHref={(p) => `/admin/audit?page=${p}`} />

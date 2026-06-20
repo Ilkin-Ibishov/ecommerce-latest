@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, Upload, X, ImageIcon, Eye, EyeOff } from "lucide-
 import { createClient } from "@/lib/supabase/client";
 import { adminFetch, adminJson } from "@/lib/admin-fetch";
 import { apiUrl } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/context";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useConfirm } from "@/lib/hooks/useConfirm";
 import imageCompression from "browser-image-compression";
@@ -24,6 +25,7 @@ const empty: Omit<Banner, "id"> = {
 };
 
 export default function BannersPage() {
+  const { t } = useI18n();
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<{ open: boolean; editing: Banner | null }>({ open: false, editing: null });
@@ -77,7 +79,7 @@ export default function BannersPage() {
   };
 
   const handleSave = async () => {
-    if (!form.title.trim()) { setError("Title is required."); return; }
+    if (!form.title.trim()) { setError(t("Admin.Banners.titleRequired")); return; }
     setSaving(true); setError("");
     try {
       if (modal.editing) {
@@ -96,8 +98,8 @@ export default function BannersPage() {
 
   const handleDelete = (id: string) => {
     confirm({
-      title: "Delete Banner",
-      message: "Delete this banner?",
+      title: t("Admin.Banners.deleteBanner"),
+      message: t("Admin.Banners.deleteConfirm"),
       destructive: true,
       onConfirm: async () => {
         setDeleting(id);
@@ -127,20 +129,20 @@ export default function BannersPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Hero Banners</h1>
+        <h1 className="text-2xl font-bold">{t("Admin.Banners.title")}</h1>
         <button onClick={openNew}
           className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition">
-          <Plus size={16} /> Add Banner
+          <Plus size={16} /> {t("Admin.Banners.addBanner")}
         </button>
       </div>
-      <p className="text-sm text-muted-foreground">Banners appear in the homepage hero carousel. Drag to reorder by changing Sort Order.</p>
+      <p className="text-sm text-muted-foreground">{t("Admin.Banners.description")}</p>
 
       {loading ? (
-        <div className="text-muted-foreground text-sm">Loading…</div>
+        <div className="text-muted-foreground text-sm">{t("Admin.Common.loading")}</div>
       ) : banners.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-border rounded-xl text-muted-foreground">
           <ImageIcon size={40} className="mx-auto mb-3 opacity-30" />
-          <p>No banners yet. Add your first banner to show a hero carousel on the homepage.</p>
+          <p>{t("Admin.Banners.emptyState")}</p>
         </div>
       ) : (
         <div className="space-y-3">
@@ -159,13 +161,13 @@ export default function BannersPage() {
                 <p className="font-semibold text-sm truncate">{b.title}</p>
                 {b.subtitle && <p className="text-xs text-muted-foreground truncate mt-0.5">{b.subtitle}</p>}
                 <div className="flex items-center gap-3 mt-1.5 text-xs text-muted-foreground">
-                  <span>Sort: {b.sort_order}</span>
-                  {b.cta_text && <span>CTA: "{b.cta_text}"</span>}
+                  <span>{t("Admin.Banners.sort")} {b.sort_order}</span>
+                  {b.cta_text && <span>{t("Admin.Banners.cta")} "{b.cta_text}"</span>}
                   {b.cta_url && <span className="truncate max-w-[160px]">→ {b.cta_url}</span>}
                 </div>
               </div>
               <div className="flex items-center gap-1 px-3 shrink-0">
-                <button onClick={() => toggleActive(b)} title={b.active ? "Deactivate" : "Activate"}
+                <button onClick={() => toggleActive(b)} title={b.active ? t("Admin.Banners.deactivate") : t("Admin.Banners.activate")}
                   className="p-2 rounded-lg text-muted-foreground hover:bg-muted transition">
                   {b.active ? <Eye size={15} /> : <EyeOff size={15} />}
                 </button>
@@ -188,7 +190,7 @@ export default function BannersPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
           <div className="bg-background border border-border rounded-2xl w-full max-w-lg shadow-2xl overflow-y-auto max-h-[90vh]">
             <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="font-bold text-lg">{modal.editing ? "Edit Banner" : "New Banner"}</h2>
+              <h2 className="font-bold text-lg">{modal.editing ? t("Admin.Banners.editBanner") : t("Admin.Banners.newBanner")}</h2>
               <button onClick={closeModal} className="p-2 rounded-lg hover:bg-accent transition"><X size={18} /></button>
             </div>
             <div className="p-6 space-y-4">
@@ -196,7 +198,7 @@ export default function BannersPage() {
 
               {/* Image */}
               <div>
-                <label className="block text-sm font-medium mb-2">Banner Image</label>
+                <label className="block text-sm font-medium mb-2">{t("Admin.Banners.labelImage")}</label>
                 <div className="flex gap-3 items-start">
                   <div className="w-28 h-20 rounded-lg overflow-hidden bg-muted border border-border shrink-0">
                     {form.image_url ? (
@@ -210,26 +212,26 @@ export default function BannersPage() {
                   <div className="flex-1 space-y-2">
                     <button onClick={() => fileRef.current?.click()} disabled={uploading}
                       className="flex items-center gap-2 px-3 py-2 rounded-lg border border-border bg-muted/50 text-sm hover:bg-muted transition disabled:opacity-50 w-full">
-                      <Upload size={14} /> {uploading ? "Uploading…" : "Upload image"}
+                      <Upload size={14} /> {uploading ? t("Admin.Banners.uploading") : t("Admin.Banners.uploadImage")}
                     </button>
                     <input type="text" value={form.image_url}
                       onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))}
-                      placeholder="Or paste image URL"
+                      placeholder={t("Admin.Banners.placeholderImageUrl")}
                       className="w-full px-3 py-2 rounded-lg border border-border bg-background text-xs focus:outline-none focus:ring-2 focus:ring-ring" />
                   </div>
                 </div>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
               </div>
 
-              <F label="Title *" value={form.title} onChange={(v) => setForm((f) => ({ ...f, title: v }))} placeholder="Main headline text" />
-              <F label="Subtitle" value={form.subtitle} onChange={(v) => setForm((f) => ({ ...f, subtitle: v }))} placeholder="Supporting text (optional)" />
+              <F label={t("Admin.Banners.labelTitle")} value={form.title} onChange={(v) => setForm((f) => ({ ...f, title: v }))} placeholder={t("Admin.Banners.placeholderTitle")} />
+              <F label={t("Admin.Banners.labelSubtitle")} value={form.subtitle} onChange={(v) => setForm((f) => ({ ...f, subtitle: v }))} placeholder={t("Admin.Banners.placeholderSubtitle")} />
               <div className="grid grid-cols-2 gap-4">
-                <F label="CTA Button Text" value={form.cta_text} onChange={(v) => setForm((f) => ({ ...f, cta_text: v }))} placeholder="e.g. Shop Now" />
-                <F label="CTA Link URL" value={form.cta_url} onChange={(v) => setForm((f) => ({ ...f, cta_url: v }))} placeholder="e.g. /products" />
+                <F label={t("Admin.Banners.labelCtaText")} value={form.cta_text} onChange={(v) => setForm((f) => ({ ...f, cta_text: v }))} placeholder={t("Admin.Banners.placeholderCtaText")} />
+                <F label={t("Admin.Banners.labelCtaUrl")} value={form.cta_url} onChange={(v) => setForm((f) => ({ ...f, cta_url: v }))} placeholder={t("Admin.Banners.placeholderCtaUrl")} />
               </div>
               <div className="grid grid-cols-2 gap-4 items-end">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Sort Order</label>
+                  <label className="block text-sm font-medium mb-1">{t("Admin.Banners.labelSortOrder")}</label>
                   <input type="number" min={0} step={1} value={form.sort_order}
                     onChange={(e) => setForm((f) => ({ ...f, sort_order: parseInt(e.target.value) || 0 }))}
                     className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring" />
@@ -237,25 +239,25 @@ export default function BannersPage() {
                 <label className="flex items-center gap-2 text-sm cursor-pointer pb-2">
                   <input type="checkbox" checked={form.active} onChange={(e) => setForm((f) => ({ ...f, active: e.target.checked }))}
                     className="w-4 h-4" />
-                  Active (visible on site)
+                  {t("Admin.Banners.labelActive")}
                 </label>
               </div>
             </div>
             <div className="flex gap-3 px-6 pb-6">
               <button onClick={handleSave} disabled={saving}
                 className="flex-1 py-2.5 bg-primary text-primary-foreground rounded-lg font-medium hover:bg-primary/90 transition disabled:opacity-50">
-                {saving ? "Saving…" : modal.editing ? "Save Changes" : "Create Banner"}
+                {saving ? t("Admin.Common.saving") : modal.editing ? t("Admin.Banners.saveChanges") : t("Admin.Banners.createBanner")}
               </button>
               <button onClick={closeModal}
                 className="px-5 py-2.5 bg-muted/50 text-muted-foreground rounded-lg hover:bg-muted transition text-sm">
-                Cancel
+                {t("Admin.Common.cancel")}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      <ConfirmDialog {...dialogProps} confirmLabel="Delete" />
+      <ConfirmDialog {...dialogProps} confirmLabel={t("Admin.Banners.confirmDelete")} cancelLabel={t("Admin.Common.cancel")} />
     </div>
   );
 }

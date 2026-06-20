@@ -1,4 +1,5 @@
 import { X, DollarSign } from "lucide-react";
+import { useI18n } from "@/lib/i18n/context";
 
 // ── Bulk action toolbar ────────────────────────────────────────────────────
 export function BulkBar({ count, onFlag, onDelete, onBulkPrice, onClear }: {
@@ -8,6 +9,8 @@ export function BulkBar({ count, onFlag, onDelete, onBulkPrice, onClear }: {
   onBulkPrice: () => void;
   onClear: () => void;
 }) {
+  const { t } = useI18n();
+
   if (count === 0) return null;
   const Btn = ({ label, onClick, destructive, icon }: { label: string; onClick: () => void; destructive?: boolean; icon?: React.ReactNode }) => (
     <button onClick={onClick}
@@ -20,14 +23,14 @@ export function BulkBar({ count, onFlag, onDelete, onBulkPrice, onClear }: {
   );
   return (
     <div className="flex items-center gap-2 flex-wrap px-4 py-2.5 bg-primary/10 border border-primary/20 rounded-xl text-sm">
-      <span className="font-medium text-primary">{count} selected</span>
+      <span className="font-medium text-primary">{t("Admin.Common.selected").replace("{count}", String(count))}</span>
       <div className="flex gap-1.5 ml-2 flex-wrap">
-        <Btn label="Set Featured" onClick={() => onFlag("is_featured", true)} />
-        <Btn label="Unset Featured" onClick={() => onFlag("is_featured", false)} />
-        <Btn label="Set On Sale" onClick={() => onFlag("is_on_sale", true)} />
-        <Btn label="Unset On Sale" onClick={() => onFlag("is_on_sale", false)} />
-        <Btn label="Bulk Price" onClick={onBulkPrice} icon={<DollarSign size={12} />} />
-        <Btn label="Delete" onClick={onDelete} destructive />
+        <Btn label={t("Admin.BulkBar.setFeatured")} onClick={() => onFlag("is_featured", true)} />
+        <Btn label={t("Admin.BulkBar.unsetFeatured")} onClick={() => onFlag("is_featured", false)} />
+        <Btn label={t("Admin.BulkBar.setOnSale")} onClick={() => onFlag("is_on_sale", true)} />
+        <Btn label={t("Admin.BulkBar.unsetOnSale")} onClick={() => onFlag("is_on_sale", false)} />
+        <Btn label={t("Admin.BulkBar.bulkPrice")} onClick={onBulkPrice} icon={<DollarSign size={12} />} />
+        <Btn label={t("Admin.Common.delete")} onClick={onDelete} destructive />
       </div>
       <button onClick={onClear} className="ml-auto text-muted-foreground hover:text-foreground"><X size={14} /></button>
     </div>

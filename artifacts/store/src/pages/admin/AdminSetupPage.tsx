@@ -2,9 +2,11 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { apiUrl } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/context";
 
 export default function AdminSetupPage() {
   const [, navigate] = useLocation();
+  const { t } = useI18n();
   const [phone, setPhone] = useState("");
   const [name, setName] = useState("");
   const [status, setStatus] = useState<"idle" | "loading" | "done" | "error">("idle");
@@ -26,15 +28,15 @@ export default function AdminSetupPage() {
 
       if (!res.ok) {
         setStatus("error");
-        setMessage(data.error ?? "Something went wrong.");
+        setMessage(data.error ?? t("Admin.Setup.errorFallback"));
         return;
       }
 
       setStatus("done");
-      setMessage(data.message ?? "Admin account created!");
+      setMessage(data.message ?? t("Admin.Setup.successFallback"));
     } catch (err: any) {
       setStatus("error");
-      setMessage(err.message ?? "Network error.");
+      setMessage(err.message ?? t("Admin.Setup.networkError"));
     }
   };
 
@@ -51,9 +53,9 @@ export default function AdminSetupPage() {
             <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 mb-2">
               <ShieldCheck size={28} className="text-primary" />
             </div>
-            <h1 className="text-2xl font-bold">Create Admin Account</h1>
+            <h1 className="text-2xl font-bold">{t("Admin.Setup.title")}</h1>
             <p className="text-sm text-muted-foreground">
-              First-time setup — this page is disabled once an admin exists.
+              {t("Admin.Setup.description")}
             </p>
           </div>
 
@@ -63,20 +65,20 @@ export default function AdminSetupPage() {
                 {message}
               </div>
               <p className="text-sm text-muted-foreground text-center">
-                Now sign in with your phone number using OTP to access the admin panel.
+                {t("Admin.Setup.successInstruction")}
               </p>
               <button
                 onClick={handleSignIn}
                 className="w-full py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition"
               >
-                Sign In Now
+                {t("Admin.Setup.signInNow")}
               </button>
             </div>
           ) : (
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs text-muted-foreground mb-1.5">
-                  Phone Number <span className="text-red-400">*</span>
+                  {t("Admin.Setup.phoneLabel")} <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="tel"
@@ -86,18 +88,18 @@ export default function AdminSetupPage() {
                   required
                   className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
-                <p className="text-xs text-muted-foreground mt-1">Include country code, e.g. +994…</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("Admin.Setup.phoneHint")}</p>
               </div>
 
               <div>
                 <label className="block text-xs text-muted-foreground mb-1.5">
-                  Your Name
+                  {t("Admin.Setup.nameLabel")}
                 </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="Admin"
+                  placeholder={t("Admin.Setup.namePlaceholder")}
                   className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 />
               </div>
@@ -114,9 +116,9 @@ export default function AdminSetupPage() {
                 className="w-full py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary/90 transition disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {status === "loading" ? (
-                  <><Loader2 size={16} className="animate-spin" /> Creating Account…</>
+                  <><Loader2 size={16} className="animate-spin" /> {t("Admin.Setup.creatingAccount")}</>
                 ) : (
-                  "Create Admin Account"
+                  t("Admin.Setup.createAccount")
                 )}
               </button>
             </form>

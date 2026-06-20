@@ -4,6 +4,7 @@ import { AlertTriangle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { getProxyUrl } from "@/lib/image-proxy";
 import { getTranslatedField } from "@/lib/utils";
+import { useI18n } from "@/lib/i18n/context";
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, PieChart, Pie, Cell, Legend,
@@ -44,6 +45,7 @@ interface RevenueByCat { title: string; revenue: number }
 
 // ─── Main Page ────────────────────────────────────────────────
 export default function DashboardPage() {
+  const { t } = useI18n();
   const [loading, setLoading] = useState(true);
   const [preset, setPreset] = useState<DatePreset>("thisMonth");
   const [dateRange, setDateRange] = useState<DateRange>(() => getDateRange("thisMonth"));
@@ -270,7 +272,7 @@ export default function DashboardPage() {
     <div className="space-y-8">
       {/* ── Header with date range selector ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <h1 className="text-2xl font-bold">{t("Admin.Dashboard.title")}</h1>
         <div className="flex items-center gap-1.5 flex-wrap">
           {(["7d", "30d", "thisMonth", "90d"] as DatePreset[]).map((p) => (
             <button
@@ -280,7 +282,7 @@ export default function DashboardPage() {
                 preset === p ? "bg-primary text-primary-foreground" : "bg-muted/50 text-muted-foreground hover:bg-muted"
               }`}
             >
-              {p === "7d" ? "7D" : p === "30d" ? "30D" : p === "thisMonth" ? "This Month" : "90D"}
+              {p === "7d" ? t("Admin.Dashboard.preset7d") : p === "30d" ? t("Admin.Dashboard.preset30d") : p === "thisMonth" ? t("Admin.Dashboard.presetThisMonth") : t("Admin.Dashboard.preset90d")}
             </button>
           ))}
           <span className="text-xs text-muted-foreground ml-1 hidden sm:inline">
@@ -300,26 +302,26 @@ export default function DashboardPage() {
         </div>
       ) : (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <KpiCard label="Revenue" value={`${kpis.revenueCurrent.toFixed(2)} AZN`} accent="text-primary" pct={computeDelta(kpis.revenueCurrent, kpis.revenuePrev)} />
-          <KpiCard label="Orders" value={kpis.ordersCurrent} sub={`${kpis.pendingCurrent} pending`} accent="text-blue-400" pct={computeDelta(kpis.ordersCurrent, kpis.ordersPrev)} />
-          <KpiCard label="Avg Order Value" value={`${kpis.aovCurrent.toFixed(2)} AZN`} accent="text-purple-400" pct={computeDelta(kpis.aovCurrent, kpis.aovPrev)} />
-          <KpiCard label="Pending Orders" value={kpis.pendingCurrent} sub="Awaiting action" accent="text-yellow-400" pct={computeDelta(kpis.pendingCurrent, kpis.pendingPrev)} />
+          <KpiCard label={t("Admin.Dashboard.revenue")} value={`${kpis.revenueCurrent.toFixed(2)} AZN`} accent="text-primary" pct={computeDelta(kpis.revenueCurrent, kpis.revenuePrev)} />
+          <KpiCard label={t("Admin.Dashboard.orders")} value={kpis.ordersCurrent} sub={`${kpis.pendingCurrent} ${t("Admin.Dashboard.pending")}`} accent="text-blue-400" pct={computeDelta(kpis.ordersCurrent, kpis.ordersPrev)} />
+          <KpiCard label={t("Admin.Dashboard.avgOrderValue")} value={`${kpis.aovCurrent.toFixed(2)} AZN`} accent="text-purple-400" pct={computeDelta(kpis.aovCurrent, kpis.aovPrev)} />
+          <KpiCard label={t("Admin.Dashboard.pendingOrders")} value={kpis.pendingCurrent} sub={t("Admin.Dashboard.awaitingAction")} accent="text-yellow-400" pct={computeDelta(kpis.pendingCurrent, kpis.pendingPrev)} />
         </div>
       )}
 
       {/* ── Row 2 KPIs ── */}
       {!loading && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <KpiCard label="New Customers" value={kpis.customersCurrent} accent="text-cyan-400" pct={computeDelta(kpis.customersCurrent, kpis.customersPrev)} />
+          <KpiCard label={t("Admin.Dashboard.newCustomers")} value={kpis.customersCurrent} accent="text-cyan-400" pct={computeDelta(kpis.customersCurrent, kpis.customersPrev)} />
           <KpiCard
-            label="Cancellation Rate"
+            label={t("Admin.Dashboard.cancellationRate")}
             value={`${kpis.cancelRateCurrent.toFixed(1)}%`}
-            sub={`${Math.round((kpis.cancelRateCurrent / 100) * kpis.ordersCurrent)} cancelled`}
+            sub={`${Math.round((kpis.cancelRateCurrent / 100) * kpis.ordersCurrent)} ${t("Admin.Dashboard.cancelled")}`}
             accent={kpis.cancelRateCurrent > 10 ? "text-red-400" : "text-green-400"}
             pct={computeDelta(kpis.cancelRateCurrent, kpis.cancelRatePrev)}
             invertDelta
           />
-          <KpiCard label="Coupons Used" value={kpis.couponUsageCurrent} sub="In selected period" accent="text-pink-400" pct={null} />
+          <KpiCard label={t("Admin.Dashboard.couponsUsed")} value={kpis.couponUsageCurrent} sub={t("Admin.Dashboard.inSelectedPeriod")} accent="text-pink-400" pct={null} />
         </div>
       )}
 
@@ -329,10 +331,10 @@ export default function DashboardPage() {
           <div className="px-5 py-3 bg-amber-500/10 border-b border-amber-500/20 flex items-center gap-2">
             <AlertTriangle size={14} className="text-amber-500 shrink-0" />
             <h2 className="font-semibold text-sm text-amber-600">
-              Low Stock Alert — {lowStockProducts.length} product{lowStockProducts.length !== 1 ? "s" : ""} running low
+              {t("Admin.Dashboard.lowStockAlert")} — {t("Admin.Dashboard.lowStockMessage").replace("{count}", String(lowStockProducts.length))}
             </h2>
             <Link href="/admin/products" className="ml-auto text-xs text-amber-600 hover:underline shrink-0">
-              Manage →
+              {t("Admin.Dashboard.manage")}
             </Link>
           </div>
           <div className="divide-y divide-border">
@@ -342,11 +344,11 @@ export default function DashboardPage() {
                   {p.image ? <img src={getProxyUrl(p.image, "thumbnail")} alt={p.title} className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLImageElement).src = p.image!; }} /> : <div className="w-full h-full bg-muted" />}
                 </div>
                 <span className="flex-1 text-sm truncate">{p.title}</span>
-                <Link href={`/admin/products/${p.id}/edit`} className="text-xs text-primary hover:underline shrink-0">Edit</Link>
+                <Link href={`/admin/products/${p.id}/edit`} className="text-xs text-primary hover:underline shrink-0">{t("Admin.Common.edit")}</Link>
                 <span className={`text-sm font-bold shrink-0 w-16 text-right ${
                   p.stock === 0 ? "text-red-500" : p.stock < 5 ? "text-orange-500" : "text-amber-500"
                 }`}>
-                  {p.stock === 0 ? "OUT" : `${p.stock} left`}
+                  {p.stock === 0 ? t("Admin.Dashboard.outOfStock") : t("Admin.Dashboard.stockLeft").replace("{count}", String(p.stock))}
                 </span>
               </div>
             ))}
@@ -357,7 +359,7 @@ export default function DashboardPage() {
       {/* ── Revenue Chart + Donut ── */}
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-6">
         <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="font-semibold mb-4">Revenue — {dateRange.label}</h2>
+          <h2 className="font-semibold mb-4">{t("Admin.Dashboard.revenueChart")} — {dateRange.label}</h2>
           {loading ? <Skeleton className="h-52 w-full" /> : (
             <ResponsiveContainer width="100%" height={210}>
               <LineChart data={dailyRevenue} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
@@ -372,9 +374,9 @@ export default function DashboardPage() {
         </div>
 
         <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="font-semibold mb-4">Orders by Status (All Time)</h2>
+          <h2 className="font-semibold mb-4">{t("Admin.Dashboard.ordersByStatus")}</h2>
           {loading ? <Skeleton className="h-52 w-full" /> : statusBreakdown.length === 0 ? (
-            <div className="h-52 flex items-center justify-center text-muted-foreground text-sm">No orders yet</div>
+            <div className="h-52 flex items-center justify-center text-muted-foreground text-sm">{t("Admin.Dashboard.noOrdersYet")}</div>
           ) : (
             <ResponsiveContainer width="100%" height={210}>
               <PieChart>
@@ -392,7 +394,7 @@ export default function DashboardPage() {
       {/* ── Revenue by Category ── */}
       {!loading && revenueByCategory.length > 0 && (
         <div className="bg-card border border-border rounded-xl p-5">
-          <h2 className="font-semibold mb-4">Revenue by Category — {dateRange.label}</h2>
+          <h2 className="font-semibold mb-4">{t("Admin.Dashboard.revenueByCategory")} — {dateRange.label}</h2>
           <ResponsiveContainer width="100%" height={Math.max(160, revenueByCategory.length * 38)}>
             <BarChart
               data={revenueByCategory}
@@ -443,8 +445,8 @@ export default function DashboardPage() {
       {/* ── Top Products ── */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-border">
-          <h2 className="font-semibold">Top Products — {dateRange.label}</h2>
-          <p className="text-xs text-muted-foreground mt-0.5">By revenue, from orders placed in selected period</p>
+          <h2 className="font-semibold">{t("Admin.Dashboard.topProducts")} — {dateRange.label}</h2>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("Admin.Dashboard.topProductsSub")}</p>
         </div>
         {loading ? (
           <div className="p-6 space-y-3">
@@ -455,16 +457,16 @@ export default function DashboardPage() {
             ))}
           </div>
         ) : topProducts.length === 0 ? (
-          <div className="px-6 py-8 text-center text-muted-foreground text-sm">No sales data in this period</div>
+          <div className="px-6 py-8 text-center text-muted-foreground text-sm">{t("Admin.Dashboard.noSalesData")}</div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-muted-foreground">
-                  <th className="text-left px-6 py-3 font-medium">#</th>
-                  <th className="text-left px-6 py-3 font-medium">Product</th>
-                  <th className="text-right px-6 py-3 font-medium">Units sold</th>
-                  <th className="text-right px-6 py-3 font-medium">Revenue</th>
+                  <th className="text-left px-6 py-3 font-medium">{t("Admin.Dashboard.columnRank")}</th>
+                  <th className="text-left px-6 py-3 font-medium">{t("Admin.Dashboard.columnProduct")}</th>
+                  <th className="text-right px-6 py-3 font-medium">{t("Admin.Dashboard.columnUnitsSold")}</th>
+                  <th className="text-right px-6 py-3 font-medium">{t("Admin.Dashboard.columnRevenue")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -499,18 +501,18 @@ export default function DashboardPage() {
       {/* ── Recent Orders ── */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">
         <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-          <h2 className="font-semibold">Recent Orders</h2>
-          <Link href="/admin/orders" className="text-xs text-primary hover:underline">View all →</Link>
+          <h2 className="font-semibold">{t("Admin.Dashboard.recentOrders")}</h2>
+          <Link href="/admin/orders" className="text-xs text-primary hover:underline">{t("Admin.Dashboard.viewAll")}</Link>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full min-w-[560px] text-sm">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                <th className="text-left px-6 py-3 font-medium">Order ID</th>
-                <th className="text-left px-6 py-3 font-medium">Customer</th>
-                <th className="text-left px-6 py-3 font-medium">Status</th>
-                <th className="text-right px-6 py-3 font-medium">Total</th>
-                <th className="text-right px-6 py-3 font-medium">Date</th>
+                <th className="text-left px-6 py-3 font-medium">{t("Admin.Dashboard.columnOrderId")}</th>
+                <th className="text-left px-6 py-3 font-medium">{t("Admin.Dashboard.columnCustomer")}</th>
+                <th className="text-left px-6 py-3 font-medium">{t("Admin.Dashboard.columnStatus")}</th>
+                <th className="text-right px-6 py-3 font-medium">{t("Admin.Dashboard.columnTotal")}</th>
+                <th className="text-right px-6 py-3 font-medium">{t("Admin.Dashboard.columnDate")}</th>
               </tr>
             </thead>
             <tbody>
@@ -525,7 +527,7 @@ export default function DashboardPage() {
                   </tr>
                 ))
               ) : recentOrders.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">No orders yet</td></tr>
+                <tr><td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">{t("Admin.Dashboard.noOrdersYet")}</td></tr>
               ) : recentOrders.map((order: any) => (
                 <tr key={order.id} className="border-b border-border/50 hover:bg-muted/30 transition">
                   <td className="px-6 py-3">

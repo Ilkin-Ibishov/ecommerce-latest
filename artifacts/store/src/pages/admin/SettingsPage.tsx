@@ -6,6 +6,7 @@ import type { SiteSettings, ColorPalette } from "@/lib/settings/context";
 import TypographyTabComponent from "./settings/TypographyTab";
 import IdentityContactTab from "./settings/IdentityContactTab";
 import { validateSettings, getFirstErrorField, type ValidationErrors } from "./settings/validate-settings";
+import { useI18n } from "@/lib/i18n/context";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -46,6 +47,7 @@ function ColorPickerField({
   hexValue: string;
   onChange: (hex: string) => void;
 }) {
+  const { t } = useI18n();
   const isValid = hexValue.length === 0 || /^[0-9a-fA-F]{6}$/.test(hexValue);
   const previewColor = /^[0-9a-fA-F]{6}$/.test(hexValue) ? `#${hexValue}` : "#cccccc";
 
@@ -73,7 +75,7 @@ function ColorPickerField({
         </div>
       </div>
       {!isValid && (
-        <p className="text-destructive text-xs">Enter a valid 6-digit hex color</p>
+        <p className="text-destructive text-xs">{t("Admin.Settings.invalidHexColor")}</p>
       )}
     </div>
   );
@@ -82,6 +84,7 @@ function ColorPickerField({
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AdminSettingsPage() {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<Tab>("branding");
   const [settings, setSettings] = useState<SiteSettings | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,7 +116,7 @@ export default function AdminSettingsPage() {
         }
         setColorHexes(hexes as Record<keyof ColorPalette, string>);
       })
-      .catch(() => setErrorMsg("Failed to load settings"))
+      .catch(() => setErrorMsg(t("Admin.Settings.loadError")))
       .finally(() => setLoading(false));
   }, []);
 
@@ -168,16 +171,16 @@ export default function AdminSettingsPage() {
         body: JSON.stringify(payload),
       });
       if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: "Save failed" }));
-        setErrorMsg(err.error || "Save failed");
+        const err = await res.json().catch(() => ({ error: t("Admin.Settings.saveFailed") }));
+        setErrorMsg(err.error || t("Admin.Settings.saveFailed"));
         return;
       }
       const updated = await res.json();
       setSettings(updated);
-      setSuccessMsg("Settings saved successfully");
+      setSuccessMsg(t("Admin.Settings.savedSuccess"));
       setTimeout(() => setSuccessMsg(""), 3000);
     } catch {
-      setErrorMsg("Network error — please try again");
+      setErrorMsg(t("Admin.Settings.networkError"));
     } finally {
       setSaving(false);
     }
@@ -194,13 +197,13 @@ export default function AdminSettingsPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6" ref={formRef}>
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Site Settings</h1>
+        <h1 className="text-2xl font-bold">{t("Admin.Settings.title")}</h1>
         <button
           onClick={handleSave}
           disabled={saving}
           className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 disabled:opacity-50"
         >
-          {saving ? "Saving..." : "Save Changes"}
+          {saving ? t("Admin.Common.saving") : t("Admin.Settings.saveChanges")}
         </button>
       </div>
 
@@ -217,15 +220,15 @@ export default function AdminSettingsPage() {
 
       {/* Tabs */}
       <div className="flex gap-2 border-b border-border pb-2">
-        <TabButton active={activeTab === "branding"} label="Branding" onClick={() => setActiveTab("branding")} />
-        <TabButton active={activeTab === "identity"} label="Identity & Contact" onClick={() => setActiveTab("identity")} />
-        <TabButton active={activeTab === "typography"} label="Typography" onClick={() => setActiveTab("typography")} />
+        <TabButton active={activeTab === "branding"} label={t("Admin.Settings.tabBranding")} onClick={() => setActiveTab("branding")} />
+        <TabButton active={activeTab === "identity"} label={t("Admin.Settings.tabIdentity")} onClick={() => setActiveTab("identity")} />
+        <TabButton active={activeTab === "typography"} label={t("Admin.Settings.tabTypography")} onClick={() => setActiveTab("typography")} />
       </div>
 
       {/* Branding Tab */}
       {activeTab === "branding" && settings && (
         <div className="space-y-6">
-          <Section title="Color Palette">
+          <Section title={t("Admin.Settings.colorPalette")}>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {(Object.keys(colorHexes) as Array<keyof ColorPalette>).map((key) => (
                 <ColorPickerField

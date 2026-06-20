@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, FileText } from "lucide-react";
 import { adminFetch, adminJson } from "@/lib/admin-fetch";
 import { apiUrl } from "@/lib/api";
 import { toast } from "@/hooks/use-toast";
+import { useI18n } from "@/lib/i18n/context";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useConfirm } from "@/lib/hooks/useConfirm";
 import { getTranslatedField } from "@/lib/utils";
@@ -32,6 +33,7 @@ function getTitle(translations: PageTranslation[]): string {
 }
 
 export default function PagesPage() {
+  const { t } = useI18n();
   const [pages, setPages] = useState<PageItem[]>([]);
   const [loading, setLoading] = useState(true);
   const sortTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
@@ -68,8 +70,8 @@ export default function PagesPage() {
         body: JSON.stringify({ published: newValue }),
       });
       toast({
-        title: "Updated",
-        description: `"${getTitle(page.page_translations)}" is now ${newValue ? "published" : "unpublished"}.`,
+        title: t("Admin.Pages.updated"),
+        description: `"${getTitle(page.page_translations)}" ${newValue ? t("Admin.Pages.publishedStatus") : t("Admin.Pages.unpublishedStatus")}.`,
       });
     } catch (err: any) {
       // Revert optimistic update
@@ -100,7 +102,7 @@ export default function PagesPage() {
           method: "PATCH",
           body: JSON.stringify({ sort_order: numValue }),
         });
-        toast({ title: "Sort order updated", description: `"${getTitle(page.page_translations)}" → ${numValue}` });
+        toast({ title: t("Admin.Pages.sortOrderUpdated"), description: `"${getTitle(page.page_translations)}" → ${numValue}` });
       } catch (err: any) {
         toast({ title: "Error", description: err.message, variant: "destructive" });
       }
@@ -111,13 +113,13 @@ export default function PagesPage() {
 
   const handleDelete = (page: PageItem) => {
     confirm({
-      title: "Delete Page",
-      message: `Are you sure you want to delete "${getTitle(page.page_translations)}"? This action cannot be undone.`,
+      title: t("Admin.Pages.deleteTitle"),
+      message: t("Admin.Pages.deleteMessage").replace("{title}", getTitle(page.page_translations)),
       destructive: true,
       onConfirm: async () => {
         try {
           await adminFetch(apiUrl(`/admin/pages/${page.id}`), { method: "DELETE" });
-          toast({ title: "Deleted", description: `"${getTitle(page.page_translations)}" has been deleted.` });
+          toast({ title: t("Admin.Common.delete"), description: `"${getTitle(page.page_translations)}" ${t("Admin.Pages.deleted")}` });
           await load();
         } catch (err: any) {
           toast({ title: "Error", description: err.message, variant: "destructive" });
@@ -127,19 +129,19 @@ export default function PagesPage() {
   };
 
   if (loading) {
-    return <div className="text-muted-foreground text-sm">Loading…</div>;
+    return <div className="text-muted-foreground text-sm">{t("Admin.Common.loading")}</div>;
   }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Pages</h1>
+        <h1 className="text-2xl font-bold">{t("Admin.Pages.title")}</h1>
         <Link
           href="/admin/pages/new/edit"
           className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition"
         >
-          <Plus size={16} /> Create Page
+          <Plus size={16} /> {t("Admin.Pages.createPage")}
         </Link>
       </div>
 
@@ -147,7 +149,7 @@ export default function PagesPage() {
       {pages.length === 0 ? (
         <div className="text-center py-16 border-2 border-dashed border-border rounded-xl text-muted-foreground">
           <FileText size={40} className="mx-auto mb-3 opacity-30" />
-          <p>No pages yet. Create your first content page.</p>
+          <p>{t("Admin.Pages.emptyState")}</p>
         </div>
       ) : (
         <div className="bg-card border border-border rounded-xl overflow-hidden">
@@ -155,13 +157,13 @@ export default function PagesPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border text-muted-foreground">
-                  <th className="text-left px-4 py-3 font-medium">Title</th>
-                  <th className="text-left px-4 py-3 font-medium">Slug</th>
-                  <th className="text-center px-4 py-3 font-medium">Published</th>
-                  <th className="text-center px-4 py-3 font-medium">Header</th>
-                  <th className="text-center px-4 py-3 font-medium">Footer</th>
-                  <th className="text-center px-4 py-3 font-medium">Order</th>
-                  <th className="text-right px-4 py-3 font-medium">Actions</th>
+                  <th className="text-left px-4 py-3 font-medium">{t("Admin.Pages.colTitle")}</th>
+                  <th className="text-left px-4 py-3 font-medium">{t("Admin.Pages.colSlug")}</th>
+                  <th className="text-center px-4 py-3 font-medium">{t("Admin.Pages.colPublished")}</th>
+                  <th className="text-center px-4 py-3 font-medium">{t("Admin.Pages.colHeader")}</th>
+                  <th className="text-center px-4 py-3 font-medium">{t("Admin.Pages.colFooter")}</th>
+                  <th className="text-center px-4 py-3 font-medium">{t("Admin.Pages.colOrder")}</th>
+                  <th className="text-right px-4 py-3 font-medium">{t("Admin.Pages.colActions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -178,7 +180,7 @@ export default function PagesPage() {
                           <span className="font-medium">{title}</span>
                           {page.is_system && (
                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 border border-blue-500/20">
-                              System
+                              {t("Admin.Pages.system")}
                             </span>
                           )}
                         </div>
@@ -242,7 +244,7 @@ export default function PagesPage() {
                           <Link
                             href={`/admin/pages/${page.id}/edit`}
                             className="p-1.5 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition"
-                            title="Edit"
+                            title={t("Admin.Common.edit")}
                           >
                             <Pencil size={14} />
                           </Link>
@@ -250,7 +252,7 @@ export default function PagesPage() {
                             <button
                               onClick={() => handleDelete(page)}
                               className="p-1.5 rounded hover:bg-red-500/20 text-muted-foreground hover:text-red-400 transition"
-                              title="Delete"
+                              title={t("Admin.Common.delete")}
                             >
                               <Trash2 size={14} />
                             </button>
@@ -267,7 +269,7 @@ export default function PagesPage() {
       )}
 
       {/* Delete Confirmation Dialog */}
-      <ConfirmDialog {...dialogProps} confirmLabel="Delete" />
+      <ConfirmDialog {...dialogProps} confirmLabel={t("Admin.Common.delete")} cancelLabel={t("Admin.Common.cancel")} />
     </div>
   );
 }

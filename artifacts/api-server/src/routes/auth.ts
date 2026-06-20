@@ -1,12 +1,14 @@
 import { Router } from "express";
+import { createHmac } from "crypto";
 import { getAdminSupabase, getSupabase } from "../lib/supabase";
 import { validateAzPhone, checkRateLimit, createOTP, verifyOTP } from "../lib/otp";
 import { sendWhatsAppOTP } from "../lib/whatsapp";
+import { authRateLimit } from "../middlewares/rateLimits";
 
 const router = Router();
 
 // ─── OTP Request ──────────────────────────────────────────────────────────────
-router.post("/auth/otp/request", async (req, res) => {
+router.post("/auth/otp/request", authRateLimit, async (req, res) => {
   const { phone } = req.body;
   if (!phone || typeof phone !== "string") {
     return res.status(400).json({ error: "Phone number is required" });
@@ -24,7 +26,7 @@ router.post("/auth/otp/request", async (req, res) => {
 });
 
 // ─── OTP Verify ───────────────────────────────────────────────────────────────
-router.post("/auth/otp/verify", async (req, res) => {
+router.post("/auth/otp/verify", authRateLimit, async (req, res) => {
   const { phone, code } = req.body;
   if (!phone || !code) {
     return res.status(400).json({ error: "Phone and code are required" });
@@ -84,7 +86,11 @@ router.post("/auth/otp/verify", async (req, res) => {
   //    The "email" uses a non-routable .internal domain and never conflicts with
   //    real addresses. The password is stable per user, derived from the userId.
   const tempEmail = `${phone.replace(/[^0-9]/g, "")}@phoneauth.internal`;
-  const tempPass  = `pauth_${userId.replace(/-/g, "").slice(0, 24)}`;
+  // SEC-010: Derive session password from HMAC instead of predictable UUID
+  const tempPass = createHmac("sha256", process.env.SESSION_SECRET || "fallback-dev-secret")
+    .update(userId)
+    .digest("hex")
+    .slice(0, 32);
 
   const { error: updateErr } = await admin.auth.admin.updateUserById(userId, {
     email: tempEmail,

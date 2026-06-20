@@ -73,6 +73,11 @@ async function runSql(sql: string): Promise<{ ok: boolean; error?: string }> {
 }
 
 router.post("/admin/migrate", requireAdmin, async (req, res) => {
+  // SEC-006: Disable migrations in production
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ error: "Migrations disabled in production" });
+  }
+
   const statements = MIGRATION_SQL
     .split("\n")
     .map(l => l.trim())

@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { getAdminSupabase } from "../lib/supabase";
 import { calculateDiscount } from "../lib/coupon-calc";
+import { couponValidateRateLimit } from "../middlewares/rateLimits";
 
 const router = Router();
 
-router.post("/coupons/validate", async (req, res) => {
+router.post("/coupons/validate", couponValidateRateLimit, async (req, res) => {
   const { code, subtotal } = req.body;
   if (!code) return res.status(400).json({ error: "Coupon code is required" });
 

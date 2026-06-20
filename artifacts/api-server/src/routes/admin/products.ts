@@ -20,7 +20,7 @@ async function ensureBucket(admin: any) {
   }
 }
 
-router.post("/admin/upload", upload.single("file"), requireAdmin, async (req: any, res) => {
+router.post("/admin/upload", requireAdmin, upload.single("file"), async (req: any, res) => {
   const ctx = { admin: req.admin!, user: req.user! };
   const file = req.file;
   if (!file) return res.status(400).json({ error: "No file provided" });

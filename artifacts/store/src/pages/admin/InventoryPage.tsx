@@ -8,6 +8,7 @@ import { CategoryFilter } from "@/components/admin/CategoryFilter";
 import { CSVExportButton } from "@/components/admin/CSVExportButton";
 import { TableEmptyState } from "@/components/admin/TableEmptyState";
 import { getProxyUrl } from "@/lib/image-proxy";
+import { useI18n } from "@/lib/i18n/context";
 import { getTranslatedField } from "@/lib/utils";
 
 type Filter = "all" | "out_of_stock" | "low_stock" | "healthy";
@@ -39,6 +40,7 @@ function SummaryCard({ label, value, color, sub }: {
 }
 
 export default function AdminInventoryPage() {
+  const { t } = useI18n();
   const [products, setProducts] = useState<InventoryProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
@@ -128,31 +130,31 @@ export default function AdminInventoryPage() {
   };
 
   const FILTERS: { key: Filter; label: string }[] = [
-    { key: "all", label: "All" },
-    { key: "out_of_stock", label: "Out of Stock" },
-    { key: "low_stock", label: "Low Stock (<10)" },
-    { key: "healthy", label: "Healthy" },
+    { key: "all", label: t("Admin.Inventory.filterAll") },
+    { key: "out_of_stock", label: t("Admin.Inventory.filterOutOfStock") },
+    { key: "low_stock", label: t("Admin.Inventory.filterLowStock") },
+    { key: "healthy", label: t("Admin.Inventory.filterHealthy") },
   ];
 
   // CSV columns configuration
   const csvColumns: { key: keyof InventoryProduct | ((row: InventoryProduct) => string | number); header: string }[] = [
-    { key: "title", header: "Product Name" },
-    { key: "sku", header: "SKU" },
-    { key: "brand", header: "Brand" },
-    { key: (row) => row.categoryIds.length > 0 ? row.categoryIds.join("; ") : "", header: "Category" },
-    { key: (row) => row.price.toFixed(2), header: "Price (AZN)" },
-    { key: "stock", header: "Stock" },
-    { key: (row) => (row.price * row.stock).toFixed(2), header: "Value (AZN)" },
+    { key: "title", header: t("Admin.Inventory.colProduct") },
+    { key: "sku", header: t("Admin.Inventory.colSku") },
+    { key: "brand", header: t("Admin.Inventory.colBrand") },
+    { key: (row) => row.categoryIds.length > 0 ? row.categoryIds.join("; ") : "", header: t("Admin.Categories.title") },
+    { key: (row) => row.price.toFixed(2), header: t("Admin.Inventory.colPrice") + " (AZN)" },
+    { key: "stock", header: t("Admin.Inventory.colStock") },
+    { key: (row) => (row.price * row.stock).toFixed(2), header: t("Admin.Inventory.colValue") + " (AZN)" },
   ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-2xl font-bold">Inventory</h1>
+        <h1 className="text-2xl font-bold">{t("Admin.Inventory.title")}</h1>
         {!loading && (
           <p className="text-sm text-muted-foreground">
-            Total value: <span className="font-semibold text-foreground">{totalValue.toFixed(2)} AZN</span>
+            {t("Admin.Inventory.totalValue")} <span className="font-semibold text-foreground">{totalValue.toFixed(2)} AZN</span>
           </p>
         )}
       </div>
@@ -170,22 +172,22 @@ export default function AdminInventoryPage() {
       ) : (
         <div className="grid grid-cols-3 gap-4">
           <SummaryCard
-            label="Out of Stock"
+            label={t("Admin.Inventory.outOfStock")}
             value={outOfStock}
             color={outOfStock > 0 ? "text-red-400" : "text-muted-foreground"}
-            sub={outOfStock > 0 ? "Needs immediate restocking" : "All in stock ✓"}
+            sub={outOfStock > 0 ? t("Admin.Inventory.needsRestocking") : t("Admin.Inventory.allInStock")}
           />
           <SummaryCard
-            label="Low Stock"
+            label={t("Admin.Inventory.lowStock")}
             value={lowStock}
             color={lowStock > 0 ? "text-amber-500" : "text-muted-foreground"}
-            sub="Less than 10 units"
+            sub={t("Admin.Inventory.lessThanTen")}
           />
           <SummaryCard
-            label="Healthy Stock"
+            label={t("Admin.Inventory.healthyStock")}
             value={healthyStock}
             color="text-green-400"
-            sub="10+ units available"
+            sub={t("Admin.Inventory.tenPlusUnits")}
           />
         </div>
       )}
@@ -218,7 +220,7 @@ export default function AdminInventoryPage() {
       {/* Toolbar: Search, Category Filter, CSV Export */}
       <div className="flex items-center gap-3 flex-wrap">
         <SearchInput
-          placeholder="Search by name, slug, or brand..."
+          placeholder={t("Admin.Inventory.searchPlaceholder")}
           value={search}
           onChange={setSearch}
         />
@@ -242,17 +244,17 @@ export default function AdminInventoryPage() {
             <thead>
               <tr className="border-b border-border text-muted-foreground">
                 <SortableHeader
-                  label="Product"
+                  label={t("Admin.Inventory.colProduct")}
                   sortKey="name"
                   currentSort={sortKey}
                   currentDir={sortDir}
                   onSort={handleSort}
                   className="text-left"
                 />
-                <th className="text-left px-4 py-3 font-medium">SKU</th>
-                <th className="text-left px-4 py-3 font-medium">Brand</th>
+                <th className="text-left px-4 py-3 font-medium">{t("Admin.Inventory.colSku")}</th>
+                <th className="text-left px-4 py-3 font-medium">{t("Admin.Inventory.colBrand")}</th>
                 <SortableHeader
-                  label="Price"
+                  label={t("Admin.Inventory.colPrice")}
                   sortKey="price"
                   currentSort={sortKey}
                   currentDir={sortDir}
@@ -260,7 +262,7 @@ export default function AdminInventoryPage() {
                   className="text-right"
                 />
                 <SortableHeader
-                  label="Stock"
+                  label={t("Admin.Inventory.colStock")}
                   sortKey="stock"
                   currentSort={sortKey}
                   currentDir={sortDir}
@@ -268,7 +270,7 @@ export default function AdminInventoryPage() {
                   className="text-right"
                 />
                 <SortableHeader
-                  label="Value"
+                  label={t("Admin.Inventory.colValue")}
                   sortKey="value"
                   currentSort={sortKey}
                   currentDir={sortDir}
@@ -290,7 +292,7 @@ export default function AdminInventoryPage() {
                   </tr>
                 ))
               ) : sortedProducts.length === 0 ? (
-                <TableEmptyState colSpan={6} message="No products match this filter." />
+                <TableEmptyState colSpan={6} message={t("Admin.Common.noResults")} />
               ) : sortedProducts.map((p) => (
                 <tr
                   key={p.id}
@@ -335,7 +337,7 @@ export default function AdminInventoryPage() {
               <tfoot>
                 <tr className="border-t-2 border-border bg-muted/20">
                   <td colSpan={5} className="px-4 py-3 font-semibold text-right text-sm">
-                    {filter === "all" && !search && !categoryFilter ? "Total Inventory Value:" : `Subtotal (filtered):`}
+                    {filter === "all" && !search && !categoryFilter ? t("Admin.Inventory.totalInventoryValue") : t("Admin.Inventory.subtotalFiltered")}
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-primary">
                     {sortedProducts.reduce((sum, p) => sum + p.price * p.stock, 0).toFixed(2)} AZN

@@ -6,6 +6,7 @@ import { platformStatus } from "../middlewares/platformStatus";
 import { queueNotification } from "../lib/notifications";
 import { calculateDiscount } from "../lib/coupon-calc";
 import { decrementStockSafe } from "../lib/rpc";
+import { orderRateLimit } from "../middlewares/rateLimits";
 
 const router = Router();
 
@@ -14,7 +15,7 @@ interface OrderItemInput {
   quantity: number;
 }
 
-router.post("/orders", platformStatus("order_submit"), requireUser, async (req, res) => {
+router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLimit, async (req, res) => {
   const user = { id: req.authUser!.id };
 
   const { items, customer_name, customer_phone, delivery_address, notes, coupon_code } = req.body;
@@ -136,9 +137,39 @@ router.post("/orders", platformStatus("order_submit"), requireUser, async (req, 
     }
   }
 
-  // Record coupon usage
+  // Record coupon usage (SEC-005: atomic increment with conditional guard)
   if (couponId && couponData) {
-    await admin.from("coupons").update({ used_count: (couponData.used_count ?? 0) + 1 }).eq("id", couponId);
+    const { data: updated, error: updateErr } = await admin
+      .from("coupons")
+      .update({ used_count: (couponData.used_count ?? 0) + 1 })
+      .eq("id", couponId)
+      .lt("used_count", couponData.max_uses ?? 999999)
+      .select("id");
+
+    if (!updated || updated.length === 0) {
+      // Race condition: coupon limit exceeded between check and increment — rollback order
+      await admin.from("orders").delete().eq("id", order.id);
+      return res.status(400).json({ error: "Coupon usage limit exceeded" });
+    }
+
+    // SEC-008: Per-user coupon usage enforcement
+    if (couponData.max_uses_per_user) {
+      const { count } = await admin
+        .from("coupon_usages")
+        .select("*", { count: "exact", head: true })
+        .eq("coupon_id", couponData.id)
+        .eq("user_id", user.id);
+      if ((count ?? 0) >= couponData.max_uses_per_user) {
+        // Rollback: decrement the used_count we just incremented
+        await admin
+          .from("coupons")
+          .update({ used_count: Math.max((couponData.used_count ?? 0), 0) })
+          .eq("id", couponId);
+        await admin.from("orders").delete().eq("id", order.id);
+        return res.status(400).json({ error: "Coupon usage limit reached for your account" });
+      }
+    }
+
     await admin.from("coupon_usages").insert({
       coupon_id: couponId,
       user_id: user.id,

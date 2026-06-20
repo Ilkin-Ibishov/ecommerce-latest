@@ -4,6 +4,7 @@ import { ShieldCheck, User } from "lucide-react";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminList } from "@/lib/hooks/useAdminList";
+import { useI18n } from "@/lib/i18n/context";
 import { DataTable, type Column } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
 import { TableEmptyState } from "@/components/admin/TableEmptyState";
@@ -32,6 +33,7 @@ const PAGE_SIZE = 30;
  * hand-rolled table (R6.3, R6.5, R6.6).
  */
 export default function AdminUsersPage() {
+  const { t } = useI18n();
   // Fetcher runs the existing /admin/users API query unchanged; the server
   // paginates by page (PAGE_SIZE 30) and returns { users, total }.
   const fetcher = useCallback(
@@ -63,8 +65,8 @@ export default function AdminUsersPage() {
     const current = roleOverrides[user.id] ?? user.role;
     const newRole = current === "admin" ? "customer" : "admin";
     confirm({
-      title: "Change Role",
-      message: `Change ${user.full_name ?? user.phone} to ${newRole}?`,
+      title: t("Admin.Users.changeRoleTitle"),
+      message: t("Admin.Users.changeRoleMessage").replace("{name}", user.full_name ?? user.phone).replace("{role}", newRole),
       onConfirm: async () => {
         setRoleSaving(user.id);
         const res = await adminFetch(apiUrl(`/admin/users/${user.id}/role`), {
@@ -91,7 +93,7 @@ export default function AdminUsersPage() {
   const columns: Column<AdminUser>[] = [
     {
       key: "customer",
-      header: "Customer",
+      header: t("Admin.Users.columnCustomer"),
       align: "left",
       cell: (u) => {
         const role = roleOverrides[u.id] ?? u.role;
@@ -103,7 +105,7 @@ export default function AdminUsersPage() {
                 : <User size={14} className="text-muted-foreground" />}
             </div>
             <div>
-              <div className="font-medium">{u.full_name ?? <span className="text-muted-foreground italic">No name</span>}</div>
+              <div className="font-medium">{u.full_name ?? <span className="text-muted-foreground italic">{t("Admin.Users.noName")}</span>}</div>
               <div className="text-xs text-muted-foreground font-mono">{u.id.slice(0, 8)}</div>
             </div>
           </div>
@@ -112,14 +114,14 @@ export default function AdminUsersPage() {
     },
     {
       key: "phone",
-      header: "Phone",
+      header: t("Admin.Users.columnPhone"),
       align: "left",
       className: "font-mono text-xs",
       cell: (u) => u.phone,
     },
     {
       key: "orders",
-      header: "Orders",
+      header: t("Admin.Users.columnOrders"),
       align: "right",
       cell: (u) =>
         u.order_count > 0 ? (
@@ -135,14 +137,14 @@ export default function AdminUsersPage() {
     },
     {
       key: "joined",
-      header: "Joined",
+      header: t("Admin.Users.columnJoined"),
       align: "left",
       className: "text-xs text-muted-foreground",
       cell: (u) => new Date(u.created_at).toLocaleDateString(),
     },
     {
       key: "role",
-      header: "Role",
+      header: t("Admin.Users.columnRole"),
       align: "left",
       cell: (u) => {
         const role = roleOverrides[u.id] ?? u.role;
@@ -152,14 +154,14 @@ export default function AdminUsersPage() {
               ? "bg-purple-500/20 text-purple-400"
               : "bg-muted text-muted-foreground"
           }`}>
-            {role}
+            {role === "admin" ? t("Admin.Users.roleAdmin") : t("Admin.Users.roleCustomer")}
           </span>
         );
       },
     },
     {
       key: "actions",
-      header: "Actions",
+      header: t("Admin.Users.columnActions"),
       align: "right",
       cell: (u) => {
         const role = roleOverrides[u.id] ?? u.role;
@@ -173,7 +175,7 @@ export default function AdminUsersPage() {
                 : "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"
             }`}
           >
-            {roleSaving === u.id ? "…" : role === "admin" ? "Demote" : "Make Admin"}
+            {roleSaving === u.id ? "…" : role === "admin" ? t("Admin.Users.demote") : t("Admin.Users.makeAdmin")}
           </button>
         );
       },
@@ -184,11 +186,11 @@ export default function AdminUsersPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Customers</h1>
+        <h1 className="text-2xl font-bold">{t("Admin.Users.title")}</h1>
         <span className="text-sm text-muted-foreground">
           {search
-            ? `${count} result${count !== 1 ? "s" : ""} for "${search}"`
-            : `${count} registered`}
+            ? t("Admin.Users.resultCount").replace("{count}", String(count)).replace("{query}", search)
+            : t("Admin.Users.registeredCount").replace("{count}", String(count))}
         </span>
       </div>
 
@@ -197,7 +199,7 @@ export default function AdminUsersPage() {
       <SearchInput
         value={searchInput}
         onChange={setSearchInput}
-        placeholder="Search by name or phone…"
+        placeholder={t("Admin.Users.searchPlaceholder")}
         debounceMs={0}
       />
 
@@ -209,14 +211,14 @@ export default function AdminUsersPage() {
         empty={
           <TableEmptyState
             colSpan={6}
-            message={search ? `No customers found for "${search}"` : "No customers registered yet."}
+            message={search ? t("Admin.Users.emptySearchState").replace("{query}", search) : t("Admin.Users.emptyState")}
           />
         }
       />
 
       <Pagination page={page} totalPages={totalPages} buildHref={buildHref} />
 
-      <ConfirmDialog {...dialogProps} />
+      <ConfirmDialog {...dialogProps} confirmLabel={t("Admin.Common.confirm")} cancelLabel={t("Admin.Common.cancel")} />
     </div>
   );
 }

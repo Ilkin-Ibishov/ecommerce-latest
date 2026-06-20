@@ -3,6 +3,7 @@ import { Plus, Pencil, Trash2, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
+import { useI18n } from "@/lib/i18n/context";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { getTranslatedField } from "@/lib/utils";
 
@@ -33,6 +34,7 @@ function getTitle(translations: { lang_code: string; title: string }[], lang = "
 }
 
 export default function AdminCategoriesPage() {
+  const { t } = useI18n();
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -106,11 +108,11 @@ export default function AdminCategoriesPage() {
 
   const handleDelete = async (id: string, catName: string, subCount = 0) => {
     const msg = subCount > 0
-      ? `Delete "${catName}" and its ${subCount} subcategory(s)? This cannot be undone.`
-      : `Delete "${catName}"?`;
+      ? t("Admin.Categories.deleteConfirmWithSubs").replace("{name}", catName).replace("{count}", String(subCount))
+      : t("Admin.Categories.deleteConfirm").replace("{name}", catName);
     setConfirmState({
       open: true,
-      title: "Delete Category",
+      title: t("Admin.Categories.deleteCategory"),
       message: msg,
       onConfirm: async () => {
         setConfirmState((s) => ({ ...s, open: false }));
@@ -124,14 +126,14 @@ export default function AdminCategoriesPage() {
     ? getTitle(categories.find((c) => c.id === form.parent_id)?.category_translations ?? [])
     : null;
 
-  if (loading) return <div className="text-muted-foreground text-sm">Loading…</div>;
+  if (loading) return <div className="text-muted-foreground text-sm">{t("Admin.Common.loading")}</div>;
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Categories</h1>
+        <h1 className="text-2xl font-bold">{t("Admin.Categories.title")}</h1>
         <button onClick={openNew} className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition">
-          <Plus size={16} /> New Category
+          <Plus size={16} /> {t("Admin.Categories.newCategory")}
         </button>
       </div>
 
@@ -140,7 +142,7 @@ export default function AdminCategoriesPage() {
         <div className="bg-card border border-border rounded-xl p-5 space-y-4">
           <div className="flex items-center justify-between">
             <h3 className="font-semibold">
-              {editing ? "Edit" : parentName ? "New Subcategory" : "New Category"}
+              {editing ? t("Admin.Common.edit") : parentName ? t("Admin.Categories.newSubcategory") : t("Admin.Categories.newCategory")}
             </h3>
             <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-foreground"><X size={16} /></button>
           </div>
@@ -148,31 +150,31 @@ export default function AdminCategoriesPage() {
           {/* Parent context banner for subcategories */}
           {parentName && (
             <p className="text-xs text-muted-foreground bg-muted/50 px-3 py-2 rounded-lg">
-              📁 Adding subcategory under: <strong>{parentName}</strong>
+              📁 {t("Admin.Categories.parentContext")} <strong>{parentName}</strong>
             </p>
           )}
 
           <div className="grid grid-cols-2 gap-4">
-            <F label="Slug" value={form.slug} onChange={(v) => setForm((f) => ({ ...f, slug: v }))} placeholder="category-slug" />
+            <F label={t("Admin.Categories.labelSlug")} value={form.slug} onChange={(v) => setForm((f) => ({ ...f, slug: v }))} placeholder={t("Admin.Categories.placeholderSlug")} />
             {/* Only root categories have icon_url */}
             {!form.parent_id && (
-              <F label="Icon URL (optional)" value={form.icon_url} onChange={(v) => setForm((f) => ({ ...f, icon_url: v }))} placeholder="https://..." />
+              <F label={t("Admin.Categories.labelIconUrl")} value={form.icon_url} onChange={(v) => setForm((f) => ({ ...f, icon_url: v }))} placeholder={t("Admin.Categories.placeholderIconUrl")} />
             )}
           </div>
           <div className="space-y-3">
             {LANGS.map((lang) => (
               <F
                 key={lang}
-                label={`Title (${lang})`}
-                value={form.translations.find((t) => t.lang_code === lang)?.title ?? ""}
+                label={t("Admin.Categories.labelTitle").replace("{lang}", lang)}
+                value={form.translations.find((tr) => tr.lang_code === lang)?.title ?? ""}
                 onChange={(v) => setTitle(lang, v)}
-                placeholder={`Category name in ${lang}`}
+                placeholder={t("Admin.Categories.placeholderTitle").replace("{lang}", lang)}
               />
             ))}
           </div>
           <button onClick={handleSave} disabled={saving}
             className="px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50">
-            {saving ? "Saving…" : "Save"}
+            {saving ? t("Admin.Common.saving") : t("Admin.Common.save")}
           </button>
         </div>
       )}
@@ -183,14 +185,14 @@ export default function AdminCategoriesPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                <th className="text-left px-4 py-3 font-medium">Name (AZ)</th>
-                <th className="text-left px-4 py-3 font-medium">Slug</th>
-                <th className="text-right px-4 py-3 font-medium">Actions</th>
+                <th className="text-left px-4 py-3 font-medium">{t("Admin.Categories.columnName")}</th>
+                <th className="text-left px-4 py-3 font-medium">{t("Admin.Categories.columnSlug")}</th>
+                <th className="text-right px-4 py-3 font-medium">{t("Admin.Categories.columnActions")}</th>
               </tr>
             </thead>
             <tbody>
               {categories.length === 0 ? (
-                <tr><td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">No categories yet.</td></tr>
+                <tr><td colSpan={3} className="px-4 py-10 text-center text-muted-foreground">{t("Admin.Categories.emptyState")}</td></tr>
               ) : categories.map((cat) => {
                 const subs = cat.subcategories ?? [];
                 const title = getTitle(cat.category_translations);
@@ -214,7 +216,7 @@ export default function AdminCategoriesPage() {
                         <div className="flex items-center justify-end gap-1">
                           <button
                             onClick={() => openAddSub(cat)}
-                            title="Add subcategory"
+                            title={t("Admin.Categories.addSubcategory")}
                             className="p-1.5 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition"
                           >
                             <Plus size={13} />
@@ -270,7 +272,8 @@ export default function AdminCategoriesPage() {
         open={confirmState.open}
         title={confirmState.title}
         message={confirmState.message}
-        confirmLabel="Delete"
+        confirmLabel={t("Admin.Categories.confirmDelete")}
+        cancelLabel={t("Admin.Common.cancel")}
         destructive={true}
         onConfirm={confirmState.onConfirm}
         onCancel={() => setConfirmState((s) => ({ ...s, open: false }))}

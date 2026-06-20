@@ -8,23 +8,68 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { LoginModal } from "@/components/auth/LoginModal";
+import { I18nProvider, useI18n } from "@/lib/i18n/context";
+import { LocaleSwitcher } from "@/components/admin/LocaleSwitcher";
+
+export const VALID_LOCALES = ["az", "ru", "en"] as const;
+export const LOCALE_STORAGE_KEY = "admin-locale";
+export const DEFAULT_LOCALE = "en";
+
+export function getStoredLocale(): string {
+  try {
+    const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
+    if (stored && (VALID_LOCALES as readonly string[]).includes(stored)) return stored;
+  } catch { /* localStorage unavailable (private browsing) */ }
+  return DEFAULT_LOCALE;
+}
 
 const navItems = [
-  { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/admin/products", label: "Products", icon: Package },
-  { href: "/admin/inventory", label: "Inventory", icon: Boxes },
-  { href: "/admin/orders", label: "Orders", icon: ShoppingCart },
-  { href: "/admin/users", label: "Customers", icon: Users },
-  { href: "/admin/coupons", label: "Coupons", icon: Tag },
-  { href: "/admin/banners", label: "Banners", icon: Image },
-  { href: "/admin/categories", label: "Categories", icon: FolderOpen },
-  { href: "/admin/comments", label: "Comments", icon: MessageSquare },
-  { href: "/admin/audit", label: "Audit Log", icon: FileText },
-  { href: "/admin/pages", label: "Pages", icon: BookOpen },
-  { href: "/admin/settings", label: "Settings", icon: Settings2 },
+  { href: "/admin", labelKey: "Admin.Nav.dashboard", icon: LayoutDashboard },
+  { href: "/admin/products", labelKey: "Admin.Nav.products", icon: Package },
+  { href: "/admin/inventory", labelKey: "Admin.Nav.inventory", icon: Boxes },
+  { href: "/admin/orders", labelKey: "Admin.Nav.orders", icon: ShoppingCart },
+  { href: "/admin/users", labelKey: "Admin.Nav.customers", icon: Users },
+  { href: "/admin/coupons", labelKey: "Admin.Nav.coupons", icon: Tag },
+  { href: "/admin/banners", labelKey: "Admin.Nav.banners", icon: Image },
+  { href: "/admin/categories", labelKey: "Admin.Nav.categories", icon: FolderOpen },
+  { href: "/admin/comments", labelKey: "Admin.Nav.comments", icon: MessageSquare },
+  { href: "/admin/audit", labelKey: "Admin.Nav.audit", icon: FileText },
+  { href: "/admin/pages", labelKey: "Admin.Nav.pages", icon: BookOpen },
+  { href: "/admin/settings", labelKey: "Admin.Nav.settings", icon: Settings2 },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
+  const [adminLocale, setAdminLocale] = useState<string>(getStoredLocale);
+
+  // Persist fallback locale when stored value is invalid or missing
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(LOCALE_STORAGE_KEY);
+      if (!stored || !(VALID_LOCALES as readonly string[]).includes(stored)) {
+        localStorage.setItem(LOCALE_STORAGE_KEY, DEFAULT_LOCALE);
+      }
+    } catch { /* localStorage unavailable */ }
+  }, []);
+
+  return (
+    <I18nProvider locale={adminLocale}>
+      <AdminLayoutInner adminLocale={adminLocale} setAdminLocale={setAdminLocale}>
+        {children}
+      </AdminLayoutInner>
+    </I18nProvider>
+  );
+}
+
+function AdminLayoutInner({
+  children,
+  adminLocale,
+  setAdminLocale,
+}: {
+  children: ReactNode;
+  adminLocale: string;
+  setAdminLocale: (locale: string) => void;
+}) {
+  const { t } = useI18n();
   const [location] = useLocation();
   const [checking, setChecking] = useState(true);
   const [authed, setAuthed] = useState(false);
@@ -68,7 +113,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
   if (checking) return (
     <div className="admin-theme min-h-screen flex items-center justify-center bg-background text-foreground">
-      <p className="text-muted-foreground">Loading...</p>
+      <p className="text-muted-foreground">{t("Admin.Layout.loading")}</p>
     </div>
   );
 
@@ -78,22 +123,22 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 mb-4">
           <ShieldCheck size={28} className="text-primary" />
         </div>
-        <h1 className="text-2xl font-bold mb-2">Admin Access Required</h1>
-        <p className="text-muted-foreground mb-6">Sign in with your admin phone number to continue.</p>
+        <h1 className="text-2xl font-bold mb-2">{t("Admin.Layout.adminAccessRequired")}</h1>
+        <p className="text-muted-foreground mb-6">{t("Admin.Layout.signInDescription")}</p>
         <div className="flex flex-col gap-3">
           <button
             onClick={() => setLoginOpen(true)}
             className="px-5 py-2.5 bg-primary text-primary-foreground rounded-xl text-sm font-medium hover:bg-primary/90 transition">
-            Sign In with Phone
+            {t("Admin.Layout.signInWithPhone")}
           </button>
           {bootstrapAvailable && (
             <Link href="/admin/setup"
               className="px-5 py-2.5 border border-border rounded-xl text-sm font-medium hover:bg-muted/50 transition block">
-              First-time Setup
+              {t("Admin.Layout.firstTimeSetup")}
             </Link>
           )}
           <Link href="/az" className="text-sm text-muted-foreground hover:text-foreground transition">
-            Return to Store
+            {t("Admin.Layout.returnToStore")}
           </Link>
         </div>
       </div>
@@ -122,7 +167,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
       <div className="px-5 py-5 border-b border-border flex items-center justify-between shrink-0">
         <div>
           <span className="font-bold text-lg text-primary">{storeName}</span>
-          <p className="text-xs text-muted-foreground mt-0.5">Admin Panel</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t("Admin.Layout.adminPanel")}</p>
         </div>
         {/* Close button — mobile only */}
         <button
@@ -134,7 +179,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
         </button>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, labelKey, icon: Icon }) => {
           const active = href === "/admin" ? location === "/admin" : location.startsWith(href);
           return (
             <Link
@@ -145,18 +190,27 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               }`}
             >
               <Icon size={16} />
-              {label}
+              {t(labelKey)}
             </Link>
           );
         })}
       </nav>
+      <div className="px-3 py-2 border-t border-border shrink-0">
+        <LocaleSwitcher
+          current={adminLocale}
+          onChange={(locale) => {
+            localStorage.setItem(LOCALE_STORAGE_KEY, locale);
+            setAdminLocale(locale);
+          }}
+        />
+      </div>
       <div className="p-3 border-t border-border shrink-0">
         <button
           onClick={handleSignOut}
           className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted/50 hover:text-foreground transition w-full"
         >
           <LogOut size={16} />
-          Sign Out
+          {t("Admin.Layout.signOut")}
         </button>
       </div>
     </aside>
@@ -195,7 +249,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
               <Menu size={20} />
             </button>
             <span className="font-bold text-primary">{storeName}</span>
-            <span className="text-xs text-muted-foreground">Admin</span>
+            <span className="text-xs text-muted-foreground">{t("Admin.Layout.mobileAdmin")}</span>
           </header>
 
           <main className="flex-1 p-4 md:p-6 overflow-y-auto">

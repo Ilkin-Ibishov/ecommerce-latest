@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { useI18n } from "@/lib/i18n/context";
 
 export interface PaginationProps {
   page: number;
@@ -15,6 +16,8 @@ export interface PaginationProps {
  * existing inline pagination.
  */
 export function Pagination({ page, totalPages, buildHref }: PaginationProps) {
+  const { t } = useI18n();
+
   if (totalPages <= 1) return null;
 
   const windowSize = Math.min(totalPages, 7);
@@ -28,7 +31,7 @@ export function Pagination({ page, totalPages, buildHref }: PaginationProps) {
           aria-label="Previous page"
           className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted text-sm text-muted-foreground transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
-          ← Prev
+          {t("Admin.Common.prev")}
         </Link>
       )}
       {Array.from({ length: windowSize }, (_, i) => {
@@ -54,10 +57,12 @@ export function Pagination({ page, totalPages, buildHref }: PaginationProps) {
           aria-label="Next page"
           className="px-3 py-1.5 rounded-lg border border-border hover:bg-muted text-sm text-muted-foreground transition focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
         >
-          Next →
+          {t("Admin.Common.next")}
         </Link>
       )}
-      <span className="text-xs text-muted-foreground ml-2">Page {page} of {totalPages}</span>
+      <span className="text-xs text-muted-foreground ml-2">
+        {t("Admin.Common.pageOf").replace("{page}", String(page)).replace("{total}", String(totalPages))}
+      </span>
     </nav>
   );
 }

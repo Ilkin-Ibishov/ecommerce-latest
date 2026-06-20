@@ -4,6 +4,7 @@ import { Printer } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
+import { useI18n } from "@/lib/i18n/context";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-400",
@@ -15,14 +16,14 @@ const STATUS_COLORS: Record<string, string> = {
   cancelled: "bg-gray-500/20 text-gray-400",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  pending: "Pending",
-  phone_verified: "Phone Verified",
-  courier_assigned: "Courier Assigned",
-  shipped: "Shipped",
-  delivered: "Delivered",
-  refused_at_delivery: "Refused at Delivery",
-  cancelled: "Cancelled",
+const STATUS_KEY_MAP: Record<string, string> = {
+  pending: "statusPending",
+  phone_verified: "statusPhoneVerified",
+  courier_assigned: "statusCourierAssigned",
+  shipped: "statusShipped",
+  delivered: "statusDelivered",
+  refused_at_delivery: "statusRefusedAtDelivery",
+  cancelled: "statusCancelled",
 };
 
 const NOTIF_STATUS_COLORS: Record<string, string> = {
@@ -32,10 +33,10 @@ const NOTIF_STATUS_COLORS: Record<string, string> = {
   failed: "bg-red-500/20 text-red-400",
 };
 
-const NOTIF_TYPE_LABELS: Record<string, string> = {
-  order_confirmed: "Sifariş təsdiqi",
-  status_changed: "Status dəyişikliyi",
-  low_stock: "Az stok",
+const NOTIF_TYPE_KEY_MAP: Record<string, string> = {
+  order_confirmed: "notifTypeOrderConfirmed",
+  status_changed: "notifTypeStatusChanged",
+  low_stock: "notifTypeLowStock",
 };
 
 const ALL_STATUSES = ["pending", "phone_verified", "courier_assigned", "shipped", "delivered", "refused_at_delivery", "cancelled"];
@@ -53,6 +54,7 @@ type Notification = {
 };
 
 export default function OrderDetailPage({ id }: { id: string }) {
+  const { t } = useI18n();
   const [order, setOrder] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [newStatus, setNewStatus] = useState("");
@@ -71,6 +73,16 @@ export default function OrderDetailPage({ id }: { id: string }) {
   const [testPhone, setTestPhone] = useState("");
   const [testSending, setTestSending] = useState(false);
   const [testResult, setTestResult] = useState<string>("");
+
+  const getStatusLabel = (status: string) => {
+    const key = STATUS_KEY_MAP[status];
+    return key ? t(`Admin.OrderDetail.${key}`) : status;
+  };
+
+  const getNotifTypeLabel = (type: string) => {
+    const key = NOTIF_TYPE_KEY_MAP[type];
+    return key ? t(`Admin.OrderDetail.${key}`) : type;
+  };
 
   useEffect(() => {
     const supabase = createClient();
@@ -103,14 +115,14 @@ export default function OrderDetailPage({ id }: { id: string }) {
       });
       if (!res.ok) {
         const data = await res.json();
-        setError(data.error ?? "Failed to update status");
+        setError(data.error ?? t("Admin.OrderDetail.failedToUpdate"));
       } else {
         setOrder((prev: any) => ({ ...prev, status: newStatus }));
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       }
     } catch {
-      setError("Network error");
+      setError(t("Admin.Common.networkError"));
     }
     setSaving(false);
   };
@@ -135,18 +147,18 @@ export default function OrderDetailPage({ id }: { id: string }) {
         body: JSON.stringify({ phone: testPhone }),
       });
       const data = await res.json();
-      setTestResult(data.ok ? "✓ Göndərildi" : `Xəta: ${data.error ?? "unknown"}`);
+      setTestResult(data.ok ? `✓ ${t("Admin.OrderDetail.sent")}` : `${t("Admin.Common.networkError")}: ${data.error ?? "unknown"}`);
     } catch {
-      setTestResult("Şəbəkə xətası");
+      setTestResult(t("Admin.Common.networkError"));
     }
     setTestSending(false);
   };
 
-  if (loading) return <div className="text-muted-foreground">Loading...</div>;
+  if (loading) return <div className="text-muted-foreground">{t("Admin.Common.loading")}</div>;
   if (!order) return (
     <div className="space-y-4">
-      <Link href="/admin/orders" className="text-sm text-muted-foreground hover:text-foreground">← Orders</Link>
-      <p className="text-muted-foreground">Order not found.</p>
+      <Link href="/admin/orders" className="text-sm text-muted-foreground hover:text-foreground">{t("Admin.OrderDetail.backToOrders")}</Link>
+      <p className="text-muted-foreground">{t("Admin.OrderDetail.notFound")}</p>
     </div>
   );
 
@@ -156,22 +168,22 @@ export default function OrderDetailPage({ id }: { id: string }) {
     <div className="space-y-6 max-w-3xl">
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap">
-        <Link href="/admin/orders" className="text-muted-foreground hover:text-foreground text-sm no-print">← Orders</Link>
-        <h1 className="text-2xl font-bold">Order #{order.id.slice(0, 8).toUpperCase()}</h1>
+        <Link href="/admin/orders" className="text-muted-foreground hover:text-foreground text-sm no-print">{t("Admin.OrderDetail.backToOrders")}</Link>
+        <h1 className="text-2xl font-bold">{t("Admin.OrderDetail.orderTitle").replace("{id}", order.id.slice(0, 8).toUpperCase())}</h1>
         <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${statusClass}`}>
-          {STATUS_LABELS[order.status] ?? order.status}
+          {getStatusLabel(order.status)}
         </span>
         <button
           onClick={() => window.print()}
           className="ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:bg-muted transition no-print"
         >
-          <Printer size={14} /> Print
+          <Printer size={14} /> {t("Admin.OrderDetail.print")}
         </button>
       </div>
 
       {/* Print-only store header */}
       <div className="hidden print:block border-b pb-4 mb-4">
-        <p className="text-lg font-bold">İlk Electronics — Çatdırılma Qaiməsi</p>
+        <p className="text-lg font-bold">{t("Admin.OrderDetail.deliveryReceipt")}</p>
         <p className="text-sm text-gray-500">{new Date(order.created_at).toLocaleDateString("az-AZ", { year: "numeric", month: "long", day: "numeric" })}</p>
       </div>
 
@@ -180,31 +192,31 @@ export default function OrderDetailPage({ id }: { id: string }) {
       {/* Customer + Order info */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="bg-card border border-border rounded-xl p-5 space-y-3">
-          <h2 className="font-semibold text-sm">Customer</h2>
+          <h2 className="font-semibold text-sm">{t("Admin.OrderDetail.sectionCustomer")}</h2>
           <div className="space-y-1 text-sm">
-            <p><span className="text-muted-foreground">Name:</span> {order.customer_name}</p>
-            <p><span className="text-muted-foreground">Phone:</span> {order.customer_phone}</p>
-            <p><span className="text-muted-foreground">Address:</span> {order.delivery_address}</p>
-            {order.notes && <p><span className="text-muted-foreground">Notes:</span> {order.notes}</p>}
+            <p><span className="text-muted-foreground">{t("Admin.OrderDetail.fieldName")}</span> {order.customer_name}</p>
+            <p><span className="text-muted-foreground">{t("Admin.OrderDetail.fieldPhone")}</span> {order.customer_phone}</p>
+            <p><span className="text-muted-foreground">{t("Admin.OrderDetail.fieldAddress")}</span> {order.delivery_address}</p>
+            {order.notes && <p><span className="text-muted-foreground">{t("Admin.OrderDetail.fieldNotes")}</span> {order.notes}</p>}
           </div>
         </div>
 
         <div className="bg-card border border-border rounded-xl p-5 space-y-3">
-          <h2 className="font-semibold text-sm">Order Info</h2>
+          <h2 className="font-semibold text-sm">{t("Admin.OrderDetail.sectionOrderInfo")}</h2>
           <div className="space-y-1 text-sm">
-            <p><span className="text-muted-foreground">Placed:</span> {new Date(order.created_at).toLocaleString()}</p>
-            <p><span className="text-muted-foreground">Subtotal:</span> {Number(order.subtotal_azn ?? order.total_azn).toFixed(2)} AZN</p>
+            <p><span className="text-muted-foreground">{t("Admin.OrderDetail.fieldPlaced")}</span> {new Date(order.created_at).toLocaleString()}</p>
+            <p><span className="text-muted-foreground">{t("Admin.OrderDetail.fieldSubtotal")}</span> {Number(order.subtotal_azn ?? order.total_azn).toFixed(2)} AZN</p>
             {Number(order.discount_azn) > 0 && (
-              <p><span className="text-muted-foreground">Discount:</span> -{Number(order.discount_azn).toFixed(2)} AZN {order.coupons?.code && `(${order.coupons.code})`}</p>
+              <p><span className="text-muted-foreground">{t("Admin.OrderDetail.fieldDiscount")}</span> -{Number(order.discount_azn).toFixed(2)} AZN {order.coupons?.code && `(${order.coupons.code})`}</p>
             )}
-            <p className="font-bold"><span className="text-muted-foreground font-normal">Total:</span> {Number(order.total_azn).toFixed(2)} AZN</p>
+            <p className="font-bold"><span className="text-muted-foreground font-normal">{t("Admin.OrderDetail.fieldTotal")}</span> {Number(order.total_azn).toFixed(2)} AZN</p>
           </div>
         </div>
       </div>
 
       {/* Items */}
       <div className="bg-card border border-border rounded-xl p-5 space-y-3">
-        <h2 className="font-semibold text-sm">Items</h2>
+        <h2 className="font-semibold text-sm">{t("Admin.OrderDetail.sectionItems")}</h2>
         <div className="divide-y divide-border">
           {(order.order_items ?? []).map((item: any) => (
             <div key={item.id} className="flex justify-between py-2 text-sm">
@@ -219,35 +231,35 @@ export default function OrderDetailPage({ id }: { id: string }) {
 
       {/* Update Status — hidden on print */}
       <div className="bg-card border border-border rounded-xl p-5 space-y-3 no-print">
-        <h2 className="font-semibold text-sm">Update Status</h2>
+        <h2 className="font-semibold text-sm">{t("Admin.OrderDetail.sectionUpdateStatus")}</h2>
         {newStatus === "cancelled" && order.status !== "cancelled" && (
           <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
-            ⚠ Cancelling this order will automatically restock all items.
+            ⚠ {t("Admin.OrderDetail.cancelWarning")}
           </div>
         )}
         <div className="flex gap-3 flex-wrap">
           <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}
             className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">
             {ALL_STATUSES.map((s) => (
-              <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>
+              <option key={s} value={s}>{getStatusLabel(s)}</option>
             ))}
           </select>
           <button onClick={handleSaveStatus} disabled={saving || newStatus === order.status}
             className="px-5 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition disabled:opacity-50">
-            {saving ? "Saving…" : saved ? "✓ Saved" : "Save Status"}
+            {saving ? t("Admin.Common.saving") : saved ? t("Admin.OrderDetail.saved") : t("Admin.OrderDetail.saveStatus")}
           </button>
         </div>
-        <p className="text-xs text-muted-foreground">WhatsApp bildirişi avtomatik göndəriləcək.</p>
+        <p className="text-xs text-muted-foreground">{t("Admin.OrderDetail.whatsappAutoNotice")}</p>
       </div>
 
       {/* Admin Notes — hidden on print */}
       <div className="bg-card border border-border rounded-xl p-5 space-y-3 no-print">
-        <h2 className="font-semibold text-sm">Admin Notes <span className="text-xs font-normal text-muted-foreground">(internal — not visible to customer)</span></h2>
+        <h2 className="font-semibold text-sm">{t("Admin.OrderDetail.sectionAdminNotes")} <span className="text-xs font-normal text-muted-foreground">{t("Admin.OrderDetail.adminNotesSubtitle")}</span></h2>
         <textarea
           value={adminNotes}
           onChange={(e) => setAdminNotes(e.target.value)}
           rows={3}
-          placeholder="Add internal notes about this order…"
+          placeholder={t("Admin.OrderDetail.notesPlaceholder")}
           className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none"
         />
         <button
@@ -255,7 +267,7 @@ export default function OrderDetailPage({ id }: { id: string }) {
           disabled={notesSaving}
           className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 transition disabled:opacity-50"
         >
-          {notesSaving ? "Saving…" : notesSaved ? "✓ Saved" : "Save Notes"}
+          {notesSaving ? t("Admin.Common.saving") : notesSaved ? t("Admin.OrderDetail.saved") : t("Admin.OrderDetail.saveNotes")}
         </button>
       </div>
 
@@ -266,7 +278,7 @@ export default function OrderDetailPage({ id }: { id: string }) {
           className="w-full flex items-center justify-between px-5 py-4 text-sm font-semibold hover:bg-muted/30 transition"
         >
           <span className="flex items-center gap-2">
-            <span>📱 WhatsApp Bildirişləri</span>
+            <span>📱 {t("Admin.OrderDetail.sectionNotifications")}</span>
             {notifications.length > 0 && (
               <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-muted text-muted-foreground">
                 {notifications.length}
@@ -279,14 +291,14 @@ export default function OrderDetailPage({ id }: { id: string }) {
         {notifsOpen && (
           <div className="border-t border-border px-5 py-4 space-y-3">
             {notifications.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Bu sifariş üçün bildiriş yoxdur.</p>
+              <p className="text-sm text-muted-foreground">{t("Admin.OrderDetail.noNotifications")}</p>
             ) : (
               <div className="space-y-2">
                 {notifications.map((n) => (
                   <div key={n.id} className="flex flex-wrap items-start gap-2 text-xs py-2 border-b border-border last:border-0">
                     <span className="font-mono text-muted-foreground">{new Date(n.created_at).toLocaleString()}</span>
                     <span className="px-1.5 py-0.5 rounded bg-muted text-muted-foreground">{n.channel}</span>
-                    <span className="text-muted-foreground">{NOTIF_TYPE_LABELS[n.type] ?? n.type}</span>
+                    <span className="text-muted-foreground">{getNotifTypeLabel(n.type)}</span>
                     <span className={`px-1.5 py-0.5 rounded font-semibold ${NOTIF_STATUS_COLORS[n.status] ?? "bg-gray-500/20 text-gray-400"}`}>
                       {n.status}
                     </span>
@@ -301,7 +313,7 @@ export default function OrderDetailPage({ id }: { id: string }) {
                         }}
                         className="ml-auto px-2 py-0.5 rounded bg-primary/10 text-primary text-xs hover:bg-primary/20 transition shrink-0"
                       >
-                        Retry
+                        {t("Admin.Common.retry")}
                       </button>
                     )}
                   </div>
@@ -311,7 +323,7 @@ export default function OrderDetailPage({ id }: { id: string }) {
 
             {/* Test message sender */}
             <div className="pt-2 border-t border-border">
-              <p className="text-xs text-muted-foreground mb-2">Test mesajı göndər:</p>
+              <p className="text-xs text-muted-foreground mb-2">{t("Admin.OrderDetail.testMessage")}</p>
               <div className="flex gap-2">
                 <input
                   type="tel"
@@ -325,7 +337,7 @@ export default function OrderDetailPage({ id }: { id: string }) {
                   disabled={testSending || !testPhone}
                   className="px-4 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition disabled:opacity-50"
                 >
-                  {testSending ? "…" : "Göndər"}
+                  {testSending ? "…" : t("Admin.OrderDetail.send")}
                 </button>
               </div>
               {testResult && (

@@ -1,4 +1,5 @@
 import { Download } from "lucide-react";
+import { useI18n } from "@/lib/i18n/context";
 
 interface CSVColumn<T> {
   key: keyof T | ((row: T) => string | number);
@@ -19,6 +20,7 @@ export function escapeCSV(value: string): string {
 }
 
 export function CSVExportButton<T>({ data, columns, filename }: CSVExportButtonProps<T>) {
+  const { t } = useI18n();
   const exportCSV = () => {
     if (data.length === 0) return;
     const header = columns.map((c) => escapeCSV(c.header)).join(",");
@@ -44,7 +46,7 @@ export function CSVExportButton<T>({ data, columns, filename }: CSVExportButtonP
       disabled={data.length === 0}
       className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border text-sm text-muted-foreground hover:text-foreground hover:bg-muted transition disabled:opacity-50 disabled:cursor-not-allowed"
     >
-      <Download size={14} /> Export CSV
+      <Download size={14} /> {t("Admin.Common.export")}
     </button>
   );
 }

@@ -4,6 +4,7 @@ import { Plus, Pencil, Trash2, Copy } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
+import { useI18n } from "@/lib/i18n/context";
 import { StockCell } from "@/components/admin/StockCell";
 import { getProxyUrl } from "@/lib/image-proxy";
 import { SearchInput } from "@/components/admin/SearchInput";
@@ -22,6 +23,7 @@ type FlagFilter = "" | "featured" | "sale" | "deal" | "low_stock" | "out_of_stoc
 
 // ── Main page ──────────────────────────────────────────────────────────────
 export default function AdminProductsPage() {
+  const { t } = useI18n();
   const search = useSearch();
   const [, navigate] = useLocation();
   const params = new URLSearchParams(search);
@@ -182,8 +184,8 @@ export default function AdminProductsPage() {
     const ids = [...selected];
     setConfirmState({
       open: true,
-      title: "Delete Products",
-      message: `Delete ${ids.length} product${ids.length !== 1 ? "s" : ""}? This cannot be undone.`,
+      title: t("Admin.Products.bulkDeleteTitle"),
+      message: t("Admin.Products.bulkDeleteMessage").replace("{count}", String(ids.length)),
       onConfirm: async () => {
         setConfirmState((s) => ({ ...s, open: false }));
         await adminFetch(apiUrl("/admin/products/bulk"), {
@@ -200,8 +202,8 @@ export default function AdminProductsPage() {
   const handleDelete = (id: string) => {
     setConfirmState({
       open: true,
-      title: "Delete Product",
-      message: "Delete this product? This cannot be undone.",
+      title: t("Admin.Products.deleteTitle"),
+      message: t("Admin.Products.deleteMessage"),
       onConfirm: async () => {
         setConfirmState((s) => ({ ...s, open: false }));
         await adminFetch(apiUrl(`/admin/products/${id}`), { method: "DELETE" });
@@ -240,16 +242,16 @@ export default function AdminProductsPage() {
     <div className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">Products</h1>
+        <h1 className="text-2xl font-bold">{t("Admin.Products.title")}</h1>
         <Link href="/admin/products/new" className="flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition">
-          <Plus size={16} /> New Product
+          <Plus size={16} /> {t("Admin.Products.newProduct")}
         </Link>
       </div>
 
       {/* Search + filter bar (task 5.1: SearchInput, task 5.3: CategoryFilter) */}
       <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
         <SearchInput
-          placeholder="Search products…"
+          placeholder={t("Admin.Products.searchPlaceholder")}
           value={searchQuery}
           onChange={handleSearchChange}
           debounceMs={350}
@@ -257,18 +259,18 @@ export default function AdminProductsPage() {
 
         <select value={flagFilter} onChange={(e) => setFlag(e.target.value as FlagFilter)}
           className="px-3 py-1.5 rounded-lg border border-border bg-background text-sm focus:outline-none">
-          <option value="">All products</option>
-          <option value="featured">Featured only</option>
-          <option value="sale">On sale only</option>
-          <option value="deal">Deal of day only</option>
-          <option value="low_stock">Low stock (&lt;10)</option>
-          <option value="out_of_stock">Out of stock</option>
+          <option value="">{t("Admin.Products.allProducts")}</option>
+          <option value="featured">{t("Admin.Products.featuredOnly")}</option>
+          <option value="sale">{t("Admin.Products.onSaleOnly")}</option>
+          <option value="deal">{t("Admin.Products.dealOfDayOnly")}</option>
+          <option value="low_stock">{t("Admin.Products.lowStock")}</option>
+          <option value="out_of_stock">{t("Admin.Products.outOfStock")}</option>
         </select>
 
         <CategoryFilter value={categoryFilter || null} onFilter={handleCategoryFilter} />
 
         <span className="text-sm text-muted-foreground sm:ml-auto">
-          {count} product{count !== 1 ? "s" : ""}{searchQuery && ` matching "${searchQuery}"`}
+          {t("Admin.Products.productCount").replace("{count}", String(count))}{searchQuery && ` ${t("Admin.Products.matchingSearch").replace("{query}", searchQuery)}`}
         </span>
       </div>
 
@@ -291,33 +293,33 @@ export default function AdminProductsPage() {
                   <input type="checkbox" checked={allSelected} onChange={toggleAll} className="w-4 h-4 cursor-pointer" />
                 </th>
                 {/* Task 5.2: SortableHeader for Product (name) */}
-                <SortableHeader label="Product" sortKey="name" currentSort={sortField} currentDir={sortDir} onSort={handleSort} className="text-left" />
-                <th className="text-left px-4 py-3 font-medium">SKU</th>
-                <th className="text-left px-4 py-3 font-medium">Brand</th>
+                <SortableHeader label={t("Admin.Products.colProduct")} sortKey="name" currentSort={sortField} currentDir={sortDir} onSort={handleSort} className="text-left" />
+                <th className="text-left px-4 py-3 font-medium">{t("Admin.Products.colSku")}</th>
+                <th className="text-left px-4 py-3 font-medium">{t("Admin.Products.colBrand")}</th>
                 {/* Task 5.2: SortableHeader for Price */}
-                <SortableHeader label="Price" sortKey="price" currentSort={sortField} currentDir={sortDir} onSort={handleSort} className="text-right" />
+                <SortableHeader label={t("Admin.Products.colPrice")} sortKey="price" currentSort={sortField} currentDir={sortDir} onSort={handleSort} className="text-right" />
                 {/* Task 5.2: SortableHeader for Stock */}
-                <SortableHeader label="Stock" sortKey="stock" currentSort={sortField} currentDir={sortDir} onSort={handleSort} className="text-right" />
-                <th className="text-left px-4 py-3 font-medium">Flags</th>
-                <th className="text-right px-4 py-3 font-medium">Actions</th>
+                <SortableHeader label={t("Admin.Products.colStock")} sortKey="stock" currentSort={sortField} currentDir={sortDir} onSort={handleSort} className="text-right" />
+                <th className="text-left px-4 py-3 font-medium">{t("Admin.Products.colFlags")}</th>
+                <th className="text-right px-4 py-3 font-medium">{t("Admin.Products.colActions")}</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
-                <tr><td colSpan={colSpan} className="px-4 py-12 text-center text-muted-foreground">Loading…</td></tr>
+                <tr><td colSpan={colSpan} className="px-4 py-12 text-center text-muted-foreground">{t("Admin.Common.loading")}</td></tr>
               ) : products.length === 0 ? (
                 <TableEmptyState
                   colSpan={colSpan}
                   message={
                     searchQuery || flagFilter || categoryFilter
-                      ? "No products match the current filters."
-                      : <span>No products yet. <Link href="/admin/products/new" className="text-primary hover:underline">Add the first one.</Link></span>
+                      ? t("Admin.Products.emptyFiltered")
+                      : <span>{t("Admin.Products.emptyState")} <Link href="/admin/products/new" className="text-primary hover:underline">{t("Admin.Products.emptyAction")}</Link></span>
                   }
                 />
               ) : products.map((p: any) => {
                 const sortedImgs = [...(p.product_images ?? [])].sort((a: any, b: any) => a.sort_order - b.sort_order);
                 const img = sortedImgs[0]?.url ?? null;
-                const title = getTranslatedField(p.product_translations, "az", "title", "Untitled");
+                const title = getTranslatedField(p.product_translations, "az", "title", t("Admin.Products.untitled"));
                 return (
                   <tr key={p.id} className={`border-b border-border/50 hover:bg-muted/20 transition ${selected.has(p.id) ? "bg-primary/5" : ""}`}>
                     <td className="px-4 py-3">
@@ -350,14 +352,14 @@ export default function AdminProductsPage() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1 flex-wrap">
-                        {p.is_featured && <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">Featured</span>}
-                        {p.is_on_sale && <span className="text-xs bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded">Sale</span>}
-                        {p.is_deal_of_day && <span className="text-xs bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded">Deal</span>}
+                        {p.is_featured && <span className="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">{t("Admin.Products.flagFeatured")}</span>}
+                        {p.is_on_sale && <span className="text-xs bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded">{t("Admin.Products.flagSale")}</span>}
+                        {p.is_deal_of_day && <span className="text-xs bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded">{t("Admin.Products.flagDeal")}</span>}
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1.5">
-                        <button onClick={() => handleDuplicate(p.id)} title="Duplicate"
+                        <button onClick={() => handleDuplicate(p.id)} title={t("Admin.Products.duplicate")}
                           className="p-1.5 rounded hover:bg-muted/50 text-muted-foreground hover:text-foreground transition">
                           <Copy size={13} />
                         </button>
@@ -396,6 +398,7 @@ export default function AdminProductsPage() {
         title={confirmState.title}
         message={confirmState.message}
         destructive
+        cancelLabel={t("Admin.Common.cancel")}
         onConfirm={confirmState.onConfirm}
         onCancel={() => setConfirmState((s) => ({ ...s, open: false }))}
       />
