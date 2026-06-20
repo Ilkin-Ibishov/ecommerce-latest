@@ -39,6 +39,15 @@ export default defineConfig({
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ["react", "react-dom"],
+          "vendor-query": ["@tanstack/react-query"],
+          "vendor-icons": ["lucide-react"],
+        },
+      },
+    },
   },
   server: {
     port,
