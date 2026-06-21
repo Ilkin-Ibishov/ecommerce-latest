@@ -56,6 +56,10 @@ Thumbs.db
 # Kiro — ignore MCP config (may contain access tokens); keep steering & specs tracked
 .kiro/settings/mcp.json
 
+# Replit agent artifacts (legacy)
+.agents/
+.config/
+
 # Playwright MCP snapshots
 .playwright-mcp/
 
