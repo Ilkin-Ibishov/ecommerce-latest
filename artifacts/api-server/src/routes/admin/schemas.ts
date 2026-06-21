@@ -93,3 +93,19 @@ export const CreateBannerSchema = z.object({
 // Update sends the same shape as create (including the toggle-active path which
 // spreads the full banner record; extra keys like `id`/`created_at` are stripped).
 export const UpdateBannerSchema = CreateBannerSchema;
+
+// --- Orders ---------------------------------------------------------------
+
+const OrderItemSchema = z.object({
+  product_id: z.string().uuid(),
+  quantity: z.number().int().min(1).max(99),
+});
+
+export const OrderBodySchema = z.object({
+  items: z.array(OrderItemSchema).min(1).max(50),
+  customer_name: z.string().min(1).max(200),
+  customer_phone: z.string().min(1).max(30),
+  delivery_address: z.string().min(1).max(500),
+  notes: z.string().max(1000).nullable().optional(),
+  coupon_code: z.string().max(50).optional(),
+});

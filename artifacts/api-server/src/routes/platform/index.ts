@@ -11,6 +11,7 @@ import storeFeedRouter from "./store-feed";
 import authRouter from "./auth";
 import auditRouter from "./audit";
 import notifyRouter from "./notify";
+import notificationsProxyRouter from "./notifications-proxy";
 import metricsRouter from "./metrics";
 import analyticsRouter from "./analytics";
 import plansRouter from "./plans";
@@ -30,7 +31,10 @@ router.use(authRouter);
 // Audit read route (literal path: /platform/audit)
 router.use(auditRouter);
 
-// Notification compose route (literal path: /platform/notifications, /platform/stores/:id/notification-preferences)
+// Notifications proxy for store frontend (GET /platform/notifications, requireUser — NOT requireSuperAdmin)
+router.use(notificationsProxyRouter);
+
+// Notification compose route (literal path: POST /platform/notifications, /platform/stores/:id/notification-preferences)
 router.use(notifyRouter);
 
 // Metrics polling (literal path: /platform/metrics/poll, requireServiceCredential)

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { getAdminSupabase } from "../../lib/supabase";
+import { detectMimeType } from "../../lib/asset-uploader";
 import { requireAdmin } from "../../middlewares/requireAdmin";
 import { enforceQuota } from "../../middlewares/enforceQuota";
 import { validate } from "../../middlewares/validate";
@@ -11,7 +12,6 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
 const BUCKET = "product-images";
-const ALLOWED_EXTS = ["jpg", "jpeg", "png", "webp", "avif"];
 
 async function ensureBucket(admin: any) {
   const { data: buckets } = await admin.storage.listBuckets();
@@ -23,19 +23,31 @@ async function ensureBucket(admin: any) {
 router.post("/admin/upload", requireAdmin, upload.single("file"), async (req: any, res) => {
   const ctx = { admin: req.admin!, user: req.user! };
   const file = req.file;
-  if (!file) return res.status(400).json({ error: "No file provided" });
-  const ext = (file.originalname.split(".").pop() ?? "jpg").toLowerCase();
-  if (!ALLOWED_EXTS.includes(ext)) return res.status(400).json({ error: "File type not allowed" });
+  if (!file) {
+    res.status(400).json({ error: "No file provided" });
+    return;
+  }
 
+  // SEC-007: Validate by magic bytes, not client-provided extension
+  const detected = detectMimeType(file.buffer);
+  if (!detected) {
+    res.status(415).json({ error: "File type not supported. Accepted: JPEG, PNG, WebP, AVIF" });
+    return;
+  }
+
+  const ext = detected.ext;
   const admin = getAdminSupabase();
   await ensureBucket(admin);
   const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const { error } = await admin.storage.from(BUCKET).upload(fileName, file.buffer, {
-    contentType: file.mimetype, upsert: false,
+    contentType: detected.mime, upsert: false,
   });
-  if (error) return res.status(500).json({ error: error.message });
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
   const { data: { publicUrl } } = admin.storage.from(BUCKET).getPublicUrl(fileName);
-  return res.json({ url: publicUrl });
+  res.json({ url: publicUrl });
 });
 
 router.post("/admin/products", requireAdmin, enforceQuota("products"), validate(CreateProductSchema), async (req, res) => {

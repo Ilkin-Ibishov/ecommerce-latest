@@ -29,7 +29,7 @@ const planRecordArb: fc.Arbitrary<PlanRecord> = fc.record({
 });
 
 const isoDateArb = fc
-  .date({ min: new Date("2023-01-01"), max: new Date("2025-12-31") })
+  .date({ min: new Date("2023-01-01"), max: new Date("2025-12-31"), noInvalidDate: true })
   .map((d) => d.toISOString().slice(0, 10));
 
 const storeRecordArb = (planIds: string[]): fc.Arbitrary<StoreRecord> =>

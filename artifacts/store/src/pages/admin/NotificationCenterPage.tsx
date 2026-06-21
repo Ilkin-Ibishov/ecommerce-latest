@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
+import { apiUrl } from "@/lib/api";
+import { userFetch } from "@/lib/user-fetch";
 
 /**
- * Notification shape returned from the Control_Plane store-feed endpoint.
+ * Notification shape returned from the platform notifications proxy.
  */
 interface PlatformNotification {
   id: string;
@@ -17,20 +19,11 @@ interface NotificationsResponse {
 }
 
 /**
- * The base URL for the platform notifications endpoint.
- * In the MVP approach, the frontend calls the control-plane URL directly
- * via an env var. The store's Per_Store_Credential is sent as a bearer token.
+ * The URL for the platform notifications proxy endpoint.
+ * The server-side proxy handles platform auth — the client only needs user auth.
  */
 function getNotificationsUrl(): string {
-  return import.meta.env.VITE_PLATFORM_NOTIFICATIONS_URL ?? "/api/platform/store-feed/notifications";
-}
-
-function getStoreCredential(): string {
-  return import.meta.env.VITE_STORE_PLATFORM_SECRET ?? "";
-}
-
-function getStoreId(): string {
-  return import.meta.env.VITE_STORE_ID ?? "";
+  return apiUrl("/platform/notifications");
 }
 
 /**
@@ -53,20 +46,8 @@ export default function NotificationCenterPage() {
     setError(null);
     try {
       const url = getNotificationsUrl();
-      const secret = getStoreCredential();
-      const storeId = getStoreId();
 
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (secret) {
-        headers["Authorization"] = `Bearer ${secret}`;
-      }
-      if (storeId) {
-        headers["X-Store-Id"] = storeId;
-      }
-
-      const res = await fetch(url, { headers });
+      const res = await userFetch(url);
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
@@ -87,22 +68,9 @@ export default function NotificationCenterPage() {
   const markAsRead = async (notificationId: string) => {
     try {
       const url = getNotificationsUrl();
-      const secret = getStoreCredential();
-      const storeId = getStoreId();
 
-      const headers: Record<string, string> = {
-        "Content-Type": "application/json",
-      };
-      if (secret) {
-        headers["Authorization"] = `Bearer ${secret}`;
-      }
-      if (storeId) {
-        headers["X-Store-Id"] = storeId;
-      }
-
-      const res = await fetch(`${url}/${notificationId}/read`, {
+      const res = await userFetch(`${url}/${notificationId}/read`, {
         method: "POST",
-        headers,
       });
 
       if (res.ok) {

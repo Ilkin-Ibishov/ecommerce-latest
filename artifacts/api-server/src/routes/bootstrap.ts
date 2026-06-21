@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { timingSafeEqual } from "crypto";
 import { getAdminSupabase } from "../lib/supabase";
 
 const router = Router();
@@ -10,10 +11,22 @@ router.post("/bootstrap/admin", async (req, res): Promise<void> => {
   const admin = getAdminSupabase();
   const { phone, name, secret } = req.body as { phone?: string; name?: string; secret?: string };
 
-  // In production, require a shared secret to prevent open takeover
+  // Fail-closed: if secret is not configured, reject all attempts
   const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
-  if (bootstrapSecret && secret !== bootstrapSecret) {
-    res.status(403).json({ error: "Invalid bootstrap secret." });
+  if (!bootstrapSecret) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  // Constant-time comparison to prevent timing attacks
+  const secretBuffer = Buffer.from(bootstrapSecret, "utf8");
+  const providedBuffer = Buffer.from(secret ?? "", "utf8");
+
+  if (
+    secretBuffer.length !== providedBuffer.length ||
+    !timingSafeEqual(secretBuffer, providedBuffer)
+  ) {
+    res.status(403).json({ error: "Forbidden" });
     return;
   }
 

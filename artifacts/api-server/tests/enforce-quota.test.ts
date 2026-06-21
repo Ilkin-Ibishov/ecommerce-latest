@@ -39,9 +39,13 @@ function mockNext(): NextFunction {
 describe('enforceQuota middleware', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // The middleware short-circuits (calls next()) when PLATFORM_QUOTA_URL is not set.
+    // Set it so quota enforcement is actually exercised.
+    process.env.PLATFORM_QUOTA_URL = 'http://mock-control-plane/quota';
   });
 
   afterEach(() => {
+    delete process.env.PLATFORM_QUOTA_URL;
     vi.restoreAllMocks();
   });
 
