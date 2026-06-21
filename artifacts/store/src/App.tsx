@@ -46,6 +46,7 @@ const NotificationCenterPage = lazy(() => import("@/pages/admin/NotificationCent
 
 // ─── Platform pages (lazy — super-admin only) ────────────────────────────────
 const StoreDashboardPage = lazy(() => import("@/pages/platform/StoreDashboardPage"));
+const CreateStorePage = lazy(() => import("@/pages/platform/CreateStorePage"));
 const StoreDetailPage = lazy(() => import("@/pages/platform/StoreDetailPage"));
 const PlansPage = lazy(() => import("@/pages/platform/PlansPage"));
 const BillingPage = lazy(() => import("@/pages/platform/BillingPage"));
@@ -213,6 +214,7 @@ function PlatformRoutes() {
         <PlatformLayout>
           <Switch>
             <Route path="/platform" component={StoreDashboardPage} />
+            <Route path="/platform/stores/new" component={CreateStorePage} />
             <Route path="/platform/stores/:id">{() => <StoreDetailPage />}</Route>
             <Route path="/platform/plans" component={PlansPage} />
             <Route path="/platform/billing" component={BillingPage} />

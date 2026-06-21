@@ -177,7 +177,15 @@ function StoreDashboardView({ subscriptionStatus }: { subscriptionStatus: string
     <div className="space-y-6">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold">{t("Platform.dashboard.title")}</h1>
-        <span className="text-sm text-muted-foreground">{count} total</span>
+        <div className="flex items-center gap-3">
+          <span className="text-sm text-muted-foreground">{count} total</span>
+          <Link
+            href="/platform/stores/new"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            + {t("Platform.createStore.button")}
+          </Link>
+        </div>
       </div>
 
       {/* Subscription status filter */}
