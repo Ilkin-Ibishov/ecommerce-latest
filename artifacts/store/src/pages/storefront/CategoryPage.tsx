@@ -137,6 +137,7 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
           }))}
           loading={false}
           locale={locale}
+          headingLevel={2}
         />
       )}
 

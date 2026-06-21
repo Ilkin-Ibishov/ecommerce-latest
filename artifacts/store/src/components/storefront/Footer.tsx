@@ -104,7 +104,7 @@ export default function StorefrontFooter({ locale }: { locale: string }) {
 
           {/* Shop column */}
           <div>
-            <h4 className="font-semibold mb-3 text-sm text-foreground">{t("Footer.store")}</h4>
+            <p className="font-semibold mb-3 text-sm text-foreground">{t("Footer.store")}</p>
             <ul className="space-y-2 text-sm">
               <li><Link href={`/${locale}/products`} className="hover:text-primary transition">{t("Footer.allProducts")}</Link></li>
               <li><Link href={`/${locale}/categories`} className="hover:text-primary transition">{t("Footer.categories")}</Link></li>
@@ -115,7 +115,7 @@ export default function StorefrontFooter({ locale }: { locale: string }) {
 
           {/* Info column — dynamically generated from pages with show_in_footer */}
           <div>
-            <h4 className="font-semibold mb-3 text-sm text-foreground">{t("Footer.info")}</h4>
+            <p className="font-semibold mb-3 text-sm text-foreground">{t("Footer.info")}</p>
             <ul className="space-y-2 text-sm">
               {footerPages.filter((page) => page.title).map((page) => (
                 <li key={page.id}>
@@ -129,7 +129,7 @@ export default function StorefrontFooter({ locale }: { locale: string }) {
 
           {/* Contact column — omit empty fields */}
           <div>
-            <h4 className="font-semibold mb-3 text-sm text-foreground">{t("Footer.contact")}</h4>
+            <p className="font-semibold mb-3 text-sm text-foreground">{t("Footer.contact")}</p>
             <ul className="space-y-3 text-sm">
               {phone && (
                 <li className="flex items-start gap-2">

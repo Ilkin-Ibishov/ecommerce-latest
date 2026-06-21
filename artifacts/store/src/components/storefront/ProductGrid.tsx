@@ -21,13 +21,14 @@ export interface ProductGridProps {
   products: ProductCardData[];
   loading: boolean;
   locale: string;
+  headingLevel?: 2 | 3;
 }
 
 /**
  * Renders the storefront product grid. While `loading`, routes through the
  * existing `ProductSkeletonGrid` so the loading state matches the prior pages.
  */
-export function ProductGrid({ products, loading, locale }: ProductGridProps) {
+export function ProductGrid({ products, loading, locale, headingLevel }: ProductGridProps) {
   if (loading) {
     return <ProductSkeletonGrid className="grid-cols-2 sm:grid-cols-3 lg:grid-cols-4" />;
   }
@@ -50,6 +51,7 @@ export function ProductGrid({ products, loading, locale }: ProductGridProps) {
           rating={product.rating}
           ratingCount={product.ratingCount}
           locale={locale}
+          headingLevel={headingLevel}
         />
       ))}
     </div>

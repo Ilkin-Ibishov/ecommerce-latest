@@ -19,6 +19,7 @@ interface Props {
   ratingCount?: number;
   brand?: string | null;
   productId?: string;
+  headingLevel?: 2 | 3;
 }
 
 const INSTALLMENT_MONTHS = 12;
@@ -39,7 +40,7 @@ function StarRow({ rating }: { rating: number }) {
 
 export default function ProductCard({
   slug, title, price, originalPrice, image, isOnSale, isDealOfDay,
-  stock, locale, rating, ratingCount, brand, productId,
+  stock, locale, rating, ratingCount, brand, productId, headingLevel = 3,
 }: Props) {
   const [added, setAdded] = useState(false);
   const { addItem } = useCart();
@@ -59,6 +60,8 @@ export default function ProductCard({
     setAdded(true);
     setTimeout(() => setAdded(false), 1800);
   };
+
+  const Heading = headingLevel === 2 ? 'h2' : 'h3' as const;
 
   return (
     <Link
@@ -129,9 +132,9 @@ export default function ProductCard({
         {brand && (
           <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wide">{brand}</p>
         )}
-        <h3 className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug">
+        <Heading className="font-medium text-sm line-clamp-2 group-hover:text-primary transition-colors duration-200 leading-snug">
           {title}
-        </h3>
+        </Heading>
 
         {/* Rating */}
         {rating != null && (

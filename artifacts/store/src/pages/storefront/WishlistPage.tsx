@@ -109,7 +109,7 @@ export default function WishlistPage({ locale }: { locale: string }) {
                 </Link>
                 <div className="p-3 space-y-2">
                   <Link href={`/${locale}/products/${product.slug}`}>
-                    <h3 className="font-medium text-sm line-clamp-2 hover:text-primary transition">{title}</h3>
+                    <h2 className="font-medium text-sm line-clamp-2 hover:text-primary transition">{title}</h2>
                   </Link>
                   <p className="font-bold text-primary text-sm">{Number(product.price).toFixed(2)} AZN</p>
                   <div className="flex gap-1.5">

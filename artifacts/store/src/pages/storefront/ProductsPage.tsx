@@ -349,6 +349,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
               }))}
               loading={false}
               locale={locale}
+              headingLevel={2}
             />
           )}
 
