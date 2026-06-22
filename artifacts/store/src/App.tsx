@@ -75,6 +75,14 @@ function PageFallback() {
 
 function ScrollToTop() {
   const [location] = useLocation();
+
+  // Disable browser's automatic scroll restoration so our manual scrollTo works
+  useEffect(() => {
+    if ("scrollRestoration" in window.history) {
+      window.history.scrollRestoration = "manual";
+    }
+  }, []);
+
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [location]);
