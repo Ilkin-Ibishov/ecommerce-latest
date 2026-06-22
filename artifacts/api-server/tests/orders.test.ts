@@ -61,18 +61,24 @@ describe("Orders Integration Tests", () => {
         );
       }
 
-      // Verify the decrement RPC works from the test's admin client
+      // Verify the decrement RPC is available (it must be deployed to the Supabase instance)
       const { error: rpcErr } = await (admin as any).rpc("decrement_stock_safe", {
         p_product_id: product.id,
         p_qty: 1,
       });
       if (rpcErr) {
-        console.error(`[orders.test] RPC decrement_stock_safe failed from test client:`, rpcErr);
-        // Restore stock for the test
-      } else {
-        console.log(`[orders.test] RPC decrement_stock_safe succeeded from test client, restoring +1`);
-        await (admin as any).rpc("increment_stock", { p_product_id: product.id, p_qty: 1 });
+        if (rpcErr.code === "PGRST202") {
+          console.warn(
+            `[orders.test] SKIPPING: decrement_stock_safe function not found in Supabase. ` +
+            `Run the migration from supabase/schema.sql to deploy it.`
+          );
+          throw new Error("RPC not deployed");
+        }
+        console.error(`[orders.test] RPC decrement_stock_safe failed:`, rpcErr);
+        throw new Error("RPC test failed");
       }
+      // RPC worked — restore the decremented stock
+      await (admin as any).rpc("increment_stock", { p_product_id: product.id, p_qty: 1 });
 
       testProductId = product.id;
       console.log(`[orders.test] Using product ${product.id} (verified stock: ${verify.stock})`);
