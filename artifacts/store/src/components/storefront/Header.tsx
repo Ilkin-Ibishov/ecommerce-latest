@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "wouter";
 import { ShoppingCart, Search, User, Menu, X, Heart, LogOut, Package } from "lucide-react";
 import CartDrawer from "./CartDrawer";
@@ -72,6 +72,22 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
   const storeName = getStoreName(locale);
   const [, navigate] = useLocation();
 
+  // Cart badge bounce animation on add-to-cart success
+  const badgeRef = useRef<HTMLSpanElement>(null);
+  const handleBadgeBounce = useCallback(() => {
+    const badge = badgeRef.current;
+    if (!badge) return;
+    badge.classList.remove("animate-badge-bounce");
+    // Force reflow so re-adding the class restarts the animation
+    void badge.offsetWidth;
+    badge.classList.add("animate-badge-bounce");
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("cart-badge-bounce", handleBadgeBounce);
+    return () => window.removeEventListener("cart-badge-bounce", handleBadgeBounce);
+  }, [handleBadgeBounce]);
+
   return (
     <>
       <AnnouncementBar />
@@ -138,7 +154,7 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
                 className="hidden md:flex relative p-2 rounded-lg text-[hsl(var(--foreground)/0.7)] hover:text-[hsl(var(--primary))] hover:bg-[hsl(var(--muted)/0.2)] transition" aria-label="Cart">
                 <ShoppingCart size={20} />
                 {itemCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground,0_0%_100%))] text-[10px] font-bold rounded-full flex items-center justify-center">
+                  <span ref={badgeRef} className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground,0_0%_100%))] text-[10px] font-bold rounded-full flex items-center justify-center">
                     {itemCount > 9 ? "9+" : itemCount}
                   </span>
                 )}

@@ -2,9 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useSearch } from "wouter";
 import { apiUrl } from "@/lib/api";
 import { ProductGrid } from "@/components/storefront/ProductGrid";
+import { ProductSkeletonGrid } from "@/components/storefront/ProductSkeleton";
 import { useI18n } from "@/lib/i18n/context";
 import { getTranslatedField } from "@/lib/utils";
 import { ArrowUpDown, ChevronDown } from "lucide-react";
+import { StorefrontBreadcrumb, resolveBreadcrumbPath, type BreadcrumbSegment } from "@/components/storefront/StorefrontBreadcrumb";
+import { getCategoriesTree } from "@/lib/queries/categories";
+import { createClient } from "@/lib/supabase/client";
 
 const SORT_OPTIONS = [
   { value: "sort_order", labelKey: "CategoryPage.sortRecommended" },
@@ -27,6 +31,7 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [sortOpen, setSortOpen] = useState(false);
+  const [breadcrumbSegments, setBreadcrumbSegments] = useState<BreadcrumbSegment[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -40,6 +45,25 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
         setCategory(json.category);
         setProducts(json.products ?? []);
         setCount(json.total ?? 0);
+
+        // Resolve breadcrumb from category tree
+        if (json.category?.id) {
+          try {
+            const supabase = createClient();
+            const tree = await getCategoriesTree(supabase);
+            const path = resolveBreadcrumbPath(tree, json.category.id, locale);
+            // Remove the last segment (current category) — it becomes currentLabel
+            // Prefix remaining ancestors with locale
+            const ancestors = path.slice(0, -1).map((seg) => ({
+              ...seg,
+              href: `/${locale}${seg.href}`,
+            }));
+            setBreadcrumbSegments(ancestors);
+          } catch {
+            // Graceful degradation: breadcrumb will show Home > Category only
+            setBreadcrumbSegments([]);
+          }
+        }
       } catch (e) {
         console.error("[CategoryPage]", e);
       }
@@ -48,7 +72,11 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
     load();
   }, [slug, page, sortParam]);
 
-  if (loading) return <div className="flex items-center justify-center min-h-[60vh] text-muted-foreground">{t("CategoryPage.loading")}</div>;
+  if (loading) return (
+    <div className="container mx-auto px-4 py-8">
+      <ProductSkeletonGrid count={8} />
+    </div>
+  );
   if (notFound) return (
     <div className="container mx-auto px-4 py-16 text-center">
       <h1 className="text-2xl font-bold mb-4">{t("CategoryPage.notFound")}</h1>
@@ -76,13 +104,12 @@ export default function CategoryPage({ locale, slug }: { locale: string; slug: s
   return (
     <div className="container mx-auto px-4 py-8">
       {/* Breadcrumb */}
-      <nav className="text-sm text-muted-foreground mb-6 flex items-center gap-1 flex-wrap">
-        <Link href={`/${locale}`} className="hover:text-foreground">{t("CategoryPage.home")}</Link>
-        <span>/</span>
-        <Link href={`/${locale}/categories`} className="hover:text-foreground">{t("CategoryPage.categories")}</Link>
-        <span>/</span>
-        <span className="text-foreground">{catTitle}</span>
-      </nav>
+      <div className="mb-6">
+        <StorefrontBreadcrumb
+          segments={breadcrumbSegments}
+          currentLabel={catTitle}
+        />
+      </div>
 
       <div className="flex items-center justify-between mb-6 gap-3 flex-wrap">
         <div>

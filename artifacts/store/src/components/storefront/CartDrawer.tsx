@@ -4,6 +4,7 @@ import { X, Minus, Plus, ShoppingBag, Trash2, Truck, Tag, ChevronDown, CheckCirc
 import { useCart } from "@/lib/cart/context";
 import { useI18n } from "@/lib/i18n/context";
 import { apiUrl } from "@/lib/api";
+import { Shimmer } from "@/components/ui/shimmer";
 
 const FREE_DELIVERY_THRESHOLD = 100;
 const PROMO_STORAGE_KEY = "ilk_promo";
@@ -277,5 +278,47 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
         )}
       </div>
     </>
+  );
+}
+
+/**
+ * Skeleton loading state for the CartDrawer.
+ * Displays 3 placeholder item rows and a totals area wrapped in Shimmer.
+ * Can be shown conditionally while cart item details are being fetched.
+ */
+export function CartDrawerSkeleton() {
+  return (
+    <div className="flex flex-col h-full">
+      {/* Item rows placeholder */}
+      <div className="flex-1 px-5 py-4 space-y-3">
+        {Array.from({ length: 3 }, (_, i) => (
+          <div key={i} className="flex gap-3 p-3 rounded-xl border border-border">
+            {/* Image placeholder */}
+            <Shimmer className="w-16 h-16 rounded-lg shrink-0" />
+            {/* Title + price placeholders */}
+            <div className="flex-1 min-w-0 space-y-2">
+              <Shimmer className="h-4 w-3/4 rounded" />
+              <Shimmer className="h-3 w-1/2 rounded" />
+              <Shimmer className="h-8 w-24 rounded-lg" />
+            </div>
+            {/* Line total placeholder */}
+            <div className="flex flex-col items-end justify-between shrink-0">
+              <Shimmer className="h-4 w-4 rounded" />
+              <Shimmer className="h-4 w-14 rounded" />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Totals area placeholder */}
+      <div className="border-t border-border px-5 py-4 space-y-3">
+        <div className="flex justify-between items-center">
+          <Shimmer className="h-5 w-16 rounded" />
+          <Shimmer className="h-5 w-20 rounded" />
+        </div>
+        <Shimmer className="h-3 w-40 rounded" />
+        <Shimmer className="h-12 w-full rounded-xl" />
+      </div>
+    </div>
   );
 }

@@ -20,6 +20,7 @@ import pagesRouter from "./pages";
 import productImagesRouter from "./product-images";
 import platformRouter from "./platform";
 import storeMetricsRouter from "./store-metrics";
+import sizeGuidesRouter from "./size-guides";
 
 const router: IRouter = Router();
 
@@ -42,6 +43,7 @@ router.use(siteSettingsRouter);
 router.use(pagesRouter);
 router.use(productImagesRouter);
 router.use(storeMetricsRouter);
+router.use(sizeGuidesRouter);
 router.use(platformRouter);
 
 // Dev/test routes — only active outside production

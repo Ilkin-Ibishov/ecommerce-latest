@@ -7,6 +7,7 @@ import { LoginModal } from "@/components/auth/LoginModal";
 import { apiUrl } from "@/lib/api";
 import { useProfile } from "@/lib/hooks/useProfile";
 import { useI18n } from "@/lib/i18n/context";
+import { toastCouponApplied } from "@/hooks/use-toast";
 
 const PROMO_STORAGE_KEY = "ilk_promo";
 
@@ -116,6 +117,7 @@ export default function CheckoutPage({ locale }: { locale: string }) {
         setCoupon(data);
         setCouponCode(codeToApply);
         localStorage.setItem(PROMO_STORAGE_KEY, JSON.stringify({ code: codeToApply, ...data }));
+        toastCouponApplied(t, data.description ?? codeToApply);
       }
     } catch { setCouponError(t("Checkout.couponCheckFailed")); }
     finally { setCouponLoading(false); }

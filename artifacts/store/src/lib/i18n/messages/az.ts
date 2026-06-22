@@ -144,6 +144,8 @@ const az = {
     },
     RecentlyViewed: {
       title: "Son baxılan məhsullar",
+      previous: "Əvvəlki",
+      next: "Sonrakı",
     },
     ProductPage: {
       notFound: "Məhsul tapılmadı",
@@ -921,6 +923,35 @@ const az = {
         successFallback: "Admin hesabı yaradıldı!",
         networkError: "Şəbəkə xətası.",
       },
+    },
+    Magnifier: {
+      alt: "Böyüdülmüş məhsul şəkli",
+    },
+    StickyBar: {
+      addToCart: "Səbətə əlavə et",
+      outOfStock: "Stokda yoxdur",
+    },
+    QuickView: {
+      button: "Sürətli baxış",
+      modalTitle: "Sürətli baxış",
+      variantError: "Zəhmət olmasa variant seçin",
+      loadError: "Məhsul məlumatlarını yükləmək mümkün olmadı",
+      close: "Bağla",
+    },
+    Breadcrumb: {
+      home: "Ana səhifə",
+    },
+    SizeGuide: {
+      header: "Ölçü cədvəli",
+      measurementLabel: "Ölçülər",
+      error: "Ölçü cədvəli məlumatları hazırda mövcud deyil",
+      close: "Bağla",
+    },
+    Toast: {
+      cartAdd: "{name} səbətə əlavə edildi",
+      wishlistAdd: "İstək siyahısına əlavə edildi",
+      couponApplied: "Kupon uğurla tətbiq edildi",
+      outOfStock: "Bu məhsul hazırda stokda yoxdur",
     },
 };
 

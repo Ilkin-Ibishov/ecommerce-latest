@@ -144,6 +144,8 @@ const ru = {
     },
     RecentlyViewed: {
       title: "Недавно просмотренные",
+      previous: "Предыдущий",
+      next: "Следующий",
     },
     ProductPage: {
       notFound: "Товар не найден",
@@ -921,6 +923,35 @@ const ru = {
         successFallback: "Аккаунт администратора создан!",
         networkError: "Ошибка сети.",
       },
+    },
+    Magnifier: {
+      alt: "Увеличенное изображение товара",
+    },
+    StickyBar: {
+      addToCart: "В корзину",
+      outOfStock: "Нет в наличии",
+    },
+    QuickView: {
+      button: "Быстрый просмотр",
+      modalTitle: "Быстрый просмотр",
+      variantError: "Пожалуйста, выберите вариант",
+      loadError: "Не удалось загрузить информацию о товаре",
+      close: "Закрыть",
+    },
+    Breadcrumb: {
+      home: "Главная",
+    },
+    SizeGuide: {
+      header: "Таблица размеров",
+      measurementLabel: "Измерения",
+      error: "Данные таблицы размеров в настоящее время недоступны",
+      close: "Закрыть",
+    },
+    Toast: {
+      cartAdd: "{name} добавлен в корзину",
+      wishlistAdd: "Добавлено в избранное",
+      couponApplied: "Купон успешно применён",
+      outOfStock: "Этот товар в настоящее время отсутствует в наличии",
     },
 };
 

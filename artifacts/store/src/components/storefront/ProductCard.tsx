@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { Link } from "wouter";
-import { ShoppingCart, Check, Star } from "lucide-react";
+import { ShoppingCart, Check, Star, Eye } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
 import { useI18n } from "@/lib/i18n/context";
 import { getProxyUrl } from "@/lib/image-proxy";
+import { toastCartAdd } from "@/hooks/use-toast";
+import { QuickViewModal } from "./QuickViewModal";
 
 interface Props {
   slug: string;
@@ -43,6 +45,8 @@ export default function ProductCard({
   stock, locale, rating, ratingCount, brand, productId, headingLevel = 3,
 }: Props) {
   const [added, setAdded] = useState(false);
+  const [quickViewOpen, setQuickViewOpen] = useState(false);
+  const quickViewTriggerRef = useRef<HTMLButtonElement>(null);
   const { addItem } = useCart();
   const { t } = useI18n();
   const outOfStock = typeof stock === "number" && stock === 0;
@@ -57,17 +61,25 @@ export default function ProductCard({
     e.stopPropagation();
     if (!productId || outOfStock) return;
     addItem({ product_id: productId, slug, title, price, image }, 1);
+    toastCartAdd(t, title);
     setAdded(true);
     setTimeout(() => setAdded(false), 1800);
+  };
+
+  const handleQuickView = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setQuickViewOpen(true);
   };
 
   const Heading = headingLevel === 2 ? 'h2' : 'h3' as const;
 
   return (
-    <Link
-      href={`/${locale}/products/${slug}`}
-      className="product-card group block rounded-xl border border-border bg-card overflow-hidden relative"
-    >
+    <>
+      <Link
+        href={`/${locale}/products/${slug}`}
+        className="product-card group block rounded-xl border border-border bg-card overflow-hidden relative"
+      >
       <div className="relative aspect-square bg-muted overflow-hidden">
         {image ? (
           <img
@@ -119,6 +131,17 @@ export default function ProductCard({
           </button>
         )}
 
+        {/* Quick View button */}
+        <button
+          ref={quickViewTriggerRef}
+          onClick={handleQuickView}
+          className="absolute bottom-2 left-2 flex items-center justify-center rounded-full shadow-md transition-all duration-200 bg-background/90 text-foreground hover:bg-background
+            w-7 h-7 md:w-9 md:h-9 md:opacity-0 md:group-hover:opacity-100 md:translate-y-1 md:group-hover:translate-y-0"
+          aria-label={t("QuickView.button")}
+        >
+          <Eye size={14} />
+        </button>
+
         {outOfStock && (
           <div className="absolute inset-0 bg-background/70 backdrop-blur-[1px] flex items-center justify-center">
             <span className="text-xs font-medium text-muted-foreground bg-background/90 px-3 py-1.5 rounded-full">
@@ -164,5 +187,14 @@ export default function ProductCard({
         )}
       </div>
     </Link>
+
+    <QuickViewModal
+      productSlug={slug}
+      open={quickViewOpen}
+      onClose={() => setQuickViewOpen(false)}
+      triggerRef={quickViewTriggerRef}
+      locale={locale}
+    />
+    </>
   );
 }

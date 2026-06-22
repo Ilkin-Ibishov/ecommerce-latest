@@ -5,14 +5,26 @@ import type {
   ToastProps,
 } from "@/components/ui/toast"
 
-const TOAST_LIMIT = 1
-const TOAST_REMOVE_DELAY = 1000000
+const TOAST_LIMIT = 3
+const DEFAULT_TOAST_DURATION = 3000
+
+/**
+ * Clamp a duration value to the valid range [1000, 10000] ms.
+ * Exported as a pure function for testability.
+ */
+export function clampDuration(value: number): number {
+  return Math.max(1000, Math.min(10000, value))
+}
+
+type ToastVariant = "default" | "destructive" | "success"
 
 type ToasterToast = ToastProps & {
   id: string
   title?: React.ReactNode
   description?: React.ReactNode
   action?: ToastActionElement
+  variant?: ToastVariant
+  duration?: number
 }
 
 const actionTypes = {
@@ -55,10 +67,12 @@ interface State {
 
 const toastTimeouts = new Map<string, ReturnType<typeof setTimeout>>()
 
-const addToRemoveQueue = (toastId: string) => {
+const addToRemoveQueue = (toastId: string, duration?: number) => {
   if (toastTimeouts.has(toastId)) {
     return
   }
+
+  const delay = clampDuration(duration ?? DEFAULT_TOAST_DURATION)
 
   const timeout = setTimeout(() => {
     toastTimeouts.delete(toastId)
@@ -66,18 +80,43 @@ const addToRemoveQueue = (toastId: string) => {
       type: "REMOVE_TOAST",
       toastId: toastId,
     })
-  }, TOAST_REMOVE_DELAY)
+  }, delay)
 
   toastTimeouts.set(toastId, timeout)
 }
 
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
-    case "ADD_TOAST":
+    case "ADD_TOAST": {
+      const newToasts = [action.toast, ...state.toasts]
+
+      // When 4th toast arrives, dismiss the oldest (last in array since newest is first)
+      if (newToasts.length > TOAST_LIMIT) {
+        const oldest = newToasts[newToasts.length - 1]
+        // Immediately dismiss the oldest toast
+        if (oldest) {
+          // Clear any existing timeout for this toast
+          const existingTimeout = toastTimeouts.get(oldest.id)
+          if (existingTimeout) {
+            clearTimeout(existingTimeout)
+            toastTimeouts.delete(oldest.id)
+          }
+          // Schedule immediate removal
+          setTimeout(() => {
+            dispatch({ type: "REMOVE_TOAST", toastId: oldest.id })
+          }, 0)
+        }
+        return {
+          ...state,
+          toasts: newToasts.slice(0, TOAST_LIMIT),
+        }
+      }
+
       return {
         ...state,
-        toasts: [action.toast, ...state.toasts].slice(0, TOAST_LIMIT),
+        toasts: newToasts,
       }
+    }
 
     case "UPDATE_TOAST":
       return {
@@ -90,13 +129,13 @@ export const reducer = (state: State, action: Action): State => {
     case "DISMISS_TOAST": {
       const { toastId } = action
 
-      // ! Side effects ! - This could be extracted into a dismissToast() action,
-      // but I'll keep it here for simplicity
       if (toastId) {
-        addToRemoveQueue(toastId)
+        // Find the toast to get its duration for the remove delay
+        const toastItem = state.toasts.find((t) => t.id === toastId)
+        addToRemoveQueue(toastId, toastItem?.duration)
       } else {
-        state.toasts.forEach((toast) => {
-          addToRemoveQueue(toast.id)
+        state.toasts.forEach((t) => {
+          addToRemoveQueue(t.id, t.duration)
         })
       }
 
@@ -161,6 +200,12 @@ function toast({ ...props }: Toast) {
     },
   })
 
+  // Schedule auto-dismiss based on per-toast duration
+  const duration = clampDuration(props.duration ?? DEFAULT_TOAST_DURATION)
+  setTimeout(() => {
+    dismiss()
+  }, duration)
+
   return {
     id: id,
     dismiss,
@@ -188,4 +233,38 @@ function useToast() {
   }
 }
 
+/** Toast helper: item added to cart */
+export function toastCartAdd(t: (key: string) => string, productName: string) {
+  toast({
+    description: t("Toast.cartAdd").replace("{name}", productName),
+    variant: "success",
+  })
+}
+
+/** Toast helper: item saved to wishlist */
+export function toastWishlist(t: (key: string) => string, _productName: string) {
+  toast({
+    description: t("Toast.wishlistAdd"),
+    variant: "default",
+  })
+}
+
+/** Toast helper: coupon applied */
+export function toastCouponApplied(t: (key: string) => string, _description: string) {
+  toast({
+    description: t("Toast.couponApplied"),
+    variant: "success",
+  })
+}
+
+/** Toast helper: out of stock warning */
+export function toastOutOfStock(t: (key: string) => string, _productName: string) {
+  toast({
+    description: t("Toast.outOfStock"),
+    variant: "destructive",
+  })
+}
+
 export { useToast, toast }
+export type { ToasterToast, Toast, ToastVariant }
+export { TOAST_LIMIT, DEFAULT_TOAST_DURATION }

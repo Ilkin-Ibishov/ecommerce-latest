@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { ChevronLeft, ChevronRight, X, ZoomIn } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getProxyUrl } from "@/lib/image-proxy";
+import { ImageMagnifier } from "./ImageMagnifier";
 
 interface ProductImage {
   id: string;
@@ -25,6 +26,7 @@ function ProxiedImage({
   className,
   loading,
   onClick,
+  onLoad,
 }: {
   src: string;
   preset: "thumbnail" | "gallery" | "lightbox";
@@ -32,6 +34,7 @@ function ProxiedImage({
   className?: string;
   loading?: "lazy" | "eager";
   onClick?: () => void;
+  onLoad?: (e: React.SyntheticEvent<HTMLImageElement>) => void;
 }) {
   const [imgSrc, setImgSrc] = useState(() => getProxyUrl(src, preset));
 
@@ -54,6 +57,7 @@ function ProxiedImage({
       className={className}
       loading={loading}
       onClick={onClick}
+      onLoad={onLoad}
       onError={handleError}
       draggable={false}
     />
@@ -198,6 +202,7 @@ export default function ProductGallery({ images }: ProductGalleryProps) {
 
   const [activeIndex, setActiveIndex] = useState(0);
   const [showLightbox, setShowLightbox] = useState(false);
+  const [naturalDimensions, setNaturalDimensions] = useState<{ width: number; height: number }>({ width: 0, height: 0 });
 
   // Touch tracking for swipe navigation
   const touchStartX = useRef<number | null>(null);
@@ -210,6 +215,11 @@ export default function ProductGallery({ images }: ProductGalleryProps) {
   useEffect(() => {
     setActiveIndex(0);
   }, [images.length]);
+
+  // Reset natural dimensions when active image changes
+  useEffect(() => {
+    setNaturalDimensions({ width: 0, height: 0 });
+  }, [activeIndex]);
 
   const goToPrev = useCallback(() => {
     setActiveIndex((i) => (i - 1 + sortedImages.length) % sortedImages.length);
@@ -256,6 +266,12 @@ export default function ProductGallery({ images }: ProductGalleryProps) {
     }
   };
 
+  // Capture natural image dimensions on load
+  const handleImageLoad = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    const img = e.currentTarget;
+    setNaturalDimensions({ width: img.naturalWidth, height: img.naturalHeight });
+  };
+
   if (sortedImages.length === 0) {
     return (
       <div className="aspect-square rounded-2xl bg-muted border border-border flex items-center justify-center">
@@ -273,14 +289,23 @@ export default function ProductGallery({ images }: ProductGalleryProps) {
         onTouchMove={hasMultipleImages ? handleTouchMove : undefined}
         onTouchEnd={hasMultipleImages ? handleTouchEnd : undefined}
       >
-        <ProxiedImage
+        <ImageMagnifier
           src={currentImage!.url}
-          preset="gallery"
           alt={currentImage!.alt_text ?? ""}
-          className="object-contain w-full h-full transition-transform duration-300 group-hover:scale-105"
-          loading="eager"
-          onClick={handleMainImageClick}
-        />
+          naturalWidth={naturalDimensions.width}
+          naturalHeight={naturalDimensions.height}
+          onImageClick={handleMainImageClick}
+          className="w-full h-full"
+        >
+          <ProxiedImage
+            src={currentImage!.url}
+            preset="gallery"
+            alt={currentImage!.alt_text ?? ""}
+            className="object-contain w-full h-full transition-transform duration-300 group-hover:scale-105"
+            loading="eager"
+            onLoad={handleImageLoad}
+          />
+        </ImageMagnifier>
 
         {/* Zoom icon overlay on hover (desktop) */}
         <div className="absolute top-3 right-3 w-9 h-9 bg-black/30 rounded-full flex items-center justify-center text-white opacity-0 group-hover:opacity-100 transition pointer-events-none">

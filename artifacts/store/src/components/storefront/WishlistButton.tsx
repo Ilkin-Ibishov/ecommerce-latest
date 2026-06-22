@@ -2,18 +2,22 @@ import { useState, useEffect } from "react";
 import { Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { useI18n } from "@/lib/i18n/context";
+import { toastWishlist } from "@/hooks/use-toast";
 
 interface Props {
   productId: string;
+  productName?: string;
   onAuthRequired: () => void;
   className?: string;
 }
 
-export function WishlistButton({ productId, onAuthRequired, className = "" }: Props) {
+export function WishlistButton({ productId, productName, onAuthRequired, className = "" }: Props) {
   const [wishlisted, setWishlisted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [checked, setChecked] = useState(false);
   const supabase = createClient();
+  const { t } = useI18n();
 
   useEffect(() => {
     let cancelled = false;
@@ -53,6 +57,7 @@ export function WishlistButton({ productId, onAuthRequired, className = "" }: Pr
           body: JSON.stringify({ product_id: productId }),
         });
         setWishlisted(true);
+        toastWishlist(t, productName ?? "");
       }
     } catch {}
     setLoading(false);

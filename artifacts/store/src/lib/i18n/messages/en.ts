@@ -144,6 +144,8 @@ const en = {
     },
     RecentlyViewed: {
       title: "Recently Viewed",
+      previous: "Previous",
+      next: "Next",
     },
     ProductPage: {
       notFound: "Product not found",
@@ -921,6 +923,35 @@ const en = {
         successFallback: "Admin account created!",
         networkError: "Network error.",
       },
+    },
+    Magnifier: {
+      alt: "Zoomed product image",
+    },
+    StickyBar: {
+      addToCart: "Add to Cart",
+      outOfStock: "Out of Stock",
+    },
+    QuickView: {
+      button: "Quick View",
+      modalTitle: "Quick View",
+      variantError: "Please select a variant",
+      loadError: "Unable to load product details",
+      close: "Close",
+    },
+    Breadcrumb: {
+      home: "Home",
+    },
+    SizeGuide: {
+      header: "Size Guide",
+      measurementLabel: "Measurements",
+      error: "Size guide data is currently unavailable",
+      close: "Close",
+    },
+    Toast: {
+      cartAdd: "{name} added to cart",
+      wishlistAdd: "Added to wishlist",
+      couponApplied: "Coupon applied successfully",
+      outOfStock: "This item is currently out of stock",
     },
 };
 

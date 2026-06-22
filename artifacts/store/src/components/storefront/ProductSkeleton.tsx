@@ -1,11 +1,13 @@
+import { Shimmer } from "@/components/ui/shimmer"
+
 function ProductSkeleton() {
   return (
     <div className="rounded-xl border border-border overflow-hidden bg-card">
-      <div className="aspect-square shimmer" />
+      <Shimmer className="aspect-square" />
       <div className="p-3 space-y-2.5">
-        <div className="h-3.5 rounded-md shimmer" />
-        <div className="h-3.5 w-3/5 rounded-md shimmer" />
-        <div className="h-4 w-2/5 rounded-md shimmer" />
+        <Shimmer className="h-3.5 rounded-md" />
+        <Shimmer className="h-3.5 w-3/5 rounded-md" />
+        <Shimmer className="h-4 w-2/5 rounded-md" />
       </div>
     </div>
   );

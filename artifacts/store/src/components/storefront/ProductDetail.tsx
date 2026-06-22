@@ -1,10 +1,12 @@
-import { useState, useEffect } from "react";
-import { ShoppingCart, Minus, Plus, Check, MessageSquare, Send, Star, ZoomIn } from "lucide-react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Minus, Plus, MessageSquare, Send, Star, ZoomIn, Ruler } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/lib/cart/context";
 import { useI18n } from "@/lib/i18n/context";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { getTranslatedField } from "@/lib/utils";
+import { toastCartAdd } from "@/hooks/use-toast";
 import { WishlistButton } from "./WishlistButton";
 import { LoginModal } from "@/components/auth/LoginModal";
 import RecentlyViewed from "./RecentlyViewed";
@@ -12,6 +14,9 @@ import ProductCard from "./ProductCard";
 import { StarInput } from "./product-detail/StarInput";
 import { StarDisplay } from "./product-detail/StarDisplay";
 import { ImageLightbox } from "./product-detail/ImageLightbox";
+import { AnimatedCartButton } from "./AnimatedCartButton";
+import { StickyAddToCartBar } from "./StickyAddToCartBar";
+import { SizeGuideOverlay } from "./SizeGuideOverlay";
 
 interface Props {
   product: any;
@@ -29,13 +34,12 @@ export default function ProductDetail({ product, images, translation, comments: 
   const [mainImage, setMainImage] = useState(images[0] ?? null);
   const [mainImageIdx, setMainImageIdx] = useState(0);
   const [qty, setQty] = useState(1);
-  const [added, setAdded] = useState(false);
+  const primaryCtaRef = useRef<HTMLDivElement>(null);
 
   // Reset main image when images prop changes (e.g. navigating between products)
   useEffect(() => {
     setMainImage(images[0] ?? null);
     setMainImageIdx(0);
-    setAdded(false);
   }, [product.id]);
   const [showLogin, setShowLogin] = useState(false);
   const [showLightbox, setShowLightbox] = useState(false);
@@ -47,6 +51,20 @@ export default function ProductDetail({ product, images, translation, comments: 
   const [user, setUser] = useState<any>(null);
   const { addItem, updateQty, getItemQty } = useCart();
   const { t } = useI18n();
+
+  // Size Guide state
+  const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
+  const sizeGuideTriggerRef = useRef<HTMLButtonElement>(null);
+
+  // Determine product's category_id for size guide lookup
+  const categoryId = (product.product_categories as any[])?.[0]?.category_id as string | undefined;
+
+  // Pre-fetch size guide data to conditionally render the link (Requirement 7.7)
+  const { data: sizeGuide } = useQuery({
+    queryKey: ["size-guide-check", categoryId, locale],
+    queryFn: () => fetch(apiUrl(`/size-guides/${categoryId}?locale=${locale}`)).then(r => r.ok ? r.json() : null).catch(() => null),
+    enabled: !!categoryId,
+  });
 
   const cartQty = getItemQty(product.id);
   const isInCart = cartQty > 0;
@@ -68,7 +86,7 @@ export default function ProductDetail({ product, images, translation, comments: 
     setMainImageIdx(idx);
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = useCallback(() => {
     if (isInCart) {
       updateQty(product.id, qty);
     } else {
@@ -80,9 +98,8 @@ export default function ProductDetail({ product, images, translation, comments: 
         image: images[0]?.url ?? null,
       }, qty);
     }
-    setAdded(true);
-    setTimeout(() => setAdded(false), 2000);
-  };
+    toastCartAdd(t, translation.title);
+  }, [isInCart, updateQty, addItem, product, translation, images, qty, t]);
 
   const handleSubmitComment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,30 +262,42 @@ export default function ProductDetail({ product, images, translation, comments: 
                   <Plus size={14} />
                 </button>
               </div>
+
+              {/* Size Guide link — only renders if size guide data exists (Req 7.1, 7.7) */}
+              {sizeGuide && (
+                <button
+                  ref={sizeGuideTriggerRef}
+                  type="button"
+                  onClick={() => setSizeGuideOpen(true)}
+                  className="ml-auto inline-flex items-center gap-1.5 text-sm text-primary hover:text-primary/80 underline underline-offset-2 transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring rounded"
+                >
+                  <Ruler size={14} />
+                  {t("SizeGuide.header")}
+                </button>
+              )}
             </div>
           )}
 
           {/* Cart + Wishlist */}
           <div className="flex gap-3">
-            <button
-              onClick={handleAddToCart}
-              disabled={!inStock || added}
-              className={`flex-1 flex items-center justify-center gap-2 py-3.5 rounded-full font-semibold transition-all duration-300 text-sm shadow-md ${
-                added
-                  ? "bg-green-500 text-white shadow-green-200 scale-[0.98]"
-                  : inStock
-                  ? "bg-primary text-primary-foreground hover:bg-primary/90 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/25 active:scale-95"
-                  : "bg-muted text-muted-foreground cursor-not-allowed"
-              }`}
-            >
-              {added ? (
-                <><Check size={18} strokeWidth={3} />{t("ProductDetail.addedToCart")}</>
-              ) : (
-                <><ShoppingCart size={18} />{inStock ? (isInCart ? t("ProductDetail.updateCart") : t("ProductDetail.addToCart")) : t("ProductDetail.outOfStock")}</>
-              )}
-            </button>
+            <div ref={primaryCtaRef} className="flex-1">
+              <AnimatedCartButton
+                onAdd={handleAddToCart}
+                disabled={!inStock}
+                label={
+                  !inStock
+                    ? t("ProductDetail.outOfStock")
+                    : isInCart
+                    ? t("ProductDetail.updateCart")
+                    : t("ProductDetail.addToCart")
+                }
+                size="lg"
+                className="w-full py-3.5 rounded-full"
+              />
+            </div>
             <WishlistButton
               productId={product.id}
+              productName={translation.title}
               onAuthRequired={() => setShowLogin(true)}
               className="w-12 h-12"
             />
@@ -412,6 +441,28 @@ export default function ProductDetail({ product, images, translation, comments: 
       )}
 
       <LoginModal open={showLogin} onClose={() => setShowLogin(false)} onSuccess={() => {}} />
+
+      {/* Size Guide Overlay */}
+      {categoryId && sizeGuide && (
+        <SizeGuideOverlay
+          categoryId={categoryId}
+          open={sizeGuideOpen}
+          onClose={() => setSizeGuideOpen(false)}
+          triggerRef={sizeGuideTriggerRef}
+        />
+      )}
+
+      <StickyAddToCartBar
+        product={{
+          product_id: product.id,
+          slug: product.slug,
+          title: translation.title,
+          price: product.price,
+          image: images[0]?.url ?? null,
+          stock: product.stock,
+        }}
+        primaryCtaRef={primaryCtaRef}
+      />
     </div>
   );
 }
