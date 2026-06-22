@@ -22,18 +22,29 @@ describe("Orders Integration Tests", () => {
       // Authenticate a test user
       session = await loginTestUser(BASE_URL, TEST_PHONE);
 
-      // Fetch a product with sufficient stock for order creation
+      // Find a test-seeded product and ensure its stock is sufficient.
+      // The seed creates products with slug prefix "test-product-" and stock 20,
+      // but previous CI runs or parallel tests may have depleted stock. We reset
+      // the stock here to guarantee the order can succeed.
       const { data: product } = await admin
         .from("products")
         .select("id, stock")
-        .gte("stock", 1)
+        .like("slug", "test-product-%")
         .limit(1)
         .single();
 
       if (!product) {
         throw new Error(
-          "No products with stock found in the database. Seed products before running orders tests."
+          "No test products found in the database. Seed products before running orders tests."
         );
+      }
+
+      // Ensure stock is sufficient for order test (reset to 20 if depleted)
+      if (product.stock < 5) {
+        await admin
+          .from("products")
+          .update({ stock: 20 })
+          .eq("id", product.id);
       }
 
       testProductId = product.id;
@@ -43,6 +54,13 @@ describe("Orders Integration Tests", () => {
   });
 
   afterAll(async () => {
+    // Restore stock that was decremented during the order test
+    if (testProductId && createdOrderId) {
+      await admin
+        .from("products")
+        .update({ stock: 20 })
+        .eq("id", testProductId);
+    }
     if (session?.userId) {
       await cleanupTestUser(session.userId);
     }
