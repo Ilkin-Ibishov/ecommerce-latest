@@ -1,13 +1,9 @@
 import { test, expect } from "@playwright/experimental-ct-react";
-import { Router } from "wouter";
-import { ProductGrid, type ProductCardData } from "@/components/storefront/ProductGrid";
-import { CartProvider } from "@/lib/cart/context";
-import { I18nProvider } from "@/lib/i18n/context";
+import { ProductGridHarness } from "./harness/ProductGridHarness";
+import type { ProductCardData } from "@/components/storefront/ProductGrid";
 
-// ProductGrid renders ProductCard, which uses useCart()/useI18n() and a wouter
-// <Link>. We supply those providers inline (mirroring ProductCard.spec.tsx /
-// Header.spec.tsx). ProductGrid's props are plain/serializable, so no render-
-// function harness is needed here.
+// ProductGrid renders ProductCard which uses useCart()/useI18n(), wouter <Link>,
+// and QuickViewModal (useQuery). The harness provides all required providers.
 
 const products: ProductCardData[] = [
   { id: "p1", slug: "alpha", title: "Alpha Product", price: 10 },
@@ -15,19 +11,9 @@ const products: ProductCardData[] = [
   { id: "p3", slug: "charlie", title: "Charlie Product", price: 30 },
 ];
 
-function wrap(node: React.ReactNode) {
-  return (
-    <CartProvider>
-      <Router>
-        <I18nProvider locale="az">{node}</I18nProvider>
-      </Router>
-    </CartProvider>
-  );
-}
-
 test("renders the skeleton grid and no product cards while loading", async ({ mount }) => {
   const component = await mount(
-    wrap(<ProductGrid products={products} loading={true} locale="az" />),
+    <ProductGridHarness products={products} loading={true} locale="az" />,
   );
 
   // ProductSkeletonGrid renders shimmer placeholders (default count = 8). These
@@ -42,7 +28,7 @@ test("renders the skeleton grid and no product cards while loading", async ({ mo
 
 test("renders one ProductCard per product when not loading", async ({ mount }) => {
   const component = await mount(
-    wrap(<ProductGrid products={products} loading={false} locale="az" />),
+    <ProductGridHarness products={products} loading={false} locale="az" />,
   );
 
   // One card per product, no skeletons.
@@ -57,7 +43,7 @@ test("renders one ProductCard per product when not loading", async ({ mount }) =
 
 test("renders no cards and no skeletons for an empty product list", async ({ mount }) => {
   const component = await mount(
-    wrap(<ProductGrid products={[]} loading={false} locale="az" />),
+    <ProductGridHarness products={[]} loading={false} locale="az" />,
   );
 
   await expect(component.locator(".product-card")).toHaveCount(0);

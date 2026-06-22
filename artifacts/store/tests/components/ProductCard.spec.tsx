@@ -1,6 +1,5 @@
 import { test, expect } from "@playwright/experimental-ct-react";
-import ProductCard from "@/components/storefront/ProductCard";
-import { CartProvider } from "@/lib/cart/context";
+import { ProductCardHarness } from "./harness/ProductCardHarness";
 
 const sampleProduct = {
   slug: "test-product",
@@ -19,22 +18,14 @@ const sampleProduct = {
 };
 
 test("displays product name and price", async ({ mount }) => {
-  const component = await mount(
-    <CartProvider>
-      <ProductCard {...sampleProduct} />
-    </CartProvider>,
-  );
+  const component = await mount(<ProductCardHarness {...sampleProduct} />);
 
   await expect(component.getByText("Wireless Headphones")).toBeVisible();
   await expect(component.getByText("49.99 AZN")).toBeVisible();
 });
 
 test("displays original price with strikethrough when on sale", async ({ mount }) => {
-  const component = await mount(
-    <CartProvider>
-      <ProductCard {...sampleProduct} />
-    </CartProvider>,
-  );
+  const component = await mount(<ProductCardHarness {...sampleProduct} />);
 
   const originalPrice = component.getByText("79.99 AZN");
   await expect(originalPrice).toBeVisible();
@@ -42,11 +33,7 @@ test("displays original price with strikethrough when on sale", async ({ mount }
 });
 
 test("applies Tailwind CSS styles to the card", async ({ mount, page }) => {
-  const component = await mount(
-    <CartProvider>
-      <ProductCard {...sampleProduct} />
-    </CartProvider>,
-  );
+  const component = await mount(<ProductCardHarness {...sampleProduct} />);
 
   // The ProductCard root is a wouter Link (renders as <a>) with Tailwind classes
   const card = page.locator(".product-card").first();
