@@ -294,6 +294,7 @@ export default function ProductGallery({ images }: ProductGalleryProps) {
           alt={currentImage!.alt_text ?? ""}
           naturalWidth={naturalDimensions.width}
           naturalHeight={naturalDimensions.height}
+          lensSrc={getProxyUrl(currentImage!.url, "lightbox")}
           onImageClick={handleMainImageClick}
           className="w-full h-full"
         >

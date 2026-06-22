@@ -61,7 +61,9 @@ export interface ImageMagnifierProps {
   alt: string;
   naturalWidth: number;
   naturalHeight: number;
-  magnification?: number; // default 2.5
+  /** Higher-resolution image URL used for the lens background (e.g. lightbox preset). Falls back to `src` if omitted. */
+  lensSrc?: string;
+  magnification?: number; // default 1.8
   lensSize?: number; // default 150 (px)
   onImageClick?: () => void;
   children: React.ReactNode;
@@ -93,7 +95,8 @@ export function ImageMagnifier({
   alt: _alt,
   naturalWidth,
   naturalHeight: _naturalHeight,
-  magnification = 2.5,
+  lensSrc,
+  magnification = 1.8,
   lensSize = 150,
   onImageClick,
   children,
@@ -108,10 +111,26 @@ export function ImageMagnifier({
   const [isDesktop, setIsDesktop] = useState(false);
   const [canMagnify, setCanMagnify] = useState(false);
 
+  // Track the preloaded lens source image dimensions
+  const [lensNaturalWidth, setLensNaturalWidth] = useState(0);
+
+  // The URL used for the lens background (higher-res if available)
+  const effectiveLensSrc = lensSrc || src;
+
   // ─── Pinch-to-zoom state (mobile) ──────────────────────────────────────────
   const [pinchScale, setPinchScale] = useState(1.0);
   const [isPinching, setIsPinching] = useState(false);
   const initialPinchDistanceRef = useRef<number | null>(null);
+
+  // Preload lens source image to get its true natural dimensions
+  useEffect(() => {
+    if (!effectiveLensSrc) return;
+    const img = new Image();
+    img.onload = () => {
+      setLensNaturalWidth(img.naturalWidth);
+    };
+    img.src = effectiveLensSrc;
+  }, [effectiveLensSrc]);
 
   // Detect desktop viewport (≥768px)
   useEffect(() => {
@@ -124,7 +143,10 @@ export function ImageMagnifier({
     return () => mql.removeEventListener("change", handler);
   }, []);
 
-  // Resolution check: naturalWidth must be >= displayWidth × magnification
+  // Resolution check: use lens source width (preloaded) or fall back to displayed naturalWidth
+  // Magnifier activates if the source image is at least slightly larger than what's displayed,
+  // ensuring there's additional detail to reveal. The lens is small (150px) so even modest
+  // resolution advantage looks clean.
   useEffect(() => {
     if (!containerRef.current || !isDesktop) {
       setCanMagnify(false);
@@ -135,7 +157,10 @@ export function ImageMagnifier({
       const rect = containerRef.current?.getBoundingClientRect();
       if (!rect) return;
       const displayWidth = rect.width;
-      setCanMagnify(naturalWidth >= displayWidth * magnification);
+      // Use lensNaturalWidth if available (from preloaded high-res image), otherwise displayed naturalWidth
+      const effectiveWidth = lensNaturalWidth > 0 ? lensNaturalWidth : naturalWidth;
+      // Require source to be at least 10% larger than display (any zoom headroom is useful)
+      setCanMagnify(effectiveWidth > displayWidth * 1.1);
     };
 
     checkResolution();
@@ -144,7 +169,7 @@ export function ImageMagnifier({
     const ro = new ResizeObserver(checkResolution);
     ro.observe(containerRef.current);
     return () => ro.disconnect();
-  }, [naturalWidth, magnification, isDesktop]);
+  }, [naturalWidth, lensNaturalWidth, magnification, isDesktop]);
 
   // Cleanup RAF on unmount
   useEffect(() => {
@@ -173,14 +198,14 @@ export function ImageMagnifier({
       top: `${lensY}px`,
       width: `${lensSize}px`,
       height: `${lensSize}px`,
-      backgroundImage: `url(${src})`,
+      backgroundImage: `url(${effectiveLensSrc})`,
       backgroundSize: `${imageRect.width * magnification}px ${imageRect.height * magnification}px`,
       backgroundPosition: `${bgX}px ${bgY}px`,
       backgroundRepeat: "no-repeat",
     });
 
     rafRef.current = null;
-  }, [src, lensSize, magnification]);
+  }, [effectiveLensSrc, lensSize, magnification]);
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent) => {
