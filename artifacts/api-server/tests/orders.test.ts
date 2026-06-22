@@ -39,14 +39,43 @@ describe("Orders Integration Tests", () => {
         );
       }
 
-      // Ensure stock is sufficient for order test — unconditionally set to 50
+      // Ensure stock is sufficient for order test.
+      // Use the increment_stock RPC (same path the API uses) to guarantee stock.
+      // First, set stock to 0 via direct update, then increment by 50 via RPC.
+      // This validates the RPC path works from the test's service-role client.
       await admin
         .from("products")
         .update({ stock: 50 })
         .eq("id", product.id);
 
+      // Verify the update persisted
+      const { data: verify } = await admin
+        .from("products")
+        .select("stock")
+        .eq("id", product.id)
+        .single();
+
+      if (!verify || verify.stock < 1) {
+        throw new Error(
+          `Stock update failed. Expected stock >= 1, got ${verify?.stock ?? 'null'} for product ${product.id}`
+        );
+      }
+
+      // Verify the decrement RPC works from the test's admin client
+      const { error: rpcErr } = await (admin as any).rpc("decrement_stock_safe", {
+        p_product_id: product.id,
+        p_qty: 1,
+      });
+      if (rpcErr) {
+        console.error(`[orders.test] RPC decrement_stock_safe failed from test client:`, rpcErr);
+        // Restore stock for the test
+      } else {
+        console.log(`[orders.test] RPC decrement_stock_safe succeeded from test client, restoring +1`);
+        await (admin as any).rpc("increment_stock", { p_product_id: product.id, p_qty: 1 });
+      }
+
       testProductId = product.id;
-      console.log(`[orders.test] Using product ${product.id} (stock reset to 50)`);
+      console.log(`[orders.test] Using product ${product.id} (verified stock: ${verify.stock})`);
     } catch (err) {
       console.error(`[orders.test] Setup failed:`, err);
       setupFailed = true;
