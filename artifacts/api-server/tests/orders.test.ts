@@ -39,16 +39,16 @@ describe("Orders Integration Tests", () => {
         );
       }
 
-      // Ensure stock is sufficient for order test (reset to 20 if depleted)
-      if (product.stock < 5) {
-        await admin
-          .from("products")
-          .update({ stock: 20 })
-          .eq("id", product.id);
-      }
+      // Ensure stock is sufficient for order test — unconditionally set to 50
+      await admin
+        .from("products")
+        .update({ stock: 50 })
+        .eq("id", product.id);
 
       testProductId = product.id;
-    } catch {
+      console.log(`[orders.test] Using product ${product.id} (stock reset to 50)`);
+    } catch (err) {
+      console.error(`[orders.test] Setup failed:`, err);
       setupFailed = true;
     }
   });
@@ -81,6 +81,12 @@ describe("Orders Integration Tests", () => {
         delivery_address: "123 Test Street, Baku",
       }),
     });
+
+    if (res.status !== 201) {
+      const errBody = await res.text();
+      console.error(`[orders.test] POST /api/orders returned ${res.status}: ${errBody}`);
+      console.error(`[orders.test] testProductId=${testProductId}`);
+    }
 
     expect(res.status).toBe(201);
 
