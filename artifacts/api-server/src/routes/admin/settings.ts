@@ -19,6 +19,12 @@ router.patch("/admin/settings", requireAdmin, async (req, res) => {
   if (!updates || typeof updates !== "object" || Array.isArray(updates)) {
     return res.status(400).json({ error: "Body must be a key-value object" });
   }
+  // Per-key validation
+  if ("brand_banner_enabled" in updates && updates.brand_banner_enabled !== "true" && updates.brand_banner_enabled !== "false") {
+    res.status(400).json({ error: 'Value must be "true" or "false"' });
+    return;
+  }
+
   const rows = Object.entries(updates).map(([key, value]) => ({
     key, value: String(value), updated_at: new Date().toISOString(),
   }));

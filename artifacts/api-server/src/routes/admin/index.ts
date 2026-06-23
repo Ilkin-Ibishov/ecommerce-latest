@@ -2,6 +2,7 @@ import { Router, type IRouter } from "express";
 import { platformStatus } from "../../middlewares/platformStatus";
 import products from "./products";
 import banners from "./banners";
+import brandsManagement from "./brands-management";
 import orders from "./orders";
 import categories from "./categories";
 import coupons from "./coupons";
@@ -27,6 +28,7 @@ router.use((req, res, next) => {
 router.use(usage);
 router.use(products);
 router.use(banners);
+router.use(brandsManagement);
 router.use(orders);
 router.use(categories);
 router.use(coupons);

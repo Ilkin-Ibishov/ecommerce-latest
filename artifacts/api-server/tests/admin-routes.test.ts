@@ -72,6 +72,12 @@ const EXPECTED_ROUTES = [
   "POST /admin/banners",
   "PATCH /admin/banners/:id",
   "DELETE /admin/banners/:id",
+  // brands-management.ts
+  "GET /admin/brands",
+  "POST /admin/brands",
+  "PATCH /admin/brands/reorder",
+  "PATCH /admin/brands/:id",
+  "DELETE /admin/brands/:id",
   // orders.ts
   "GET /admin/orders/export",
   "PATCH /admin/orders/:id/status",

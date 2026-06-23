@@ -7,7 +7,7 @@ import ProductCard from "@/components/storefront/ProductCard";
 import BouncingLoader from "@/components/ui/BouncingLoader";
 import TrustBadges from "@/components/storefront/TrustBadges";
 import HeroCarousel from "@/components/storefront/HeroCarousel";
-import { BRAND_LOGOS } from "@/lib/brand-icons";
+import { apiUrl } from "@/lib/api";
 
 function useCountdown(targetHour = 0) {
   const getSecondsLeft = useCallback(() => {
@@ -86,6 +86,13 @@ function SetupBanner() {
   );
 }
 
+interface BrandEntry {
+  id: string;
+  name: string;
+  logo_url: string;
+  sort_order: number;
+}
+
 export default function HomePage({ locale }: { locale: string }) {
   const { t } = useI18n();
   const [featured, setFeatured] = useState<any[]>([]);
@@ -95,6 +102,36 @@ export default function HomePage({ locale }: { locale: string }) {
   const [loading, setLoading] = useState(true);
   const configured = isSupabaseConfigured();
   const countdown = useCountdown(0);
+
+  // Brand banner state
+  const [brands, setBrands] = useState<BrandEntry[]>([]);
+  const [bannerEnabled, setBannerEnabled] = useState(true);
+  const [brandsLoaded, setBrandsLoaded] = useState(false);
+
+  // Fetch brands and banner setting from public API
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchBrands() {
+      try {
+        const res = await fetch(apiUrl("/brands"));
+        if (!res.ok) throw new Error("Failed to fetch brands");
+        const json = await res.json();
+        if (cancelled) return;
+        setBrands(json.data ?? []);
+        // brand_banner_enabled defaults to true if missing
+        const enabled = json.brand_banner_enabled;
+        setBannerEnabled(enabled === undefined || enabled === null ? true : enabled === "true");
+      } catch {
+        if (cancelled) return;
+        // On error: hide section entirely (req 5.7)
+        setBannerEnabled(false);
+      } finally {
+        if (!cancelled) setBrandsLoaded(true);
+      }
+    }
+    fetchBrands();
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!configured) { setLoading(false); return; }
@@ -133,33 +170,32 @@ export default function HomePage({ locale }: { locale: string }) {
       {!configured && <SetupBanner />}
 
       {/* Brand logos strip — auto-scrolling marquee */}
-      <section className="overflow-hidden">
-        <div className="animate-marquee flex items-center" style={{ width: "max-content" }}>
-          {[...BRAND_LOGOS, ...BRAND_LOGOS].map((b, i) => (
-            <Link
-              key={`${b.name}-${i}`}
-              href={`/${locale}/products?brand=${encodeURIComponent(b.name)}`}
-              className="shrink-0 group flex items-center justify-center h-10 w-24 sm:h-12 sm:w-28 mx-5 sm:mx-8 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-200"
-              title={b.name}
-            >
-              <img
-                src={b.logo}
-                alt={b.name}
-                className="max-h-full max-w-full object-contain"
-                loading="eager"
-                onError={(e) => {
-                  const img = e.currentTarget;
-                  img.style.display = "none";
-                  const fallback = document.createElement("span");
-                  fallback.textContent = b.name;
-                  fallback.className = "text-xs font-semibold text-muted-foreground";
-                  img.parentElement?.appendChild(fallback);
-                }}
-              />
-            </Link>
-          ))}
-        </div>
-      </section>
+      {bannerEnabled && (!brandsLoaded || brands.length > 0) && (
+        <section className="overflow-hidden">
+          <div className="animate-marquee flex items-center" style={{ width: "max-content" }}>
+            {[...brands, ...brands].map((b, i) => (
+              <Link
+                key={`${b.name}-${i}`}
+                href={`/${locale}/products?brand=${encodeURIComponent(b.name)}`}
+                className="shrink-0 group flex items-center justify-center h-10 w-24 sm:h-12 sm:w-28 mx-5 sm:mx-8 grayscale opacity-60 hover:grayscale-0 hover:opacity-100 transition-all duration-200"
+                title={b.name}
+              >
+                <img
+                  src={b.logo_url}
+                  alt={b.name}
+                  className="max-h-full max-w-full object-contain"
+                  loading="eager"
+                  onError={(e) => {
+                    // Hide the entire entry (parent link) on broken image (req 5.8)
+                    const link = e.currentTarget.closest("a");
+                    if (link) link.style.display = "none";
+                  }}
+                />
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Categories */}
       {categories.length > 0 && (

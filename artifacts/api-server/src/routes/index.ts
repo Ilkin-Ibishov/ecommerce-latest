@@ -21,6 +21,7 @@ import productImagesRouter from "./product-images";
 import platformRouter from "./platform";
 import storeMetricsRouter from "./store-metrics";
 import sizeGuidesRouter from "./size-guides";
+import brandsPublicRouter from "./brands-public";
 
 const router: IRouter = Router();
 
@@ -38,6 +39,7 @@ router.use(productsRouter);
 router.use(searchRouter);
 router.use(migrationRouter);
 router.use(bannersRouter);
+router.use(brandsPublicRouter);
 router.use(categoriesRouter);
 router.use(siteSettingsRouter);
 router.use(pagesRouter);

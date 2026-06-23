@@ -109,3 +109,30 @@ export const OrderBodySchema = z.object({
   notes: z.string().max(1000).nullable().optional(),
   coupon_code: z.string().max(50).optional(),
 });
+
+// --- Brands ---------------------------------------------------------------
+
+const logoUrlPattern = /^(data:image\/svg\+xml|https:\/\/)/;
+
+export const CreateBrandSchema = z.object({
+  name: z.string().min(1).max(100),
+  logo_url: z.string().min(1).max(100_000).regex(logoUrlPattern,
+    "Must be a data:image/svg+xml URI or https:// URL"),
+  sort_order: z.number().int().min(0).max(999).optional(),
+  is_active: z.boolean().optional(),
+});
+
+export const UpdateBrandSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+  logo_url: z.string().min(1).max(100_000).regex(logoUrlPattern,
+    "Must be a data:image/svg+xml URI or https:// URL").optional(),
+  sort_order: z.number().int().min(0).max(999).optional(),
+  is_active: z.boolean().optional(),
+});
+
+export const ReorderBrandsSchema = z.object({
+  ids: z.array(z.string().uuid()).min(1).refine(
+    (arr) => new Set(arr).size === arr.length,
+    "Duplicate IDs are not allowed"
+  ),
+});
