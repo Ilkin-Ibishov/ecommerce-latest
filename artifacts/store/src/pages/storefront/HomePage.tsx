@@ -7,27 +7,7 @@ import ProductCard from "@/components/storefront/ProductCard";
 import BouncingLoader from "@/components/ui/BouncingLoader";
 import TrustBadges from "@/components/storefront/TrustBadges";
 import HeroCarousel from "@/components/storefront/HeroCarousel";
-
-const BRAND_LOGOS: Array<{ name: string; logo: string }> = [
-  { name: "Apple",    logo: "https://cdn.simpleicons.org/apple/222222" },
-  { name: "Samsung",  logo: "https://cdn.simpleicons.org/samsung/222222" },
-  { name: "Xiaomi",   logo: "https://cdn.simpleicons.org/xiaomi/222222" },
-  { name: "Huawei",   logo: "https://cdn.simpleicons.org/huawei/222222" },
-  { name: "Sony",     logo: "https://cdn.simpleicons.org/sony/222222" },
-  { name: "LG",       logo: "https://cdn.simpleicons.org/lg/222222" },
-  { name: "Lenovo",   logo: "https://cdn.simpleicons.org/lenovo/222222" },
-  { name: "HP",       logo: "https://cdn.simpleicons.org/hp/222222" },
-  { name: "Asus",     logo: "https://cdn.simpleicons.org/asus/222222" },
-  { name: "Acer",     logo: "https://cdn.simpleicons.org/acer/222222" },
-  { name: "Dell",     logo: "https://cdn.simpleicons.org/dell/222222" },
-  { name: "OnePlus",  logo: "https://cdn.simpleicons.org/oneplus/222222" },
-  { name: "Logitech",  logo: "https://cdn.simpleicons.org/logitech/222222" },
-  { name: "Microsoft", logo: "https://cdn.simpleicons.org/microsoft/222222" },
-  { name: "Intel",     logo: "https://cdn.simpleicons.org/intel/222222" },
-  { name: "Nvidia",    logo: "https://cdn.simpleicons.org/nvidia/222222" },
-  { name: "AMD",       logo: "https://cdn.simpleicons.org/amd/222222" },
-  { name: "Razer",     logo: "https://cdn.simpleicons.org/razer/222222" },
-];
+import { BRAND_LOGOS } from "@/lib/brand-icons";
 
 function useCountdown(targetHour = 0) {
   const getSecondsLeft = useCallback(() => {
