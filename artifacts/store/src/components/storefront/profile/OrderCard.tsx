@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "wouter";
 import { Package, Clock, MapPin, ChevronDown, ChevronUp, Check, ShoppingCart } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
 import { useI18n } from "@/lib/i18n/context";
@@ -139,6 +140,12 @@ export function OrderCard({ order, locale }: { order: any; locale: string }) {
               {t("Profile.reorderAll")}
             </button>
           )}
+          <Link
+            href={`/${locale}/orders/${order.id.slice(0, 8)}`}
+            className="text-primary hover:underline text-sm font-medium focus-visible:ring-1 focus-visible:ring-ring rounded px-1"
+          >
+            {t("OrderTracking.trackOrder")}
+          </Link>
         </div>
       )}
     </div>

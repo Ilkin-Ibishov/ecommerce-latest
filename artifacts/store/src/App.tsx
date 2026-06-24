@@ -23,6 +23,7 @@ const CheckoutPage = lazy(() => import("@/pages/storefront/CheckoutPage"));
 const ProfilePage = lazy(() => import("@/pages/storefront/ProfilePage"));
 const WishlistPage = lazy(() => import("@/pages/storefront/WishlistPage"));
 const CmsPage = lazy(() => import("@/pages/storefront/CmsPage"));
+const OrderTrackingPage = lazy(() => import("@/pages/storefront/OrderTrackingPage"));
 
 // ─── Admin pages (lazy — entire admin chunk only fetched for /admin routes) ──
 const AdminLayout = lazy(() => import("@/pages/admin/AdminLayout"));
@@ -153,6 +154,7 @@ function StorefrontRoutes({ locale }: { locale: string }) {
         <Route path={`/${locale}/search`}>{() => <SearchPage locale={locale} />}</Route>
         <Route path={`/${locale}/checkout`}>{() => <CheckoutPage locale={locale} />}</Route>
         <Route path={`/${locale}/profile`}>{() => <ProfilePage locale={locale} />}</Route>
+        <Route path={`/${locale}/orders/:shortId`}>{(params) => <OrderTrackingPage locale={locale} shortId={params.shortId} />}</Route>
         <Route path={`/${locale}/wishlist`}>{() => <WishlistPage locale={locale} />}</Route>
         <Route path={`/${locale}/policies/delivery`}>{() => <DeliveryPage locale={locale} />}</Route>
         <Route path={`/${locale}/policies/returns`}>{() => <ReturnsPage locale={locale} />}</Route>

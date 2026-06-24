@@ -145,6 +145,20 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
     throw err; // Let errorHandler return 500
   }
 
+  // Insert initial status history record (non-blocking)
+  try {
+    await (admin as any)
+      .from("order_status_history")
+      .insert({
+        order_id: order.id,
+        old_status: null,
+        new_status: "pending",
+        changed_by: user.id,
+      });
+  } catch (err) {
+    req.log.error({ error: err, orderId: order.id }, "Failed to insert initial status history");
+  }
+
   // SEC-006: Coupon usage — per-user check BEFORE global increment (no side effects on rejection)
   if (couponId && couponData) {
     // Step 1: Check per-user limit BEFORE any mutations
@@ -226,6 +240,68 @@ router.get("/profile/orders", requireUser, async (req, res) => {
 
   if (error) throw error;
   return res.json(orders ?? []);
+});
+
+router.get("/profile/orders/:id", requireUser, async (req, res) => {
+  const user = { id: req.authUser!.id };
+  const admin = getAdminSupabase();
+  const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  // Fetch order — support full UUID (36 chars) or short ID (prefix match)
+  let orderQuery = admin
+    .from("orders")
+    .select("id, status, customer_name, customer_phone, delivery_address, total_azn, discount_azn, created_at, user_id");
+
+  if (id.length === 36) {
+    orderQuery = orderQuery.eq("id", id);
+  } else {
+    orderQuery = orderQuery.like("id", `${id}%`);
+  }
+
+  const { data: order } = await orderQuery.maybeSingle();
+
+  // Return 404 for both not-found and ownership mismatch (prevent enumeration)
+  if (!order || order.user_id !== user.id) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  // Fetch order items
+  const { data: items } = await admin
+    .from("order_items")
+    .select("id, product_id, quantity, product_price_snapshot, product_title_snapshot")
+    .eq("order_id", order.id);
+
+  // Fetch status history sorted by changed_at ASC
+  const { data: history } = await (admin as any)
+    .from("order_status_history")
+    .select("id, old_status, new_status, changed_at, changed_by")
+    .eq("order_id", order.id)
+    .order("changed_at", { ascending: true });
+
+  // Compute line_total for each item
+  const order_items = (items ?? []).map((item: any) => ({
+    id: item.id,
+    product_id: item.product_id,
+    quantity: item.quantity,
+    product_price_snapshot: item.product_price_snapshot,
+    product_title_snapshot: item.product_title_snapshot,
+    line_total: item.quantity * item.product_price_snapshot,
+  }));
+
+  res.json({
+    id: order.id,
+    status: order.status,
+    customer_name: order.customer_name,
+    customer_phone: order.customer_phone,
+    delivery_address: order.delivery_address,
+    total_azn: order.total_azn,
+    discount_azn: order.discount_azn,
+    created_at: order.created_at,
+    order_items,
+    status_history: history ?? [],
+  });
+  return;
 });
 
 router.get("/orders/:id", requireUser, async (req, res) => {

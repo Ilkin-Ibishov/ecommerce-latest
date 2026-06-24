@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { requireAdmin } from "../../middlewares/requireAdmin";
+import { getAdminSupabase } from "../../lib/supabase";
 import { queueNotification } from "../../lib/notifications";
 import { writeAudit } from "../../lib/audit";
 import { incrementStock } from "../../lib/rpc";
@@ -61,6 +62,20 @@ router.patch("/admin/orders/:id/status", requireAdmin, async (req, res) => {
   const oldStatus = order.status;
 
   await (admin as any).from("orders").update({ status }).eq("id", id);
+
+  // Insert status history record (non-blocking)
+  try {
+    await (getAdminSupabase() as any)
+      .from("order_status_history")
+      .insert({
+        order_id: id,
+        old_status: oldStatus,
+        new_status: status,
+        changed_by: ctx.user.id,
+      });
+  } catch (err: unknown) {
+    req.log?.error?.({ err }, "Failed to insert status history");
+  }
 
   if (status === "cancelled" && oldStatus !== "cancelled") {
     for (const item of order.order_items ?? []) {
