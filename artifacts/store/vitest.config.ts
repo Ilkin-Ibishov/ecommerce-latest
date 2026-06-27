@@ -2,6 +2,14 @@ import { defineConfig } from "vitest/config";
 import path from "path";
 
 export default defineConfig({
+  // Use React's automatic JSX runtime so component source (.tsx) compiles without
+  // an explicit `import React`. Required by DOM tests that render components in
+  // jsdom (e.g. login-modal-profile-reroute.test.ts); inert for node-only tests
+  // that never render JSX.
+  esbuild: {
+    jsx: "automatic",
+    jsxImportSource: "react",
+  },
   test: {
     name: "store-unit",
     root: import.meta.dirname,

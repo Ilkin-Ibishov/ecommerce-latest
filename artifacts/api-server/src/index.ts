@@ -1,5 +1,19 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { getAdminSupabase } from "./lib/supabase";
+
+// SEC-006: eager service-role probe. getAdminSupabase() throws when
+// SUPABASE_SERVICE_ROLE_KEY is unset, so the process aborts BEFORE listen()
+// rather than booting with a degraded anon "admin" client subject to RLS.
+try {
+  getAdminSupabase();
+} catch (err) {
+  logger.error(
+    { err },
+    "SUPABASE_SERVICE_ROLE_KEY is required; aborting startup before listen()",
+  );
+  throw err;
+}
 
 const rawPort = process.env["PORT"];
 

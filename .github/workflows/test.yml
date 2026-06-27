@@ -45,6 +45,18 @@ jobs:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
       SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
       SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      # ─── Exploration-test fixed-state toggles ──────────────────────────────
+      # The SEC-00x exploration files default to the UNFIXED expectation and flip
+      # to the fixed-state assertion when these are set to "1". All fixes
+      # (SEC-001, SEC-002/003/004, SEC-005/006/007) are now LIVE on the DB + in
+      # code, so CI must assert the FIXED state — otherwise the re-run
+      # exploration tests would assert the old pre-migration behavior and fail
+      # against the now-fixed database. (The SEC-005 leg is a no-toggle invariant
+      # and is unaffected.) The `unit` job runs only `store-unit` (no toggle
+      # files), so it intentionally does not set these.
+      SEC001_FIXED: "1"
+      P1_FIXED: "1"
+      P2_FIXED: "1"
 
     steps:
       - uses: actions/checkout@v4

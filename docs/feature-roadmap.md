@@ -182,6 +182,15 @@ These are features that directly lose customers or revenue today.
 **Effort:** Medium  
 **What:** Dedicated corporate landing page with bulk order enquiry form
 
+### 26. Shared Multi-Tenancy (Platform Big Bet — DEFERRED)
+**Impact:** 🔴 High (long-term) — collapses per-store infra cost as store count grows  
+**Effort:** Very High — touches every table, route, auth path, storage call + risky live-store migration  
+**Status:** Deferred. No current demand; first store is a pilot (friend's store) on the existing isolated model. Revisit at ~8–10 stores when per-store onboarding cost/ops overhead becomes painful.  
+**What:** Move from "one Supabase project + one Vercel deploy per store" to a single shared DB + deploy with `store_id` columns, RLS tenant isolation, and domain/subdomain tenant resolution.  
+**Spec:** `.kiro/specs/shared-multi-tenancy/requirements.md` (full requirements already drafted and parked)  
+**When revisiting:** add per-tenant SEO (server-rendered sitemap/robots/OG/JSON-LD scoped by `store_id`); reuse the isolated-model provisioning script for the `/platform/stores/provision` endpoint.  
+**Interim higher-leverage work:** automate the current isolated onboarding (schema migration + AZ-market default seeding + admin user + Control Plane registration).
+
 ---
 
 ## Summary Table
@@ -208,3 +217,4 @@ These are features that directly lose customers or revenue today.
 | 18 | Promo code enhancements | P2 | 🟡 Medium | Low |
 | 19 | Loyalty program | P3 | 🟢 Medium | Very High |
 | 20-25 | Various | P3 | 🟢 Low | Various |
+| 26 | Shared multi-tenancy (deferred) | P3 | 🔴 High | Very High |

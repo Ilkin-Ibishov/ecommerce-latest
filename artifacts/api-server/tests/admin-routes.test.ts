@@ -88,6 +88,7 @@ const EXPECTED_ROUTES = [
   "PATCH /admin/categories/:id",
   "DELETE /admin/categories/:id",
   // coupons.ts
+  "GET /admin/coupons",
   "POST /admin/coupons",
   "PATCH /admin/coupons/:id",
   "DELETE /admin/coupons/:id",

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { X, Phone, ArrowRight, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { userFetch } from "@/lib/user-fetch";
 import { useCart } from "@/lib/cart/context";
 import { useI18n } from "@/lib/i18n/context";
 
@@ -128,11 +129,11 @@ export function LoginModal({ open, onClose, onSuccess }: LoginModalProps) {
     if (!fullName.trim()) return;
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from("users").update({ full_name: fullName.trim() }).eq("id", user.id);
-      }
+      await userFetch(apiUrl("/profile"), {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ full_name: fullName.trim() }),
+      });
       setStep("success");
       setTimeout(() => { onSuccess?.(); handleClose(); }, 1200);
     } finally {

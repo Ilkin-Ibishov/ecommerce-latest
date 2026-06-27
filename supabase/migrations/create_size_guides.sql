@@ -24,6 +24,9 @@ ALTER TABLE public.size_guides ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "size_guides_read" ON public.size_guides
   FOR SELECT USING (true);
 
--- Allow authenticated admin writes (via service role key in API server)
-CREATE POLICY "size_guides_admin_write" ON public.size_guides
-  FOR ALL USING (true) WITH CHECK (true);
+-- NOTE (SEC-002, P1): the former "size_guides_admin_write" policy
+-- (FOR ALL USING(true) WITH CHECK(true)) was dropped in migration
+-- 20240102_sec002_drop_size_guides_world_write.sql because USING(true)/CHECK(true)
+-- granted anon/authenticated full write through the anon client. Admin writes flow
+-- through the service role (api-server routes/size-guides.ts), which bypasses RLS
+-- and needs no client-write policy. Only the public read policy remains.

@@ -5,6 +5,20 @@ import { CreateCouponSchema, UpdateCouponSchema } from "./schemas";
 
 const router = Router();
 
+// Literal GET registered before any `/admin/coupons/:id` param route so `:id`
+// never shadows the bare path (SEC-003: admin list now served via service role,
+// not the dropped anon public-read policy).
+router.get("/admin/coupons", requireAdmin, async (req, res): Promise<void> => {
+  const admin = req.admin!;
+  const { data, error } = await admin
+    .from("coupons")
+    .select("*")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  res.json(data ?? []);
+  return;
+});
+
 router.post("/admin/coupons", requireAdmin, validate(CreateCouponSchema), async (req, res) => {
   const ctx = { admin: req.admin!, user: req.user! };
   const { code, description, discount_type, discount_value, min_order_amount, max_uses, max_uses_per_user, scope, scope_ids, is_active, starts_at, expires_at } = req.body;

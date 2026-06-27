@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, X } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useI18n } from "@/lib/i18n/context";
@@ -23,9 +22,9 @@ export default function AdminCouponsPage() {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    (supabase as any).from("coupons").select("*").order("created_at", { ascending: false })
-      .then(({ data }: any) => setCoupons(data ?? []));
+    adminFetch(apiUrl("/admin/coupons"))
+      .then((r) => r.json())
+      .then((data) => setCoupons(data ?? []));
   }, []);
 
   const openNew = () => { setEditing(null); setForm(EMPTY); setShowForm(true); };

@@ -31,10 +31,70 @@ create table if not exists public.users (
   updated_at       timestamptz not null default now()
 );
 alter table public.users enable row level security;
-create policy "Users: own row" on public.users for all using (auth.uid() = id);
-create policy "Admins: all users" on public.users for all using (
-  exists (select 1 from public.users u where u.id = auth.uid() and u.role = 'admin')
-);
+
+-- SEC-005 (P2): recursion-safe admin predicate. security definer + stable + a
+-- fixed search_path, so admin RLS checks resolve without a policy on users
+-- querying users. Defined here (after the users table exists, before the
+-- in-scope policies that reference it). It replaces the per-table inline
+-- `exists (select 1 from public.users ...)` admin subquery on the IN-SCOPE
+-- tables only (audit_log, pages). The ~13 cross-table admin policies below
+-- remain inline (fragile-but-not-recursive — out of AC 2.5 scope, optional
+-- consistency follow-up).
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer
+stable
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.users
+    where id = auth.uid() and role = 'admin'
+  )
+$$;
+revoke all on function public.is_admin() from public;
+grant execute on function public.is_admin() to authenticated, anon;
+
+-- SEC-001 (P0): public.users is SELECT-only for clients. The former `for all`
+-- own-row policy (live: users_own_update) is removed so clients cannot write the
+-- users table directly; profile writes go through the authenticated /api/profile
+-- endpoint (service role). Live policy name mirrored: users_own_read.
+-- SEC-005 reconciliation: a previously-mirrored recursive "Admins: all users"
+-- policy on public.users has been REMOVED — it does NOT exist on the live DB
+-- (live public.users carries only users_own_read), so a stale recursive
+-- definition is not retained here.
+create policy "users_own_read" on public.users for select using (auth.uid() = id);
+-- SEC-001 (b): role is never client-writable. Revoke the broad UPDATE, grant
+-- UPDATE only on the two profile columns (never role/email/phone).
+revoke update on public.users from authenticated;
+grant update (full_name, default_address) on public.users to authenticated;
+-- SEC-001 (c): defense-in-depth trigger — reject ANY role change unless the
+-- caller is the service role (empty-string-safe claim read; see preflight-sec001.md).
+create or replace function public.enforce_role_immutability()
+returns trigger
+language plpgsql
+security invoker
+as $$
+begin
+  if new.role is distinct from old.role then
+    if coalesce(
+         nullif(current_setting('request.jwt.claims', true), '')::json ->> 'role',
+         ''
+       ) = 'service_role'
+       or current_user in ('service_role', 'postgres', 'supabase_admin') then
+      return new;
+    end if;
+    raise exception 'role is immutable from the client'
+      using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+drop trigger if exists trg_users_role_immutable on public.users;
+create trigger trg_users_role_immutable
+  before update on public.users
+  for each row
+  execute function public.enforce_role_immutability();
 
 -- ─── Categories ──────────────────────────────────────────────
 create table if not exists public.categories (
@@ -239,7 +299,9 @@ create table if not exists public.coupons (
   created_at         timestamptz not null default now()
 );
 alter table public.coupons enable row level security;
-create policy "Coupons: public read active" on public.coupons for select using (is_active = true);
+-- SEC-003: public/anon coupon read removed (live policy "coupons_customer_read").
+-- Validation is server-side only (POST /api/coupons/validate, service role);
+-- admin list via GET /admin/coupons (service role). No public coupon-read view.
 create policy "Coupons: admin all" on public.coupons for all using (
   exists (select 1 from public.users u where u.id = auth.uid() and u.role = 'admin')
 );
@@ -341,7 +403,7 @@ create table if not exists public.comments (
 );
 alter table public.comments enable row level security;
 create policy "Comments: public read approved" on public.comments for select using (approved = true);
-create policy "Comments: own insert" on public.comments for insert with check (auth.uid() = user_id);
+create policy "Comments: own insert" on public.comments for insert with check (auth.uid() = user_id and approved = false);
 create policy "Comments: admin all" on public.comments for all using (
   exists (select 1 from public.users u where u.id = auth.uid() and u.role = 'admin')
 );
@@ -380,8 +442,10 @@ create table if not exists public.audit_log (
   created_at timestamptz not null default now()
 );
 alter table public.audit_log enable row level security;
-create policy "AuditLog: admin read" on public.audit_log for select using (
-  exists (select 1 from public.users u where u.id = auth.uid() and u.role = 'admin')
+-- SEC-005 (P2): rewritten to use public.is_admin() (recursion-safe). Live policy
+-- name reconciled to audit_admin_read.
+create policy "audit_admin_read" on public.audit_log for select using (
+  public.is_admin()
 );
 
 create index if not exists audit_log_actor_idx on public.audit_log (actor_id);

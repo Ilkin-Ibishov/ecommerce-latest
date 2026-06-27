@@ -110,14 +110,14 @@ Implementation language is **TypeScript** (Express 5 `@workspace/api-server`, Re
   - [x] 6.1 Implement the Per_Store_Credential verifier
     - Create `lib/store-hooks/credential.ts` — pure verifier: require `X-Store-Id` == this Store's id (else 403, foreign credential), require bearer present (else 401), constant-time compare bearer vs the Store's own secret (else 403); returns no data on any failure
     - _Requirements: 9.3, 9.6_
-  - [ ]* 6.2 Write property test for credential verification
+  - [x]* 6.2 Write property test for credential verification
     - **Property 6: A Store exposes only its own aggregates and rejects foreign or missing credentials**
     - **Validates: Requirements 9.3, 9.4, 9.5, 9.6**
   - [x] 6.3 Implement the Store_Metrics_Endpoint (aggregate-only shaper)
     - Add the store-side `GET {metrics_endpoint_url}?from=&to=` returning only `order_count`, `revenue_total` (2dp string), optional `traffic_count`, `quota_usage` integers, and the inclusive `range`; compute from the Store's own DB and return **no raw records**
     - Guard with `lib/store-hooks/credential.ts`
     - _Requirements: 9.4, 9.5, 2.3_
-  - [ ]* 6.4 Write integration test for foreign-credential rejection + aggregate-only response
+  - [x]* 6.4 Write integration test for foreign-credential rejection + aggregate-only response
     - Mock Store endpoint: assert a foreign credential is rejected and a success payload contains only aggregates (no raw orders/customers/products)
     - _Requirements: 9.3, 9.4, 9.5_
 
@@ -125,7 +125,7 @@ Implementation language is **TypeScript** (Express 5 `@workspace/api-server`, Re
   - [x] 7.1 Implement the metrics ingest whitelist
     - Create `lib/platform/metrics-ingest.ts` — pure transform: from an arbitrary Store payload (even one containing raw-record-shaped fields), produce only the whitelisted aggregate fields for `store_metrics_cache`; discard everything else
     - _Requirements: 9.2, 9.8_
-  - [ ]* 7.2 Write property test for the ingest whitelist
+  - [x]* 7.2 Write property test for the ingest whitelist
     - **Property 5: The Control_Plane persists only aggregate numbers from a Store, never raw records**
     - **Validates: Requirements 9.2, 9.8**
   - [x] 7.3 Add the `store_metrics_cache` migration
@@ -134,7 +134,7 @@ Implementation language is **TypeScript** (Express 5 `@workspace/api-server`, Re
   - [x] 7.4 Implement the metrics poller endpoint
     - Add `POST /platform/metrics/poll` (`requireServiceCredential`) in `routes/platform/metrics.ts`: iterate the Store_Registry, call each Store's metrics endpoint with its Per_Store_Credential, persist via `lib/platform/metrics-ingest.ts` with `available=true`/fresh `fetched_at`; on unreachable/error mark `available=false` (registry untouched)
     - _Requirements: 2.2, 2.10, 9.1, 9.2_
-  - [ ]* 7.5 Write integration test for end-to-end aggregate-only ingest
+  - [x]* 7.5 Write integration test for end-to-end aggregate-only ingest
     - Against a mock Store endpoint, assert the poller authenticates with the correct credential and persists only aggregates; unreachable Store → `available=false` row, not dropped
     - _Requirements: 2.10, 9.2_
 
@@ -142,14 +142,14 @@ Implementation language is **TypeScript** (Express 5 `@workspace/api-server`, Re
   - [x] 8.1 Implement time-range/period validation + windowing
     - Create `lib/platform/range.ts` — pure: `start > end` / missing endpoint / non-date / >366 days → 400; else inclusive endpoints; default last 30 days when absent
     - _Requirements: 2.5, 2.6, 2.7_
-  - [ ]* 8.2 Write property test for range validation
+  - [x]* 8.2 Write property test for range validation
     - **Property 19: Time-range/period validation and inclusive windowing**
     - **Validates: Requirements 2.5, 2.6, 2.7, 19.4, 19.5, 19.6, 19.7**
   - [x] 8.3 Implement the dashboard list shaper and subscription-status filter
     - Create `lib/platform/dashboard.ts` — pure shaper: each row exposes name, platform_status, subscription_status, plan (distinct from status), counts as non-negative integers, revenue/quota formatted, page size 20; unavailable cached metrics → row present with metric fields marked unavailable (not omitted)
     - Create `lib/platform/subscription.ts` filter function returning exactly the Stores matching a `subscription_status` value (empty when none)
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.8, 2.10, 6.5, 6.6, 6.7_
-  - [ ]* 8.4 Write property tests for the dashboard shaper and filter
+  - [x]* 8.4 Write property tests for the dashboard shaper and filter
     - **Property 18: Dashboard list shape, metric formatting, and unavailable-metric handling**
     - **Property 17: Subscription-status filtering returns exactly matching Stores**
     - **Validates: Requirements 2.1, 2.2, 2.3, 2.4, 2.8, 2.10, 6.5, 6.6, 6.7**
@@ -167,13 +167,13 @@ Implementation language is **TypeScript** (Express 5 `@workspace/api-server`, Re
   - [x] 9.2 Implement the suspended-order rejection guard ordering in the Store
     - Wire the store-side order-submit path so the `platformStatus` gate runs **before** any `decrement_stock_safe` call: `suspended` → `403`, no order row created/modified, no stock decremented (single atomic outcome)
     - _Requirements: 3.5, 4.4_
-  - [ ]* 9.3 Write property test for atomic suspended-order rejection
+  - [x]* 9.3 Write property test for atomic suspended-order rejection
     - **Property 14: Suspended-Store order rejection is atomic**
     - **Validates: Requirements 3.5, 4.4**
   - [x] 9.4 Implement the suspended-state storefront notice (503) and admin write block
     - Create the store-side `SuspendedNotice` (HTTP 503, localized via active locale prefix, default `az`, excludes product/cart/checkout content); block admin writes (403) while allowing admin reads; reactivation restores pre-suspension behavior
     - _Requirements: 3.3, 3.4, 3.7, 4.1, 4.2, 4.3, 4.5_
-  - [ ]* 9.5 Write property test for the suspended storefront notice
+  - [x]* 9.5 Write property test for the suspended storefront notice
     - **Property 15: Suspended storefront renders a localized notice with 503**
     - **Validates: Requirements 4.1, 4.2, 4.3, 4.5**
 
@@ -181,14 +181,14 @@ Implementation language is **TypeScript** (Express 5 `@workspace/api-server`, Re
   - [x] 10.1 Implement notification targeting logic
     - Create `lib/notifications/target.ts` — pure: single / set(2–1000) / broadcast (= all non-`disabled` Stores) → exact target set; content empty/whitespace/>5000 → 400 no notification; any target id absent from registry → whole request 404, nothing created
     - _Requirements: 8.1, 8.2, 8.3, 8.5, 8.6, 8.8_
-  - [ ]* 10.2 Write property tests for targeting and content/target validation
+  - [x]* 10.2 Write property tests for targeting and content/target validation
     - **Property 9: Platform-message targeting addresses exactly the intended Stores**
     - **Property 10: Platform-message content and target validation is all-or-nothing**
     - **Validates: Requirements 8.1, 8.2, 8.3, 8.5, 8.6, 8.8**
   - [x] 10.3 Implement the per-store feed isolation, unread, and ordering logic
     - Create `lib/notifications/feed.ts` — pure: given notifications + targets + reads for a resolved store, return exactly that Store's notifications (exclude all others), unread count ≥ 0 = targeted-with-no-read, order `created_at desc, id desc`, each item exposes content/created_at/read-state; mark-read on non-existent/foreign → 404 leaving read state unchanged
     - _Requirements: 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.8_
-  - [ ]* 10.4 Write property tests for feed isolation and ordering
+  - [x]* 10.4 Write property tests for feed isolation and ordering
     - **Property 7: Per-store notification fetch returns only the calling Store's notifications**
     - **Property 8: Notification inbox ordering and item shape**
     - **Validates: Requirements 7.1, 7.2, 7.3, 7.4, 7.5, 7.6, 7.8**
@@ -201,7 +201,7 @@ Implementation language is **TypeScript** (Express 5 `@workspace/api-server`, Re
   - [x] 10.7 Implement the store-feed fetch/mark-read endpoints
     - Add to `routes/platform/store-feed.ts` (Per_Store_Credential auth): `GET /platform/store-feed/notifications` (caller's notifications + unread count, newest-first id tie-break) and `POST /platform/store-feed/notifications/:id/read`; resolve the store id from the credential so a Store can only ever see its own
     - _Requirements: 7.1, 7.3, 7.4, 7.5, 7.6, 7.8, 8.8_
-  - [ ]* 10.8 Write integration test for store-feed isolation under Per_Store_Credential
+  - [-]* 10.8 Write integration test for store-feed isolation under Per_Store_Credential
     - Two Stores, overlapping/broadcast notifications: assert each store-feed fetch returns only the calling Store's notifications
     - _Requirements: 7.1, 8.8_
   - [x] 10.9 Build the Notification_Center frontend (inside the Store admin)
@@ -219,14 +219,14 @@ Implementation language is **TypeScript** (Express 5 `@workspace/api-server`, Re
   - [x] 12.1 Implement plan validation, guards, and the assignment invariant
     - Create `lib/platform/plans.ts` — pure: valid create/edit persists (edits round-trip price/interval/limits), invalid → 400 naming fields, case-insensitive name collision → 409, archive/delete with assigned Stores → 409 unchanged, assign to missing/archived plan → 409 distinguishing the two reasons, archived excluded from assignable set, each Store references exactly one plan
     - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8, 13.9, 13.13, 13.14_
-  - [ ]* 12.2 Write property tests for plan guards and the one-plan invariant
+  - [-]* 12.2 Write property tests for plan guards and the one-plan invariant
     - **Property 21: Plan validation, uniqueness, and lifecycle guards**
     - **Property 22: Each Store always references exactly one plan**
     - **Validates: Requirements 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8, 13.9, 13.13, 13.14**
   - [x] 12.3 Implement the atomic subscription-status update logic
     - Extend `lib/platform/subscription.ts` with a pure update reducer: value in set → persisted; out-of-set/malformed/invalid store → 400, existing status unchanged; never a partial result
     - _Requirements: 6.3, 6.8, 6.9_
-  - [ ]* 12.4 Write property test for atomic subscription-status update
+  - [-]* 12.4 Write property test for atomic subscription-status update
     - **Property 16: Subscription-status update is atomic and round-trips**
     - **Validates: Requirements 6.3, 6.8, 6.9**
   - [x] 12.5 Add plan migrations and the plans/subscription/assignment routes
@@ -242,7 +242,7 @@ Implementation language is **TypeScript** (Express 5 `@workspace/api-server`, Re
     - Create `lib/billing/generate.ts` — pure: first invoice at trial end (`created_at + trial_days`, default 14), subsequent periods from the persisted billing anchor + k·interval (no drift), exactly one invoice per interval (issue at boundary, due = issue + due_days 1–90 default 14, amount = plan price)
     - Create `lib/billing/transition.ts` — pure reducer: paid on/before due → `active`; unpaid at due → `past_due` + grace start (effective grace 0–365); grace end unpaid → platform_status `suspended`; payment while past_due → `active`; payment after non-payment suspension → `active`; no overdue → no auto-suspend; manual mark-paid drives the same transitions
     - _Requirements: 6.10, 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7, 14.10, 14.11, 14.12_
-  - [ ]* 13.2 Write property tests for invoice generation and billing transitions
+  - [-]* 13.2 Write property tests for invoice generation and billing transitions
     - **Property 23: Invoice generation is exactly-once-per-interval with correct fields**
     - **Property 24: Automated billing lifecycle transitions are correct**
     - **Validates: Requirements 6.10, 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7, 14.10, 14.11, 14.12**
@@ -253,7 +253,7 @@ Implementation language is **TypeScript** (Express 5 `@workspace/api-server`, Re
   - [x] 13.4 Implement the billing routes and the scheduler run endpoint
     - Create `routes/platform/billing.ts`: `GET /platform/stores/:id/invoices`, `POST /platform/invoices/:id/pay` (manual, also signature-verified webhook path), and `POST /platform/billing/run` (`requireServiceCredential`) calling an idempotent/convergent `lib/billing/scheduler.ts` run; system-actor audit on automated transitions; failures isolated per Store and re-attempted
     - _Requirements: 6.10, 14.8, 14.9, 14.11, 14.12_
-  - [ ]* 13.5 Write integration test for one end-to-end billing cycle
+  - [-]* 13.5 Write integration test for one end-to-end billing cycle
     - generate → past_due → grace → suspend; payment → reactivate; assert exactly-once invoice creation under a duplicate run
     - _Requirements: 14.1, 14.11_
   - [x] 13.6 Build the Billing frontend page

@@ -12,7 +12,13 @@ export function getSupabase(accessToken?: string): SupabaseClient<Database> {
 }
 
 export function getAdminSupabase(): SupabaseClient<Database> {
-  return createClient<Database>(url, serviceKey || anonKey, {
+  // SEC-006: fail fast instead of silently falling back to the anon key. A
+  // missing service-role key must never yield an anon "admin" client subject to
+  // RLS — that is a misconfiguration we want to surface loudly, not degrade.
+  if (!serviceKey) {
+    throw new Error("SUPABASE_SERVICE_ROLE_KEY is required");
+  }
+  return createClient<Database>(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

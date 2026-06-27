@@ -13,7 +13,7 @@ Transform the product image system from single-image external URLs into a multi-
     - Ensure backward compatibility: existing rows get default `'paste'`
     - _Requirements: 12.1, Data Invariants_
 
-- [ ] 2. Image proxy utility (frontend)
+- [x] 2. Image proxy utility (frontend)
   - [x] 2.1 Create `image-proxy.ts` module in `artifacts/store/src/lib/`
     - Implement `getProxyUrl(rawUrl: string, preset: ImagePreset): string`
     - Implement `extractOriginalUrl(proxyUrl: string): string | null`
@@ -21,24 +21,24 @@ Transform the product image system from single-image external URLs into a multi-
     - Ensure proper URL encoding for URLs with query parameters and special characters
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-  - [-] 2.2 Write property tests for image proxy (Property 1: Proxy URL format correctness)
+  - [x] 2.2 Write property tests for image proxy (Property 1: Proxy URL format correctness)
     - **Property 1: Proxy URL format correctness**
     - **Validates: Requirements 1.1, 1.2, 1.3**
     - Create `artifacts/store/tests/image-proxy.property.test.ts`
     - Generate random valid HTTPS URLs × all presets, assert output contains correct base URL, encoded source, and matching w/h/q/output params
 
-  - [-] 2.3 Write property tests for image proxy (Property 2: Round-trip encoding)
+  - [x] 2.3 Write property tests for image proxy (Property 2: Round-trip encoding)
     - **Property 2: Proxy URL round-trip encoding**
     - **Validates: Requirements 1.4, 1.5**
     - In same test file, generate URLs with query params, fragments, unicode, special chars
     - Assert `extractOriginalUrl(getProxyUrl(url, preset)) === url` for all generated URLs
 
-  - [-] 2.4 Write property test for proxy URL idempotence (Property 10)
+  - [x] 2.4 Write property test for proxy URL idempotence (Property 10)
     - **Property 10: Proxy URL idempotence**
     - **Validates: Requirements 1.3**
     - Assert `getProxyUrl(url, preset) === getProxyUrl(url, preset)` for random inputs
 
-  - [-] 2.5 Write unit tests for image proxy edge cases
+  - [x] 2.5 Write unit tests for image proxy edge cases
     - Test specific preset outputs for known URLs
     - Test `extractOriginalUrl` with malformed/missing params
     - Test URLs with encoded characters, long URLs, missing protocol
@@ -47,8 +47,8 @@ Transform the product image system from single-image external URLs into a multi-
 - [x] 3. Checkpoint — Image proxy utility complete
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Backend services (API server)
-  - [-] 4.1 Create `image-search.ts` service in `artifacts/api-server/src/lib/`
+- [x] 4. Backend services (API server)
+  - [x] 4.1 Create `image-search.ts` service in `artifacts/api-server/src/lib/`
     - Implement `searchImages(query: string): Promise<string[]>` using `scrape-google-images`
     - Add 3-second cooldown logic (in-memory timestamp)
     - Return up to 20 deduplicated HTTPS URLs

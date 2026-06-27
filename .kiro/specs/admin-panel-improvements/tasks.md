@@ -67,7 +67,7 @@ Phased implementation of admin panel improvements: database migrations and criti
 - [x] 3. Checkpoint — Verify migrations and proxy fixes
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 4. Shared admin components
+- [x] 4. Shared admin components
   - [x] 4.1 Create SortableHeader component
     - Create `artifacts/store/src/components/admin/SortableHeader.tsx`
     - Implement as a `<th>` element with click handler

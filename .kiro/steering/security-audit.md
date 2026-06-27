@@ -1,29 +1,26 @@
 ---
-inclusion: manual
+inclusion: fileMatch
+fileMatchPattern: ['**/SECURITY_AUDIT.md']
 ---
 
 # Security Audit Playbook
 
-Adapted from the red-team-security skill. Use `#security-audit` when performing security reviews of this e-commerce platform.
+Security-review playbook for this white-label e-commerce platform. Auto-loads when editing `SECURITY_AUDIT.md`; also invoke manually with `#security-audit`. Follow it top-to-bottom: respect the boundaries, run the first-pass commands, map findings to OWASP + severity, then write the report before touching code.
+
+## Hard Boundaries (non-negotiable)
+
+- Audit THIS codebase only. Do NOT probe Supabase infra, Vercel, payment processors, or any third-party service.
+- Static analysis first. Run dynamic checks only against local/dev — never production.
+- Never print secret values. Report `file path + variable name` and mask the value.
+- Produce `SECURITY_AUDIT.md` before changing any code. Fixes come after the report is reviewed.
+- Read-only by default; propose fixes as recommendations, not silent edits.
 
 ## Scope
 
-This is a white-label e-commerce platform with:
-- **Public storefront** (React SPA) — cart, checkout, auth, wishlist, product browse
-- **Admin panel** — product CRUD, order management, inventory, coupons, settings
-- **API server** (Express 5) — REST endpoints, Supabase RLS, admin middleware
-- **Multi-tenant potential** (white-label) — store isolation, tenant-scoped data
-
-## Hard Boundaries
-
-- Authorized review of this codebase ONLY — do NOT probe Supabase infra, Vercel, or third-party services
-- Read-only static analysis first; dynamic validation only against local/dev
-- Never expose real secrets in output — report file path + variable name only, mask values
-- Produce `SECURITY_AUDIT.md` report before making any code changes
-
-## OWASP Alignment
-
-Map findings to OWASP Top 10 (2021): A01 Broken Access Control, A02 Crypto Failures, A03 Injection, A04 Insecure Design, A05 Misconfiguration, A06 Vulnerable Components, A07 Auth Failures, A08 Data Integrity, A09 Logging Failures, A10 SSRF.
+- **Storefront** (React SPA): cart, checkout, auth, wishlist, product browse
+- **Admin panel**: product CRUD, orders, inventory, coupons, settings
+- **API server** (Express 5, `artifacts/api-server`): REST endpoints, Supabase RLS, admin middleware
+- **Multi-tenant** (white-label): store isolation, tenant-scoped data and storage
 
 ## Severity Levels
 
@@ -34,91 +31,94 @@ Map findings to OWASP Top 10 (2021): A01 Broken Access Control, A02 Crypto Failu
 | Medium | Stored XSS, CSRF on state-changing ops, internal info disclosure |
 | Low | Missing headers, verbose dev errors, minor info leakage |
 
-## Ecommerce-Specific Attack Scenarios
+## OWASP Top 10 (2021) mapping
 
-These are the highest-priority checks for this platform:
+Tag every finding with one: A01 Broken Access Control · A02 Crypto Failures · A03 Injection · A04 Insecure Design · A05 Misconfiguration · A06 Vulnerable Components · A07 Auth Failures · A08 Data Integrity · A09 Logging Failures · A10 SSRF.
 
-### Price & Payment Integrity
-- Does checkout trust client-supplied prices? (Must always re-read from DB)
-- Can discount amounts be manipulated? (Check `calculateDiscount()` in `lib/coupon-calc.ts`)
-- Is checkout idempotent? (Double-submit prevention)
-- Are coupons validated server-side with usage limits enforced?
+## Highest-Priority Attack Scenarios
 
-### Access Control
-- Are all admin routes protected by `requireAdmin` middleware? (Check `src/routes/admin/`)
-- Can a customer access another customer's orders? (IDOR check on order endpoints)
-- Can a user escalate role via API? (Mass assignment on user update)
-- Is `req.admin` / `req.user` always set by middleware, never trusted from client?
+Check these first — they map to the platform's real money and data risks.
 
-### Stock & Inventory
-- Are stock decrements atomic? (Must use `decrementStockSafe` RPC in `lib/rpc.ts`)
-- Can negative quantities be submitted?
-- TOCTOU race conditions on concurrent checkout?
+### Price & payment integrity
+- Checkout must re-read prices from the DB; never trust client-supplied prices/totals.
+- Discounts go through `calculateDiscount()` (`src/lib/coupon-calc.ts`) — no inline math.
+- Coupons validated server-side with usage limits enforced.
+- Checkout is idempotent (double-submit / replay prevention).
 
-### Multi-Tenant Isolation (when white-label is active)
-- Are all DB queries scoped by store/tenant ID?
-- Can store admin A see store B's products/orders?
-- Are Supabase RLS policies tenant-aware?
-- Are storage buckets scoped per tenant?
+### Access control
+- Every admin route is guarded by `requireAdmin` middleware (`src/routes/admin/`); customer routes by `requireUser`.
+- `req.admin` / `req.user` / `req.authUser` are set by middleware only, never read from client input.
+- IDOR: a customer cannot read/modify another customer's orders, cart, or profile.
+- No mass-assignment role escalation on user/profile update endpoints.
 
-### Auth & Sessions
-- Supabase JWT: expiration, refresh logic, invalidation on logout
-- Admin session: can expired tokens still access admin routes?
-- Password reset: single-use tokens, time-limited?
-- OAuth redirect: validated against whitelist?
+### Stock & inventory
+- Stock changes only via `decrementStockSafe` / `incrementStock` (`src/lib/rpc.ts`) → DB RPCs, never raw `UPDATE`.
+- Reject negative or zero-abuse quantities; cart caps at 99 (`mergeGuestCart`, `src/lib/cart-merge.ts`).
+- Watch TOCTOU races on concurrent checkout of low-stock items.
 
-### File Upload
-- Type restriction (images only)?
-- Size limits enforced?
-- Path traversal prevention?
-- Stored XSS via SVG?
+### Multi-tenant isolation (white-label)
+- All DB queries scoped by store/tenant ID; Supabase RLS policies are tenant-aware.
+- Store admin A cannot see store B's products, orders, or customers.
+- Storage buckets scoped per tenant.
+
+### Auth & sessions
+- Supabase JWT: expiry, refresh, and invalidation on logout behave correctly.
+- Expired/revoked tokens cannot reach admin routes.
+- Password-reset tokens are single-use and time-limited.
+- OAuth redirect targets validated against a whitelist.
+
+### File upload
+- Images only, size-limited, path-traversal safe, no stored XSS via SVG.
 
 ### Configuration
-- Service-role key NOT exposed to client bundle (no `VITE_` prefix)
-- CORS explicit whitelist (no wildcard + credentials)
-- Error handler returns generic 500, never leaks `err.message`/`err.stack`
-- `pnpm audit` shows no critical/high vulnerabilities
+- Service-role key never in the client bundle (no `VITE_` prefix) — verify via `resolveSupabaseEnv` (`src/lib/env.ts`).
+- CORS uses an explicit whitelist (no wildcard with credentials).
+- `errorHandler` (`src/middlewares/errorHandler.ts`) returns generic 500; never leaks `err.message`/`err.stack`.
+- `pnpm audit` reports no critical/high vulnerabilities.
 
 ## Automated First-Pass Commands
+
+Run from repo root. Treat results as leads to confirm, not conclusions.
 
 ```bash
 # Dependency vulnerabilities
 pnpm audit
 
-# Potential secrets in code
+# Hardcoded secrets
 grep -rn "sk_live\|sk_test\|password\s*=\|secret\s*=" --include="*.ts" --exclude-dir=node_modules
 
-# Routes without auth middleware
+# Admin/API routes — confirm each has auth middleware
 grep -rn "router\.\(get\|post\|put\|delete\|patch\)" --include="*.ts" artifacts/api-server/src/routes/
 
-# Unsafe query patterns
-grep -rn "\.query\(\`\|\.execute\(\`\|sql\`" --include="*.ts" --exclude-dir=node_modules
+# Raw SQL / unsafe query construction
+grep -rn "\.query(\`\|\.execute(\`\|sql\`" --include="*.ts" --exclude-dir=node_modules
 
-# Eval/exec usage
+# Dangerous execution sinks
 grep -rn "eval(\|new Function(\|child_process\|exec(" --include="*.ts" --exclude-dir=node_modules
 ```
 
-## Report Structure
+## Project-Specific Controls to Verify
 
-Output to `SECURITY_AUDIT.md`:
-1. Executive summary (posture rating + top 5 risks)
-2. Application map (routes, roles, trust boundaries)
-3. Threat model table (asset, threat, scenario, impact, existing protection, gap)
-4. Detailed findings (SEC-001, SEC-002... with severity, evidence, fix, regression test)
-5. Ecommerce abuse case matrix (price tamper, IDOR, role escalation, stock manipulation)
+Confirm each control exists AND is actually used at every relevant call site (grep for bypasses).
+
+| Control | File (`artifacts/api-server/`) | What to verify |
+|---------|-------------------------------|----------------|
+| Admin middleware | `src/middlewares/requireAdmin.ts` | Verifies JWT + admin role, sets `req.admin`; attached to all admin routes |
+| Input validation | `src/middlewares/validate.ts` | Zod `validate(schema)` on every admin write |
+| Stock RPC | `src/lib/rpc.ts` | `decrementStockSafe`/`incrementStock` use DB functions, not raw UPDATE |
+| Coupon math | `src/lib/coupon-calc.ts` | `calculateDiscount()` — server-authoritative, no client trust |
+| Cart merge | `src/lib/cart-merge.ts` | `mergeGuestCart()` caps quantity at 99 |
+| Error handler | `src/middlewares/errorHandler.ts` | Generic 500, no `err.message`/`err.stack` leak |
+| Audit log | `src/lib/audit.ts` | `writeAudit()` fire-and-forget; sensitive actions logged |
+| Env resolution | `src/lib/env.ts` | `resolveSupabaseEnv()` — service key never client-exposed |
+
+## Report Structure (`SECURITY_AUDIT.md`)
+
+1. Executive summary — posture rating + top 5 risks
+2. Application map — routes, roles, trust boundaries
+3. Threat model table — asset, threat, scenario, impact, existing protection, gap
+4. Detailed findings — `SEC-001`, `SEC-002`… each with severity, OWASP tag, evidence (file:line), fix, regression test
+5. Ecommerce abuse-case matrix — price tamper, IDOR, role escalation, stock manipulation, tenant leak
 6. Secrets & headers review
-7. Prioritized fix plan (P0/P1/P2)
-8. Security regression checklist (pre-release gates)
-
-## Project-Specific Patterns to Verify
-
-| Pattern | File | What to check |
-|---------|------|---------------|
-| Admin middleware | `src/middlewares/requireAdmin.ts` | Verifies JWT + admin role, sets `req.admin` |
-| Stock RPC | `lib/rpc.ts` | `decrementStockSafe` uses DB function, not raw UPDATE |
-| Coupon math | `lib/coupon-calc.ts` | `calculateDiscount()` — no client-trusting |
-| Cart merge | `lib/cart-merge.ts` | `mergeGuestCart()` — caps at 99 |
-| Error handler | `src/middlewares/errorHandler.ts` | Generic 500, no `err.message` leak |
-| Audit log | `lib/audit.ts` | `writeAudit()` — fire-and-forget |
-| Env resolution | `lib/env.ts` | `resolveSupabaseEnv()` — no service key in client |
-| Validate middleware | `src/middlewares/validate.ts` | Zod schema validation on admin writes |
+7. Prioritized fix plan — P0/P1/P2
+8. Security regression checklist — pre-release gates
