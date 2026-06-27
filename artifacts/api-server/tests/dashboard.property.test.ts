@@ -60,7 +60,10 @@ const cachedMetricsArb: fc.Arbitrary<CachedMetrics> = fc.record({
     { maxKeys: 5 },
   ),
   available: fc.boolean(),
-  fetched_at: fc.option(fc.date().map((d) => d.toISOString()), { nil: null }),
+  fetched_at: fc.option(
+    fc.date({ noInvalidDate: true }).map((d) => d.toISOString()),
+    { nil: null },
+  ),
 });
 
 /** A set of stores with unique ids. */
