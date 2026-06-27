@@ -88,6 +88,12 @@ jobs:
         env:
           PORT: "5000"
           NODE_ENV: development
+          # Test-only: bypass the SEC-004 auth rate limiter for this CI server.
+          # The api-integration suite drives ~12 login-using files from one IP
+          # with shuffle on, exceeding 10 req/min and tripping a 429 (60s window
+          # > 30s test timeout, so retry can't recover). NEVER set this in prod
+          # (Vercel / Railway) — it disables OTP brute-force protection.
+          E2E_DISABLE_AUTH_RATELIMIT: "1"
 
       - name: Wait for API health endpoint
         run: |
