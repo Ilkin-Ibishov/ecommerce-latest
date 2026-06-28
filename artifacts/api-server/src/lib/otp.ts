@@ -8,6 +8,15 @@ const MAX_VERIFY_ATTEMPTS = 5;
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
+// Hardcoded test bypass: these phones accept TEST_CODE in any environment.
+// Used by automated/manual test flows to obtain sessions without WhatsApp.
+const TEST_PHONES = new Set<string>([
+  "+994550000001",
+  "+994550000002",
+  "+994550000003",
+]);
+const TEST_CODE = "999999";
+
 // In-memory OTP store used in dev/test mode so tests don't need the
 // otp_requests DB table (which requires a Supabase SQL Editor migration).
 // Format: phone -> { code (plaintext, for test retrieval), codeHash, expiresAt, attempts }
@@ -39,8 +48,8 @@ export function devGetLastOTP(phone: string): string | null {
 }
 
 export async function checkRateLimit(phone: string): Promise<{ allowed: boolean; reason?: string }> {
-  // Test bypass: always allow the test phone
-  if (phone === "+994551234567") return { allowed: true };
+  // Test bypass: always allow the hardcoded test phones
+  if (TEST_PHONES.has(phone)) return { allowed: true };
 
   if (IS_DEV) return { allowed: true };
 
@@ -87,11 +96,9 @@ export async function createOTP(phone: string): Promise<string> {
 }
 
 export async function verifyOTP(phone: string, code: string): Promise<{ valid: boolean; reason?: string }> {
-  // ─── TEST BYPASS: hardcoded code 999999 for test phone ───────────────────
+  // ─── TEST BYPASS: hardcoded code 999999 for designated test phones ───────
   // Remove after E2E testing is complete
-  const TEST_PHONE = "+994551234567";
-  const TEST_CODE = "999999";
-  if (phone === TEST_PHONE && code === TEST_CODE) {
+  if (TEST_PHONES.has(phone) && code === TEST_CODE) {
     return { valid: true };
   }
   // ─── END TEST BYPASS ─────────────────────────────────────────────────────

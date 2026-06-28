@@ -20,7 +20,7 @@ test.describe("Admin Panel", () => {
 
     if (needsAuth) {
       await page.getByRole("button", { name: "Sign In with Phone" }).click();
-      await page.getByPlaceholder("+994 XX XXX XX XX").fill("+994551234567");
+      await page.getByPlaceholder("+994 XX XXX XX XX").fill("+994550000001");
       await page.getByRole("button", { name: /Kod göndər/i }).click();
       await page.waitForTimeout(2000);
       await page.getByPlaceholder("------").fill("999999");
