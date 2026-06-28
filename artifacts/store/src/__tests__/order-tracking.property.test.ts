@@ -275,7 +275,7 @@ describe("Feature: order-tracking-timeline, Property 7: Date formatting respects
   };
 
   const timestampArb = fc
-    .date({ min: new Date("2024-01-01"), max: new Date("2025-12-31") })
+    .date({ min: new Date("2024-01-01"), max: new Date("2025-12-31"), noInvalidDate: true })
     .map((d) => d.toISOString());
   const localeArb = fc.constantFrom("az", "ru", "en");
 
