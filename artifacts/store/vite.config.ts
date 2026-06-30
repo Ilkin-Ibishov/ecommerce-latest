@@ -54,6 +54,15 @@ export default defineConfig({
     strictPort: true,
     host: "0.0.0.0",
     allowedHosts: true,
+    // Proxy /api to the API server in dev (and E2E/CI). This mirrors production,
+    // where /api is same-origin (Vercel rewrite), so the SPA's apiUrl("/api/…")
+    // calls work without CORS or a baked-in absolute URL. Target is overridable.
+    proxy: {
+      "/api": {
+        target: process.env.VITE_API_PROXY_TARGET ?? "http://localhost:5000",
+        changeOrigin: true,
+      },
+    },
     fs: {
       strict: true,
     },

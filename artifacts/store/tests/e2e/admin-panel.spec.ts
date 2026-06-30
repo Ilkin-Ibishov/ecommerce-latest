@@ -27,18 +27,23 @@ test.describe("Admin Panel", () => {
     if (needsAuth) {
       await page.getByRole("button", { name: "Sign In with Phone" }).click();
 
+      // Locale-agnostic selectors: the admin panel renders in its stored locale
+      // (defaults to "en" in a fresh browser, e.g. CI), so the LoginModal button
+      // labels are NOT Azerbaijani. The phone/OTP inputs use fixed placeholders
+      // and each modal step has exactly one `button[type="submit"]`, so we drive
+      // the flow by submit button rather than by translated text.
       const phoneInput = page.getByPlaceholder("+994 XX XXX XX XX");
       await expect(phoneInput).toBeVisible({ timeout: 15000 });
       await phoneInput.fill("+994550000001");
 
-      await page.getByRole("button", { name: /Kod göndər/i }).click();
+      await page.locator('button[type="submit"]').click();
 
       // Wait for the OTP step to render instead of a fixed timeout.
       const otpInput = page.getByPlaceholder("------");
       await expect(otpInput).toBeVisible({ timeout: 15000 });
       await otpInput.fill("999999");
 
-      await page.getByRole("button", { name: /Kodu təsdiqlə/i }).click();
+      await page.locator('button[type="submit"]').click();
 
       await expect(dashboard).toBeVisible({ timeout: 20000 });
     }
