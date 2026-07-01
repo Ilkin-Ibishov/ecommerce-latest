@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { createHmac } from "crypto";
 import { getAdminSupabase, getSupabase } from "../lib/supabase";
-import { validateAzPhone, checkRateLimit, createOTP, verifyOTP } from "../lib/otp";
+import { validateAzPhone, checkRateLimit, createOTP, verifyOTP, normalizePhone } from "../lib/otp";
 import { sendWhatsAppOTP } from "../lib/whatsapp";
 import { authRateLimit } from "../middlewares/rateLimits";
 
@@ -26,19 +26,28 @@ router.post("/auth/otp/request", authRateLimit, async (req, res) => {
 });
 
 // ─── OTP Verify ───────────────────────────────────────────────────────────────
-router.post("/auth/otp/verify", authRateLimit, async (req, res) => {
+router.post("/auth/otp/verify", authRateLimit, async (req, res): Promise<void> => {
   const { phone, code } = req.body;
   if (!phone || !code) {
-    return res.status(400).json({ error: "Phone and code are required" });
+    res.status(400).json({ error: "Phone and code are required" });
+    return;
   }
 
   // 1. Verify against our custom OTP table
   const result = await verifyOTP(phone, code);
   if (!result.valid) {
-    return res.status(400).json({ error: "Verification failed", reason: result.reason });
+    res.status(400).json({ error: "Verification failed", reason: result.reason });
+    return;
   }
 
   const admin = getAdminSupabase();
+
+  // Canonical phone used consistently for the public.users lookup, the Auth
+  // createUser/upsert writes, and the listUsers recovery match — so a
+  // stored-vs-queried format difference can no longer cause a false miss.
+  const normalizedPhone = normalizePhone(phone);
+  // Supabase Auth stores phones WITHOUT the leading "+" (e.g. "994550000001").
+  const authPhone = normalizedPhone.replace(/^\+/, "");
 
   // 2. Find or create the Supabase Auth user
   let userId: string;
@@ -47,7 +56,7 @@ router.post("/auth/otp/verify", authRateLimit, async (req, res) => {
   const { data: existingRow } = await (admin as any)
     .from("users")
     .select("id")
-    .eq("phone", phone)
+    .eq("phone", normalizedPhone)
     .maybeSingle();
 
   if (existingRow) {
@@ -55,15 +64,27 @@ router.post("/auth/otp/verify", authRateLimit, async (req, res) => {
   } else {
     // Create the user in Supabase Auth with phone confirmed
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
-      phone,
+      phone: normalizedPhone,
       phone_confirm: true,
     });
 
     if (createErr) {
-      // User might already exist in auth but not in public.users
-      const { data: { users: allUsers } } = await admin.auth.admin.listUsers({ perPage: 1000 });
-      const found = (allUsers as any[])?.find((u: any) => u.phone === phone);
-      if (!found) return res.status(500).json({ error: createErr.message });
+      // User might already exist in auth but not in public.users.
+      // Null-guard the listUsers recovery: a null/undefined `data` (error-shape
+      // response or SDK edge) must yield a SPECIFIC handled error rather than an
+      // unhandled TypeError from a nested destructure → generic 500.
+      const { data: listData, error: listErr } = await admin.auth.admin.listUsers({ perPage: 1000 });
+      if (listErr || !listData?.users) {
+        req.log.error({ err: listErr }, "[OTP Verify] listUsers recovery failed");
+        res.status(500).json({ error: "Session creation failed", detail: listErr?.message });
+        return;
+      }
+      // Auth stores phones without "+": match on the digits-only canonical form.
+      const found = listData.users.find((u) => u.phone === authPhone);
+      if (!found) {
+        res.status(500).json({ error: createErr.message });
+        return;
+      }
       userId = found.id;
     } else {
       userId = created.user.id;
@@ -73,7 +94,7 @@ router.post("/auth/otp/verify", authRateLimit, async (req, res) => {
     // Ensure public.users row exists
     await (admin as any).from("users").upsert({
       id: userId,
-      phone,
+      phone: normalizedPhone,
       role: "customer",
     }, { onConflict: "id" });
   }
@@ -85,7 +106,7 @@ router.post("/auth/otp/verify", authRateLimit, async (req, res) => {
   //    signInWithPassword to get a real access/refresh token pair.
   //    The "email" uses a non-routable .internal domain and never conflicts with
   //    real addresses. The password is stable per user, derived from the userId.
-  const tempEmail = `${phone.replace(/[^0-9]/g, "")}@phoneauth.internal`;
+  const tempEmail = `${authPhone}@phoneauth.internal`;
   // SEC-010: Derive session password from HMAC instead of predictable UUID
   const tempPass = createHmac("sha256", process.env.SESSION_SECRET || "fallback-dev-secret")
     .update(userId)
@@ -100,7 +121,8 @@ router.post("/auth/otp/verify", authRateLimit, async (req, res) => {
 
   if (updateErr) {
     req.log.error({ err: updateErr }, "[OTP Verify] updateUser for session failed");
-    return res.status(500).json({ error: "Session creation failed", detail: updateErr.message });
+    res.status(500).json({ error: "Session creation failed", detail: updateErr.message });
+    return;
   }
 
   const anonClient = getSupabase();
@@ -111,10 +133,11 @@ router.post("/auth/otp/verify", authRateLimit, async (req, res) => {
 
   if (signInErr || !signInData.session) {
     req.log.error({ err: signInErr }, "[OTP Verify] signInWithPassword failed");
-    return res.status(500).json({ error: "Session creation failed", detail: signInErr?.message });
+    res.status(500).json({ error: "Session creation failed", detail: signInErr?.message });
+    return;
   }
 
-  return res.json({
+  res.json({
     success: true,
     isNew,
     access_token: signInData.session.access_token,

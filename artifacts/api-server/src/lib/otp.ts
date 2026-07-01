@@ -26,6 +26,25 @@ export function validateAzPhone(phone: string): boolean {
   return /^\+994\d{9}$/.test(phone);
 }
 
+/**
+ * Normalize a phone number to the canonical Azerbaijan form `+994XXXXXXXXX`
+ * (consistent with `validateAzPhone`). Pure and idempotent: applying it twice
+ * yields the same result. Strips any non-digit characters, an optional `994`
+ * country prefix, and a single leading `0` (national trunk prefix) before
+ * re-applying the canonical `+994` prefix.
+ *
+ * Used to keep the `public.users` lookup, the Auth `createUser`/`upsert` writes,
+ * and the `listUsers` recovery match all comparing the same canonical value, so
+ * a stored-vs-queried format difference (e.g. `994...` vs `+994...`) can no
+ * longer cause a false `existingRow = null`.
+ */
+export function normalizePhone(phone: string): string {
+  let digits = (phone ?? "").replace(/\D/g, "");
+  if (digits.startsWith("994")) digits = digits.slice(3);
+  if (digits.startsWith("0")) digits = digits.slice(1);
+  return `+994${digits}`;
+}
+
 function hashCode(code: string): string {
   return createHash("sha256").update(code).digest("hex");
 }
