@@ -1,0 +1,27 @@
+name: Architectural invariants
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  invariants:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      # The invariant checker is dependency-free on purpose: it must be able to run
+      # before install, so a broken lockfile cannot hide an architectural regression.
+      - name: Check invariants
+        run: node scripts/audit/check-invariants.mjs
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Typecheck
+        run: pnpm run typecheck
+      - name: Test
+        run: pnpm test

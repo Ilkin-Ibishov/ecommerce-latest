@@ -1,0 +1,11 @@
+{
+  "generated": "2026-11-01T22:07:54.290Z",
+  "known": [
+    "ledger-only-stock-writes|artifacts/api-server/src/routes/admin/orders.ts|.update({ stock: prod.stock + item.quantity })",
+    "ledger-only-stock-writes|artifacts/api-server/src/routes/admin/products.ts|await (ctx.admin as any).from(\"products\").update({ stock }).eq(\"id\", rawId);",
+    "ledger-only-stock-writes|artifacts/api-server/tests/orders.test.ts|.update({ stock: 50 })",
+    "ledger-only-stock-writes|artifacts/api-server/tests/orders.test.ts|.update({ stock: 20 })",
+    "ledger-only-stock-writes|supabase/schema.sql|set stock = stock - p_qty,",
+    "ledger-only-stock-writes|supabase/schema.sql|set stock = stock + p_qty,"
+  ]
+}
