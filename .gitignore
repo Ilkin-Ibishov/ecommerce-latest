@@ -57,7 +57,11 @@ Thumbs.db
 .kiro/settings/mcp.json
 
 # Replit agent artifacts (legacy)
-.agents/
+# Keep the Antigravity agent configuration tracked - it must travel with the repo.
+.agents/*
+!.agents/rules/
+!.agents/agents/
+!.agents/skills/
 .config/
 
 # Playwright MCP snapshots
