@@ -6,6 +6,7 @@ import { apiUrl } from "@/lib/api";
 import { adminFetch, adminJson } from "@/lib/admin-fetch";
 import imageCompression from "browser-image-compression";
 import { ProductImagePanel } from "@/components/admin/ProductImagePanel";
+import { ProductVariantManager } from "@/components/admin/ProductVariantManager";
 import { useI18n } from "@/lib/i18n/context";
 
 const LANGS = ["az", "ru", "en"];
@@ -249,6 +250,10 @@ export default function ProductFormPage({ productId }: { productId?: string }) {
           </div>
         )}
       </div>
+
+      {productId && (
+        <ProductVariantManager productId={productId} />
+      )}
 
       {productId ? (
         <div className="bg-card border border-border rounded-xl p-5 space-y-4">
