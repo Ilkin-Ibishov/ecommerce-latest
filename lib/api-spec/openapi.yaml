@@ -10,6 +10,8 @@ servers:
 tags:
   - name: health
     description: Health operations
+  - name: inventory
+    description: Inventory and barcode scan operations
 paths:
   /healthz:
     get:
@@ -24,6 +26,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /inventory/scan/{barcode}:
+    get:
+      operationId: scanBarcode
+      tags: [inventory]
+      summary: Barcode scan lookup
+      description: Single round-trip lookup returning variant and product details for a barcode
+      parameters:
+        - name: barcode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Variant and product details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BarcodeScanResult"
+        "404":
+          description: Barcode not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
 components:
   schemas:
     HealthStatus:
@@ -33,4 +60,73 @@ components:
           type: string
       required:
         - status
-
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required:
+        - error
+    VariantOption:
+      type: object
+      properties:
+        name:
+          type: string
+        value:
+          type: string
+      required:
+        - name
+        - value
+    VariantScanDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        sku:
+          type: string
+          nullable: true
+        barcode:
+          type: string
+          nullable: true
+        price:
+          type: number
+        on_hand:
+          type: number
+        unit_of_measure:
+          type: string
+        options:
+          type: array
+          items:
+            $ref: "#/components/schemas/VariantOption"
+      required:
+        - id
+        - price
+        - on_hand
+        - unit_of_measure
+        - options
+    ProductScanDetail:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        slug:
+          type: string
+        image_url:
+          type: string
+          nullable: true
+      required:
+        - id
+        - title
+        - slug
+    BarcodeScanResult:
+      type: object
+      properties:
+        variant:
+          $ref: "#/components/schemas/VariantScanDetail"
+        product:
+          $ref: "#/components/schemas/ProductScanDetail"
+      required:
+        - variant
+        - product
