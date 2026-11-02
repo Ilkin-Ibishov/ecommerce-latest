@@ -8,6 +8,8 @@
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "build:vercel": "node artifacts/api-server/build.vercel.mjs && pnpm --filter @workspace/store run build",
     "test": "vitest --run",
+    "test:unit": "vitest --run --project store-unit --project env-validation",
+    "test:integration": "vitest --run --project api-integration",
     "seed:test": "tsx scripts/seed-test-data.ts",
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",

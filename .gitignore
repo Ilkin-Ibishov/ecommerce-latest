@@ -53,6 +53,7 @@ Thumbs.db
 .env
 .env.*
 !.env.example
+!.env.test.example
 
 # Kiro — ignore MCP config (may contain access tokens); keep steering & specs tracked
 .kiro/settings/mcp.json

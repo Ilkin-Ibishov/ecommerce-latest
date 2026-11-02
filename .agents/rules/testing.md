@@ -26,9 +26,21 @@ description: Testing rules and standards for this repository
 - A test that a quantity cannot be changed through any route without producing a movement row.
 - A test per RLS policy added: a user of tenant A cannot read or write tenant B's rows.
 
+## Test tiers and commands
+
+Never claim `pnpm test` passed unless you ran it with a live database and running API server. In a fresh clone without Supabase credentials, run the unit tier.
+
+| Command | Tier | Projects included | Environment requirements |
+|---|---|---|---|
+| `pnpm run test:unit` | Unit | `store-unit`, `env-validation` | None. Runs offline without credentials or servers. |
+| `pnpm run test:integration` | Integration | `api-integration` | Supabase credentials (`.env` or `.env.test`) and API server running on port 5000. |
+| `pnpm test` | All | All projects above | Full environment: running API server + Supabase database. |
+
+If `SUPABASE_URL` or required credentials are missing, `api-integration` tests fail loudly at setup. Do not fake credentials or skip tests to make `pnpm test` pass.
+
 ## Before declaring done
-`pnpm run typecheck`, `pnpm test` and `pnpm run audit:invariants` must all pass.
-Report the actual output, not a summary of what you expect it to be.
+`pnpm run typecheck`, `pnpm run test:unit` (or `pnpm test` if database is configured), and `pnpm run audit:invariants` must all pass.
+Report the actual output, not a summary of what you expect it to be. Say plainly which tiers you could not run and why.
 
 ## Test taxonomy — use the suffix that states intent
 

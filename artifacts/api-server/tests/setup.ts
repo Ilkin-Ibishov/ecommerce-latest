@@ -2,7 +2,8 @@ import { config } from "dotenv";
 import { resolve } from "path";
 import { resolveSupabaseEnv } from "../src/lib/env";
 
-// Load .env from repo root
+// Load .env.test first, then .env as fallback (.env.test takes precedence)
+config({ path: resolve(import.meta.dirname, "../../../.env.test") });
 config({ path: resolve(import.meta.dirname, "../../../.env") });
 
 // Normalize VITE_-prefixed vars to their non-prefixed equivalents
