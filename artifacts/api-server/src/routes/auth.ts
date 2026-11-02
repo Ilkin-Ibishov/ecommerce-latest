@@ -1,9 +1,12 @@
 import { Router } from "express";
-import { createHmac } from "crypto";
+
 import { getAdminSupabase, getSupabase } from "../lib/supabase";
 import { validateAzPhone, checkRateLimit, createOTP, verifyOTP, normalizePhone } from "../lib/otp";
 import { sendWhatsAppOTP } from "../lib/whatsapp";
 import { authRateLimit } from "../middlewares/rateLimits";
+import { assertSessionSecret, deriveSessionPassword } from "../lib/session-secret";
+
+export { assertSessionSecret, deriveSessionPassword };
 
 const router = Router();
 
@@ -108,10 +111,10 @@ router.post("/auth/otp/verify", authRateLimit, async (req, res): Promise<void> =
   //    real addresses. The password is stable per user, derived from the userId.
   const tempEmail = `${authPhone}@phoneauth.internal`;
   // SEC-010: Derive session password from HMAC instead of predictable UUID
-  const tempPass = createHmac("sha256", process.env.SESSION_SECRET || "fallback-dev-secret")
-    .update(userId)
-    .digest("hex")
-    .slice(0, 32);
+  const tempPass = deriveSessionPassword(userId);
+
+
+
 
   const { error: updateErr } = await admin.auth.admin.updateUserById(userId, {
     email: tempEmail,

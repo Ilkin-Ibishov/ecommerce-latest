@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import * as fc from "fast-check";
+import { assertSessionSecret, deriveSessionPassword } from "../src/lib/session-secret";
 
 /**
  * **Validates: Requirements 3.3**
@@ -7,7 +8,7 @@ import * as fc from "fast-check";
  * Property 1: Missing environment variable produces identifiable error
  *
  * For any required environment variable removed from the set
- * {SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY},
+ * {SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY, SESSION_SECRET},
  * the validation function SHALL throw an error whose message contains
  * the exact name of the missing variable.
  */
@@ -16,6 +17,7 @@ const REQUIRED_VARS = [
   "SUPABASE_URL",
   "SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
+  "SESSION_SECRET",
 ] as const;
 
 type RequiredVar = (typeof REQUIRED_VARS)[number];
@@ -33,6 +35,12 @@ function validateEnvironment(env: Record<string, string | undefined>): void {
           `Ensure it is defined in .env or .env.test at the repository root.`
       );
     }
+  }
+
+  if (env.SESSION_SECRET && env.SESSION_SECRET.length < 32) {
+    throw new Error(
+      "SESSION_SECRET must be at least 32 characters long."
+    );
   }
 }
 
@@ -63,9 +71,23 @@ describe("Environment validation", () => {
       SUPABASE_URL: "https://example.supabase.co",
       SUPABASE_ANON_KEY: "anon-key-value",
       SUPABASE_SERVICE_ROLE_KEY: "service-role-key-value",
+      SESSION_SECRET: "a-valid-session-secret-that-is-at-least-32-chars-long",
     };
 
     expect(() => validateEnvironment(completeEnv)).not.toThrow();
+  });
+
+  it("should fail validation when SESSION_SECRET is shorter than 32 characters", () => {
+    const weakEnv: Record<string, string> = {
+      SUPABASE_URL: "https://example.supabase.co",
+      SUPABASE_ANON_KEY: "anon-key-value",
+      SUPABASE_SERVICE_ROLE_KEY: "service-role-key-value",
+      SESSION_SECRET: "short-secret",
+    };
+
+    expect(() => validateEnvironment(weakEnv)).toThrow(
+      "SESSION_SECRET must be at least 32 characters long."
+    );
   });
 
   /**
@@ -87,7 +109,7 @@ describe("Environment validation", () => {
           if (varName === missingVar) {
             env[varName] = undefined;
           } else {
-            env[varName] = `test-value-for-${varName}`;
+            env[varName] = `test-value-for-${varName}-extended-to-satisfy-min-length-32`;
           }
         }
 
@@ -107,5 +129,50 @@ describe("Environment validation", () => {
       }),
       { numRuns: 100 }
     );
+  });
+
+  describe("assertSessionSecret", () => {
+    it("should throw when SESSION_SECRET is absent", () => {
+      expect(() => assertSessionSecret(undefined)).toThrow(
+        "SESSION_SECRET environment variable is required but was not provided."
+      );
+      expect(() => assertSessionSecret("")).toThrow(
+        "SESSION_SECRET environment variable is required but was not provided."
+      );
+    });
+
+    it("should throw when SESSION_SECRET is shorter than 32 characters", () => {
+      expect(() => assertSessionSecret("too-short")).toThrow(
+        "SESSION_SECRET must be at least 32 characters long."
+      );
+    });
+
+    it("should return secret when valid", () => {
+      const validSecret = "a".repeat(32);
+      expect(assertSessionSecret(validSecret)).toBe(validSecret);
+    });
+  });
+
+  describe("deriveSessionPassword", () => {
+    it("should throw when SESSION_SECRET is absent or weak", () => {
+      expect(() => deriveSessionPassword("user-123", undefined)).toThrow();
+      expect(() => deriveSessionPassword("user-123", "short")).toThrow();
+    });
+
+    it("should derive deterministic 32-character hex string when secret is valid", () => {
+      const secret = "valid-secret-key-that-is-at-least-32-chars-long";
+      const pass1 = deriveSessionPassword("user-123", secret);
+      const pass2 = deriveSessionPassword("user-123", secret);
+      expect(pass1).toBe(pass2);
+      expect(pass1).toHaveLength(32);
+      expect(pass1).toMatch(/^[0-9a-f]{32}$/);
+    });
+
+    it("should produce different passwords for different userIds", () => {
+      const secret = "valid-secret-key-that-is-at-least-32-chars-long";
+      const passA = deriveSessionPassword("user-A", secret);
+      const passB = deriveSessionPassword("user-B", secret);
+      expect(passA).not.toBe(passB);
+    });
   });
 });

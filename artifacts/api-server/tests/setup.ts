@@ -20,6 +20,7 @@ const REQUIRED_VARS = [
   "SUPABASE_URL",
   "SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
+  "SESSION_SECRET",
 ] as const;
 
 for (const varName of REQUIRED_VARS) {
@@ -29,6 +30,10 @@ for (const varName of REQUIRED_VARS) {
         `Ensure it is defined in .env or .env.test at the repository root.`
     );
   }
+}
+
+if (process.env.SESSION_SECRET && process.env.SESSION_SECRET.length < 32) {
+  throw new Error("SESSION_SECRET must be at least 32 characters long.");
 }
 
 // Ensure dev mode for OTP dev store
