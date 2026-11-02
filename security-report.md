@@ -1,5 +1,18 @@
 # Security Report — Supabase RLS Architecture
 
+> [!WARNING]
+> **STALE DOCUMENT — AUDIT STATUS AS OF 2026-11-02**
+>
+> All findings identified in this RLS architecture report have been **REMEDIATED** and verified by migrations and regression suites:
+> - **SEC-001 (Critical — Role privilege escalation):** **RESOLVED** — Migration `20260627094223_sec001_users_role_immutability.sql` makes `users` SELECT-only for clients with column grants and role-immutability trigger. Tests: `sec001-*.test.ts`.
+> - **SEC-002 (High — World-writable `size_guides`):** **RESOLVED** — Migration `20260627100603_sec002_drop_size_guides_world_write.sql` restricts writes to service role. Tests: `sec002-004-*.test.ts`.
+> - **SEC-003 (High — Active coupon codes leak):** **RESOLVED** — Migration `20260627101244_sec003_drop_coupons_public_read.sql` restricts reads to service role / admin. Tests: `sec003-*.test.ts`, `coupons-page-admin-fetch.test.ts`.
+> - **SEC-004 (High — Review moderation bypass):** **RESOLVED** — Migration `20260627101714_sec004_comments_insert_unapproved_only.sql` restricts insert to unapproved (`approved = false`). Tests: `sec002-004-*.test.ts`.
+> - **SEC-005 (Medium — Recursive admin RLS policies):** **RESOLVED** — Migration `20260627111906_sec005_is_admin_helper_and_policies.sql` adds `is_admin()` security-definer helper. Tests: `sec005-007-*.test.ts`.
+> - **SEC-006 (Medium — Service-role startup assertion):** **RESOLVED** — Startup assertion in `src/index.ts` and `src/lib/supabase.ts` throws immediately if key is missing. Tests: `sec006-sec007-p2-unit.test.ts`.
+> - **SEC-007 (Medium — Control-plane anon key in browser bundle):** **RESOLVED** — Store client does not expose CP key; deny-by-default enforced in `supabase/control-plane/migrations/009_assert_deny_by_default.sql`. Tests: `sec007-*.test.ts`.
+> - **SEC-008 (Low — Storefront profile writes bypass RLS via API):** **RESOLVED** — `PATCH /api/profile` validated by Zod schema and handled by service role. Tests: `sec008-*.test.ts`, `login-modal-profile-reroute.test.ts`.
+
 **Scope:** Row Level Security (RLS) architecture of the white-label e-commerce platform — store database (`supabase/schema.sql` + `supabase/migrations/`), control-plane database (`supabase/control-plane/migrations/`), and the client/server access paths that rely on those policies.
 
 **Method:** Static analysis of SQL policies, the storefront Supabase client, the API server auth middleware, and the call sites that write to RLS-protected tables. Read-only — no dynamic testing against production.

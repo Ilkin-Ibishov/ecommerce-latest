@@ -1,5 +1,30 @@
 # Architecture Refactoring Backlog
 
+> [!WARNING]
+> **PARTLY STALE — BACKLOG VERIFICATION STATUS AS OF 2026-11-02**
+>
+> Codebase verification against this backlog indicates that many high- and medium-impact refactorings have landed:
+> - **H1 (The `as any` epidemic):** **PARTIALLY ADDRESSED** — Typed schemas and clients adopted in many routes/pages; some `as any` calls remain.
+> - **H2 (`requireAdmin` / auth middleware):** **RESOLVED / DONE** — Centralized `requireAdmin` and `requireUser` middlewares implemented and adopted across all routes.
+> - **H3 (`coupon-calc` & `cart-merge` integration):** **RESOLVED / DONE** — Tested pure functions wired into `routes/orders.ts` and `routes/cart.ts`.
+> - **H4 (`useAdminList` & list pattern):** **MOSTLY DONE** — `useAdminList` hook and `<DataTable>` component implemented and adopted across multiple admin pages (`AuditPage`, `BrandsPage`, `OrdersPage`, `UsersPage`, `PlansPage`, `StoreDashboardPage`).
+> - **H5 (Data layer `lib/queries/`):** **PARTIALLY DONE** — Central queries implemented in `artifacts/store/src/lib/queries/` (`categories`, `fragments`, `orders`, `products`) and adopted.
+> - **H6 (`getTranslatedField` helper):** **RESOLVED / DONE** — Centralized in `lib/utils.ts` and used across ~20 call sites.
+> - **H7 (`admin.ts` modularization):** **RESOLVED / DONE** — Split into modular domain routers under `artifacts/api-server/src/routes/admin/*`.
+> - **M1 (Central error handler):** **RESOLVED / DONE** — Central `errorHandler` middleware registered in `app.ts`.
+> - **M2 (Zod request validation):** **RESOLVED / DONE** — `validate` middleware and Zod schemas active on write endpoints.
+> - **M3 (Standardized delete confirmation):** **RESOLVED / DONE** — `<ConfirmDialog>` and `useConfirm` hook adopted across admin pages.
+> - **M4 (Centralized audit logging):** **RESOLVED / DONE** — Centralized `writeAudit` utility in `lib/audit.ts` adopted on admin write actions.
+> - **M5 (Split i18n messages):** **RESOLVED / DONE** — Split into `messages/az.ts`, `en.ts`, `ru.ts`, `schema.ts`, `index.ts`.
+> - **M6 (Storefront product grid & skeletons):** **RESOLVED / DONE** — Shared `<ProductGrid>`, `<SortDropdown>`, `<ProductSkeleton>` components extracted and used.
+> - **M7 (Shared CRUD form modal):** **OPEN / UNIMPLEMENTED** — `<FormField>` / `<CrudModal>` not extracted.
+> - **M8 (Deconstruct 400+ line files):** **PARTIALLY DONE** — Subcomponents extracted for several widgets/pages; some large files remain over 400 lines.
+> - **L1 (Supabase env resolution & RPC wrappers):** **RESOLVED / DONE** — Shared `resolveSupabaseEnv` and typed RPC functions in `lib/rpc.ts`.
+> - **L2 (Test layout consistency):** **RESOLVED / DONE** — Store tests standardized in `src/__tests__/` and co-located test files.
+> - **L3 (Root workspace configuration):** **RESOLVED / DONE** — Root `vitest.workspace.ts` added and compiler options hoisted.
+> - **L4 (Dead code removal & `userFetch`):** **RESOLVED / DONE** — Redundant endpoints removed, `userFetch` helper implemented and adopted.
+> - **S1 (maxLength on checkout inputs):** **OPEN / UNIMPLEMENTED** — Client form inputs in `CheckoutPage.tsx` do not specify `maxLength`.
+
 > Generated from a full architecture audit (frontend, backend, cross-cutting) of the white-label e-commerce monorepo.
 > Prioritized by risk-adjusted value. None are emergencies — this is accumulated copy-paste / type-safety debt.
 

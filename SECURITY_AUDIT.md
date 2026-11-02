@@ -1,5 +1,23 @@
 # Security Audit Report
 
+> [!WARNING]
+> **STALE DOCUMENT — AUDIT STATUS AS OF 2026-11-02**
+>
+> This audit document is retained for historical context. The codebase has undergone significant remediation:
+> - **SEC-001 (High — Order quantity validation):** **RESOLVED** — Enforced via `OrderBodySchema` (`quantity: z.number().int().min(1).max(99)`).
+> - **SEC-002 (High — Platform secret in client bundle):** **RESOLVED** — Client uses authenticated API proxy (`notifications-proxy.ts`); secret is server-only.
+> - **SEC-003 (High — Bootstrap endpoint auth):** **RESOLVED** — Fail-closed check and constant-time comparison in `bootstrap.ts`.
+> - **SEC-004 (High — Dependency vulnerabilities):** **RESOLVED** — Updated lockfile and `pnpm-workspace.yaml` overrides (multer, vite, vitest, undici).
+> - **SEC-005 (Medium — Checkout stock TOCTOU race):** **RESOLVED** — Atomic RPC decrement before order insert with rollback on error (`orders.ts`).
+> - **SEC-006 (Medium — Coupon usage race condition):** **RESOLVED** — Per-user limit verified prior to atomic global increment (`orders.ts`).
+> - **SEC-007 (Medium — Upload MIME validation):** **RESOLVED** — Magic-byte detection via `detectMimeType` in `routes/admin/products.ts`.
+> - **SEC-008 (Low — Comment content sanitization):** **OPEN** — `comments.ts` lacks explicit max-length / HTML sanitization.
+> - **SEC-009 (Low — Non-production CORS wildcard):** **OPEN / ACCEPTED DEV BEHAVIOR** — Permissive origin remains active when `NODE_ENV !== "production"`.
+> - **SEC-010 (Low — SESSION_SECRET fallback):** **RESOLVED** — Remediated in Chore 01: removed fallback, enforced startup assertion and >= 32 char requirement.
+> - **SEC-011 (Info — Dev route gating):** **OPEN / INFORMATIONAL** — Gated by `NODE_ENV !== "production"`.
+> - **SEC-012 (Info — Migration endpoint prod disabled):** **RESOLVED / INFORMATIONAL** — Disabled in production.
+> - **SEC-013 (Info — Service-role scoping):** **INFORMATIONAL / ARCHITECTURAL** — Standard service-role usage for backend operations.
+
 **Project:** White-Label E-Commerce Platform  
 **Date:** 2025-01-XX (Static Analysis)  
 **Scope:** Source code review of `artifacts/api-server/` and `artifacts/store/`  
