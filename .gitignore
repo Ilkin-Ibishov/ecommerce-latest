@@ -28,6 +28,7 @@ node_modules
 !.vscode/extensions.json
 
 # misc
+/.migration-backup/
 /.sass-cache
 /connect.lock
 /coverage
