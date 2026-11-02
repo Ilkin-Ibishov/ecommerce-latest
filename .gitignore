@@ -65,6 +65,7 @@ Thumbs.db
 !.agents/agents/
 !.agents/skills/
 .config/
+.agent-runs/
 
 # Playwright MCP snapshots
 .playwright-mcp/
