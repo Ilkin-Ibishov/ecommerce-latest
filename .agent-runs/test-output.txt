@@ -1,0 +1,299 @@
+
+> workspace@0.0.0 test C:\Users\user\Documents\ecommerce-latest
+> vitest --run
+
+[1m[43m DEPRECATED [49m[22m [33mThe workspace file is deprecated and will be removed in the next major. Please, use the `test.projects` field in the root config file instead.[39m
+
+[1m[46m RUN [49m[22m [36mv3.2.6 [39m[90mC:/Users/user/Documents/ecommerce-latest[39m
+
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/cart-validation.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 328[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/lib/settings/cms-rendering.property.test.ts [2m([22m[2m14 tests[22m[2m)[22m[33m 547[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/image-proxy.property.test.ts [2m([22m[2m5 tests[22m[2m)[22m[32m 225[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/admin-list.property.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 185[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/order-tracking.property.test.ts [2m([22m[2m6 tests[22m[2m)[22m[33m 554[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/lib/settings/theme-engine.property.test.ts [2m([22m[2m4 tests[22m[2m)[22m[32m 138[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/pages/admin/settings/validate-settings.property.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 262[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/i18n-split.property.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 50[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/translated-field.property.test.ts [2m([22m[2m3 tests[22m[2m)[22m[32m 70[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/brand-marquee.test.ts [2m([22m[2m8 tests[22m[2m)[22m[33m 344[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/admin-components.property.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/heading-hierarchy.property.test.ts [2m([22m[2m8 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/admin-logic.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/lib/settings/storefront-rendering.property.test.ts [2m([22m[2m11 tests[22m[2m)[22m[33m 609[2mms[22m[39m
+ [32m✓[39m [30m[43m env-validation [49m[39m tests/env-validation.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/i18n-consistency.test.ts [2m([22m[2m16 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/image-proxy.unit.test.ts [2m([22m[2m25 tests[22m[2m)[22m[32m 25[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/i18n-hardcoded-strings.test.ts [2m([22m[2m120 tests[22m[2m)[22m[32m 47[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/lib/settings/context.test.ts [2m([22m[2m32 tests[22m[2m)[22m[32m 38[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/i18n-preservation.test.ts [2m([22m[2m36 tests[22m[2m)[22m[32m 33[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/lib/settings/theme-engine.test.ts [2m([22m[2m15 tests[22m[2m)[22m[32m 24[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/admin-components.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 95[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/lib/settings/default-rendering.test.ts [2m([22m[2m17 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/fixtures.test.ts [2m([22m[2m7 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/pages/admin/SettingsPage.test.ts [2m([22m[2m22 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/queries.test.ts [2m([22m[2m14 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/components/admin/ImageCandidateGrid.test.ts [2m([22m[2m9 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/storefront-ux.property.test.ts [2m([22m[2m25 tests[22m[2m)[22m[33m 3515[2mms[22m[39m
+   [33m[2m✓[22m[39m Property 3: Quick View addItem uses correct variant data[2m > [22mfor products with variants, addItem uses the selected variant's price and label [33m 2481[2mms[22m[39m
+ [32m✓[39m [30m[45m store-unit [49m[39m src/__tests__/admin-i18n.property.test.ts [2m([22m[2m2 tests[22m[2m)[22m[32m 78[2mms[22m[39m
+[90mstderr[2m | src/__tests__/coupons-page-admin-fetch.test.ts[2m > [22m[2mSEC-003 CouponsPage reads the list via adminFetch (Property 3 / Property 8 [3.9])[2m > [22m[2mrenders the page heading
+[22m[39m`ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+[90mstderr[2m | src/__tests__/login-modal-profile-reroute.test.ts[2m > [22m[2mSEC-008 LoginModal name step re-routes to /profile (Property 1)[2m > [22m[2mrenders the phone step heading when open
+[22m[39m`ReactDOMTestUtils.act` is deprecated in favor of `React.act`. Import `act` from `react` instead of `react-dom/test-utils`. See https://react.dev/warnings/react-dom-test-utils for more info.
+
+ [31m❯[39m [30m[45m store-unit [49m[39m src/__tests__/coupons-page-admin-fetch.test.ts [2m([22m[2m3 tests[22m[2m | [22m[31m3 failed[39m[2m)[22m[32m 52[2mms[22m[39m
+[31m   [31m×[31m SEC-003 CouponsPage reads the list via adminFetch (Property 3 / Property 8 [3.9])[2m > [22mrenders the page heading[39m[32m 39[2mms[22m[39m
+[31m     → React.act is not a function[39m
+[31m     → React.act is not a function[39m
+[31m   [31m×[31m SEC-003 CouponsPage reads the list via adminFetch (Property 3 / Property 8 [3.9])[2m > [22mloads the list via adminFetch('/admin/coupons') and renders the coupon codes[39m[32m 5[2mms[22m[39m
+[31m     → React.act is not a function[39m
+[31m     → React.act is not a function[39m
+[31m   [31m×[31m SEC-003 CouponsPage reads the list via adminFetch (Property 3 / Property 8 [3.9])[2m > [22mmakes NO direct anon-client Supabase read of the coupons table[39m[32m 4[2mms[22m[39m
+[31m     → React.act is not a function[39m
+[31m     → React.act is not a function[39m
+ [31m❯[39m [30m[45m store-unit [49m[39m src/__tests__/login-modal-profile-reroute.test.ts [2m([22m[2m2 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 49[2mms[22m[39m
+[31m   [31m×[31m SEC-008 LoginModal name step re-routes to /profile (Property 1)[2m > [22mrenders the phone step heading when open[39m[32m 41[2mms[22m[39m
+[31m     → React.act is not a function[39m
+[31m     → React.act is not a function[39m
+[31m   [31m×[31m SEC-008 LoginModal name step re-routes to /profile (Property 1)[2m > [22msubmitting the name calls userFetch('/profile', PATCH) with { full_name } and makes NO direct Supabase users write[39m[32m 4[2mms[22m[39m
+[31m     → React.act is not a function[39m
+[31m     → React.act is not a function[39m
+
+[31m⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Suites 99 [49m[22m[31m⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/admin-routes.test.ts[2m [ artifacts/api-server/tests/admin-routes.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/asset-uploader.test.ts[2m [ artifacts/api-server/tests/asset-uploader.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/audit-logging.property.test.ts[2m [ artifacts/api-server/tests/audit-logging.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/audit.test.ts[2m [ artifacts/api-server/tests/audit.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/auth-middleware.test.ts[2m [ artifacts/api-server/tests/auth-middleware.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/auth.test.ts[2m [ artifacts/api-server/tests/auth.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/barcode-lookup.test.ts[2m [ artifacts/api-server/tests/barcode-lookup.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/barcode-validation.property.test.ts[2m [ artifacts/api-server/tests/barcode-validation.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/billing-generate.property.test.ts[2m [ artifacts/api-server/tests/billing-generate.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/billing-generate.test.ts[2m [ artifacts/api-server/tests/billing-generate.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/billing-transition.property.test.ts[2m [ artifacts/api-server/tests/billing-transition.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/billing-transition.test.ts[2m [ artifacts/api-server/tests/billing-transition.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/brand-routes-reorder.property.test.ts[2m [ artifacts/api-server/tests/brand-routes-reorder.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/brand-routes.property.test.ts[2m [ artifacts/api-server/tests/brand-routes.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/brands-public.test.ts[2m [ artifacts/api-server/tests/brands-public.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/cart-merge.property.test.ts[2m [ artifacts/api-server/tests/cart-merge.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/cart.test.ts[2m [ artifacts/api-server/tests/cart.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/cms-validation.property.test.ts[2m [ artifacts/api-server/tests/cms-validation.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/coupon-calc.property.test.ts[2m [ artifacts/api-server/tests/coupon-calc.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/coupons.test.ts[2m [ artifacts/api-server/tests/coupons.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/credential.property.test.ts[2m [ artifacts/api-server/tests/credential.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/dashboard.property.test.ts[2m [ artifacts/api-server/tests/dashboard.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/enforce-quota.test.ts[2m [ artifacts/api-server/tests/enforce-quota.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/env-resolution.property.test.ts[2m [ artifacts/api-server/tests/env-resolution.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/env-validation.test.ts[2m [ artifacts/api-server/tests/env-validation.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/error-handler.test.ts[2m [ artifacts/api-server/tests/error-handler.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/html-sanitization.test.ts[2m [ artifacts/api-server/tests/html-sanitization.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/image-search.property.test.ts[2m [ artifacts/api-server/tests/image-search.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/metrics-ingest.integration.test.ts[2m [ artifacts/api-server/tests/metrics-ingest.integration.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/metrics-ingest.property.test.ts[2m [ artifacts/api-server/tests/metrics-ingest.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/notification-delivery.property.test.ts[2m [ artifacts/api-server/tests/notification-delivery.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/notification-delivery.test.ts[2m [ artifacts/api-server/tests/notification-delivery.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/notification-feed.property.test.ts[2m [ artifacts/api-server/tests/notification-feed.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/notification-feed.test.ts[2m [ artifacts/api-server/tests/notification-feed.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/notification-target.property.test.ts[2m [ artifacts/api-server/tests/notification-target.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/order-tracking-api.property.test.ts[2m [ artifacts/api-server/tests/order-tracking-api.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/order-tracking-api.test.ts[2m [ artifacts/api-server/tests/order-tracking-api.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/order-validation.property.test.ts[2m [ artifacts/api-server/tests/order-validation.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/orders.test.ts[2m [ artifacts/api-server/tests/orders.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/otp-verify-500.exploration.test.ts[2m [ artifacts/api-server/tests/otp-verify-500.exploration.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/otp-verify-500.preservation.property.test.ts[2m [ artifacts/api-server/tests/otp-verify-500.preservation.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/pages-audit.test.ts[2m [ artifacts/api-server/tests/pages-audit.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-analytics.property.test.ts[2m [ artifacts/api-server/tests/platform-analytics.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-analytics.test.ts[2m [ artifacts/api-server/tests/platform-analytics.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-audit.property.test.ts[2m [ artifacts/api-server/tests/platform-audit.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-authorize.property.test.ts[2m [ artifacts/api-server/tests/platform-authorize.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-authorize.test.ts[2m [ artifacts/api-server/tests/platform-authorize.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-dashboard.test.ts[2m [ artifacts/api-server/tests/platform-dashboard.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-impersonation.property.test.ts[2m [ artifacts/api-server/tests/platform-impersonation.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-impersonation.test.ts[2m [ artifacts/api-server/tests/platform-impersonation.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-lifecycle-edge.test.ts[2m [ artifacts/api-server/tests/platform-lifecycle-edge.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-lifecycle.property.test.ts[2m [ artifacts/api-server/tests/platform-lifecycle.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-locale-resolver.property.test.ts[2m [ artifacts/api-server/tests/platform-locale-resolver.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-locale-resolver.test.ts[2m [ artifacts/api-server/tests/platform-locale-resolver.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-offboarding.property.test.ts[2m [ artifacts/api-server/tests/platform-offboarding.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-offboarding.test.ts[2m [ artifacts/api-server/tests/platform-offboarding.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-plans.property.test.ts[2m [ artifacts/api-server/tests/platform-plans.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-plans.test.ts[2m [ artifacts/api-server/tests/platform-plans.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-range.property.test.ts[2m [ artifacts/api-server/tests/platform-range.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-range.test.ts[2m [ artifacts/api-server/tests/platform-range.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-session.property.test.ts[2m [ artifacts/api-server/tests/platform-session.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-session.test.ts[2m [ artifacts/api-server/tests/platform-session.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-status-gate.property.test.ts[2m [ artifacts/api-server/tests/platform-status-gate.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-status-middleware.test.ts[2m [ artifacts/api-server/tests/platform-status-middleware.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-subscription.property.test.ts[2m [ artifacts/api-server/tests/platform-subscription.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/platform-subscription.test.ts[2m [ artifacts/api-server/tests/platform-subscription.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/product-images.property.test.ts[2m [ artifacts/api-server/tests/product-images.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/r2-endpoint-behavior.test.ts[2m [ artifacts/api-server/tests/r2-endpoint-behavior.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/range.property.test.ts[2m [ artifacts/api-server/tests/range.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/rate-limiter.test.ts[2m [ artifacts/api-server/tests/rate-limiter.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/rpc.test.ts[2m [ artifacts/api-server/tests/rpc.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec001-migration-structure.test.ts[2m [ artifacts/api-server/tests/sec001-migration-structure.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec001-rls.integration.test.ts[2m [ artifacts/api-server/tests/sec001-rls.integration.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec001-role-escalation.exploration.test.ts[2m [ artifacts/api-server/tests/sec001-role-escalation.exploration.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec001-sec008-preservation.test.ts[2m [ artifacts/api-server/tests/sec001-sec008-preservation.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec002-004-p1.exploration.test.ts[2m [ artifacts/api-server/tests/sec002-004-p1.exploration.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec002-004-rls.integration.test.ts[2m [ artifacts/api-server/tests/sec002-004-rls.integration.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec002-sec003-sec004-preservation.test.ts[2m [ artifacts/api-server/tests/sec002-sec003-sec004-preservation.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec002-sec004-migration-structure.test.ts[2m [ artifacts/api-server/tests/sec002-sec004-migration-structure.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec003-admin-coupons-handler.test.ts[2m [ artifacts/api-server/tests/sec003-admin-coupons-handler.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec005-007-p2.exploration.test.ts[2m [ artifacts/api-server/tests/sec005-007-p2.exploration.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec005-007-p2.integration.test.ts[2m [ artifacts/api-server/tests/sec005-007-p2.integration.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec006-sec007-p2-unit.test.ts[2m [ artifacts/api-server/tests/sec006-sec007-p2-unit.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec007-control-plane-migration-structure.test.ts[2m [ artifacts/api-server/tests/sec007-control-plane-migration-structure.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec008-profile-handler.test.ts[2m [ artifacts/api-server/tests/sec008-profile-handler.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/sec008-update-profile-schema.test.ts[2m [ artifacts/api-server/tests/sec008-update-profile-schema.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/settings-validation.property.test.ts[2m [ artifacts/api-server/tests/settings-validation.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/site-settings-validation.test.ts[2m [ artifacts/api-server/tests/site-settings-validation.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/slug-generation.test.ts[2m [ artifacts/api-server/tests/slug-generation.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/stock-safety.property.test.ts[2m [ artifacts/api-server/tests/stock-safety.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/store-credential.property.test.ts[2m [ artifacts/api-server/tests/store-credential.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/store-credential.test.ts[2m [ artifacts/api-server/tests/store-credential.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/store-metrics-endpoint.integration.test.ts[2m [ artifacts/api-server/tests/store-metrics-endpoint.integration.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/store-quota.property.test.ts[2m [ artifacts/api-server/tests/store-quota.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/store-quota.test.ts[2m [ artifacts/api-server/tests/store-quota.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/suspended-notice.property.test.ts[2m [ artifacts/api-server/tests/suspended-notice.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/suspended-order-rejection.property.test.ts[2m [ artifacts/api-server/tests/suspended-order-rejection.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/upload-validation.property.test.ts[2m [ artifacts/api-server/tests/upload-validation.property.test.ts ][22m
+[41m[1m FAIL [22m[49m [30m[43m api-integration [49m[39m tests/validate.property.test.ts[2m [ artifacts/api-server/tests/validate.property.test.ts ][22m
+[31m[1mError[22m: Missing required environment variable: SUPABASE_URL. Ensure it is defined in .env or .env.test at the repository root.[39m
+[36m [2m❯[22m tests/setup.ts:[2m28:11[22m[39m
+    [90m 26| [39m[35mfor[39m ([35mconst[39m varName [35mof[39m [33mREQUIRED_VARS[39m) {
+    [90m 27| [39m  [35mif[39m ([33m![39mprocess[33m.[39menv[varName]) {
+    [90m 28| [39m    [35mthrow[39m [35mnew[39m [33mError[39m(
+    [90m   | [39m          [31m^[39m
+    [90m 29| [39m      [32m`Missing required environment variable: [39m[36m${[39mvarName[36m}[39m[32m. `[39m [33m+[39m
+    [90m 30| [39m        `Ensure it is defined in .env or .env.test at the repository r…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/109]⎯[22m[39m
+
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 5 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m [30m[45m store-unit [49m[39m src/__tests__/coupons-page-admin-fetch.test.ts[2m > [22mSEC-003 CouponsPage reads the list via adminFetch (Property 3 / Property 8 [3.9])[2m > [22mrenders the page heading
+[31m[1mTypeError[22m: React.act is not a function[39m
+[90m [2m❯[22m exports.act ../../node_modules/.pnpm/react-dom@19.1.0_react@19.1.0/node_modules/react-dom/cjs/react-dom-test-utils.production.js:[2m20:16[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/act-compat.js:[2m46:25[22m[39m
+[90m [2m❯[22m renderRoot ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m189:26[22m[39m
+[90m [2m❯[22m Proxy.render ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m291:10[22m[39m
+[36m [2m❯[22m src/__tests__/coupons-page-admin-fetch.test.ts:[2m124:5[22m[39m
+    [90m122| [39mdescribe("SEC-003 CouponsPage reads the list via adminFetch (Property …
+    [90m123| [39m  [34mit[39m([32m"renders the page heading"[39m[33m,[39m () [33m=>[39m {
+    [90m124| [39m    [34mrender[39m([33mReact[39m[33m.[39m[34mcreateElement[39m([33mAdminCouponsPage[39m))[33m;[39m
+    [90m   | [39m    [31m^[39m
+    [90m125| [39m    [90m// t() echoes keys, so the title key renders verbatim.[39m
+    [90m126| [39m    [34mexpect[39m(screen[33m.[39m[34mgetByText[39m([32m"Admin.Coupons.title"[39m))[33m.[39m[34mtoBeTruthy[39m()[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/109]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m store-unit [49m[39m src/__tests__/coupons-page-admin-fetch.test.ts[2m > [22mSEC-003 CouponsPage reads the list via adminFetch (Property 3 / Property 8 [3.9])[2m > [22mrenders the page heading
+[41m[1m FAIL [22m[49m [30m[45m store-unit [49m[39m src/__tests__/coupons-page-admin-fetch.test.ts[2m > [22mSEC-003 CouponsPage reads the list via adminFetch (Property 3 / Property 8 [3.9])[2m > [22mloads the list via adminFetch('/admin/coupons') and renders the coupon codes
+[41m[1m FAIL [22m[49m [30m[45m store-unit [49m[39m src/__tests__/coupons-page-admin-fetch.test.ts[2m > [22mSEC-003 CouponsPage reads the list via adminFetch (Property 3 / Property 8 [3.9])[2m > [22mmakes NO direct anon-client Supabase read of the coupons table
+[31m[1mTypeError[22m: React.act is not a function[39m
+[90m [2m❯[22m exports.act ../../node_modules/.pnpm/react-dom@19.1.0_react@19.1.0/node_modules/react-dom/cjs/react-dom-test-utils.production.js:[2m20:16[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/act-compat.js:[2m46:25[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m306:28[22m[39m
+[90m [2m❯[22m Proxy.cleanup ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m302:22[22m[39m
+[36m [2m❯[22m src/__tests__/coupons-page-admin-fetch.test.ts:[2m119:3[22m[39m
+    [90m117| [39m
+    [90m118| [39m[34mafterEach[39m(() [33m=>[39m {
+    [90m119| [39m  [34mcleanup[39m()[33m;[39m
+    [90m   | [39m  [31m^[39m
+    [90m120| [39m})[33m;[39m
+    [90m121| [39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/109]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m store-unit [49m[39m src/__tests__/coupons-page-admin-fetch.test.ts[2m > [22mSEC-003 CouponsPage reads the list via adminFetch (Property 3 / Property 8 [3.9])[2m > [22mloads the list via adminFetch('/admin/coupons') and renders the coupon codes
+[31m[1mTypeError[22m: React.act is not a function[39m
+[90m [2m❯[22m exports.act ../../node_modules/.pnpm/react-dom@19.1.0_react@19.1.0/node_modules/react-dom/cjs/react-dom-test-utils.production.js:[2m20:16[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/act-compat.js:[2m46:25[22m[39m
+[90m [2m❯[22m renderRoot ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m189:26[22m[39m
+[90m [2m❯[22m Proxy.render ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m291:10[22m[39m
+[36m [2m❯[22m src/__tests__/coupons-page-admin-fetch.test.ts:[2m130:5[22m[39m
+    [90m128| [39m
+    [90m129| [39m  it("loads the list via adminFetch('/admin/coupons') and renders the …
+    [90m130| [39m    [34mrender[39m([33mReact[39m[33m.[39m[34mcreateElement[39m([33mAdminCouponsPage[39m))[33m;[39m
+    [90m   | [39m    [31m^[39m
+    [90m131| [39m
+    [90m132| [39m    // Fix-Checking: the list is fetched through the admin API endpoin…
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/109]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m store-unit [49m[39m src/__tests__/coupons-page-admin-fetch.test.ts[2m > [22mSEC-003 CouponsPage reads the list via adminFetch (Property 3 / Property 8 [3.9])[2m > [22mmakes NO direct anon-client Supabase read of the coupons table
+[31m[1mTypeError[22m: React.act is not a function[39m
+[90m [2m❯[22m exports.act ../../node_modules/.pnpm/react-dom@19.1.0_react@19.1.0/node_modules/react-dom/cjs/react-dom-test-utils.production.js:[2m20:16[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/act-compat.js:[2m46:25[22m[39m
+[90m [2m❯[22m renderRoot ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m189:26[22m[39m
+[90m [2m❯[22m Proxy.render ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m291:10[22m[39m
+[36m [2m❯[22m src/__tests__/coupons-page-admin-fetch.test.ts:[2m145:5[22m[39m
+    [90m143| [39m
+    [90m144| [39m  it("makes NO direct anon-client Supabase read of the coupons table",…
+    [90m145| [39m    [34mrender[39m([33mReact[39m[33m.[39m[34mcreateElement[39m([33mAdminCouponsPage[39m))[33m;[39m
+    [90m   | [39m    [31m^[39m
+    [90m146| [39m
+    [90m147| [39m    [90m// Give any effect a chance to run.[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/109]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m store-unit [49m[39m src/__tests__/login-modal-profile-reroute.test.ts[2m > [22mSEC-008 LoginModal name step re-routes to /profile (Property 1)[2m > [22mrenders the phone step heading when open
+[31m[1mTypeError[22m: React.act is not a function[39m
+[90m [2m❯[22m exports.act ../../node_modules/.pnpm/react-dom@19.1.0_react@19.1.0/node_modules/react-dom/cjs/react-dom-test-utils.production.js:[2m20:16[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/act-compat.js:[2m46:25[22m[39m
+[90m [2m❯[22m renderRoot ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m189:26[22m[39m
+[90m [2m❯[22m Proxy.render ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m291:10[22m[39m
+[36m [2m❯[22m src/__tests__/login-modal-profile-reroute.test.ts:[2m126:27[22m[39m
+    [90m124| [39mdescribe("SEC-008 LoginModal name step re-routes to /profile (Property…
+    [90m125| [39m  [34mit[39m([32m"renders the phone step heading when open"[39m[33m,[39m () [33m=>[39m {
+    [90m126| [39m    [35mconst[39m { container } [33m=[39m [34mrender[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m127| [39m      React.createElement(LoginModal, { open: true, onClose: () => {} …
+    [90m128| [39m    )[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/109]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m store-unit [49m[39m src/__tests__/login-modal-profile-reroute.test.ts[2m > [22mSEC-008 LoginModal name step re-routes to /profile (Property 1)[2m > [22mrenders the phone step heading when open
+[41m[1m FAIL [22m[49m [30m[45m store-unit [49m[39m src/__tests__/login-modal-profile-reroute.test.ts[2m > [22mSEC-008 LoginModal name step re-routes to /profile (Property 1)[2m > [22msubmitting the name calls userFetch('/profile', PATCH) with { full_name } and makes NO direct Supabase users write
+[31m[1mTypeError[22m: React.act is not a function[39m
+[90m [2m❯[22m exports.act ../../node_modules/.pnpm/react-dom@19.1.0_react@19.1.0/node_modules/react-dom/cjs/react-dom-test-utils.production.js:[2m20:16[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/act-compat.js:[2m46:25[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m306:28[22m[39m
+[90m [2m❯[22m Proxy.cleanup ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m302:22[22m[39m
+[36m [2m❯[22m src/__tests__/login-modal-profile-reroute.test.ts:[2m105:3[22m[39m
+    [90m103| [39m
+    [90m104| [39m[34mafterEach[39m(() [33m=>[39m {
+    [90m105| [39m  [34mcleanup[39m()[33m;[39m
+    [90m   | [39m  [31m^[39m
+    [90m106| [39m  vi[33m.[39m[34munstubAllGlobals[39m()[33m;[39m
+    [90m107| [39m})[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/109]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m [30m[45m store-unit [49m[39m src/__tests__/login-modal-profile-reroute.test.ts[2m > [22mSEC-008 LoginModal name step re-routes to /profile (Property 1)[2m > [22msubmitting the name calls userFetch('/profile', PATCH) with { full_name } and makes NO direct Supabase users write
+[31m[1mTypeError[22m: React.act is not a function[39m
+[90m [2m❯[22m exports.act ../../node_modules/.pnpm/react-dom@19.1.0_react@19.1.0/node_modules/react-dom/cjs/react-dom-test-utils.production.js:[2m20:16[22m[39m
+[90m [2m❯[22m ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/act-compat.js:[2m46:25[22m[39m
+[90m [2m❯[22m renderRoot ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m189:26[22m[39m
+[90m [2m❯[22m Proxy.render ../../node_modules/.pnpm/@testing-library+react@16.3_4fb512a4971c83f0bde1ddec20a6d431/node_modules/@testing-library/react/dist/pure.js:[2m291:10[22m[39m
+[36m [2m❯[22m src/__tests__/login-modal-profile-reroute.test.ts:[2m134:27[22m[39m
+    [90m132| [39m
+    [90m133| [39m  it("submitting the name calls userFetch('/profile', PATCH) with { fu…
+    [90m134| [39m    [35mconst[39m { container } [33m=[39m [34mrender[39m(
+    [90m   | [39m                          [31m^[39m
+    [90m135| [39m      React.createElement(LoginModal, { open: true, onClose: () => {} …
+    [90m136| [39m    )[33m;[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/109]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m101 failed[39m[22m[2m | [22m[1m[32m29 passed[39m[22m[90m (130)[39m
+[2m      Tests [22m [1m[31m5 failed[39m[22m[2m | [22m[1m[32m511 passed[39m[22m[90m (516)[39m
+[2m   Start at [22m 14:07:53
+[2m   Duration [22m 27.21s[2m (transform 5.79s, setup 0ms, collect 23.76s, tests 7.55s, environment 19.26s, prepare 82.28s)[22m
+
+ ELIFECYCLE  Test failed. See above for more details.

@@ -21,14 +21,19 @@ Layout: `artifacts/store` (UI), `artifacts/api-server` (API), `lib/*` (shared, g
 1. Read the spec named in your launch prompt from `docs/tasks/`. Do not ask for it to be pasted.
 2. Write a design note to `docs/design-notes/<phase>.md`, commit it, and **stop**. Wait for review.
 3. Only after approval, implement in small commits on the phase branch.
-4. Make `typecheck`, `test` and `audit:invariants` pass before declaring done.
+4. Make `typecheck`, `pnpm test:unit` and `audit:invariants` pass before declaring done.
+   The `api-integration` and `env-validation` projects need Supabase credentials and a running API
+   server; they run in CI (`.github/workflows/test.yml`), not in a bare local checkout. Do not
+   claim they passed locally — say which tiers you actually ran.
 
 You are expected to propose better approaches than the spec where you see them. Say so in the
 design note and explain the trade-off — do not silently deviate during implementation.
 
 ## Deny
 - Never commit to `main`. Work only on the phase branch you were given.
-- Never edit anything under `docs/tasks/` — specs are written by the architect, not the implementer.
+- Never edit a spec under `docs/tasks/` — specs are written by the architect, not the implementer.
+  A task may explicitly ask you to add a status header to a non-spec document there; that is the
+  only exception, and only for what the task names.
 - Never run migrations against a production Supabase project. Local or branch database only.
 - Never touch `.env`, secrets, or credentials; never commit them.
 - Never change `minimumReleaseAge` in `pnpm-workspace.yaml` — it is a supply-chain guard.
