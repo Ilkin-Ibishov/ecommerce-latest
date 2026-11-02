@@ -274,9 +274,11 @@ function categoryTreeArb(maxDepth: number, maxBreadth: number): fc.Arbitrary<{
           // Build roots
           const tree: CategoryNode[] = [];
           const queue: Array<{ node: CategoryNode; currentDepth: number }> = [];
+          let nodeIdx = 0;
 
           for (const [id, slug, name] of rootDefs) {
-            const node = makeNode(id, slug, name, null);
+            const uniqueSlug = `slug-${nodeIdx++}-${slug}`;
+            const node = makeNode(id, uniqueSlug, name, null);
             tree.push(node);
             allNodes.push({ node, depth: 1 });
             queue.push({ node, currentDepth: 1 });
@@ -293,10 +295,11 @@ function categoryTreeArb(maxDepth: number, maxBreadth: number): fc.Arbitrary<{
 
             const actualChildren = Math.min(numChildren, breadth);
             for (let i = 0; i < actualChildren && childIdx + i < childDefs.length + 1; i++) {
-              const childId = i === 0 ? cId : `${cId}-${i}`;
+              const childId = i === 0 ? `${cId}-${nodeIdx}` : `${cId}-${i}-${nodeIdx}`;
+              const uniqueSlug = `slug-${nodeIdx++}-${cSlug}-${i}`;
               const child = makeNode(
                 childId,
-                `${cSlug}-${i}`,
+                uniqueSlug,
                 `${cName}-${i}`,
                 parent.node.id,
               );
