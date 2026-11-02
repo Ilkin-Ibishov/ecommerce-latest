@@ -17,6 +17,9 @@ export default defineConfig({
     // Playwright specs (tests/e2e/*.spec.ts, tests/components/*.spec.tsx) are not matched by this glob.
     include: ["src/**/*.test.ts"],
     environment: "node",
+    env: {
+      NODE_ENV: "test",
+    },
   },
   resolve: {
     alias: {
