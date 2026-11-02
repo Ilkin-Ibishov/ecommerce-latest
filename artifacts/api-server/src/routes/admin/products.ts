@@ -52,13 +52,13 @@ router.post("/admin/upload", requireAdmin, upload.single("file"), async (req: an
 
 router.post("/admin/products", requireAdmin, enforceQuota("products"), validate(CreateProductSchema), async (req, res) => {
   const ctx = { admin: req.admin!, user: req.user! };
-  const { sku, slug, price, stock, is_featured, is_on_sale, is_deal_of_day, sort_order,
+  const { sku, slug, price, stock, initial_quantity, unit_of_measure, cost_price, is_featured, is_on_sale, is_deal_of_day, sort_order,
     brand, original_price, translations, images, category_ids, specs } = req.body;
   const admin = ctx.admin;
 
   const { data: product, error } = await (admin as any).from("products")
     .insert({
-      sku: sku ?? null, slug, price, stock,
+      sku: sku ?? null, slug, price, stock: 0,
       is_featured: !!is_featured, is_on_sale: !!is_on_sale, is_deal_of_day: !!is_deal_of_day,
       sort_order: sort_order ?? 0,
       brand: brand ?? null,
@@ -66,6 +66,36 @@ router.post("/admin/products", requireAdmin, enforceQuota("products"), validate(
     })
     .select("id").single();
   if (error) return res.status(400).json({ error: error.message });
+
+  // Create default variant for the new product (design §1, §3)
+  const { data: variant } = await (admin as any).from("product_variants").insert({
+    product_id: product.id,
+    sku: sku ?? null,
+    price,
+    on_hand: 0,
+    unit_of_measure: unit_of_measure || "pcs",
+    is_default: true,
+    sort_order: 0,
+  }).select("id").single();
+
+  if (variant) {
+    await (admin as any).from("variant_costs").insert({
+      variant_id: variant.id,
+      cost_price: typeof cost_price === "number" && cost_price >= 0 ? cost_price : 0,
+    });
+
+    const openingQty = initial_quantity ?? stock ?? 0;
+    if (openingQty > 0) {
+      await (admin as any).from("stock_movements").insert({
+        variant_id: variant.id,
+        quantity_delta: openingQty,
+        reason: "opening_balance",
+        reference_type: "manual",
+        actor_id: ctx.user.id,
+        note: "Initial product creation opening balance",
+      });
+    }
+  }
 
   if (translations?.length) {
     await (admin as any).from("product_translations").insert(translations.map((t: any) => ({ ...t, product_id: product.id })));
@@ -115,13 +145,22 @@ router.patch("/admin/products/:id", requireAdmin, validate(UpdateProductSchema),
     brand, original_price, translations, images, category_ids, specs } = req.body;
   const admin = ctx.admin;
 
+  // Note: stock is NEVER updated directly on edit (design §4 item 6)
   await (admin as any).from("products").update({
-    sku: sku ?? null, slug, price, stock,
+    sku: sku ?? null, slug, price,
     is_featured: !!is_featured, is_on_sale: !!is_on_sale, is_deal_of_day: !!is_deal_of_day,
     sort_order: sort_order ?? 0,
     brand: brand ?? null,
     original_price: original_price ?? null,
   }).eq("id", id);
+
+  // Sync default variant price and sku
+  if (price !== undefined || sku !== undefined) {
+    const varUpdate: Record<string, unknown> = {};
+    if (price !== undefined) varUpdate.price = price;
+    if (sku !== undefined) varUpdate.sku = sku ?? null;
+    await (admin as any).from("product_variants").update(varUpdate).eq("product_id", id).eq("is_default", true);
+  }
 
   await (admin as any).from("product_translations").delete().eq("product_id", id);
   if (translations?.length) await (admin as any).from("product_translations").insert(translations.map((t: any) => ({ ...t, product_id: id })));
@@ -147,17 +186,47 @@ router.delete("/admin/products/:id", requireAdmin, async (req, res) => {
   return res.json({ success: true });
 });
 
-// Task 10 — Quick stock adjustment (4-segment path, no conflict with /:id)
+// Task 10 — Quick stock adjustment via stock_movements ledger
 router.patch("/admin/products/:id/stock", requireAdmin, async (req, res) => {
   const ctx = { admin: req.admin!, user: req.user! };
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { stock } = req.body;
+  const { stock, reason, note } = req.body;
   if (typeof stock !== "number" || stock < 0 || !Number.isInteger(stock)) {
     return res.status(400).json({ error: "stock must be a non-negative integer" });
   }
-  await (ctx.admin as any).from("products").update({ stock }).eq("id", rawId);
-  writeAudit({ admin: ctx.admin, req, actorId: ctx.user.id, action: "adjust_stock", entityType: "product", entityId: rawId, details: { stock } });
-  return res.json({ success: true });
+  const admin = ctx.admin;
+
+  const { data: variant, error: vErr } = await (admin as any)
+    .from("product_variants")
+    .select("id, on_hand")
+    .eq("product_id", rawId)
+    .eq("is_default", true)
+    .single();
+
+  if (vErr || !variant) {
+    return res.status(404).json({ error: "Product variant not found" });
+  }
+
+  const currentOnHand = Number(variant.on_hand);
+  const delta = stock - currentOnHand;
+
+  if (delta !== 0) {
+    const movementReason = reason || (delta > 0 ? "manual_adjustment" : "damage_write_off");
+    const { error: moveErr } = await (admin as any).from("stock_movements").insert({
+      variant_id: variant.id,
+      quantity_delta: delta,
+      reason: movementReason,
+      reference_type: "manual",
+      actor_id: ctx.user.id,
+      note: note || `Admin stock adjustment to ${stock}`,
+    });
+    if (moveErr) {
+      return res.status(400).json({ error: moveErr.message });
+    }
+  }
+
+  writeAudit({ admin: ctx.admin, req, actorId: ctx.user.id, action: "adjust_stock", entityType: "product", entityId: rawId, details: { stock, delta, reason } });
+  return res.json({ success: true, stock });
 });
 
 // Task 10 — Duplicate product
@@ -178,6 +247,24 @@ router.post("/admin/products/:id/duplicate", requireAdmin, async (req, res) => {
     sort_order: src.sort_order, brand: src.brand, original_price: src.original_price,
   }).select("id").single();
   if (error) return res.status(400).json({ error: error.message });
+
+  // Create default variant for duplicated product
+  const { data: dupVariant } = await (admin as any).from("product_variants").insert({
+    product_id: newProduct.id,
+    sku: src.sku ? `${src.sku}-COPY` : null,
+    price: src.price,
+    on_hand: 0,
+    unit_of_measure: "pcs",
+    is_default: true,
+    sort_order: 0,
+  }).select("id").single();
+
+  if (dupVariant) {
+    await (admin as any).from("variant_costs").insert({
+      variant_id: dupVariant.id,
+      cost_price: 0,
+    });
+  }
   if (src.product_translations?.length) {
     await (admin as any).from("product_translations").insert(src.product_translations.map((t: any) => ({ product_id: newProduct.id, lang_code: t.lang_code, title: `${t.title} (copy)`, description: t.description })));
   }

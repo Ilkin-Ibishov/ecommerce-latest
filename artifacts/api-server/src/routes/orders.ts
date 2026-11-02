@@ -14,6 +14,7 @@ const router = Router();
 
 interface OrderItemInput {
   product_id: string;
+  variant_id?: string;
   quantity: number;
 }
 
@@ -27,7 +28,7 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
 
   const { data: products } = await admin
     .from("products")
-    .select("id, price, stock, product_translations(lang_code, title)")
+    .select("id, price, stock, product_translations(lang_code, title), product_variants(id, price, on_hand, sku, is_default)")
     .in("id", productIds);
 
   if (!products) return res.status(500).json({ error: "Failed to fetch products" });
@@ -39,18 +40,30 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
   for (const item of items as OrderItemInput[]) {
     const product = productMap.get(item.product_id);
     if (!product) return res.status(400).json({ error: `Product not found: ${item.product_id}` });
-    if (product.stock < item.quantity) {
+
+    const variants = ((product as any).product_variants ?? []) as any[];
+    const variant = item.variant_id
+      ? variants.find((v: any) => v.id === item.variant_id)
+      : (variants.find((v: any) => v.is_default) ?? variants[0]);
+
+    const availableStock = variant ? Number(variant.on_hand) : (product.stock ?? 0);
+    if (availableStock < item.quantity) {
       return res.status(400).json({ error: `Insufficient stock`, product_id: item.product_id });
     }
+
     const title = product.product_translations.find((t) => t.lang_code === "az")?.title
       ?? product.product_translations[0]?.title ?? "Product";
-    const lineTotal = Number(product.price) * item.quantity;
+    const itemPrice = variant ? Number(variant.price) : Number(product.price);
+    const lineTotal = itemPrice * item.quantity;
     subtotal += lineTotal;
     orderItems.push({
       product_id: item.product_id,
+      variant_id: variant?.id ?? null,
       quantity: item.quantity,
-      product_price_snapshot: product.price,
+      product_price_snapshot: itemPrice,
       product_title_snapshot: title,
+      variant_title_snapshot: title,
+      sku_snapshot: variant?.sku ?? null,
       line_total: lineTotal,
     });
   }
@@ -93,21 +106,22 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
   const totalAzn = subtotal - discountAmount;
 
   // SEC-005: Decrement stock BEFORE order insert to eliminate TOCTOU race
-  const decremented: { productId: string; qty: number }[] = [];
+  const decremented: { targetId: string; qty: number }[] = [];
 
-  for (const item of items as OrderItemInput[]) {
-    const { error } = await decrementStockSafe(admin, item.product_id, item.quantity);
+  for (const item of orderItems) {
+    const targetId = item.variant_id ?? item.product_id;
+    const { error } = await decrementStockSafe(admin, targetId, item.quantity);
     if (error) {
       // Roll back all previous decrements (best-effort)
       for (const d of decremented) {
-        await incrementStock(admin, d.productId, d.qty).catch((e) =>
-          req.log.error({ error: e, productId: d.productId }, "Stock rollback failed")
+        await incrementStock(admin, d.targetId, d.qty).catch((e) =>
+          req.log.error({ error: e, targetId: d.targetId }, "Stock rollback failed")
         );
       }
       res.status(409).json({ error: "Out of stock", product_id: item.product_id });
       return;
     }
-    decremented.push({ productId: item.product_id, qty: item.quantity });
+    decremented.push({ targetId, qty: item.quantity });
   }
 
   // All stock decrements succeeded — insert order + order_items
@@ -138,8 +152,8 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
   } catch (err) {
     // Order insert failed — roll back ALL stock decrements
     for (const d of decremented) {
-      await incrementStock(admin, d.productId, d.qty).catch((e) =>
-        req.log.error({ error: e, productId: d.productId }, "Stock rollback failed after order insert error")
+      await incrementStock(admin, d.targetId, d.qty).catch((e) =>
+        req.log.error({ error: e, targetId: d.targetId }, "Stock rollback failed after order insert error")
       );
     }
     throw err; // Let errorHandler return 500
@@ -174,8 +188,8 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
         await admin.from("order_items").delete().eq("order_id", order.id);
         await admin.from("orders").delete().eq("id", order.id);
         for (const d of decremented) {
-          await incrementStock(admin, d.productId, d.qty).catch((e) =>
-            req.log.error({ error: e, productId: d.productId }, "Stock rollback failed after per-user coupon limit")
+          await incrementStock(admin, d.targetId, d.qty).catch((e) =>
+            req.log.error({ error: e, targetId: d.targetId }, "Stock rollback failed after per-user coupon limit")
           );
         }
         res.status(400).json({ error: "Coupon usage limit reached for your account" });
@@ -196,8 +210,8 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
       await admin.from("order_items").delete().eq("order_id", order.id);
       await admin.from("orders").delete().eq("id", order.id);
       for (const d of decremented) {
-        await incrementStock(admin, d.productId, d.qty).catch((e) =>
-          req.log.error({ error: e, productId: d.productId }, "Stock rollback failed after coupon limit race")
+        await incrementStock(admin, d.targetId, d.qty).catch((e) =>
+          req.log.error({ error: e, targetId: d.targetId }, "Stock rollback failed after coupon limit race")
         );
       }
       res.status(400).json({ error: "Coupon usage limit exceeded" });

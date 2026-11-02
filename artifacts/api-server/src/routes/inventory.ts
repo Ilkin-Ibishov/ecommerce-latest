@@ -1,0 +1,263 @@
+import { Router, Request, Response } from "express";
+import { getAdminSupabase, getSupabase } from "../lib/supabase";
+import { requireAdmin } from "../middlewares/requireAdmin";
+import { writeAudit } from "../lib/audit";
+
+const router = Router();
+
+// Middleware: allow staff or admin
+async function requireStaffOrAdmin(req: Request, res: Response, next: () => void): Promise<void> {
+  const token = req.headers.authorization?.replace("Bearer ", "");
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+
+  const supabase = getSupabase(token);
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) {
+    res.status(401).json({ error: "Invalid token" });
+    return;
+  }
+
+  const admin = getAdminSupabase();
+  const { data: profile } = await (admin as any)
+    .from("users")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.role !== "admin" && profile?.role !== "staff") {
+    res.status(403).json({ error: "Forbidden: staff or admin required" });
+    return;
+  }
+
+  (req as any).user = user;
+  (req as any).userRole = profile.role;
+  (req as any).admin = admin;
+  next();
+}
+
+// ─── 1. Barcode Scan Lookup (Design §2 Q4) ────────────────────
+router.get("/inventory/scan/:barcode", async (req: Request, res: Response) => {
+  const admin = getAdminSupabase();
+  const barcode = Array.isArray(req.params.barcode) ? req.params.barcode[0] : req.params.barcode;
+
+  const { data: variant, error } = await (admin as any)
+    .from("product_variants")
+    .select(`
+      id, sku, barcode, price, on_hand, unit_of_measure, is_default, product_id,
+      products(id, slug, product_translations(lang_code, title), product_images(url, sort_order)),
+      variant_option_values(
+        product_option_values(
+          value,
+          product_option_types(name)
+        )
+      )
+    `)
+    .eq("barcode", barcode)
+    .maybeSingle();
+
+  if (error || !variant) {
+    return res.status(404).json({ error: "Barcode not found" });
+  }
+
+  const prod = variant.products;
+  const title = prod?.product_translations?.find((t: any) => t.lang_code === "az")?.title
+    ?? prod?.product_translations?.[0]?.title ?? "Product";
+  const sortedImages = [...(prod?.product_images ?? [])].sort((a: any, b: any) => a.sort_order - b.sort_order);
+  const imageUrl = sortedImages[0]?.url ?? null;
+
+  const options = (variant.variant_option_values ?? []).map((vov: any) => ({
+    name: vov?.product_option_values?.product_option_types?.name ?? "Option",
+    value: vov?.product_option_values?.value ?? "",
+  }));
+
+  return res.json({
+    variant: {
+      id: variant.id,
+      sku: variant.sku,
+      barcode: variant.barcode,
+      price: Number(variant.price),
+      on_hand: Number(variant.on_hand),
+      unit_of_measure: variant.unit_of_measure,
+      options,
+    },
+    product: {
+      id: prod?.id ?? variant.product_id,
+      title,
+      slug: prod?.slug ?? "",
+      image_url: imageUrl,
+    },
+  });
+});
+
+// ─── 2. Variant Movement History (Deliverables §7 item 6) ─────
+router.get("/admin/variants/:id/movements", requireStaffOrAdmin, async (req: Request, res: Response) => {
+  const admin = (req as any).admin;
+  const variantId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  const { data: movements, error } = await (admin as any)
+    .from("stock_movements")
+    .select(`
+      id, variant_id, quantity_delta, reason, reference_type, reference_id,
+      unit_cost, note, created_at,
+      users(id, full_name, role)
+    `)
+    .eq("variant_id", variantId)
+    .order("created_at", { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json({ movements: movements ?? [] });
+});
+
+// ─── 3. Variant Management for Product ────────────────────────
+router.get("/admin/products/:id/variants", requireStaffOrAdmin, async (req: Request, res: Response) => {
+  const admin = (req as any).admin;
+  const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+  const { data: variants, error } = await (admin as any)
+    .from("product_variants")
+    .select(`
+      id, product_id, sku, barcode, price, on_hand, unit_of_measure, is_default, sort_order,
+      variant_option_values(option_value_id, product_option_values(id, value, option_type_id))
+    `)
+    .eq("product_id", productId)
+    .order("sort_order", { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+  return res.json({ variants: variants ?? [] });
+});
+
+// Create a variant
+router.post("/admin/products/:id/variants", requireStaffOrAdmin, async (req: Request, res: Response) => {
+  const admin = (req as any).admin;
+  const user = (req as any).user;
+  const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { sku, barcode, price, initial_quantity, unit_of_measure, sort_order, option_value_ids, cost_price } = req.body;
+
+  if (typeof price !== "number" || price < 0) {
+    return res.status(400).json({ error: "price must be a non-negative number" });
+  }
+
+  const { data: variant, error } = await (admin as any)
+    .from("product_variants")
+    .insert({
+      product_id: productId,
+      sku: sku ? String(sku).trim() : null,
+      barcode: barcode ? String(barcode).trim() : null,
+      price,
+      on_hand: 0,
+      unit_of_measure: unit_of_measure || "pcs",
+      is_default: false,
+      sort_order: sort_order ?? 0,
+    })
+    .select("id")
+    .single();
+
+  if (error) return res.status(400).json({ error: error.message });
+
+  // Attach option values
+  if (Array.isArray(option_value_ids) && option_value_ids.length > 0) {
+    await (admin as any).from("variant_option_values").insert(
+      option_value_ids.map((valId: string) => ({ variant_id: variant.id, option_value_id: valId }))
+    );
+  }
+
+  // Cost price (admin only)
+  await (admin as any).from("variant_costs").insert({
+    variant_id: variant.id,
+    cost_price: (req as any).userRole === "admin" && typeof cost_price === "number" && cost_price >= 0 ? cost_price : 0,
+  });
+
+  // Initial stock movement
+  const openingQty = Number(initial_quantity ?? 0);
+  if (openingQty > 0) {
+    await (admin as any).from("stock_movements").insert({
+      variant_id: variant.id,
+      quantity_delta: openingQty,
+      reason: "opening_balance",
+      reference_type: "manual",
+      actor_id: user.id,
+      note: "Initial variant opening balance",
+    });
+  }
+
+  writeAudit({ admin, req, actorId: user.id, action: "create_variant", entityType: "product_variant", entityId: variant.id, details: req.body });
+  return res.status(201).json({ id: variant.id });
+});
+
+// Update variant (Staff forbidden from modifying price, enforced by DB trigger and API)
+router.patch("/admin/variants/:id", requireStaffOrAdmin, async (req: Request, res: Response) => {
+  const admin = (req as any).admin;
+  const user = (req as any).user;
+  const userRole = (req as any).userRole;
+  const variantId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const { sku, barcode, price, unit_of_measure, sort_order, is_default } = req.body;
+
+  if (price !== undefined && userRole === "staff") {
+    return res.status(403).json({ error: "Staff are not permitted to change product prices" });
+  }
+
+  const updates: Record<string, unknown> = {};
+  if (sku !== undefined) updates.sku = sku ? String(sku).trim() : null;
+  if (barcode !== undefined) updates.barcode = barcode ? String(barcode).trim() : null;
+  if (price !== undefined) updates.price = price;
+  if (unit_of_measure !== undefined) updates.unit_of_measure = unit_of_measure;
+  if (sort_order !== undefined) updates.sort_order = sort_order;
+  if (is_default !== undefined) updates.is_default = is_default;
+
+  const { error } = await (admin as any).from("product_variants").update(updates).eq("id", variantId);
+  if (error) return res.status(400).json({ error: error.message });
+
+  writeAudit({ admin, req, actorId: user.id, action: "update_variant", entityType: "product_variant", entityId: variantId, details: updates });
+  return res.json({ success: true });
+});
+
+// ─── 4. Stock Adjustment via Movement Ledger ──────────────────
+router.post("/admin/stock/adjust", requireStaffOrAdmin, async (req: Request, res: Response) => {
+  const admin = (req as any).admin;
+  const user = (req as any).user;
+  const { variant_id, quantity_delta, reason, note, unit_cost } = req.body;
+
+  if (!variant_id || typeof quantity_delta !== "number" || quantity_delta === 0) {
+    return res.status(400).json({ error: "variant_id and non-zero numeric quantity_delta are required" });
+  }
+
+  const VALID_REASONS = [
+    "goods_receipt", "online_sale", "counter_sale", "customer_return",
+    "return_to_supplier", "damage_write_off", "stocktake_correction",
+    "manual_adjustment", "opening_balance",
+  ];
+  if (!VALID_REASONS.includes(reason)) {
+    return res.status(400).json({ error: `Invalid reason. Allowed: ${VALID_REASONS.join(", ")}` });
+  }
+
+  const { error } = await (admin as any).from("stock_movements").insert({
+    variant_id,
+    quantity_delta,
+    reason,
+    reference_type: "manual",
+    actor_id: user.id,
+    note: note || null,
+    unit_cost: typeof unit_cost === "number" && unit_cost >= 0 ? unit_cost : null,
+  });
+
+  if (error) {
+    if ((error as any).code === "ST001") {
+      return res.status(409).json({ error: "Insufficient stock" });
+    }
+    return res.status(400).json({ error: error.message });
+  }
+
+  const { data: updatedVariant } = await (admin as any)
+    .from("product_variants")
+    .select("id, on_hand")
+    .eq("id", variant_id)
+    .single();
+
+  writeAudit({ admin, req, actorId: user.id, action: "adjust_stock_movement", entityType: "product_variant", entityId: String(variant_id), details: req.body });
+  return res.json({ success: true, on_hand: Number(updatedVariant?.on_hand ?? 0) });
+});
+
+export default router;

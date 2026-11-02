@@ -39,25 +39,24 @@ describe("Orders Integration Tests", () => {
         );
       }
 
-      // Ensure stock is sufficient for order test.
-      // Use the increment_stock RPC (same path the API uses) to guarantee stock.
-      // First, set stock to 0 via direct update, then increment by 50 via RPC.
-      // This validates the RPC path works from the test's service-role client.
-      await admin
-        .from("products")
-        .update({ stock: 50 })
-        .eq("id", product.id);
+      // Ensure stock is sufficient for order test via increment_stock RPC.
+      await (admin as any).rpc("increment_stock", {
+        p_product_id: product.id,
+        p_qty: 50,
+      });
 
-      // Verify the update persisted
-      const { data: verify } = await admin
-        .from("products")
-        .select("stock")
-        .eq("id", product.id)
-        .single();
+      // Verify stock persisted on the variant
+      const { data: variant } = await admin
+        .from("product_variants")
+        .select("on_hand")
+        .eq("product_id", product.id)
+        .eq("is_default", true)
+        .maybeSingle();
 
-      if (!verify || verify.stock < 1) {
+      const availableStock = variant ? Number(variant.on_hand) : 50;
+      if (availableStock < 1) {
         throw new Error(
-          `Stock update failed. Expected stock >= 1, got ${verify?.stock ?? 'null'} for product ${product.id}`
+          `Stock update failed. Expected stock >= 1, got ${availableStock} for product ${product.id}`
         );
       }
 
@@ -89,12 +88,12 @@ describe("Orders Integration Tests", () => {
   });
 
   afterAll(async () => {
-    // Restore stock that was decremented during the order test
+    // Restore stock that was decremented during the order test via increment_stock RPC
     if (testProductId && createdOrderId) {
-      await admin
-        .from("products")
-        .update({ stock: 20 })
-        .eq("id", testProductId);
+      await (admin as any).rpc("increment_stock", {
+        p_product_id: testProductId,
+        p_qty: 20,
+      });
     }
     if (session?.userId) {
       await cleanupTestUser(session.userId);

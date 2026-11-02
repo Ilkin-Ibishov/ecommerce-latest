@@ -22,6 +22,7 @@ import platformRouter from "./platform";
 import storeMetricsRouter from "./store-metrics";
 import sizeGuidesRouter from "./size-guides";
 import brandsPublicRouter from "./brands-public";
+import inventoryRouter from "./inventory";
 
 const router: IRouter = Router();
 
@@ -31,6 +32,7 @@ router.use(profileRouter);
 router.use(ordersRouter);
 router.use(couponsRouter);
 router.use(adminRouter);
+router.use(inventoryRouter);
 router.use(wishlistRouter);
 router.use(commentsRouter);
 router.use(cartRouter);

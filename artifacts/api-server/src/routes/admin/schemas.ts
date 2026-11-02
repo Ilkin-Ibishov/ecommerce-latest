@@ -41,7 +41,10 @@ export const CreateProductSchema = z.object({
   sku: z.string().nullable().optional(),
   slug: z.string(),
   price: z.number().min(0).max(9999999),
-  stock: z.number().int().min(0).max(999999),
+  stock: z.number().int().min(0).max(999999).optional(),
+  initial_quantity: z.number().int().min(0).max(999999).optional(),
+  cost_price: z.number().min(0).max(9999999).optional(),
+  unit_of_measure: z.string().optional(),
   sort_order: z.number().optional(),
   is_featured: z.boolean().optional(),
   is_on_sale: z.boolean().optional(),
@@ -98,6 +101,7 @@ export const UpdateBannerSchema = CreateBannerSchema;
 
 const OrderItemSchema = z.object({
   product_id: z.string().uuid(),
+  variant_id: z.string().uuid().optional(),
   quantity: z.number().int().min(1).max(99),
 });
 
