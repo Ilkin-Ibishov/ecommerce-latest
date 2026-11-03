@@ -7,6 +7,7 @@ import { enforceQuota } from "../../middlewares/enforceQuota";
 import { validate } from "../../middlewares/validate";
 import { CreateProductSchema, UpdateProductSchema } from "./schemas";
 import { writeAudit } from "../../lib/audit";
+import { setProductStockSafe } from "../../lib/rpc";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
@@ -186,7 +187,7 @@ router.delete("/admin/products/:id", requireAdmin, async (req, res) => {
   return res.json({ success: true });
 });
 
-// Task 10 — Quick stock adjustment via stock_movements ledger
+// Task 10 — Quick stock adjustment via locked set_product_stock_safe RPC (F1)
 router.patch("/admin/products/:id/stock", requireAdmin, async (req, res) => {
   const ctx = { admin: req.admin!, user: req.user! };
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -194,39 +195,35 @@ router.patch("/admin/products/:id/stock", requireAdmin, async (req, res) => {
   if (typeof stock !== "number" || stock < 0 || !Number.isInteger(stock)) {
     return res.status(400).json({ error: "stock must be a non-negative integer" });
   }
-  const admin = ctx.admin;
 
-  const { data: variant, error: vErr } = await (admin as any)
-    .from("product_variants")
-    .select("id, on_hand")
-    .eq("product_id", rawId)
-    .eq("is_default", true)
-    .single();
+  const { data: resultingStock, error: rpcErr } = await setProductStockSafe(
+    ctx.admin,
+    rawId,
+    stock,
+    ctx.user.id,
+    reason,
+    note
+  );
 
-  if (vErr || !variant) {
-    return res.status(404).json({ error: "Product variant not found" });
+  if (rpcErr) {
+    const message = (rpcErr as any).message || "Failed to set product stock";
+    const status = (rpcErr as any).code === "ST002" ? 404 : 400;
+    return res.status(status).json({ error: message });
   }
 
-  const currentOnHand = Number(variant.on_hand);
-  const delta = stock - currentOnHand;
+  const finalStock = Number(resultingStock ?? stock);
 
-  if (delta !== 0) {
-    const movementReason = reason || (delta > 0 ? "manual_adjustment" : "damage_write_off");
-    const { error: moveErr } = await (admin as any).from("stock_movements").insert({
-      variant_id: variant.id,
-      quantity_delta: delta,
-      reason: movementReason,
-      reference_type: "manual",
-      actor_id: ctx.user.id,
-      note: note || `Admin stock adjustment to ${stock}`,
-    });
-    if (moveErr) {
-      return res.status(400).json({ error: moveErr.message });
-    }
-  }
+  writeAudit({
+    admin: ctx.admin,
+    req,
+    actorId: ctx.user.id,
+    action: "adjust_stock",
+    entityType: "product",
+    entityId: rawId,
+    details: { stock: finalStock, target: stock, reason },
+  });
 
-  writeAudit({ admin: ctx.admin, req, actorId: ctx.user.id, action: "adjust_stock", entityType: "product", entityId: rawId, details: { stock, delta, reason } });
-  return res.json({ success: true, stock });
+  return res.json({ success: true, stock: finalStock });
 });
 
 // Task 10 — Duplicate product

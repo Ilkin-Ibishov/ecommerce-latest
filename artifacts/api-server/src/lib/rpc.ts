@@ -12,6 +12,8 @@ import type { Database } from "@workspace/supabase-types";
  *       (matches routes/orders.ts)
  *   - incrementStock     → `increment_stock`      { p_product_id, p_qty }
  *       (matches routes/admin.ts)
+ *   - setProductStockSafe → `set_product_stock_safe` { p_product_id, p_target_stock, ... }
+ *       (matches routes/admin/products.ts)
  *   - searchProducts     → `search_products`      { query_text, lang_code }
  *       (matches storefront SearchPage.tsx)
  *
@@ -60,6 +62,31 @@ export async function incrementStock(
     p_qty: qty,
   });
   return { error };
+}
+
+/**
+ * Atomically adjust variant stock to an absolute target level via `set_product_stock_safe` RPC.
+ * Acquires a row lock (FOR UPDATE), computes the delta, and records the movement within one transaction.
+ */
+export async function setProductStockSafe(
+  c: SupabaseClient<Database>,
+  productId: string,
+  targetStock: number,
+  actorId?: string,
+  reason?: string,
+  note?: string,
+): Promise<{ data: number | null; error: unknown }> {
+  const { data, error } = await (c as any).rpc("set_product_stock_safe", {
+    p_product_id: productId,
+    p_target_stock: targetStock,
+    p_actor_id: actorId,
+    p_reason: reason,
+    p_note: note,
+  });
+  return {
+    data: typeof data === "number" ? data : data !== null && data !== undefined ? Number(data) : null,
+    error,
+  };
 }
 
 /**

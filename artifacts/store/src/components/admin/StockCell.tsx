@@ -45,9 +45,11 @@ export function StockCell({ productId, initialStock, onSaved }: {
         const json = await res.json().catch(() => ({}));
         throw new Error(json.error || "Failed to update stock");
       }
+      const data = await res.json().catch(() => ({}));
+      const actualStock = typeof data.stock === "number" ? data.stock : newStock;
       setSaving(false);
       setEditing(false);
-      onSaved(productId, newStock);
+      onSaved(productId, actualStock);
     } catch (err: any) {
       setSaving(false);
       setError(err.message || "Save failed");

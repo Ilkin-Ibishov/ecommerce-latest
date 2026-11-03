@@ -144,4 +144,66 @@ describe("Variant Movement Ledger — Property-Based Tests", () => {
       { numRuns: 30 }
     );
   });
+
+  /**
+   * Property 5 / F1 Regression: Interleaving an adjustment with a concurrent decrement
+   * Demonstrates:
+   * 1. The un-locked pattern produces silent corruption where response body echoes target, but final stock is wrong.
+   * 2. The locked pattern (set_product_stock_safe) executes atomically, ensuring actual final stock matches expectation.
+   */
+  it("Property 5 (F1 Regression): Interleaved target adjustment with concurrent decrement asserts actual quantity", async () => {
+    // 1. Reproduce defect with un-locked pattern
+    const unLockedModel = new StockModel(20);
+    const unLockedOp = unLockedModel.startUnsafeTargetAdjustment(30);
+    // Concurrent decrement slips in before admin write commits
+    unLockedModel.decrement(2);
+    const unLockedResult = unLockedOp.commit();
+    // Legacy response echoed target 30, but final quantity was corrupted to 28
+    expect(unLockedResult.echoedStock).toBe(30);
+    expect(unLockedModel.onHand).toBe(28); // Not 30!
+    expect(unLockedModel.onHand).not.toBe(unLockedResult.echoedStock);
+
+    // 2. Safe locked pattern eliminates the race
+    await fc.assert(
+      fc.asyncProperty(
+        fc.integer({ min: 10, max: 50 }),
+        fc.integer({ min: 1, max: 5 }),
+        fc.integer({ min: 20, max: 60 }),
+        async (initialStock, decrementQty, targetStock) => {
+          const model = new StockModel(initialStock);
+
+          let lock = Promise.resolve();
+          const atomicDecrement = () => {
+            const next = lock.then(async () => {
+              await new Promise((r) => setTimeout(r, 1));
+              return model.decrement(decrementQty);
+            });
+            lock = next.then(() => {});
+            return next;
+          };
+
+          const atomicSetTarget = () => {
+            const next = lock.then(async () => {
+              await new Promise((r) => setTimeout(r, 1));
+              return model.setTargetStockLocked(targetStock);
+            });
+            lock = next.then(() => {});
+            return next;
+          };
+
+          // Interleave both operations concurrently
+          const [decRes, setRes] = await Promise.all([atomicDecrement(), atomicSetTarget()]);
+
+          // Both operations completed atomically
+          expect(decRes.ok).toBe(true);
+          expect(setRes.ok).toBe(true);
+
+          // Assert the real resulting quantity
+          expect(model.onHand).toBe(setRes.finalStock);
+          expect(model.onHand).toBe(model.ledgerSum);
+        }
+      ),
+      { numRuns: 30 }
+    );
+  });
 });

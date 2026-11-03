@@ -86,6 +86,46 @@ export class StockModel {
   }
 
   /**
+   * Safe atomic target stock adjustment simulating `set_product_stock_safe` RPC.
+   * Acquires row lock, calculates delta from fresh locked on_hand, applies movement,
+   * and returns the real resulting quantity.
+   */
+  setTargetStockLocked(
+    targetStock: number,
+    reason: string = "manual_adjustment"
+  ): { ok: boolean; finalStock: number } {
+    if (targetStock < 0) {
+      throw new StockLedgerError("Target stock cannot be negative", "ST001");
+    }
+    const delta = targetStock - this.stock;
+    if (delta !== 0) {
+      this.applyMovement(delta, reason);
+    }
+    return { ok: true, finalStock: this.stock };
+  }
+
+  /**
+   * Simulates legacy un-locked read-modify-write in PATCH /admin/products/:id/stock.
+   * Step 1: read on_hand
+   * Step 2: compute delta = targetStock - readOnHand
+   * Step 3: write movement with stale delta, echoes requested stock
+   */
+  startUnsafeTargetAdjustment(targetStock: number) {
+    const readOnHand = this.stock;
+    const delta = targetStock - readOnHand;
+    return {
+      readOnHand,
+      delta,
+      commit: () => {
+        if (delta !== 0) {
+          this.applyMovement(delta, "manual_adjustment");
+        }
+        return { echoedStock: targetStock, actualStock: this.stock };
+      },
+    };
+  }
+
+  /**
    * Simulates direct write attempt to product_variants.on_hand.
    * trg_guard_variant_on_hand_update checks pg_trigger_depth() <= 1 and raises 55000.
    */
