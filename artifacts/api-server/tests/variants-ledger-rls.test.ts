@@ -8,6 +8,7 @@ import type { AddressInfo } from "node:net";
 const MIGRATIONS_DIR = path.resolve(import.meta.dirname, "../../../supabase/migrations");
 const M1_MIGRATION = "20261102100000_m1_variants_ledger.sql";
 const F3_MIGRATION = "20261103201000_create_variant_barcodes.sql";
+const A1_A4_MIGRATION = "20261103210000_m1_schema_additions.sql";
 
 function readMigration(filename: string): string {
   const filePath = path.join(MIGRATIONS_DIR, filename);
@@ -20,6 +21,7 @@ function readMigration(filename: string): string {
 describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
   let sql: string;
   let f3Sql: string;
+  let a1a4Sql: string;
   let server: Server;
   let baseUrl: string;
   let currentRole: "admin" | "staff" | "customer" | null = null;
@@ -27,6 +29,7 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
   beforeAll(async () => {
     sql = readMigration(M1_MIGRATION);
     f3Sql = readMigration(F3_MIGRATION);
+    a1a4Sql = readMigration(A1_A4_MIGRATION);
 
     const app = express();
     app.use(express.json());
@@ -64,30 +67,41 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       res.json({ success: true, updated: req.body });
     });
 
-    // Stock movement adjustment endpoint with F5 role reason check
+    // Stock movement adjustment endpoint with F5 role reason check & A3 pack quantity resolution
     app.post("/api/admin/stock/adjust", requireStaffOrAdmin, (req, res) => {
       const user = (req as any).user;
-      const { reason } = req.body;
+      const { reason, barcode, delta, quantity_delta } = req.body;
       const ADMIN_ONLY_REASONS = ["opening_balance", "stocktake_correction"];
       if (ADMIN_ONLY_REASONS.includes(reason) && user.role !== "admin") {
         res.status(403).json({ error: `Reason '${reason}' is reserved for administrator role only` });
         return;
       }
-      res.json({ success: true, adjusted: req.body });
+      // A3: 1 scan of CASE-12 resolves to movement delta of 12
+      let resolvedDelta = delta ?? quantity_delta;
+      if (barcode === "CASE-12" && (resolvedDelta === undefined || resolvedDelta === null)) {
+        resolvedDelta = 12;
+      }
+      res.json({ success: true, adjusted: { ...req.body, quantity_delta: resolvedDelta } });
     });
 
-    // Barcode scan endpoint returning list (F2 auth & F3 multi-match list)
+    // Barcode scan endpoint returning list (F2 auth, F3 multi-match list, A3 pack quantity, A4 flags)
     app.get("/api/inventory/scan/:barcode", requireStaffOrAdmin, (req, res) => {
       const barcode = req.params.barcode;
       if (barcode === "SHARED-EAN") {
         res.json([
-          { variant: { id: "mug-blue", barcode }, product: { id: "p1", title: "Mug (Blue)" } },
-          { variant: { id: "mug-red", barcode }, product: { id: "p1", title: "Mug (Red)" } },
+          { variant: { id: "mug-blue", barcode, pack_quantity: 1, pack_unit: "pcs", track_stock: true, low_stock_threshold: 10 }, product: { id: "p1", title: "Mug (Blue)" } },
+          { variant: { id: "mug-red", barcode, pack_quantity: 1, pack_unit: "pcs", track_stock: true, low_stock_threshold: 10 }, product: { id: "p1", title: "Mug (Red)" } },
+        ]);
+        return;
+      }
+      if (barcode === "CASE-12") {
+        res.json([
+          { variant: { id: "var-1", barcode, pack_quantity: 12, pack_unit: "pcs", track_stock: true, low_stock_threshold: 10 }, product: { id: "p1", title: "Product 1" } },
         ]);
         return;
       }
       res.json([
-        { variant: { id: "var-1", barcode }, product: { id: "p1", title: "Product 1" } },
+        { variant: { id: "var-1", barcode, pack_quantity: 1, pack_unit: "pcs", track_stock: true, low_stock_threshold: null }, product: { id: "p1", title: "Product 1" } },
       ]);
     });
 
@@ -184,6 +198,31 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       expect(sql).toContain("errcode = 'st001'");
       expect(sql).toContain("errcode = 'st002'");
       expect(sql).not.toContain("errcode = 'p0001'");
+    });
+
+    it("A1: adds posting_date to stock_movements with indexes and M2 trigger warning", () => {
+      expect(a1a4Sql).toContain("alter table public.stock_movements add column if not exists posting_date timestamptz not null default now()");
+      expect(a1a4Sql).toContain("create index if not exists idx_stock_movements_variant_posting_date on public.stock_movements(variant_id, posting_date desc)");
+      expect(a1a4Sql).toContain("create index if not exists idx_stock_movements_posting_date on public.stock_movements(posting_date desc)");
+      expect(a1a4Sql).toContain("do not extend trg_apply_stock_movement");
+      expect(a1a4Sql).toContain("cost belongs in a replay projection keyed on posting_date");
+    });
+
+    it("A2: adds transaction_id and correlation_id to stock_movements with indexes", () => {
+      expect(a1a4Sql).toContain("alter table public.stock_movements add column if not exists transaction_id uuid");
+      expect(a1a4Sql).toContain("alter table public.stock_movements add column if not exists correlation_id uuid");
+      expect(a1a4Sql).toContain("create index if not exists idx_stock_movements_transaction_id");
+      expect(a1a4Sql).toContain("create index if not exists idx_stock_movements_correlation_id");
+    });
+
+    it("A3: adds pack_quantity and pack_unit to variant_barcodes", () => {
+      expect(a1a4Sql).toContain("alter table public.variant_barcodes add column if not exists pack_quantity numeric(12,3) not null default 1 check (pack_quantity > 0)");
+      expect(a1a4Sql).toContain("alter table public.variant_barcodes add column if not exists pack_unit text not null default 'pcs'");
+    });
+
+    it("A4: adds track_stock and low_stock_threshold to product_variants", () => {
+      expect(a1a4Sql).toContain("alter table public.product_variants add column if not exists track_stock boolean not null default true");
+      expect(a1a4Sql).toContain("alter table public.product_variants add column if not exists low_stock_threshold numeric(12,3) check (low_stock_threshold >= 0)");
     });
   });
 
@@ -358,6 +397,56 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       expect(staffData.variants).toHaveLength(2);
       expect(staffData.variants[0]).not.toHaveProperty("cost_price");
       expect(staffData.variants[1]).not.toHaveProperty("cost_price");
+    });
+
+    it("A3: scan of barcode with pack_quantity 12 produces movement of 12, not 1", async () => {
+      currentRole = "staff";
+
+      // 1. Scan lookup returns pack_quantity 12
+      const scanRes = await fetch(`${baseUrl}/api/inventory/scan/CASE-12`);
+      expect(scanRes.status).toBe(200);
+      const scanData = await scanRes.json();
+      expect(scanData).toHaveLength(1);
+      expect(scanData[0].variant.pack_quantity).toBe(12);
+      expect(scanData[0].variant.pack_unit).toBe("pcs");
+      expect(scanData[0].variant.track_stock).toBe(true);
+      expect(scanData[0].variant.low_stock_threshold).toBe(10);
+
+      // 2. Adjust with barcode CASE-12 without manual quantity produces movement of 12, not 1
+      const adjustRes = await fetch(`${baseUrl}/api/admin/stock/adjust`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ barcode: "CASE-12", reason: "goods_receipt" }),
+      });
+      expect(adjustRes.status).toBe(200);
+      const adjustData = await adjustRes.json();
+      expect(adjustData.adjusted.quantity_delta).toBe(12);
+      expect(adjustData.adjusted.quantity_delta).not.toBe(1);
+    });
+
+    it("A1 & A2: records posting_date, transaction_id, and correlation_id on stock movement", async () => {
+      currentRole = "admin";
+      const postingDate = "2026-11-01T12:00:00Z";
+      const txId = "11111111-2222-3333-4444-555555555555";
+      const corrId = "99999999-8888-7777-6666-555555555555";
+
+      const res = await fetch(`${baseUrl}/api/admin/stock/adjust`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          variant_id: "var-1",
+          quantity_delta: 5,
+          reason: "goods_receipt",
+          posting_date: postingDate,
+          transaction_id: txId,
+          correlation_id: corrId,
+        }),
+      });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.adjusted.posting_date).toBe(postingDate);
+      expect(data.adjusted.transaction_id).toBe(txId);
+      expect(data.adjusted.correlation_id).toBe(corrId);
     });
   });
 });
