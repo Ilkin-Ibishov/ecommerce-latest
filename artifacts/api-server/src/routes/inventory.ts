@@ -146,15 +146,25 @@ router.get("/admin/variants/:id/movements", requireStaffOrAdmin, async (req: Req
 // ─── 3. Variant Management for Product ────────────────────────
 router.get("/admin/products/:id/variants", requireStaffOrAdmin, async (req: Request, res: Response) => {
   const admin = (req as any).admin;
+  const userRole = (req as any).userRole;
   const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
-  const { data: variants, error } = await (admin as any)
-    .from("product_variants")
-    .select(`
+  const selectCols = userRole === "admin"
+    ? `
+      id, product_id, sku, price, on_hand, unit_of_measure, is_default, sort_order,
+      variant_barcodes (id, barcode, source, is_primary),
+      variant_option_values(option_value_id, product_option_values(id, value, option_type_id)),
+      variant_costs (cost_price)
+    `
+    : `
       id, product_id, sku, price, on_hand, unit_of_measure, is_default, sort_order,
       variant_barcodes (id, barcode, source, is_primary),
       variant_option_values(option_value_id, product_option_values(id, value, option_type_id))
-    `)
+    `;
+
+  const { data: variants, error } = await (admin as any)
+    .from("product_variants")
+    .select(selectCols)
     .eq("product_id", productId)
     .order("sort_order", { ascending: true });
 
@@ -162,10 +172,15 @@ router.get("/admin/products/:id/variants", requireStaffOrAdmin, async (req: Requ
 
   const mapped = (variants ?? []).map((v: any) => {
     const primary = (v.variant_barcodes ?? []).find((b: any) => b.is_primary) ?? v.variant_barcodes?.[0];
+    const costPrice = userRole === "admin"
+      ? (Array.isArray(v.variant_costs) ? v.variant_costs[0]?.cost_price : v.variant_costs?.cost_price) ?? 0
+      : undefined;
+
     return {
       ...v,
       barcode: primary?.barcode ?? null,
       barcodes: v.variant_barcodes ?? [],
+      ...(userRole === "admin" ? { cost_price: costPrice } : {}),
     };
   });
 
@@ -245,7 +260,7 @@ router.patch("/admin/variants/:id", requireStaffOrAdmin, async (req: Request, re
   const user = (req as any).user;
   const userRole = (req as any).userRole;
   const variantId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { sku, barcode, price, unit_of_measure, sort_order, is_default } = req.body;
+  const { sku, barcode, price, unit_of_measure, sort_order, is_default, cost_price } = req.body;
 
   if (price !== undefined && userRole === "staff") {
     return res.status(403).json({ error: "Staff are not permitted to change product prices" });
@@ -279,7 +294,18 @@ router.patch("/admin/variants/:id", requireStaffOrAdmin, async (req: Request, re
     }
   }
 
-  writeAudit({ admin, req, actorId: user.id, action: "update_variant", entityType: "product_variant", entityId: variantId, details: { ...updates, barcode } });
+  // Handle cost price update for admin (F6)
+  if (userRole === "admin" && cost_price !== undefined) {
+    await (admin as any).from("variant_costs").upsert(
+      {
+        variant_id: variantId,
+        cost_price: typeof cost_price === "number" && cost_price >= 0 ? cost_price : 0,
+      },
+      { onConflict: "variant_id" }
+    );
+  }
+
+  writeAudit({ admin, req, actorId: user.id, action: "update_variant", entityType: "product_variant", entityId: variantId, details: { ...updates, barcode, ...(userRole === "admin" ? { cost_price } : {}) } });
   return res.json({ success: true });
 });
 

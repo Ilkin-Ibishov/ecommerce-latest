@@ -108,6 +108,23 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       res.json({ movements: sanitized });
     });
 
+    // Variant read endpoint with F6 cost tolerance & staff secrecy
+    app.get("/api/admin/products/:id/variants", requireStaffOrAdmin, (req, res) => {
+      const user = (req as any).user;
+      const isAdmin = user.role === "admin";
+      // Simulate 2 variants: one with cost 15.0, one legacy without cost row (missing)
+      const variants = [
+        { id: "var-1", sku: "SKU-1", price: 30, cost_row: { cost_price: 15.0 } },
+        { id: "var-2", sku: "SKU-2", price: 40, cost_row: null }, // missing cost row
+      ].map((v) => ({
+        id: v.id,
+        sku: v.sku,
+        price: v.price,
+        ...(isAdmin ? { cost_price: v.cost_row?.cost_price ?? 0 } : {}),
+      }));
+      res.json({ variants });
+    });
+
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => resolve());
     });
@@ -322,6 +339,25 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
         body: JSON.stringify({ variant_id: "var-1", delta: -10, reason: "stocktake_correction" }),
       });
       expect(stocktakeRes.status).toBe(200);
+    });
+
+    it("F6: tolerates missing variant_costs on read for admin and hides it from staff", async () => {
+      currentRole = "admin";
+      const adminRes = await fetch(`${baseUrl}/api/admin/products/p1/variants`);
+      expect(adminRes.status).toBe(200);
+      const adminData = await adminRes.json();
+      expect(adminData.variants).toHaveLength(2);
+      expect(adminData.variants[0].cost_price).toBe(15.0);
+      // var-2 has missing cost row, should safely default to 0
+      expect(adminData.variants[1].cost_price).toBe(0);
+
+      currentRole = "staff";
+      const staffRes = await fetch(`${baseUrl}/api/admin/products/p1/variants`);
+      expect(staffRes.status).toBe(200);
+      const staffData = await staffRes.json();
+      expect(staffData.variants).toHaveLength(2);
+      expect(staffData.variants[0]).not.toHaveProperty("cost_price");
+      expect(staffData.variants[1]).not.toHaveProperty("cost_price");
     });
   });
 });

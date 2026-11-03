@@ -143,7 +143,7 @@ router.patch("/admin/products/:id", requireAdmin, validate(UpdateProductSchema),
   const ctx = { admin: req.admin!, user: req.user! };
   const { id } = req.params;
   const { sku, slug, price, stock, is_featured, is_on_sale, is_deal_of_day, sort_order,
-    brand, original_price, translations, images, category_ids, specs } = req.body;
+    brand, original_price, translations, images, category_ids, specs, cost_price } = req.body;
   const admin = ctx.admin;
 
   // Note: stock is NEVER updated directly on edit (design §4 item 6)
@@ -155,12 +155,45 @@ router.patch("/admin/products/:id", requireAdmin, validate(UpdateProductSchema),
     original_price: original_price ?? null,
   }).eq("id", id);
 
-  // Sync default variant price and sku
-  if (price !== undefined || sku !== undefined) {
-    const varUpdate: Record<string, unknown> = {};
-    if (price !== undefined) varUpdate.price = price;
-    if (sku !== undefined) varUpdate.sku = sku ?? null;
-    await (admin as any).from("product_variants").update(varUpdate).eq("product_id", id).eq("is_default", true);
+  // Sync default variant price, sku, and guarantee variant_costs row lifecycle (F6)
+  const { data: defaultVar } = await (admin as any)
+    .from("product_variants")
+    .select("id")
+    .eq("product_id", id)
+    .eq("is_default", true)
+    .maybeSingle();
+
+  if (defaultVar) {
+    if (price !== undefined || sku !== undefined) {
+      const varUpdate: Record<string, unknown> = {};
+      if (price !== undefined) varUpdate.price = price;
+      if (sku !== undefined) varUpdate.sku = sku ?? null;
+      await (admin as any).from("product_variants").update(varUpdate).eq("id", defaultVar.id);
+    }
+
+    if (cost_price !== undefined) {
+      await (admin as any).from("variant_costs").upsert(
+        {
+          variant_id: defaultVar.id,
+          cost_price: typeof cost_price === "number" && cost_price >= 0 ? cost_price : 0,
+        },
+        { onConflict: "variant_id" }
+      );
+    } else {
+      // Guarantee variant_costs row existence even if cost_price was omitted in request
+      const { data: existingCost } = await (admin as any)
+        .from("variant_costs")
+        .select("variant_id")
+        .eq("variant_id", defaultVar.id)
+        .maybeSingle();
+
+      if (!existingCost) {
+        await (admin as any).from("variant_costs").insert({
+          variant_id: defaultVar.id,
+          cost_price: 0,
+        });
+      }
+    }
   }
 
   await (admin as any).from("product_translations").delete().eq("product_id", id);
