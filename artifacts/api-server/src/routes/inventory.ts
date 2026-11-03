@@ -335,18 +335,36 @@ router.post("/admin/stock/adjust", requireStaffOrAdmin, async (req: Request, res
   const userRole = (req as any).userRole;
   let { variant_id, quantity_delta, reason, note, unit_cost, barcode, pack_count, posting_date, transaction_id, correlation_id } = req.body;
 
-  // A3: Resolve barcode and pack quantity if barcode is provided (e.g. 1 scan of pack 12 -> 12)
+  // A3 / G2: Resolve barcode and pack quantity if barcode is provided (e.g. 1 scan of pack 12 -> 12)
   if (barcode) {
+    const cleanBarcode = String(barcode).trim();
     const { data: bRows } = await (admin as any)
       .from("variant_barcodes")
       .select("variant_id, pack_quantity")
-      .eq("barcode", String(barcode).trim());
+      .eq("barcode", cleanBarcode);
 
     if (bRows && bRows.length > 0) {
       if (!variant_id) {
+        // G2 Path 1: reject ambiguous shared barcode without operator disambiguation
+        if (bRows.length > 1) {
+          const candidates = bRows.map((r: any) => r.variant_id);
+          return res.status(400).json({
+            error: `Barcode '${cleanBarcode}' matches multiple variants (${candidates.join(", ")}). Please specify variant_id.`,
+            candidates,
+          });
+        }
         variant_id = bRows[0].variant_id;
       }
-      const packQty = Number(bRows[0].pack_quantity ?? 1);
+
+      // G2 Path 2: read pack_quantity from THAT variant's barcode row
+      const matchedRow = bRows.find((r: any) => r.variant_id === variant_id);
+      if (!matchedRow) {
+        return res.status(400).json({
+          error: `Barcode '${cleanBarcode}' does not belong to variant '${variant_id}'`,
+        });
+      }
+
+      const packQty = Number(matchedRow.pack_quantity ?? 1);
       if (quantity_delta === undefined || quantity_delta === null) {
         const count = typeof pack_count === "number" && pack_count !== 0 ? pack_count : 1;
         quantity_delta = count * packQty;

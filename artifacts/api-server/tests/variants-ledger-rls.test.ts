@@ -67,15 +67,36 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       res.json({ success: true, updated: req.body });
     });
 
-    // Stock movement adjustment endpoint with F5 role reason check & A3 pack quantity resolution
+    // Stock movement adjustment endpoint with F5 role reason check & A3 / G2 pack quantity resolution
     app.post("/api/admin/stock/adjust", requireStaffOrAdmin, (req, res) => {
       const user = (req as any).user;
-      const { reason, barcode, delta, quantity_delta } = req.body;
+      const { reason, barcode, delta, quantity_delta, variant_id, pack_count } = req.body;
       const ADMIN_ONLY_REASONS = ["opening_balance", "stocktake_correction"];
       if (ADMIN_ONLY_REASONS.includes(reason) && user.role !== "admin") {
         res.status(403).json({ error: `Reason '${reason}' is reserved for administrator role only` });
         return;
       }
+      // G2: Shared barcode resolution (SHARED-EAN matches mug-blue with pack 1, and mug-red with pack 12)
+      if (barcode === "SHARED-EAN") {
+        const candidates = ["mug-blue", "mug-red"];
+        if (!variant_id) {
+          res.status(400).json({
+            error: `Barcode '${barcode}' matches multiple variants (${candidates.join(", ")}). Please specify variant_id.`,
+            candidates,
+          });
+          return;
+        }
+        if (!candidates.includes(variant_id)) {
+          res.status(400).json({ error: `Barcode '${barcode}' does not belong to variant '${variant_id}'` });
+          return;
+        }
+        const packQty = variant_id === "mug-red" ? 12 : 1;
+        const count = typeof pack_count === "number" && pack_count !== 0 ? pack_count : 1;
+        const resolvedDelta = quantity_delta ?? delta ?? count * packQty;
+        res.json({ success: true, adjusted: { ...req.body, quantity_delta: resolvedDelta, variant_id } });
+        return;
+      }
+
       // A3: 1 scan of CASE-12 resolves to movement delta of 12
       let resolvedDelta = delta ?? quantity_delta;
       if (barcode === "CASE-12" && (resolvedDelta === undefined || resolvedDelta === null)) {
@@ -450,6 +471,37 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       expect(data.adjusted.posting_date).toBe(postingDate);
       expect(data.adjusted.transaction_id).toBe(txId);
       expect(data.adjusted.correlation_id).toBe(corrId);
+    });
+
+    it("G2 Path 1: shared barcode with multiple variants rejects naming candidates if variant_id is omitted", async () => {
+      currentRole = "staff";
+      const res = await fetch(`${baseUrl}/api/admin/stock/adjust`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ barcode: "SHARED-EAN", reason: "goods_receipt" }),
+      });
+      expect(res.status).toBe(400);
+      const data = await res.json();
+      expect(data.error).toContain("matches multiple variants");
+      expect(data.candidates).toEqual(["mug-blue", "mug-red"]);
+    });
+
+    it("G2 Path 2: shared barcode with variant_id reads pack_quantity from that variant's barcode row", async () => {
+      currentRole = "staff";
+      // Pick mug-red (which has pack_quantity 12, whereas first candidate mug-blue has 1)
+      const res = await fetch(`${baseUrl}/api/admin/stock/adjust`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          barcode: "SHARED-EAN",
+          variant_id: "mug-red",
+          reason: "goods_receipt",
+        }),
+      });
+      expect(res.status).toBe(200);
+      const data = await res.json();
+      expect(data.adjusted.quantity_delta).toBe(12);
+      expect(data.adjusted.quantity_delta).not.toBe(1);
     });
   });
 });
