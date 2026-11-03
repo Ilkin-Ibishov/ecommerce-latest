@@ -303,6 +303,14 @@ router.post("/admin/stock/adjust", requireStaffOrAdmin, async (req: Request, res
     return res.status(400).json({ error: `Invalid reason. Allowed: ${VALID_REASONS.join(", ")}` });
   }
 
+  // F5: Restrict opening_balance and stocktake_correction to admin role only
+  const ADMIN_ONLY_REASONS = ["opening_balance", "stocktake_correction"];
+  if (ADMIN_ONLY_REASONS.includes(reason) && userRole !== "admin") {
+    return res.status(403).json({
+      error: `Reason '${reason}' is reserved for administrator role only`,
+    });
+  }
+
   const { error } = await (admin as any).from("stock_movements").insert({
     variant_id,
     quantity_delta,

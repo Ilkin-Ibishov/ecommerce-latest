@@ -64,8 +64,15 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       res.json({ success: true, updated: req.body });
     });
 
-    // Stock movement adjustment endpoint
+    // Stock movement adjustment endpoint with F5 role reason check
     app.post("/api/admin/stock/adjust", requireStaffOrAdmin, (req, res) => {
+      const user = (req as any).user;
+      const { reason } = req.body;
+      const ADMIN_ONLY_REASONS = ["opening_balance", "stocktake_correction"];
+      if (ADMIN_ONLY_REASONS.includes(reason) && user.role !== "admin") {
+        res.status(403).json({ error: `Reason '${reason}' is reserved for administrator role only` });
+        return;
+      }
       res.json({ success: true, adjusted: req.body });
     });
 
@@ -275,6 +282,46 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       expect(adminRes.status).toBe(200);
       const adminData = await adminRes.json();
       expect(adminData.movements[0].unit_cost).toBe(25.0);
+    });
+
+    it("F5: blocks staff from posting opening_balance and stocktake_correction with 403 Forbidden", async () => {
+      currentRole = "staff";
+
+      const openRes = await fetch(`${baseUrl}/api/admin/stock/adjust`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variant_id: "var-1", delta: 100, reason: "opening_balance" }),
+      });
+      expect(openRes.status).toBe(403);
+      const openData = await openRes.json();
+      expect(openData.error).toContain("reserved for administrator role only");
+
+      const stocktakeRes = await fetch(`${baseUrl}/api/admin/stock/adjust`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variant_id: "var-1", delta: -10, reason: "stocktake_correction" }),
+      });
+      expect(stocktakeRes.status).toBe(403);
+      const stocktakeData = await stocktakeRes.json();
+      expect(stocktakeData.error).toContain("reserved for administrator role only");
+    });
+
+    it("F5: permits admin to post opening_balance and stocktake_correction", async () => {
+      currentRole = "admin";
+
+      const openRes = await fetch(`${baseUrl}/api/admin/stock/adjust`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variant_id: "var-1", delta: 100, reason: "opening_balance" }),
+      });
+      expect(openRes.status).toBe(200);
+
+      const stocktakeRes = await fetch(`${baseUrl}/api/admin/stock/adjust`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variant_id: "var-1", delta: -10, reason: "stocktake_correction" }),
+      });
+      expect(stocktakeRes.status).toBe(200);
     });
   });
 });
