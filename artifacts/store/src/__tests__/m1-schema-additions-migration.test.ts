@@ -19,6 +19,7 @@ interface SchemaRow {
 class MockPostgresEngine {
   public tables: Record<string, SchemaRow[]> = {};
   public indexes = new Set<string>();
+  public defaults: Record<string, any> = {};
 
   createTable(name: string, initialRows: SchemaRow[] = []) {
     this.tables[name] = initialRows.map((r) => ({ ...r }));
@@ -38,6 +39,19 @@ class MockPostgresEngine {
     }
   }
 
+  alterColumnSetNotNull(table: string, column: string) {
+    const rows = this.tables[table] || [];
+    for (const row of rows) {
+      if (row[column] === null || row[column] === undefined) {
+        throw new Error(`Column ${column} contains null values; cannot set NOT NULL`);
+      }
+    }
+  }
+
+  alterColumnSetDefault(table: string, column: string, defaultValue: any) {
+    this.defaults[`${table}.${column}`] = defaultValue;
+  }
+
   createIndex(indexName: string) {
     if (this.indexes.has(indexName)) return; // IF NOT EXISTS
     this.indexes.add(indexName);
@@ -51,12 +65,21 @@ class MockPostgresEngine {
   }
 }
 
-function simulateM1AdditionsMigration(db: MockPostgresEngine) {
-  // A1: posting_date on stock_movements
-  db.addColumn("stock_movements", "posting_date", () => new Date().toISOString());
+function simulateM1AdditionsMigration(db: MockPostgresEngine, migrationTime: string = "2026-11-03T21:00:00Z") {
+  // A1: posting_date on stock_movements via standard 4-step pattern
+  // 1. Add column nullable without default (existing rows receive NULL)
+  db.addColumn("stock_movements", "posting_date", null);
+  // 2. Backfill existing rows from created_at
   db.update("stock_movements", (row) => {
-    if (row.created_at) row.posting_date = row.created_at;
+    if (row.posting_date === null || row.posting_date === undefined) {
+      if (row.created_at) row.posting_date = row.created_at;
+    }
   });
+  // 3. Set NOT NULL once rows are backfilled
+  db.alterColumnSetNotNull("stock_movements", "posting_date");
+  // 4. Set DEFAULT now() for subsequent inserts
+  db.alterColumnSetDefault("stock_movements", "posting_date", () => migrationTime);
+
   db.createIndex("idx_stock_movements_variant_posting_date");
   db.createIndex("idx_stock_movements_posting_date");
 
@@ -85,8 +108,14 @@ describe("M1 Schema Additions: Empty & Populated Migration Verification", () => 
     expect(fs.existsSync(MIGRATION_PATH)).toBe(true);
     const sql = fs.readFileSync(MIGRATION_PATH, "utf-8").toLowerCase();
 
-    // Idempotent column additions
+    // Idempotent column additions & 4-step posting_date pattern
     expect(sql).toContain("add column if not exists posting_date");
+    expect(sql).toContain("update public.stock_movements");
+    expect(sql).toContain("set posting_date = created_at");
+    expect(sql).toContain("where posting_date is null");
+    expect(sql).toContain("alter table public.stock_movements");
+    expect(sql).toContain("alter column posting_date set not null");
+    expect(sql).toContain("alter column posting_date set default now()");
     expect(sql).toContain("add column if not exists transaction_id");
     expect(sql).toContain("add column if not exists correlation_id");
     expect(sql).toContain("add column if not exists pack_quantity");
@@ -147,6 +176,36 @@ describe("M1 Schema Additions: Empty & Populated Migration Verification", () => 
     const variant = populatedDb.tables.product_variants[0]!;
     expect(variant.track_stock).toBe(true);
     expect(variant.low_stock_threshold).toBeNull();
+  });
+
+  it("G1: pre-existing movements receive posting_date = created_at and not the migration run time", () => {
+    const db = new MockPostgresEngine();
+    const historicalCreatedAt = "2025-06-15T10:00:00.000Z";
+    const migrationExecutionTime = "2026-11-03T21:00:00.000Z";
+
+    db.createTable("product_variants", [
+      { id: "var-1", sku: "SKU-A", price: 10, on_hand: 5, unit_of_measure: "pcs" },
+    ]);
+    db.createTable("variant_barcodes", [
+      { id: "bc-1", variant_id: "var-1", barcode: "111" },
+    ]);
+    db.createTable("stock_movements", [
+      {
+        id: "mov-pre-existing",
+        variant_id: "var-1",
+        quantity_delta: 5,
+        reason: "goods_receipt",
+        created_at: historicalCreatedAt,
+      },
+    ]);
+
+    // Run migration at migrationExecutionTime
+    simulateM1AdditionsMigration(db, migrationExecutionTime);
+
+    const row = db.tables.stock_movements[0]!;
+    // Must be historical created_at, NOT the migration run time
+    expect(row.posting_date).toBe(historicalCreatedAt);
+    expect(row.posting_date).not.toBe(migrationExecutionTime);
   });
 
   it("is idempotent: applying a second time produces identical clean state", () => {

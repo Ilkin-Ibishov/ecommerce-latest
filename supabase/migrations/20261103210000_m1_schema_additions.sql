@@ -10,12 +10,22 @@
 -- Quantity commutes under SUM; weighted average cost does not.
 -- Running cost is a replayable projection ordered by business date (posting_date),
 -- not insert timestamp (created_at).
+-- Step 1: Add column nullable without default (existing rows receive NULL)
 ALTER TABLE public.stock_movements
-  ADD COLUMN IF NOT EXISTS posting_date timestamptz NOT NULL DEFAULT now();
+  ADD COLUMN IF NOT EXISTS posting_date timestamptz;
 
--- Ensure any existing rows have posting_date aligned with created_at
+-- Step 2: Backfill historical rows from created_at
 UPDATE public.stock_movements
-SET posting_date = created_at;
+SET posting_date = created_at
+WHERE posting_date IS NULL;
+
+-- Step 3: Enforce NOT NULL constraint once historical rows are backfilled
+ALTER TABLE public.stock_movements
+  ALTER COLUMN posting_date SET NOT NULL;
+
+-- Step 4: Set DEFAULT now() for subsequent inserts that omit posting_date
+ALTER TABLE public.stock_movements
+  ALTER COLUMN posting_date SET DEFAULT now();
 
 -- Fast index for posting_date replay and timeline queries
 CREATE INDEX IF NOT EXISTS idx_stock_movements_variant_posting_date

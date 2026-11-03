@@ -200,8 +200,11 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       expect(sql).not.toContain("errcode = 'p0001'");
     });
 
-    it("A1: adds posting_date to stock_movements with indexes and M2 trigger warning", () => {
-      expect(a1a4Sql).toContain("alter table public.stock_movements add column if not exists posting_date timestamptz not null default now()");
+    it("A1: adds posting_date to stock_movements via four-step pattern with indexes and M2 trigger warning", () => {
+      expect(a1a4Sql).toContain("alter table public.stock_movements add column if not exists posting_date timestamptz;");
+      expect(a1a4Sql).toContain("update public.stock_movements set posting_date = created_at where posting_date is null;");
+      expect(a1a4Sql).toContain("alter table public.stock_movements alter column posting_date set not null;");
+      expect(a1a4Sql).toContain("alter table public.stock_movements alter column posting_date set default now();");
       expect(a1a4Sql).toContain("create index if not exists idx_stock_movements_variant_posting_date on public.stock_movements(variant_id, posting_date desc)");
       expect(a1a4Sql).toContain("create index if not exists idx_stock_movements_posting_date on public.stock_movements(posting_date desc)");
       expect(a1a4Sql).toContain("do not extend trg_apply_stock_movement");
