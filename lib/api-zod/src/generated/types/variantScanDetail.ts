@@ -11,8 +11,12 @@ export interface VariantScanDetail {
   id: string;
   sku?: string | null;
   barcode?: string | null;
+  pack_quantity?: number;
+  pack_unit?: string;
   price: number;
   on_hand: number;
   unit_of_measure: string;
+  track_stock?: boolean;
+  low_stock_threshold?: number | null;
   options: VariantOption[];
 }

@@ -25,14 +25,21 @@ export const ScanBarcodeParams = zod.object({
   "barcode": zod.coerce.string()
 })
 
+export const scanBarcodeResponseVariantPackQuantityDefault = 1;
+export const scanBarcodeResponseVariantTrackStockDefault = true;
+
 export const ScanBarcodeResponseItem = zod.object({
   "variant": zod.object({
   "id": zod.string(),
   "sku": zod.string().nullish(),
   "barcode": zod.string().nullish(),
+  "pack_quantity": zod.number().default(scanBarcodeResponseVariantPackQuantityDefault),
+  "pack_unit": zod.string().optional(),
   "price": zod.number(),
   "on_hand": zod.number(),
   "unit_of_measure": zod.string(),
+  "track_stock": zod.boolean().default(scanBarcodeResponseVariantTrackStockDefault),
+  "low_stock_threshold": zod.number().nullish(),
   "options": zod.array(zod.object({
   "name": zod.string(),
   "value": zod.string()

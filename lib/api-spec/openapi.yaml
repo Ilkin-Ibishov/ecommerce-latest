@@ -88,12 +88,23 @@ components:
         barcode:
           type: string
           nullable: true
+        pack_quantity:
+          type: number
+          default: 1
+        pack_unit:
+          type: string
         price:
           type: number
         on_hand:
           type: number
         unit_of_measure:
           type: string
+        track_stock:
+          type: boolean
+          default: true
+        low_stock_threshold:
+          type: number
+          nullable: true
         options:
           type: array
           items:
