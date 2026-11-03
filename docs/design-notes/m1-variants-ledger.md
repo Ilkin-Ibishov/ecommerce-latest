@@ -285,3 +285,35 @@ FOR EACH ROW EXECUTE FUNCTION trg_apply_stock_movement();
 2. **Single-Write-Path Tests:** Assert that direct SQL updates to `product_variants.on_hand` throw SQLSTATE `55000`.
 3. **Insufficient Stock & Concurrency Property Tests:** Extend `artifacts/api-server/tests/helpers/stock-model.ts` to model the ledger. Verify that concurrent decrements beyond available stock fail with SQLSTATE `P0001` and map to HTTP 409 / 400. Assert $\sum(\text{movements}) \equiv \text{on\_hand}$ across randomized concurrent operations.
 4. **Role & Cost RLS Security Tests:** Verify that non-admin accounts (anonymous storefront users, authenticated customers, and staff) receive 0 rows when selecting `variant_costs` via PostgREST. Verify that staff attempting to alter `price` fail with SQLSTATE `42501`.
+
+---
+
+## 6. Schema Additions (Non-Backfillable) & Deferred M2 Roadmap
+
+### Schema Additions (prompts/m1-schema-additions.md)
+The ledger is initially empty; adding non-backfillable columns now avoids historical rows that can never have correct values:
+1. **A1 — `posting_date` on `stock_movements`:**
+   - Separates business posting timestamp from database insert timestamp `created_at`.
+   - Quantity commutes under `SUM(quantity_delta)`; weighted average cost does not. Cost valuation requires replaying movements ordered by business date.
+   - **Architectural Guard for M2:** Do NOT extend `trg_apply_stock_movement` (the `AFTER INSERT` trigger) to compute cost. The trigger sees insert order, not business order. Cost calculation belongs in a replay projection keyed on `posting_date`.
+2. **A2 — Grouping and Reversal Keys on `stock_movements`:**
+   - `transaction_id (uuid, nullable)`: Groups sibling movements produced by one compound operation (multi-line counter sale, assembly consume/produce, stocktake adjustments).
+   - `correlation_id (uuid, nullable)`: Explicitly links a compensating reversal movement to the original movement it corrects in an append-only ledger.
+3. **A3 — Pack Quantity on `variant_barcodes`:**
+   - `pack_quantity (numeric(12,3), default 1)` and `pack_unit (text, default 'pcs')`.
+   - Distinguishes piece barcodes from outer case packaging barcodes (e.g. scanning a 12-pack case records a movement of 12, not 1).
+4. **A4 — Catalog Fields on `product_variants`:**
+   - `track_stock (boolean, default true)`: Distinguishes inventory-tracked goods from non-tracked services, made-to-order items, and consumables.
+   - `low_stock_threshold (numeric(12,3), nullable)`: Accumulates merchant thresholds per variant ahead of the M6 alerting engine.
+
+### Carried Forward: Deferred M2 Roadmap (Not Backfill-Sensitive)
+These items do not suffer from backfill corruption and are scheduled for Milestone 2:
+1. **`rebuild_on_hand(variant)` and `verify_stock_integrity()`:**
+   - Periodic and on-demand reconciliation tool (equivalent to ERPNext `stock_balance.repost()` and Odoo `_quant_tasks()`) to verify cached `product_variants.on_hand` against `SUM(quantity_delta)` from `stock_movements`.
+2. **Stocktake Optimistic Concurrency:**
+   - Prevents counts submitted after a delay from silently overwriting sales in between. Accepts `{ variant_id, counted_qty, observed_on_hand }` and rejects if `observed_on_hand` diverges from the live count when the batch commits.
+3. **`allow_negative_stock` Tenant Setting:**
+   - Configurable per-tenant override for retail reality (selling Tuesday morning goods when supplier invoices arrive Wednesday). Records the override as an explicit note on the resulting stock movement.
+4. **Unit-of-Measure Immutability:**
+   - Enforce via trigger that once stock movements exist for a variant, `unit_of_measure` cannot be mutated in place (preventing historical reinterpretations of physical quantities).
+
