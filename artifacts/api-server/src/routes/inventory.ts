@@ -112,9 +112,10 @@ router.get("/inventory/scan/:barcode", requireStaffOrAdmin, async (req: Request,
   return res.json(results);
 });
 
-// ─── 2. Variant Movement History (Deliverables §7 item 6) ─────
+// ─── 2. Variant Movement History (Deliverables §7 item 6 / F4 unit_cost secrecy) ──
 router.get("/admin/variants/:id/movements", requireStaffOrAdmin, async (req: Request, res: Response) => {
   const admin = (req as any).admin;
+  const userRole = (req as any).userRole;
   const variantId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
   const { data: movements, error } = await (admin as any)
@@ -128,7 +129,18 @@ router.get("/admin/variants/:id/movements", requireStaffOrAdmin, async (req: Req
     .order("created_at", { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
-  return res.json({ movements: movements ?? [] });
+
+  // F4: Restrict unit_cost exclusively to admin. Staff must not see unit_cost or derive margins.
+  const isStaff = userRole === "staff";
+  const sanitized = (movements ?? []).map((m: any) => {
+    if (isStaff) {
+      const { unit_cost, ...safeRow } = m;
+      return safeRow;
+    }
+    return m;
+  });
+
+  return res.json({ movements: sanitized });
 });
 
 // ─── 3. Variant Management for Product ────────────────────────
@@ -275,6 +287,7 @@ router.patch("/admin/variants/:id", requireStaffOrAdmin, async (req: Request, re
 router.post("/admin/stock/adjust", requireStaffOrAdmin, async (req: Request, res: Response) => {
   const admin = (req as any).admin;
   const user = (req as any).user;
+  const userRole = (req as any).userRole;
   const { variant_id, quantity_delta, reason, note, unit_cost } = req.body;
 
   if (!variant_id || typeof quantity_delta !== "number" || quantity_delta === 0) {
@@ -297,7 +310,7 @@ router.post("/admin/stock/adjust", requireStaffOrAdmin, async (req: Request, res
     reference_type: "manual",
     actor_id: user.id,
     note: note || null,
-    unit_cost: typeof unit_cost === "number" && unit_cost >= 0 ? unit_cost : null,
+    unit_cost: userRole === "admin" && typeof unit_cost === "number" && unit_cost >= 0 ? unit_cost : null,
   });
 
   if (error) {

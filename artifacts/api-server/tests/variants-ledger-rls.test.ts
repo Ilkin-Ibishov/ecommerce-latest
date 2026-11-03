@@ -84,6 +84,23 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       ]);
     });
 
+    // Movement history endpoint with F4 unit_cost stripping
+    app.get("/api/admin/variants/:id/movements", requireStaffOrAdmin, (req, res) => {
+      const user = (req as any).user;
+      const isStaff = user.role === "staff";
+      const sample = [
+        { id: "mov-1", delta: 10, reason: "goods_receipt", unit_cost: 25.0 },
+      ];
+      const sanitized = sample.map((m) => {
+        if (isStaff) {
+          const { unit_cost, ...rest } = m;
+          return rest;
+        }
+        return m;
+      });
+      res.json({ movements: sanitized });
+    });
+
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => resolve());
     });
@@ -244,6 +261,20 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       const adminMatches = await adminRes.json();
       expect(Array.isArray(adminMatches)).toBe(true);
       expect(adminMatches).toHaveLength(1);
+    });
+
+    it("F4: hides unit_cost from staff in movement history while allowing admin to see it", async () => {
+      currentRole = "staff";
+      const staffRes = await fetch(`${baseUrl}/api/admin/variants/var-1/movements`);
+      expect(staffRes.status).toBe(200);
+      const staffData = await staffRes.json();
+      expect(staffData.movements[0]).not.toHaveProperty("unit_cost");
+
+      currentRole = "admin";
+      const adminRes = await fetch(`${baseUrl}/api/admin/variants/var-1/movements`);
+      expect(adminRes.status).toBe(200);
+      const adminData = await adminRes.json();
+      expect(adminData.movements[0].unit_cost).toBe(25.0);
     });
   });
 });
