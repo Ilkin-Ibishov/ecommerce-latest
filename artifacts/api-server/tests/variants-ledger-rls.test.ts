@@ -66,6 +66,11 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       res.json({ success: true, adjusted: req.body });
     });
 
+    // Barcode scan endpoint with requireStaffOrAdmin (F2)
+    app.get("/api/inventory/scan/:barcode", requireStaffOrAdmin, (req, res) => {
+      res.json({ success: true, barcode: req.params.barcode });
+    });
+
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => resolve());
     });
@@ -186,6 +191,32 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
         body: JSON.stringify({}),
       });
       expect(custRes.status).toBe(403);
+    });
+
+    it("F2: rejects unauthenticated requests to barcode scan endpoint with 401 Unauthorized", async () => {
+      currentRole = null;
+      const res = await fetch(`${baseUrl}/api/inventory/scan/4006381333931`);
+      expect(res.status).toBe(401);
+      const data = await res.json();
+      expect(data.error).toBe("Unauthorized");
+    });
+
+    it("F2: rejects customer requests to barcode scan endpoint with 403 Forbidden", async () => {
+      currentRole = "customer";
+      const res = await fetch(`${baseUrl}/api/inventory/scan/4006381333931`);
+      expect(res.status).toBe(403);
+      const data = await res.json();
+      expect(data.error).toContain("Forbidden");
+    });
+
+    it("F2: permits staff and admin to access barcode scan endpoint", async () => {
+      currentRole = "staff";
+      const staffRes = await fetch(`${baseUrl}/api/inventory/scan/4006381333931`);
+      expect(staffRes.status).toBe(200);
+
+      currentRole = "admin";
+      const adminRes = await fetch(`${baseUrl}/api/inventory/scan/4006381333931`);
+      expect(adminRes.status).toBe(200);
     });
   });
 });

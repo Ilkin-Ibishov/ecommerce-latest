@@ -38,9 +38,9 @@ async function requireStaffOrAdmin(req: Request, res: Response, next: () => void
   next();
 }
 
-// ─── 1. Barcode Scan Lookup (Design §2 Q4) ────────────────────
-router.get("/inventory/scan/:barcode", async (req: Request, res: Response) => {
-  const admin = getAdminSupabase();
+// ─── 1. Barcode Scan Lookup (Design §2 Q4 / F2 auth protected) ─
+router.get("/inventory/scan/:barcode", requireStaffOrAdmin, async (req: Request, res: Response) => {
+  const admin = (req as any).admin;
   const barcode = Array.isArray(req.params.barcode) ? req.params.barcode[0] : req.params.barcode;
 
   const { data: variant, error } = await (admin as any)
