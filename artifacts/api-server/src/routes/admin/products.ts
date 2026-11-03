@@ -75,6 +75,8 @@ router.post("/admin/products", requireAdmin, enforceQuota("products"), validate(
     price,
     on_hand: 0,
     unit_of_measure: unit_of_measure || "pcs",
+    track_stock: req.body.track_stock !== undefined ? !!req.body.track_stock : true,
+    low_stock_threshold: typeof req.body.low_stock_threshold === "number" && req.body.low_stock_threshold >= 0 ? req.body.low_stock_threshold : null,
     is_default: true,
     sort_order: 0,
   }).select("id").single();

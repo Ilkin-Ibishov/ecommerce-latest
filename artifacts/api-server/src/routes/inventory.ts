@@ -48,10 +48,12 @@ router.get("/inventory/scan/:barcode", requireStaffOrAdmin, async (req: Request,
     .from("variant_barcodes")
     .select(`
       barcode,
+      pack_quantity,
+      pack_unit,
       is_primary,
       source,
       product_variants!inner (
-        id, sku, price, on_hand, unit_of_measure, is_default, product_id,
+        id, sku, price, on_hand, unit_of_measure, track_stock, low_stock_threshold, is_default, product_id,
         products (
           id, slug,
           product_translations (lang_code, title),
@@ -91,9 +93,13 @@ router.get("/inventory/scan/:barcode", requireStaffOrAdmin, async (req: Request,
           id: variant.id,
           sku: variant.sku,
           barcode: row.barcode,
+          pack_quantity: Number(row.pack_quantity ?? 1),
+          pack_unit: row.pack_unit ?? variant.unit_of_measure,
           price: Number(variant.price),
           on_hand: Number(variant.on_hand),
           unit_of_measure: variant.unit_of_measure,
+          track_stock: variant.track_stock ?? true,
+          low_stock_threshold: variant.low_stock_threshold != null ? Number(variant.low_stock_threshold) : null,
           options,
         },
         product: {
@@ -122,10 +128,11 @@ router.get("/admin/variants/:id/movements", requireStaffOrAdmin, async (req: Req
     .from("stock_movements")
     .select(`
       id, variant_id, quantity_delta, reason, reference_type, reference_id,
-      unit_cost, note, created_at,
+      unit_cost, note, posting_date, transaction_id, correlation_id, created_at,
       users(id, full_name, role)
     `)
     .eq("variant_id", variantId)
+    .order("posting_date", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
@@ -151,14 +158,14 @@ router.get("/admin/products/:id/variants", requireStaffOrAdmin, async (req: Requ
 
   const selectCols = userRole === "admin"
     ? `
-      id, product_id, sku, price, on_hand, unit_of_measure, is_default, sort_order,
-      variant_barcodes (id, barcode, source, is_primary),
+      id, product_id, sku, price, on_hand, unit_of_measure, track_stock, low_stock_threshold, is_default, sort_order,
+      variant_barcodes (id, barcode, source, is_primary, pack_quantity, pack_unit),
       variant_option_values(option_value_id, product_option_values(id, value, option_type_id)),
       variant_costs (cost_price)
     `
     : `
-      id, product_id, sku, price, on_hand, unit_of_measure, is_default, sort_order,
-      variant_barcodes (id, barcode, source, is_primary),
+      id, product_id, sku, price, on_hand, unit_of_measure, track_stock, low_stock_threshold, is_default, sort_order,
+      variant_barcodes (id, barcode, source, is_primary, pack_quantity, pack_unit),
       variant_option_values(option_value_id, product_option_values(id, value, option_type_id))
     `;
 
@@ -192,7 +199,7 @@ router.post("/admin/products/:id/variants", requireStaffOrAdmin, async (req: Req
   const admin = (req as any).admin;
   const user = (req as any).user;
   const productId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { sku, barcode, price, initial_quantity, unit_of_measure, sort_order, option_value_ids, cost_price } = req.body;
+  const { sku, barcode, price, initial_quantity, unit_of_measure, sort_order, option_value_ids, cost_price, track_stock, low_stock_threshold, pack_quantity, pack_unit } = req.body;
 
   if (typeof price !== "number" || price < 0) {
     return res.status(400).json({ error: "price must be a non-negative number" });
@@ -206,6 +213,8 @@ router.post("/admin/products/:id/variants", requireStaffOrAdmin, async (req: Req
       price,
       on_hand: 0,
       unit_of_measure: unit_of_measure || "pcs",
+      track_stock: track_stock !== undefined ? !!track_stock : true,
+      low_stock_threshold: typeof low_stock_threshold === "number" && low_stock_threshold >= 0 ? low_stock_threshold : null,
       is_default: false,
       sort_order: sort_order ?? 0,
     })
@@ -214,13 +223,15 @@ router.post("/admin/products/:id/variants", requireStaffOrAdmin, async (req: Req
 
   if (error) return res.status(400).json({ error: error.message });
 
-  // Attach barcode to variant_barcodes table (F3)
+  // Attach barcode to variant_barcodes table (F3 / A3)
   if (barcode && String(barcode).trim()) {
     await (admin as any).from("variant_barcodes").insert({
       variant_id: variant.id,
       barcode: String(barcode).trim(),
       source: "manufacturer",
       is_primary: true,
+      pack_quantity: typeof pack_quantity === "number" && pack_quantity > 0 ? pack_quantity : 1,
+      pack_unit: pack_unit ? String(pack_unit).trim() : (unit_of_measure || "pcs"),
     });
   }
 
@@ -260,7 +271,7 @@ router.patch("/admin/variants/:id", requireStaffOrAdmin, async (req: Request, re
   const user = (req as any).user;
   const userRole = (req as any).userRole;
   const variantId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  const { sku, barcode, price, unit_of_measure, sort_order, is_default, cost_price } = req.body;
+  const { sku, barcode, price, unit_of_measure, sort_order, is_default, cost_price, track_stock, low_stock_threshold, pack_quantity, pack_unit } = req.body;
 
   if (price !== undefined && userRole === "staff") {
     return res.status(403).json({ error: "Staff are not permitted to change product prices" });
@@ -270,6 +281,10 @@ router.patch("/admin/variants/:id", requireStaffOrAdmin, async (req: Request, re
   if (sku !== undefined) updates.sku = sku ? String(sku).trim() : null;
   if (price !== undefined) updates.price = price;
   if (unit_of_measure !== undefined) updates.unit_of_measure = unit_of_measure;
+  if (track_stock !== undefined) updates.track_stock = !!track_stock;
+  if (low_stock_threshold !== undefined) {
+    updates.low_stock_threshold = typeof low_stock_threshold === "number" && low_stock_threshold >= 0 ? low_stock_threshold : null;
+  }
   if (sort_order !== undefined) updates.sort_order = sort_order;
   if (is_default !== undefined) updates.is_default = is_default;
 
@@ -278,17 +293,21 @@ router.patch("/admin/variants/:id", requireStaffOrAdmin, async (req: Request, re
     if (error) return res.status(400).json({ error: error.message });
   }
 
-  // Handle barcode update in variant_barcodes table (F3)
+  // Handle barcode update in variant_barcodes table (F3 / A3)
   if (barcode !== undefined) {
     const trimmed = barcode ? String(barcode).trim() : null;
     if (trimmed) {
+      const bcRow: Record<string, unknown> = {
+        variant_id: variantId,
+        barcode: trimmed,
+        source: "manufacturer",
+        is_primary: true,
+      };
+      if (typeof pack_quantity === "number" && pack_quantity > 0) bcRow.pack_quantity = pack_quantity;
+      if (pack_unit) bcRow.pack_unit = String(pack_unit).trim();
+
       await (admin as any).from("variant_barcodes").upsert(
-        {
-          variant_id: variantId,
-          barcode: trimmed,
-          source: "manufacturer",
-          is_primary: true,
-        },
+        bcRow,
         { onConflict: "variant_id,barcode" }
       );
     }
@@ -314,10 +333,29 @@ router.post("/admin/stock/adjust", requireStaffOrAdmin, async (req: Request, res
   const admin = (req as any).admin;
   const user = (req as any).user;
   const userRole = (req as any).userRole;
-  const { variant_id, quantity_delta, reason, note, unit_cost } = req.body;
+  let { variant_id, quantity_delta, reason, note, unit_cost, barcode, pack_count, posting_date, transaction_id, correlation_id } = req.body;
+
+  // A3: Resolve barcode and pack quantity if barcode is provided (e.g. 1 scan of pack 12 -> 12)
+  if (barcode) {
+    const { data: bRows } = await (admin as any)
+      .from("variant_barcodes")
+      .select("variant_id, pack_quantity")
+      .eq("barcode", String(barcode).trim());
+
+    if (bRows && bRows.length > 0) {
+      if (!variant_id) {
+        variant_id = bRows[0].variant_id;
+      }
+      const packQty = Number(bRows[0].pack_quantity ?? 1);
+      if (quantity_delta === undefined || quantity_delta === null) {
+        const count = typeof pack_count === "number" && pack_count !== 0 ? pack_count : 1;
+        quantity_delta = count * packQty;
+      }
+    }
+  }
 
   if (!variant_id || typeof quantity_delta !== "number" || quantity_delta === 0) {
-    return res.status(400).json({ error: "variant_id and non-zero numeric quantity_delta are required" });
+    return res.status(400).json({ error: "variant_id (or valid barcode) and non-zero numeric quantity_delta are required" });
   }
 
   const VALID_REASONS = [
@@ -337,7 +375,8 @@ router.post("/admin/stock/adjust", requireStaffOrAdmin, async (req: Request, res
     });
   }
 
-  const { error } = await (admin as any).from("stock_movements").insert({
+  // A1, A2: Set posting_date, transaction_id, correlation_id on movement row
+  const movementRow: Record<string, unknown> = {
     variant_id,
     quantity_delta,
     reason,
@@ -345,7 +384,12 @@ router.post("/admin/stock/adjust", requireStaffOrAdmin, async (req: Request, res
     actor_id: user.id,
     note: note || null,
     unit_cost: userRole === "admin" && typeof unit_cost === "number" && unit_cost >= 0 ? unit_cost : null,
-  });
+  };
+  if (posting_date) movementRow.posting_date = posting_date;
+  if (transaction_id) movementRow.transaction_id = transaction_id;
+  if (correlation_id) movementRow.correlation_id = correlation_id;
+
+  const { error } = await (admin as any).from("stock_movements").insert(movementRow);
 
   if (error) {
     if ((error as any).code === "ST001") {
