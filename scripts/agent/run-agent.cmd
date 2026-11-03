@@ -31,7 +31,12 @@ set LOG=.agent-runs\%~n1-%TS%.log
 echo Running %PROMPT_FILE% on %MODEL% effort=%EFFORT%
 echo Log: %LOG%
 
-"%AGY%" -p "Read %PROMPT_FILE% and carry out exactly what it describes. Follow AGENTS.md. Commit your work as the prompt instructs." --model %MODEL% --effort %EFFORT% --mode accept-edits --dangerously-skip-permissions --print-timeout 0 > "%LOG%" 2>&1
+REM Claude models carry their own thinking budget and reject --effort; pass "none" to omit it.
+set EFFORT_FLAG=--effort %EFFORT%
+if /i "%EFFORT%"=="none" set EFFORT_FLAG=
+echo %MODEL% | findstr /i /c:"claude" >nul && set EFFORT_FLAG=
+
+"%AGY%" -p "Read %PROMPT_FILE% and carry out exactly what it describes. Follow AGENTS.md. Commit your work as the prompt instructs." --model %MODEL% %EFFORT_FLAG% --mode accept-edits --dangerously-skip-permissions --print-timeout 0 > "%LOG%" 2>&1
 
 echo Exit code: %ERRORLEVEL%
 echo Output in %LOG%
