@@ -246,6 +246,8 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
   price            numeric(10,2) NOT NULL CHECK (price >= 0),
   on_hand          numeric(12,3) NOT NULL DEFAULT 0 CHECK (on_hand >= 0),
   unit_of_measure  text NOT NULL DEFAULT 'pcs',
+  track_stock      boolean NOT NULL DEFAULT true,
+  low_stock_threshold numeric(12,3) CHECK (low_stock_threshold >= 0),
   is_default       boolean NOT NULL DEFAULT false,
   sort_order       integer NOT NULL DEFAULT 0,
   created_at       timestamptz NOT NULL DEFAULT now(),
@@ -257,12 +259,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_product_variants_single_default
 
 -- ─── Variant Barcodes (F3 / identification scenario matrix) ──────
 CREATE TABLE IF NOT EXISTS public.variant_barcodes (
-  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  variant_id   uuid NOT NULL REFERENCES public.product_variants(id) ON DELETE CASCADE,
-  barcode      text NOT NULL,
-  source       text NOT NULL DEFAULT 'manufacturer' CHECK (source IN ('manufacturer', 'internal')),
-  is_primary   boolean NOT NULL DEFAULT true,
-  created_at   timestamptz NOT NULL DEFAULT now(),
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  variant_id     uuid NOT NULL REFERENCES public.product_variants(id) ON DELETE CASCADE,
+  barcode        text NOT NULL,
+  pack_quantity  numeric(12,3) NOT NULL DEFAULT 1 CHECK (pack_quantity > 0),
+  pack_unit      text NOT NULL DEFAULT 'pcs',
+  source         text NOT NULL DEFAULT 'manufacturer' CHECK (source IN ('manufacturer', 'internal')),
+  is_primary     boolean NOT NULL DEFAULT true,
+  created_at     timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT uq_variant_barcodes_variant_barcode UNIQUE (variant_id, barcode)
 );
 
@@ -429,14 +433,31 @@ CREATE TABLE IF NOT EXISTS public.stock_movements (
   unit_cost       numeric(10,2) CHECK (unit_cost >= 0),
   actor_id        uuid REFERENCES public.users(id),
   note            text,
+  posting_date    timestamptz NOT NULL DEFAULT now(),
+  transaction_id  uuid,
+  correlation_id  uuid,
   created_at      timestamptz NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_stock_movements_variant_created
   ON public.stock_movements(variant_id, created_at DESC);
 
+CREATE INDEX IF NOT EXISTS idx_stock_movements_variant_posting_date
+  ON public.stock_movements(variant_id, posting_date DESC);
+
 CREATE INDEX IF NOT EXISTS idx_stock_movements_created
   ON public.stock_movements(created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_stock_movements_posting_date
+  ON public.stock_movements(posting_date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_stock_movements_transaction_id
+  ON public.stock_movements(transaction_id)
+  WHERE transaction_id IS NOT NULL;
+
+CREATE INDEX IF NOT EXISTS idx_stock_movements_correlation_id
+  ON public.stock_movements(correlation_id)
+  WHERE correlation_id IS NOT NULL;
 
 ALTER TABLE public.stock_movements ENABLE ROW LEVEL SECURITY;
 
@@ -457,6 +478,14 @@ $;
 DROP TRIGGER IF EXISTS stock_movements_no_update_delete ON public.stock_movements;
 CREATE TRIGGER stock_movements_no_update_delete BEFORE UPDATE OR DELETE ON public.stock_movements
 FOR EACH ROW EXECUTE FUNCTION trg_stock_movements_immutable();
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ARCHITECTURAL DECISION NOTE FOR M2 / TRIGGER MAINTENANCE:
+-- DO NOT extend trg_apply_stock_movement (the AFTER INSERT trigger) to compute cost.
+-- The trigger sees insert order, not business order.
+-- Cost belongs in a replay projection keyed on posting_date, which at typical shop
+-- volume (hundreds of variants) executes in milliseconds.
+-- ─────────────────────────────────────────────────────────────────────────────
 
 -- Trigger: Atomic quantity pairing on stock_movements insert
 -- NOTE: Uses distinct custom SQLSTATE error codes in unassigned class 'ST':
