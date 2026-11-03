@@ -990,6 +990,41 @@ export type Database = {
           },
         ]
       }
+      variant_barcodes: {
+        Row: {
+          barcode: string
+          created_at: string
+          id: string
+          is_primary: boolean
+          source: string
+          variant_id: string
+        }
+        Insert: {
+          barcode: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          source?: string
+          variant_id: string
+        }
+        Update: {
+          barcode?: string
+          created_at?: string
+          id?: string
+          is_primary?: boolean
+          source?: string
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "variant_barcodes_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       variant_costs: {
         Row: {
           cost_price: number

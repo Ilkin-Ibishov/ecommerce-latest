@@ -120,7 +120,7 @@ export const getScanBarcodeUrl = (barcode: string,) => {
 }
 
 /**
- * Single round-trip lookup returning variant and product details for a barcode
+ * Single round-trip lookup returning matching variants and product details for a barcode
  * @summary Barcode scan lookup
  */
 export const scanBarcode = async (barcode: string, options?: RequestInit): Promise<BarcodeScanResult> => {

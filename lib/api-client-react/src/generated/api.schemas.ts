@@ -35,8 +35,10 @@ export interface ProductScanDetail {
   image_url?: string | null;
 }
 
-export interface BarcodeScanResult {
+export interface BarcodeScanMatch {
   variant: VariantScanDetail;
   product: ProductScanDetail;
 }
+
+export type BarcodeScanResult = BarcodeScanMatch[];
 

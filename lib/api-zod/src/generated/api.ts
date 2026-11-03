@@ -18,14 +18,14 @@ export const HealthCheckResponse = zod.object({
 
 
 /**
- * Single round-trip lookup returning variant and product details for a barcode
+ * Single round-trip lookup returning matching variants and product details for a barcode
  * @summary Barcode scan lookup
  */
 export const ScanBarcodeParams = zod.object({
   "barcode": zod.coerce.string()
 })
 
-export const ScanBarcodeResponse = zod.object({
+export const ScanBarcodeResponseItem = zod.object({
   "variant": zod.object({
   "id": zod.string(),
   "sku": zod.string().nullish(),
@@ -45,5 +45,6 @@ export const ScanBarcodeResponse = zod.object({
   "image_url": zod.string().nullish()
 })
 })
+export const ScanBarcodeResponse = zod.array(ScanBarcodeResponseItem)
 
 

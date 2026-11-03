@@ -38,58 +38,78 @@ async function requireStaffOrAdmin(req: Request, res: Response, next: () => void
   next();
 }
 
-// ─── 1. Barcode Scan Lookup (Design §2 Q4 / F2 auth protected) ─
+// ─── 1. Barcode Scan Lookup (F2 Auth & F3 Multi-Variant List) ─
 router.get("/inventory/scan/:barcode", requireStaffOrAdmin, async (req: Request, res: Response) => {
   const admin = (req as any).admin;
   const barcode = Array.isArray(req.params.barcode) ? req.params.barcode[0] : req.params.barcode;
 
-  const { data: variant, error } = await (admin as any)
-    .from("product_variants")
+  // Query variant_barcodes table (F3 / identification scenario matrix)
+  const { data: barcodeRows, error } = await (admin as any)
+    .from("variant_barcodes")
     .select(`
-      id, sku, barcode, price, on_hand, unit_of_measure, is_default, product_id,
-      products(id, slug, product_translations(lang_code, title), product_images(url, sort_order)),
-      variant_option_values(
-        product_option_values(
-          value,
-          product_option_types(name)
+      barcode,
+      is_primary,
+      source,
+      product_variants!inner (
+        id, sku, price, on_hand, unit_of_measure, is_default, product_id,
+        products (
+          id, slug,
+          product_translations (lang_code, title),
+          product_images (url, sort_order)
+        ),
+        variant_option_values (
+          product_option_values (
+            value,
+            product_option_types (name)
+          )
         )
       )
     `)
-    .eq("barcode", barcode)
-    .maybeSingle();
+    .eq("barcode", barcode);
 
-  if (error || !variant) {
+  if (error || !barcodeRows || barcodeRows.length === 0) {
     return res.status(404).json({ error: "Barcode not found" });
   }
 
-  const prod = variant.products;
-  const title = prod?.product_translations?.find((t: any) => t.lang_code === "az")?.title
-    ?? prod?.product_translations?.[0]?.title ?? "Product";
-  const sortedImages = [...(prod?.product_images ?? [])].sort((a: any, b: any) => a.sort_order - b.sort_order);
-  const imageUrl = sortedImages[0]?.url ?? null;
+  const results = barcodeRows
+    .filter((row: any) => row.product_variants)
+    .map((row: any) => {
+      const variant = row.product_variants;
+      const prod = variant.products;
+      const title = prod?.product_translations?.find((t: any) => t.lang_code === "az")?.title
+        ?? prod?.product_translations?.[0]?.title ?? "Product";
+      const sortedImages = [...(prod?.product_images ?? [])].sort((a: any, b: any) => a.sort_order - b.sort_order);
+      const imageUrl = sortedImages[0]?.url ?? null;
 
-  const options = (variant.variant_option_values ?? []).map((vov: any) => ({
-    name: vov?.product_option_values?.product_option_types?.name ?? "Option",
-    value: vov?.product_option_values?.value ?? "",
-  }));
+      const options = (variant.variant_option_values ?? []).map((vov: any) => ({
+        name: vov?.product_option_values?.product_option_types?.name ?? "Option",
+        value: vov?.product_option_values?.value ?? "",
+      }));
 
-  return res.json({
-    variant: {
-      id: variant.id,
-      sku: variant.sku,
-      barcode: variant.barcode,
-      price: Number(variant.price),
-      on_hand: Number(variant.on_hand),
-      unit_of_measure: variant.unit_of_measure,
-      options,
-    },
-    product: {
-      id: prod?.id ?? variant.product_id,
-      title,
-      slug: prod?.slug ?? "",
-      image_url: imageUrl,
-    },
-  });
+      return {
+        variant: {
+          id: variant.id,
+          sku: variant.sku,
+          barcode: row.barcode,
+          price: Number(variant.price),
+          on_hand: Number(variant.on_hand),
+          unit_of_measure: variant.unit_of_measure,
+          options,
+        },
+        product: {
+          id: prod?.id ?? variant.product_id,
+          title,
+          slug: prod?.slug ?? "",
+          image_url: imageUrl,
+        },
+      };
+    });
+
+  if (results.length === 0) {
+    return res.status(404).json({ error: "Barcode not found" });
+  }
+
+  return res.json(results);
 });
 
 // ─── 2. Variant Movement History (Deliverables §7 item 6) ─────
@@ -119,14 +139,25 @@ router.get("/admin/products/:id/variants", requireStaffOrAdmin, async (req: Requ
   const { data: variants, error } = await (admin as any)
     .from("product_variants")
     .select(`
-      id, product_id, sku, barcode, price, on_hand, unit_of_measure, is_default, sort_order,
+      id, product_id, sku, price, on_hand, unit_of_measure, is_default, sort_order,
+      variant_barcodes (id, barcode, source, is_primary),
       variant_option_values(option_value_id, product_option_values(id, value, option_type_id))
     `)
     .eq("product_id", productId)
     .order("sort_order", { ascending: true });
 
   if (error) return res.status(500).json({ error: error.message });
-  return res.json({ variants: variants ?? [] });
+
+  const mapped = (variants ?? []).map((v: any) => {
+    const primary = (v.variant_barcodes ?? []).find((b: any) => b.is_primary) ?? v.variant_barcodes?.[0];
+    return {
+      ...v,
+      barcode: primary?.barcode ?? null,
+      barcodes: v.variant_barcodes ?? [],
+    };
+  });
+
+  return res.json({ variants: mapped });
 });
 
 // Create a variant
@@ -145,7 +176,6 @@ router.post("/admin/products/:id/variants", requireStaffOrAdmin, async (req: Req
     .insert({
       product_id: productId,
       sku: sku ? String(sku).trim() : null,
-      barcode: barcode ? String(barcode).trim() : null,
       price,
       on_hand: 0,
       unit_of_measure: unit_of_measure || "pcs",
@@ -156,6 +186,16 @@ router.post("/admin/products/:id/variants", requireStaffOrAdmin, async (req: Req
     .single();
 
   if (error) return res.status(400).json({ error: error.message });
+
+  // Attach barcode to variant_barcodes table (F3)
+  if (barcode && String(barcode).trim()) {
+    await (admin as any).from("variant_barcodes").insert({
+      variant_id: variant.id,
+      barcode: String(barcode).trim(),
+      source: "manufacturer",
+      is_primary: true,
+    });
+  }
 
   // Attach option values
   if (Array.isArray(option_value_ids) && option_value_ids.length > 0) {
@@ -201,16 +241,33 @@ router.patch("/admin/variants/:id", requireStaffOrAdmin, async (req: Request, re
 
   const updates: Record<string, unknown> = {};
   if (sku !== undefined) updates.sku = sku ? String(sku).trim() : null;
-  if (barcode !== undefined) updates.barcode = barcode ? String(barcode).trim() : null;
   if (price !== undefined) updates.price = price;
   if (unit_of_measure !== undefined) updates.unit_of_measure = unit_of_measure;
   if (sort_order !== undefined) updates.sort_order = sort_order;
   if (is_default !== undefined) updates.is_default = is_default;
 
-  const { error } = await (admin as any).from("product_variants").update(updates).eq("id", variantId);
-  if (error) return res.status(400).json({ error: error.message });
+  if (Object.keys(updates).length > 0) {
+    const { error } = await (admin as any).from("product_variants").update(updates).eq("id", variantId);
+    if (error) return res.status(400).json({ error: error.message });
+  }
 
-  writeAudit({ admin, req, actorId: user.id, action: "update_variant", entityType: "product_variant", entityId: variantId, details: updates });
+  // Handle barcode update in variant_barcodes table (F3)
+  if (barcode !== undefined) {
+    const trimmed = barcode ? String(barcode).trim() : null;
+    if (trimmed) {
+      await (admin as any).from("variant_barcodes").upsert(
+        {
+          variant_id: variantId,
+          barcode: trimmed,
+          source: "manufacturer",
+          is_primary: true,
+        },
+        { onConflict: "variant_id,barcode" }
+      );
+    }
+  }
+
+  writeAudit({ admin, req, actorId: user.id, action: "update_variant", entityType: "product_variant", entityId: variantId, details: { ...updates, barcode } });
   return res.json({ success: true });
 });
 

@@ -7,23 +7,26 @@ import type { AddressInfo } from "node:net";
 
 const MIGRATIONS_DIR = path.resolve(import.meta.dirname, "../../../supabase/migrations");
 const M1_MIGRATION = "20261102100000_m1_variants_ledger.sql";
+const F3_MIGRATION = "20261103201000_create_variant_barcodes.sql";
 
-function readMigration(): string {
-  const filePath = path.join(MIGRATIONS_DIR, M1_MIGRATION);
+function readMigration(filename: string): string {
+  const filePath = path.join(MIGRATIONS_DIR, filename);
   if (!fs.existsSync(filePath)) {
-    throw new Error(`M1 migration not found at ${filePath}`);
+    throw new Error(`Migration not found at ${filePath}`);
   }
   return fs.readFileSync(filePath, "utf-8").replace(/\s+/g, " ").toLowerCase();
 }
 
 describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
   let sql: string;
+  let f3Sql: string;
   let server: Server;
   let baseUrl: string;
   let currentRole: "admin" | "staff" | "customer" | null = null;
 
   beforeAll(async () => {
-    sql = readMigration();
+    sql = readMigration(M1_MIGRATION);
+    f3Sql = readMigration(F3_MIGRATION);
 
     const app = express();
     app.use(express.json());
@@ -66,9 +69,19 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       res.json({ success: true, adjusted: req.body });
     });
 
-    // Barcode scan endpoint with requireStaffOrAdmin (F2)
+    // Barcode scan endpoint returning list (F2 auth & F3 multi-match list)
     app.get("/api/inventory/scan/:barcode", requireStaffOrAdmin, (req, res) => {
-      res.json({ success: true, barcode: req.params.barcode });
+      const barcode = req.params.barcode;
+      if (barcode === "SHARED-EAN") {
+        res.json([
+          { variant: { id: "mug-blue", barcode }, product: { id: "p1", title: "Mug (Blue)" } },
+          { variant: { id: "mug-red", barcode }, product: { id: "p1", title: "Mug (Red)" } },
+        ]);
+        return;
+      }
+      res.json([
+        { variant: { id: "var-1", barcode }, product: { id: "p1", title: "Product 1" } },
+      ]);
     });
 
     await new Promise<void>((resolve) => {
@@ -87,6 +100,14 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       expect(sql).toContain("alter table public.product_variants enable row level security");
       expect(sql).toContain("alter table public.variant_costs enable row level security");
       expect(sql).toContain("alter table public.stock_movements enable row level security");
+    });
+
+    it("F3: enables RLS and defines policies on variant_barcodes", () => {
+      expect(f3Sql).toContain("alter table public.variant_barcodes enable row level security");
+      expect(f3Sql).toContain("create table if not exists public.variant_barcodes");
+      expect(f3Sql).toContain("uq_variant_barcodes_variant_barcode unique (variant_id, barcode)");
+      expect(f3Sql).toContain("drop index if exists public.idx_variants_barcode");
+      expect(f3Sql).toContain("idx_variant_barcodes_single_primary");
     });
 
     it("restricts variant_costs access exclusively to admin role", () => {
@@ -209,14 +230,20 @@ describe("M1 Variants & Ledger RLS & Role Enforcement", () => {
       expect(data.error).toContain("Forbidden");
     });
 
-    it("F2: permits staff and admin to access barcode scan endpoint", async () => {
+    it("F2 & F3: permits staff and admin to access barcode scan and returns list", async () => {
       currentRole = "staff";
-      const staffRes = await fetch(`${baseUrl}/api/inventory/scan/4006381333931`);
+      const staffRes = await fetch(`${baseUrl}/api/inventory/scan/SHARED-EAN`);
       expect(staffRes.status).toBe(200);
+      const matches = await staffRes.json();
+      expect(Array.isArray(matches)).toBe(true);
+      expect(matches).toHaveLength(2);
 
       currentRole = "admin";
       const adminRes = await fetch(`${baseUrl}/api/inventory/scan/4006381333931`);
       expect(adminRes.status).toBe(200);
+      const adminMatches = await adminRes.json();
+      expect(Array.isArray(adminMatches)).toBe(true);
+      expect(adminMatches).toHaveLength(1);
     });
   });
 });

@@ -31,7 +31,7 @@ paths:
       operationId: scanBarcode
       tags: [inventory]
       summary: Barcode scan lookup
-      description: Single round-trip lookup returning variant and product details for a barcode
+      description: Single round-trip lookup returning matching variants and product details for a barcode
       parameters:
         - name: barcode
           in: path
@@ -40,7 +40,7 @@ paths:
             type: string
       responses:
         "200":
-          description: Variant and product details
+          description: List of matched variants and their product details
           content:
             application/json:
               schema:
@@ -120,7 +120,7 @@ components:
         - id
         - title
         - slug
-    BarcodeScanResult:
+    BarcodeScanMatch:
       type: object
       properties:
         variant:
@@ -130,3 +130,7 @@ components:
       required:
         - variant
         - product
+    BarcodeScanResult:
+      type: array
+      items:
+        $ref: "#/components/schemas/BarcodeScanMatch"

@@ -255,8 +255,38 @@ CREATE TABLE IF NOT EXISTS public.product_variants (
 CREATE UNIQUE INDEX IF NOT EXISTS idx_product_variants_single_default
   ON public.product_variants(product_id) WHERE is_default = true;
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_variants_barcode
-  ON public.product_variants(barcode) WHERE barcode IS NOT NULL;
+-- ─── Variant Barcodes (F3 / identification scenario matrix) ──────
+CREATE TABLE IF NOT EXISTS public.variant_barcodes (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  variant_id   uuid NOT NULL REFERENCES public.product_variants(id) ON DELETE CASCADE,
+  barcode      text NOT NULL,
+  source       text NOT NULL DEFAULT 'manufacturer' CHECK (source IN ('manufacturer', 'internal')),
+  is_primary   boolean NOT NULL DEFAULT true,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT uq_variant_barcodes_variant_barcode UNIQUE (variant_id, barcode)
+);
+
+CREATE INDEX IF NOT EXISTS idx_variant_barcodes_barcode ON public.variant_barcodes(barcode);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_variant_barcodes_single_primary ON public.variant_barcodes(variant_id) WHERE is_primary = true;
+ALTER TABLE public.variant_barcodes ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "variant_barcodes: staff/admin read" ON public.variant_barcodes
+  FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role IN ('admin', 'staff')));
+
+CREATE POLICY "variant_barcodes: admin write" ON public.variant_barcodes
+  FOR ALL TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'admin'))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'admin'));
+
+CREATE POLICY "variant_barcodes: staff insert" ON public.variant_barcodes
+  FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff'));
+
+CREATE POLICY "variant_barcodes: staff update" ON public.variant_barcodes
+  FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff'))
+  WITH CHECK (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff'));
 
 CREATE INDEX IF NOT EXISTS idx_product_variants_product_id_sort
   ON public.product_variants(product_id, sort_order);

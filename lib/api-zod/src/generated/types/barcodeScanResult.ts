@@ -5,10 +5,6 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
-import type { ProductScanDetail } from './productScanDetail';
-import type { VariantScanDetail } from './variantScanDetail';
+import type { BarcodeScanMatch } from './barcodeScanMatch';
 
-export interface BarcodeScanResult {
-  variant: VariantScanDetail;
-  product: ProductScanDetail;
-}
+export type BarcodeScanResult = BarcodeScanMatch[];
