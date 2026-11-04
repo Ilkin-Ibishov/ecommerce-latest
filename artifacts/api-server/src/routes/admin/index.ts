@@ -15,6 +15,8 @@ import suppliers from "./suppliers";
 import receipts from "./receipts";
 import receiptLines from "./receipt-lines";
 import margins from "./margins";
+import stocktakes from "./stocktakes";
+import stocktakeLines from "./stocktake-lines";
 
 const router: IRouter = Router();
 
@@ -44,5 +46,7 @@ router.use(suppliers);
 router.use(receipts);
 router.use(receiptLines);
 router.use(margins);
+router.use(stocktakes);
+router.use(stocktakeLines);
 
 export default router;
