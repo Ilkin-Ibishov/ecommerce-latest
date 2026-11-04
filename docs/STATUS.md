@@ -13,74 +13,78 @@ lives in this repository; nothing important is only in a chat transcript.
 
 ## State
 
-**M2a is complete on `m2/receiving-cost` and verified after adversarial audit fixes. It has not been merged.**  
-(Preceding phase M1 is complete on `m1/variants-ledger`.)
+**M2b is complete on `m2b/stocktake` and verified after architectural fix. It has not been merged.**  
+(Preceding phase M1 and M2a are merged on local `main`.)
+
+> [!WARNING]
+> **The adversarial audit for M2b did not run.** The `claude-opus-4-6-thinking` run hit an account
+> quota partway through and committed nothing; the quota resets in roughly six days. M2b has had the
+> architect's review, local unit/property suites, and mechanical checks, but **not** an independent
+> adversarial pass on a different model family. Do not list M2b as audited.
 
 Verified locally on 2026-11-04:
 
 | Check | Result |
 |---|---|
-| `pnpm run typecheck` | exit 0 |
-| `pnpm run test:unit` | 582 tests, 45 files, exit 0 |
-| `pnpm run audit:invariants:strict` | 9 checks, 0 violations, baseline empty |
+| `pnpm run typecheck` | exit 0 across all 5 workspace projects |
+| `pnpm run test:unit` | 598 tests, 49 files, exit 0 |
+| `pnpm run audit:invariants:strict` | 10 checks, 0 violations, baseline empty |
 
-The empty baseline remains preserved across all 9 invariant checks, including the newly added
-`security-definer-service-role-privileges` invariant.
+The empty baseline remains preserved across all 10 invariant checks, including the newly added
+`no-expected-quantity-on-staff-endpoints` invariant.
 
-### What M2a delivered
+### What M2b delivered
 
-- **Goods receipts and suppliers.** Drafts, line entry, posting, and full reversal (`goods_receipts`,
-  `goods_receipt_lines`, `suppliers`). Posting generates immutable stock movements with
-  `reference_type = 'goods_receipt'` atomically under lock. Full reversal verifies that no received
-  units were already consumed and raises actionable error `ST008` naming the receipt, variant, SKU,
-  and consumed count if partially consumed.
-- **Weighted-average cost (WAC) replay.** `recompute_variant_cost` replays stock movements ordered by
-  `posting_date`, `created_at`, `id`. Excludes unvalued opening balances and unpriced movements from
-  cost calculations. Replay concurrency is secured by collision-free 64-bit integer advisory
-  transaction locks (`pg_advisory_xact_lock(int, int)`).
-- **Cost boundary isolation.** `variant_costs` and `goods_receipt_lines.unit_cost` are hidden from
-  staff and accessible only by admins/owners. Database RPCs use Postgres execute privileges
-  (`REVOKE ... FROM public, anon, authenticated; GRANT ... TO service_role`) rather than runtime
-  `auth.uid()` checks in function bodies.
-- **Granularity-corrected margin reporting.** Excludes unpriced outflows from revenue and COGS
-  (preventing phantom losses), tracking them separately as `unpriced_units_out` across categories,
-  variants, and on the UI report banner.
-- **Operational integrity tooling.** `rebuild_on_hand(variant)` and `verify_stock_integrity()`.
-  `rebuild_on_hand` recomputes both on-hand stock and cost projection atomically in a single transaction.
-- **Tenant negative stock control.** `allow_negative_stock` setting in `site_settings`, enforced via
-  `BEFORE INSERT` trigger on `stock_movements`, recording `negative_stock_override = true` on any
-  movement that drives stock below zero.
-- **Unit of Measure (UoM) immutability.** Prevents changing `uom` on variants once stock movements
-  exist in the ledger.
-- **Architectural invariant.** `security-definer-service-role-privileges` in
-  `scripts/audit/check-invariants.mjs` verifying privilege boundaries and prohibiting `auth.uid()`
-  dependencies in service-role RPCs.
+- **Phone-first counting screen.** Rapid scan entry on mobile (`StocktakeCountPage.tsx`), barcode scanner
+  input, blind counting (zero expected quantities or snapshots displayed to counters), rapid quantity
+  stepper, and clean distinction between fixing a typo and recounting a shelf.
+- **Authoritative on-hand snapshots and blind boundary.** Captured inside the database engine via
+  `AFTER INSERT` trigger `trg_capture_stocktake_line_snapshot` into dedicated admin-only table
+  `public.stocktake_line_snapshots`. Isolated from staff tokens by RLS and checked by automated invariant
+  `no-expected-quantity-on-staff-endpoints`.
+- **Multi-counter duplicate resolution algebra.** Multiple counters can scan the same variant. Distinct
+  location notes automatically default to sum (`sum_defaulted`); conflicting or missing location notes
+  strictly block posting (`ST009`) until explicitly resolved by the owner via `stocktake_resolutions`.
+- **Typo fix vs. recount semantics (R1).** Editing a count line preserves the original observation timestamp
+  and snapshot; recounting deletes the line and rescans, capturing a fresh snapshot under the trigger.
+- **Store-wide opening count (§6).** Dedicated mode (`is_opening_count = true`) writing `opening_balance`
+  movements without distorting weighted-average cost formulas. Wholesale costs recorded via
+  `stocktake_opening_costs` populate `variant_costs.opening_cost`. Constrained by unique partial index
+  `idx_single_posted_opening_stocktake` allowing at most one posted opening count in tenant history.
+- **Atomic posting RPC (`post_stocktake`).** Single-transaction ACID posting. Locks header row `FOR UPDATE`,
+  enforces `posting_date >= MAX(captured_at)` (`ST010`), reconciles multi-counter scans against latest
+  snapshots (R5), inserts delta movements, and triggers scoped cost recomputation.
+- **Owner review screen & shrinkage valuation (§7.3, §8).** Monetary variance review sorted by
+  `ABS(variance_value) DESC`. Separates valued shrinkage in manat (`shrinkage_value`) from unvalued missing
+  physical units (`unvalued_shrinkage_units`), preventing false reassurance on unpriced stock. Flags
+  interleaved trade windows without halting store checkout.
+- **Scoped snapshot queries & invariant enforcement.** Scoped snapshot fetching in `computeStocktakeVariance`
+  strictly to lines of the stocktake under review (`.in("line_id", lineIds)`). Refuses to fall back to current
+  on-hand on missing snapshot rows, preventing divergence between owner review and posting.
 
 ### Decisions closed, and where the reasoning lives
 
 | Decision | Where |
 |---|---|
-| RPC authorisation via Postgres privileges, not `auth.uid()` in body | `docs/audits/m2a-fix-notes.md` §F1 |
-| `BEFORE INSERT` trigger stamping `negative_stock_override` for negative stock | `docs/audits/m2a-fix-notes.md` §F2 |
-| Unpriced sales excluded from margin and reported as `unpriced_units_out` | `docs/audits/m2a-fix-notes.md` §F3 |
-| Reversal refusal on consumed goods with descriptive error diagnostic | `docs/audits/m2a-fix-notes.md` §F4 |
-| Two-argument 64-bit integer advisory locks for variant cost replay | `docs/audits/m2a-fix-notes.md` §F5 |
-| Cost projection recomputation coupled to `rebuild_on_hand` | `docs/audits/m2a-fix-notes.md` §F6 |
-| Privilege-level security blocking PostgREST staff calls | `docs/audits/m2a-fix-notes.md` §F7 |
-| Quick View property test timeout stabilization | `docs/audits/m2a-fix-notes.md` §Flaky-Test |
+| Typo edit preserves snapshot; recount rescans under trigger (R1) | `docs/design-notes/m2b-stocktake.md` §1 Q1, `docs/audits/m2b-implementation-notes.md` §1 |
+| Owner-only `posting_date` bounded by `MAX(captured_at)` (R2) | `docs/design-notes/m2b-stocktake.md` §1 Q3, `docs/audits/m2b-implementation-notes.md` §1 |
+| Location-based sum defaulting and collision blocking (R3) | `docs/design-notes/m2b-stocktake.md` §1 Q4, `docs/audits/m2b-implementation-notes.md` §1 |
+| Honest limits of blind counting against direct on-hand reads (R4) | `docs/design-notes/m2b-stocktake.md` §1 Q1, `.agents/rules/inventory.md` |
+| Delta composition against latest snapshot and interleaved trade flag (R5) | `docs/design-notes/m2b-stocktake.md` §1 Q5, `docs/audits/m2b-implementation-notes.md` §1 |
+| Separation of monetary shrinkage and unvalued missing units (§7.3) | `docs/design-notes/m2b-stocktake.md` §1 Q3, `docs/audits/m2b-implementation-notes.md` §1 |
+| Single-posted opening count constraint and opening cost carrier (§6) | `docs/design-notes/m2b-stocktake.md` §2, `docs/audits/m2b-implementation-notes.md` §1 |
+| Snapshot query scoping & rejection of current-on-hand fallback | `docs/audits/m2b-fix-notes.md` §1 |
 
 ## Next
 
-**M2b** — stocktake count sheets, count-entry UI, optimistic concurrency on observed on-hand,
-and reservations (deposits) ledger.
+**M2c** — reservations (deposits) ledger.
 
-Carried forward into M2b:
+Carried forward into M2c:
 
-- Stocktake count sheets and count entry workflow.
-- Stocktake optimistic concurrency: accept `observed_on_hand` with the count and reject on mismatch,
-  preventing silent overwrite of sales that occurred while counting.
-- Reservations (deposits) ledger: allocating stock without movement ledger consumption until
-  fulfillment or pickup.
+- Reservations (deposits) ledger: allocating stock to customer orders or deposits without movement ledger
+  consumption until fulfillment or pickup.
+- Available stock calculation (`on_hand - reserved`) across storefront availability checks and admin catalog.
+- Handling deposit cancellations, stock releases, and expired holds.
 
 **M3** — counter sale, barcode flow, and a minimal bill of materials. Build parent / component /
 quantity plus one produced flag.
@@ -93,15 +97,19 @@ quantity plus one produced flag.
 2. Design-partner agreement and the monthly price.
 3. The accountant's written answer on fiscal receipt requirements, which gates the counter-sale work.
 
-**Technical:**
+**Technical — uncomfortable truths:**
 
-4. `main` is merged only up to the chore batches; `m1/variants-ledger` and `m2/receiving-cost` are not
-   merged to `main` and nothing is pushed.
-5. The Supabase project behind the CI secrets has not been confirmed as separate from production, so
-   no migration has been applied to any remote database. The integration tier runs only in CI.
-6. Is the first customer's scanner in daily use or dormant? Do colour variants share one barcode?
+4. `main` is local-only and unpushed; it now contains M1 and M2a. M2b is on `m2b/stocktake`.
+5. No migration in this repository has ever been executed against a real Postgres. CI's integration
+   tier has been failing since 1 July 2026 and its repair is deliberately postponed. The known work
+   there: a dedicated test Supabase project with its three secrets, applying schema and migrations to
+   it, `SESSION_SECRET` missing from `test.yml`'s API server step, and a stale assertion in
+   `otp-verify-500.exploration.test.ts`.
+6. Blind counting is not tamper-proof against a staff token reading `product_variants.on_hand`
+   directly; the limit is recorded in `.agents/rules/inventory.md`.
+7. Is the first customer's scanner in daily use or dormant? Do colour variants share one barcode?
    What is the ~10% without barcodes? The model covers every answer; the answers decide which UI ships first.
-7. `SESSION_SECRET` must be set in every deployed environment before the next deploy — the API now
+8. `SESSION_SECRET` must be set in every deployed environment before the next deploy — the API now
    refuses to start without it, which is correct but will surprise a deploy that has not set it.
 
 ## How work runs here
