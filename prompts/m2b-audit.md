@@ -90,3 +90,34 @@ products, and which will bite during the first real count.
 
 If the implementation holds up, say so and list what you checked. An honest short report beats a
 padded one.
+
+---
+
+## Operating constraints for this run (added after a failed first attempt)
+
+**Work directly. Do not spawn subagents or parallel research tasks.** The first attempt at this audit
+fanned out into subagents, hit rate limits, and died without producing a report. Read the files
+yourself, in sequence, and write the findings.
+
+**Already fixed, so finding them again is worth nothing:**
+
+- The variance service fetched the entire `stocktake_line_snapshots` table unscoped and fell back to
+  the variant's current on-hand when a snapshot was missing. Both are fixed: the query is scoped by
+  `line_id` and a missing snapshot now throws.
+- The opening count posted the counted quantity as the delta while M1's migration had left on-hand
+  non-zero. Fixed: both branches now compute `effective_counted - effective_snapshot`.
+- `CROSS JOIN LATERAL` silently dropped a variant whose snapshot was missing. Fixed: `LEFT JOIN
+  LATERAL` plus an explicit raise.
+- A variant counted at zero could not clear a non-zero quantity. Fixed as a consequence of the above,
+  with tests.
+- A multi-counter resolution could go stale when a later scan arrived. Fixed: `resolved_line_count`
+  and `resolved_latest_line_at` on `stocktake_resolutions`, checked before posting.
+
+Note that `post_stocktake` is **redefined** in `supabase/migrations/20261104150000_m2b_resolution_staleness.sql`.
+That file, not the earlier functions migration, holds the live version of the function. Audit the
+live one.
+
+Mechanical state as of this run, verified: `pnpm run typecheck` exit 0, `pnpm run test:unit` 608
+tests in 49 files all passing, `pnpm run audit:invariants:strict` 9 checks with 0 violations and an
+empty baseline. You do not need to re-establish those; spend your budget on finding what they do not
+cover.
