@@ -22,8 +22,10 @@ import type {
 import type {
   AddStocktakeLineRequest,
   BarcodeScanResult,
+  CreateReservationRequest,
   CreateStocktakeRequest,
   ErrorResponse,
+  FulfilReservationRequest,
   GetMarginReportParams,
   GoodsReceipt,
   GoodsReceiptInput,
@@ -33,9 +35,14 @@ import type {
   GoodsReceiptList,
   GoodsReceiptReverseInput,
   HealthStatus,
+  ListAgedReservationsParams,
   ListGoodsReceiptsParams,
+  ListReservationsParams,
   ListStocktakesParams,
   MarginReportResponse,
+  RecordReservationPaymentRequest,
+  ReleaseReservationRequest,
+  Reservation,
   ResolveVariantRequest,
   SetOpeningCostsRequest,
   Stocktake,
@@ -47,6 +54,7 @@ import type {
   Supplier,
   SupplierInput,
   SupplierList,
+  UpdateReservationPriceRequest,
   UpdateStocktakeLineRequest,
   UpdateStocktakeRequest
 } from './api.schemas';
@@ -2285,5 +2293,539 @@ export const usePostStocktakeAction = <TError = ErrorType<ErrorResponse>,
         TContext
       > => {
       return useMutation(getPostStocktakeActionMutationOptions(options));
+    }
+
+export const getListReservationsUrl = (params?: ListReservationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/reservations?${stringifiedParams}` : `/api/admin/reservations`
+}
+
+/**
+ * Returns list of reservations with unified effective_status
+ * @summary List reservations
+ */
+export const listReservations = async (params?: ListReservationsParams, options?: RequestInit): Promise<Reservation[]> => {
+
+  return customFetch<Reservation[]>(getListReservationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListReservationsQueryKey = (params?: ListReservationsParams,) => {
+    return [
+    `/api/admin/reservations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListReservationsQueryOptions = <TData = Awaited<ReturnType<typeof listReservations>>, TError = ErrorType<void>>(params?: ListReservationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReservations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListReservationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listReservations>>> = ({ signal }) => listReservations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listReservations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListReservationsQueryResult = NonNullable<Awaited<ReturnType<typeof listReservations>>>
+export type ListReservationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List reservations
+ */
+
+export function useListReservations<TData = Awaited<ReturnType<typeof listReservations>>, TError = ErrorType<void>>(
+ params?: ListReservationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listReservations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListReservationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateReservationUrl = () => {
+
+
+
+
+  return `/api/admin/reservations`
+}
+
+/**
+ * Staff or owner records a customer deposit and holds inventory
+ * @summary Create deposit reservation
+ */
+export const createReservation = async (createReservationRequest: CreateReservationRequest, options?: RequestInit): Promise<Reservation> => {
+
+  return customFetch<Reservation>(getCreateReservationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createReservationRequest,)
+  }
+);}
+
+
+
+
+export const getCreateReservationMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReservation>>, TError,{data: BodyType<CreateReservationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createReservation>>, TError,{data: BodyType<CreateReservationRequest>}, TContext> => {
+
+const mutationKey = ['createReservation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createReservation>>, {data: BodyType<CreateReservationRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createReservation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateReservationMutationResult = NonNullable<Awaited<ReturnType<typeof createReservation>>>
+    export type CreateReservationMutationBody = BodyType<CreateReservationRequest>
+    export type CreateReservationMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Create deposit reservation
+ */
+export const useCreateReservation = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createReservation>>, TError,{data: BodyType<CreateReservationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createReservation>>,
+        TError,
+        {data: BodyType<CreateReservationRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateReservationMutationOptions(options));
+    }
+
+export const getListAgedReservationsUrl = (params?: ListAgedReservationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/reservations/aged?${stringifiedParams}` : `/api/admin/reservations/aged`
+}
+
+/**
+ * Owner-only list of expired reservations and active deposits older than threshold
+ * @summary List aged reservations
+ */
+export const listAgedReservations = async (params?: ListAgedReservationsParams, options?: RequestInit): Promise<Reservation[]> => {
+
+  return customFetch<Reservation[]>(getListAgedReservationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAgedReservationsQueryKey = (params?: ListAgedReservationsParams,) => {
+    return [
+    `/api/admin/reservations/aged`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAgedReservationsQueryOptions = <TData = Awaited<ReturnType<typeof listAgedReservations>>, TError = ErrorType<void>>(params?: ListAgedReservationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAgedReservations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAgedReservationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAgedReservations>>> = ({ signal }) => listAgedReservations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAgedReservations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAgedReservationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAgedReservations>>>
+export type ListAgedReservationsQueryError = ErrorType<void>
+
+
+/**
+ * @summary List aged reservations
+ */
+
+export function useListAgedReservations<TData = Awaited<ReturnType<typeof listAgedReservations>>, TError = ErrorType<void>>(
+ params?: ListAgedReservationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAgedReservations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAgedReservationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getRecordReservationPaymentUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/reservations/${id}/payment`
+}
+
+/**
+ * Staff records an additional cash installment against an active deposit
+ * @summary Record payment installment
+ */
+export const recordReservationPayment = async (id: string,
+    recordReservationPaymentRequest: RecordReservationPaymentRequest, options?: RequestInit): Promise<Reservation> => {
+
+  return customFetch<Reservation>(getRecordReservationPaymentUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      recordReservationPaymentRequest,)
+  }
+);}
+
+
+
+
+export const getRecordReservationPaymentMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordReservationPayment>>, TError,{id: string;data: BodyType<RecordReservationPaymentRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof recordReservationPayment>>, TError,{id: string;data: BodyType<RecordReservationPaymentRequest>}, TContext> => {
+
+const mutationKey = ['recordReservationPayment'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof recordReservationPayment>>, {id: string;data: BodyType<RecordReservationPaymentRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  recordReservationPayment(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RecordReservationPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof recordReservationPayment>>>
+    export type RecordReservationPaymentMutationBody = BodyType<RecordReservationPaymentRequest>
+    export type RecordReservationPaymentMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Record payment installment
+ */
+export const useRecordReservationPayment = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof recordReservationPayment>>, TError,{id: string;data: BodyType<RecordReservationPaymentRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof recordReservationPayment>>,
+        TError,
+        {id: string;data: BodyType<RecordReservationPaymentRequest>},
+        TContext
+      > => {
+      return useMutation(getRecordReservationPaymentMutationOptions(options));
+    }
+
+export const getFulfilReservationUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/reservations/${id}/fulfil`
+}
+
+/**
+ * Customer pays remainder (if any) and collects goods; writes counter_sale movement
+ * @summary Fulfil reservation
+ */
+export const fulfilReservation = async (id: string,
+    fulfilReservationRequest?: FulfilReservationRequest, options?: RequestInit): Promise<Reservation> => {
+
+  return customFetch<Reservation>(getFulfilReservationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      fulfilReservationRequest,)
+  }
+);}
+
+
+
+
+export const getFulfilReservationMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fulfilReservation>>, TError,{id: string;data?: BodyType<FulfilReservationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof fulfilReservation>>, TError,{id: string;data?: BodyType<FulfilReservationRequest>}, TContext> => {
+
+const mutationKey = ['fulfilReservation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof fulfilReservation>>, {id: string;data?: BodyType<FulfilReservationRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  fulfilReservation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FulfilReservationMutationResult = NonNullable<Awaited<ReturnType<typeof fulfilReservation>>>
+    export type FulfilReservationMutationBody = BodyType<FulfilReservationRequest> | undefined
+    export type FulfilReservationMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Fulfil reservation
+ */
+export const useFulfilReservation = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof fulfilReservation>>, TError,{id: string;data?: BodyType<FulfilReservationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof fulfilReservation>>,
+        TError,
+        {id: string;data?: BodyType<FulfilReservationRequest>},
+        TContext
+      > => {
+      return useMutation(getFulfilReservationMutationOptions(options));
+    }
+
+export const getReleaseReservationUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/reservations/${id}/release`
+}
+
+/**
+ * Owner cancels reservation and unreserves goods; records release reason
+ * @summary Release reservation
+ */
+export const releaseReservation = async (id: string,
+    releaseReservationRequest: ReleaseReservationRequest, options?: RequestInit): Promise<Reservation> => {
+
+  return customFetch<Reservation>(getReleaseReservationUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      releaseReservationRequest,)
+  }
+);}
+
+
+
+
+export const getReleaseReservationMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof releaseReservation>>, TError,{id: string;data: BodyType<ReleaseReservationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof releaseReservation>>, TError,{id: string;data: BodyType<ReleaseReservationRequest>}, TContext> => {
+
+const mutationKey = ['releaseReservation'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof releaseReservation>>, {id: string;data: BodyType<ReleaseReservationRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  releaseReservation(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReleaseReservationMutationResult = NonNullable<Awaited<ReturnType<typeof releaseReservation>>>
+    export type ReleaseReservationMutationBody = BodyType<ReleaseReservationRequest>
+    export type ReleaseReservationMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Release reservation
+ */
+export const useReleaseReservation = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof releaseReservation>>, TError,{id: string;data: BodyType<ReleaseReservationRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof releaseReservation>>,
+        TError,
+        {id: string;data: BodyType<ReleaseReservationRequest>},
+        TContext
+      > => {
+      return useMutation(getReleaseReservationMutationOptions(options));
+    }
+
+export const getUpdateReservationPriceUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/reservations/${id}/price`
+}
+
+/**
+ * Owner-only price change for an active reservation
+ * @summary Renegotiate agreed price
+ */
+export const updateReservationPrice = async (id: string,
+    updateReservationPriceRequest: UpdateReservationPriceRequest, options?: RequestInit): Promise<Reservation> => {
+
+  return customFetch<Reservation>(getUpdateReservationPriceUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateReservationPriceRequest,)
+  }
+);}
+
+
+
+
+export const getUpdateReservationPriceMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateReservationPrice>>, TError,{id: string;data: BodyType<UpdateReservationPriceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateReservationPrice>>, TError,{id: string;data: BodyType<UpdateReservationPriceRequest>}, TContext> => {
+
+const mutationKey = ['updateReservationPrice'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateReservationPrice>>, {id: string;data: BodyType<UpdateReservationPriceRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateReservationPrice(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateReservationPriceMutationResult = NonNullable<Awaited<ReturnType<typeof updateReservationPrice>>>
+    export type UpdateReservationPriceMutationBody = BodyType<UpdateReservationPriceRequest>
+    export type UpdateReservationPriceMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Renegotiate agreed price
+ */
+export const useUpdateReservationPrice = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateReservationPrice>>, TError,{id: string;data: BodyType<UpdateReservationPriceRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateReservationPrice>>,
+        TError,
+        {id: string;data: BodyType<UpdateReservationPriceRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateReservationPriceMutationOptions(options));
     }
 

@@ -314,6 +314,98 @@ export interface StocktakeVarianceReport {
   summary: StocktakeVarianceSummary;
 }
 
+export type ReservationHoldType = typeof ReservationHoldType[keyof typeof ReservationHoldType];
+
+
+export const ReservationHoldType = {
+  deposit: 'deposit',
+  order_hold: 'order_hold',
+  cart_hold: 'cart_hold',
+} as const;
+
+export type ReservationStatus = typeof ReservationStatus[keyof typeof ReservationStatus];
+
+
+export const ReservationStatus = {
+  active: 'active',
+  fulfilled: 'fulfilled',
+  released: 'released',
+  expired: 'expired',
+} as const;
+
+export type ReservationEffectiveStatus = typeof ReservationEffectiveStatus[keyof typeof ReservationEffectiveStatus];
+
+
+export const ReservationEffectiveStatus = {
+  active: 'active',
+  fulfilled: 'fulfilled',
+  released: 'released',
+  expired: 'expired',
+} as const;
+
+export interface Reservation {
+  id: string;
+  reservation_number: string;
+  variant_id: string;
+  quantity: number;
+  customer_name: string;
+  customer_phone: string;
+  hold_type: ReservationHoldType;
+  status: ReservationStatus;
+  effective_status: ReservationEffectiveStatus;
+  agreed_price: number;
+  paid_amount: number;
+  notes?: string | null;
+  expires_at?: string | null;
+  created_by: string;
+  fulfilled_by?: string | null;
+  fulfilled_at?: string | null;
+  released_by?: string | null;
+  released_at?: string | null;
+  release_reason?: string | null;
+  created_at: string;
+  updated_at: string;
+  product_title?: string | null;
+  variant_sku?: string | null;
+}
+
+export type CreateReservationRequestHoldType = typeof CreateReservationRequestHoldType[keyof typeof CreateReservationRequestHoldType];
+
+
+export const CreateReservationRequestHoldType = {
+  deposit: 'deposit',
+  order_hold: 'order_hold',
+  cart_hold: 'cart_hold',
+} as const;
+
+export interface CreateReservationRequest {
+  variant_id: string;
+  quantity: number;
+  customer_name: string;
+  customer_phone: string;
+  hold_type?: CreateReservationRequestHoldType;
+  agreed_price: number;
+  paid_amount?: number;
+  notes?: string;
+  expires_at?: string;
+}
+
+export interface RecordReservationPaymentRequest {
+  amount: number;
+}
+
+export interface FulfilReservationRequest {
+  final_payment?: number;
+}
+
+export interface ReleaseReservationRequest {
+  release_reason: string;
+}
+
+export interface UpdateReservationPriceRequest {
+  agreed_price: number;
+}
+
 export type ListGoodsReceiptsParams = {
 status?: string;
 search?: string;
@@ -337,4 +429,14 @@ export const ListStocktakesStatus = {
   posted: 'posted',
   cancelled: 'cancelled',
 } as const;
+
+export type ListReservationsParams = {
+status?: string;
+search?: string;
+variant_id?: string;
+};
+
+export type ListAgedReservationsParams = {
+days?: number;
+};
 

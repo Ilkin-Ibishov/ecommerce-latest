@@ -20,6 +20,8 @@ tags:
     description: Owner-only margin read and reports
   - name: stocktakes
     description: Physical stocktake, opening count, and variance review workflow
+  - name: reservations
+    description: Reservations, deposits, and customer hold ledger
 paths:
   /healthz:
     get:
@@ -817,6 +819,229 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /admin/reservations:
+    get:
+      operationId: listReservations
+      tags: [reservations]
+      summary: List reservations
+      description: Returns list of reservations with unified effective_status
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: variant_id
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of reservations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reservation"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+    post:
+      operationId: createReservation
+      tags: [reservations]
+      summary: Create deposit reservation
+      description: Staff or owner records a customer deposit and holds inventory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReservationRequest"
+      responses:
+        "201":
+          description: Reservation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "400":
+          description: Validation error or insufficient available stock
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /admin/reservations/aged:
+    get:
+      operationId: listAgedReservations
+      tags: [reservations]
+      summary: List aged reservations
+      description: Owner-only list of expired reservations and active deposits older than threshold
+      parameters:
+        - name: days
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 7
+      responses:
+        "200":
+          description: List of aged reservations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Reservation"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden
+
+  /admin/reservations/{id}/payment:
+    post:
+      operationId: recordReservationPayment
+      tags: [reservations]
+      summary: Record payment installment
+      description: Staff records an additional cash installment against an active deposit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecordReservationPaymentRequest"
+      responses:
+        "200":
+          description: Payment recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "400":
+          description: Payment exceeds agreed price or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/reservations/{id}/fulfil:
+    post:
+      operationId: fulfilReservation
+      tags: [reservations]
+      summary: Fulfil reservation
+      description: Customer pays remainder (if any) and collects goods; writes counter_sale movement
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FulfilReservationRequest"
+      responses:
+        "200":
+          description: Fulfilled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "400":
+          description: Shortfall or cannot fulfil
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/reservations/{id}/release:
+    post:
+      operationId: releaseReservation
+      tags: [reservations]
+      summary: Release reservation
+      description: Owner cancels reservation and unreserves goods; records release reason
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReleaseReservationRequest"
+      responses:
+        "200":
+          description: Released
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "400":
+          description: Cannot release
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden (owner only)
+
+  /admin/reservations/{id}/price:
+    patch:
+      operationId: updateReservationPrice
+      tags: [reservations]
+      summary: Renegotiate agreed price
+      description: Owner-only price change for an active reservation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateReservationPriceRequest"
+      responses:
+        "200":
+          description: Price updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Reservation"
+        "400":
+          description: Price lower than paid amount or invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden (owner only)
+
 components:
   schemas:
     HealthStatus:
@@ -1520,4 +1745,149 @@ components:
         - stocktake
         - items
         - summary
+
+    Reservation:
+      type: object
+      properties:
+        id:
+          type: string
+        reservation_number:
+          type: string
+        variant_id:
+          type: string
+        quantity:
+          type: number
+        customer_name:
+          type: string
+        customer_phone:
+          type: string
+        hold_type:
+          type: string
+          enum: [deposit, order_hold, cart_hold]
+        status:
+          type: string
+          enum: [active, fulfilled, released, expired]
+        effective_status:
+          type: string
+          enum: [active, fulfilled, released, expired]
+        agreed_price:
+          type: number
+        paid_amount:
+          type: number
+        notes:
+          type: string
+          nullable: true
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_by:
+          type: string
+        fulfilled_by:
+          type: string
+          nullable: true
+        fulfilled_at:
+          type: string
+          format: date-time
+          nullable: true
+        released_by:
+          type: string
+          nullable: true
+        released_at:
+          type: string
+          format: date-time
+          nullable: true
+        release_reason:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        product_title:
+          type: string
+          nullable: true
+        variant_sku:
+          type: string
+          nullable: true
+      required:
+        - id
+        - reservation_number
+        - variant_id
+        - quantity
+        - customer_name
+        - customer_phone
+        - hold_type
+        - status
+        - effective_status
+        - agreed_price
+        - paid_amount
+        - created_by
+        - created_at
+        - updated_at
+
+    CreateReservationRequest:
+      type: object
+      properties:
+        variant_id:
+          type: string
+        quantity:
+          type: number
+        customer_name:
+          type: string
+        customer_phone:
+          type: string
+        hold_type:
+          type: string
+          enum: [deposit, order_hold, cart_hold]
+          default: deposit
+        agreed_price:
+          type: number
+        paid_amount:
+          type: number
+          default: 0
+        notes:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+      required:
+        - variant_id
+        - quantity
+        - customer_name
+        - customer_phone
+        - agreed_price
+
+    RecordReservationPaymentRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+      required:
+        - amount
+
+    FulfilReservationRequest:
+      type: object
+      properties:
+        final_payment:
+          type: number
+          default: 0
+
+    ReleaseReservationRequest:
+      type: object
+      properties:
+        release_reason:
+          type: string
+      required:
+        - release_reason
+
+    UpdateReservationPriceRequest:
+      type: object
+      properties:
+        agreed_price:
+          type: number
+      required:
+        - agreed_price
 

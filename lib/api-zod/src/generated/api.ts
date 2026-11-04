@@ -737,3 +737,257 @@ export const PostStocktakeActionResponse = zod.object({
 })
 
 
+/**
+ * Returns list of reservations with unified effective_status
+ * @summary List reservations
+ */
+export const ListReservationsQueryParams = zod.object({
+  "status": zod.coerce.string().optional(),
+  "search": zod.coerce.string().optional(),
+  "variant_id": zod.coerce.string().optional()
+})
+
+export const ListReservationsResponseItem = zod.object({
+  "id": zod.string(),
+  "reservation_number": zod.string(),
+  "variant_id": zod.string(),
+  "quantity": zod.number(),
+  "customer_name": zod.string(),
+  "customer_phone": zod.string(),
+  "hold_type": zod.enum(['deposit', 'order_hold', 'cart_hold']),
+  "status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "effective_status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "agreed_price": zod.number(),
+  "paid_amount": zod.number(),
+  "notes": zod.string().nullish(),
+  "expires_at": zod.coerce.date().nullish(),
+  "created_by": zod.string(),
+  "fulfilled_by": zod.string().nullish(),
+  "fulfilled_at": zod.coerce.date().nullish(),
+  "released_by": zod.string().nullish(),
+  "released_at": zod.coerce.date().nullish(),
+  "release_reason": zod.string().nullish(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "product_title": zod.string().nullish(),
+  "variant_sku": zod.string().nullish()
+})
+export const ListReservationsResponse = zod.array(ListReservationsResponseItem)
+
+
+/**
+ * Staff or owner records a customer deposit and holds inventory
+ * @summary Create deposit reservation
+ */
+export const createReservationBodyHoldTypeDefault = `deposit`;
+export const createReservationBodyPaidAmountDefault = 0;
+
+export const CreateReservationBody = zod.object({
+  "variant_id": zod.string(),
+  "quantity": zod.number(),
+  "customer_name": zod.string(),
+  "customer_phone": zod.string(),
+  "hold_type": zod.enum(['deposit', 'order_hold', 'cart_hold']).default(createReservationBodyHoldTypeDefault),
+  "agreed_price": zod.number(),
+  "paid_amount": zod.number().default(createReservationBodyPaidAmountDefault),
+  "notes": zod.string().optional(),
+  "expires_at": zod.coerce.date().optional()
+})
+
+
+/**
+ * Owner-only list of expired reservations and active deposits older than threshold
+ * @summary List aged reservations
+ */
+export const listAgedReservationsQueryDaysDefault = 7;
+
+export const ListAgedReservationsQueryParams = zod.object({
+  "days": zod.coerce.number().default(listAgedReservationsQueryDaysDefault)
+})
+
+export const ListAgedReservationsResponseItem = zod.object({
+  "id": zod.string(),
+  "reservation_number": zod.string(),
+  "variant_id": zod.string(),
+  "quantity": zod.number(),
+  "customer_name": zod.string(),
+  "customer_phone": zod.string(),
+  "hold_type": zod.enum(['deposit', 'order_hold', 'cart_hold']),
+  "status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "effective_status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "agreed_price": zod.number(),
+  "paid_amount": zod.number(),
+  "notes": zod.string().nullish(),
+  "expires_at": zod.coerce.date().nullish(),
+  "created_by": zod.string(),
+  "fulfilled_by": zod.string().nullish(),
+  "fulfilled_at": zod.coerce.date().nullish(),
+  "released_by": zod.string().nullish(),
+  "released_at": zod.coerce.date().nullish(),
+  "release_reason": zod.string().nullish(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "product_title": zod.string().nullish(),
+  "variant_sku": zod.string().nullish()
+})
+export const ListAgedReservationsResponse = zod.array(ListAgedReservationsResponseItem)
+
+
+/**
+ * Staff records an additional cash installment against an active deposit
+ * @summary Record payment installment
+ */
+export const RecordReservationPaymentParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const RecordReservationPaymentBody = zod.object({
+  "amount": zod.number()
+})
+
+export const RecordReservationPaymentResponse = zod.object({
+  "id": zod.string(),
+  "reservation_number": zod.string(),
+  "variant_id": zod.string(),
+  "quantity": zod.number(),
+  "customer_name": zod.string(),
+  "customer_phone": zod.string(),
+  "hold_type": zod.enum(['deposit', 'order_hold', 'cart_hold']),
+  "status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "effective_status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "agreed_price": zod.number(),
+  "paid_amount": zod.number(),
+  "notes": zod.string().nullish(),
+  "expires_at": zod.coerce.date().nullish(),
+  "created_by": zod.string(),
+  "fulfilled_by": zod.string().nullish(),
+  "fulfilled_at": zod.coerce.date().nullish(),
+  "released_by": zod.string().nullish(),
+  "released_at": zod.coerce.date().nullish(),
+  "release_reason": zod.string().nullish(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "product_title": zod.string().nullish(),
+  "variant_sku": zod.string().nullish()
+})
+
+
+/**
+ * Customer pays remainder (if any) and collects goods; writes counter_sale movement
+ * @summary Fulfil reservation
+ */
+export const FulfilReservationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const fulfilReservationBodyFinalPaymentDefault = 0;
+
+export const FulfilReservationBody = zod.object({
+  "final_payment": zod.number().default(fulfilReservationBodyFinalPaymentDefault)
+})
+
+export const FulfilReservationResponse = zod.object({
+  "id": zod.string(),
+  "reservation_number": zod.string(),
+  "variant_id": zod.string(),
+  "quantity": zod.number(),
+  "customer_name": zod.string(),
+  "customer_phone": zod.string(),
+  "hold_type": zod.enum(['deposit', 'order_hold', 'cart_hold']),
+  "status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "effective_status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "agreed_price": zod.number(),
+  "paid_amount": zod.number(),
+  "notes": zod.string().nullish(),
+  "expires_at": zod.coerce.date().nullish(),
+  "created_by": zod.string(),
+  "fulfilled_by": zod.string().nullish(),
+  "fulfilled_at": zod.coerce.date().nullish(),
+  "released_by": zod.string().nullish(),
+  "released_at": zod.coerce.date().nullish(),
+  "release_reason": zod.string().nullish(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "product_title": zod.string().nullish(),
+  "variant_sku": zod.string().nullish()
+})
+
+
+/**
+ * Owner cancels reservation and unreserves goods; records release reason
+ * @summary Release reservation
+ */
+export const ReleaseReservationParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReleaseReservationBody = zod.object({
+  "release_reason": zod.string()
+})
+
+export const ReleaseReservationResponse = zod.object({
+  "id": zod.string(),
+  "reservation_number": zod.string(),
+  "variant_id": zod.string(),
+  "quantity": zod.number(),
+  "customer_name": zod.string(),
+  "customer_phone": zod.string(),
+  "hold_type": zod.enum(['deposit', 'order_hold', 'cart_hold']),
+  "status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "effective_status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "agreed_price": zod.number(),
+  "paid_amount": zod.number(),
+  "notes": zod.string().nullish(),
+  "expires_at": zod.coerce.date().nullish(),
+  "created_by": zod.string(),
+  "fulfilled_by": zod.string().nullish(),
+  "fulfilled_at": zod.coerce.date().nullish(),
+  "released_by": zod.string().nullish(),
+  "released_at": zod.coerce.date().nullish(),
+  "release_reason": zod.string().nullish(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "product_title": zod.string().nullish(),
+  "variant_sku": zod.string().nullish()
+})
+
+
+/**
+ * Owner-only price change for an active reservation
+ * @summary Renegotiate agreed price
+ */
+export const UpdateReservationPriceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateReservationPriceBody = zod.object({
+  "agreed_price": zod.number()
+})
+
+export const UpdateReservationPriceResponse = zod.object({
+  "id": zod.string(),
+  "reservation_number": zod.string(),
+  "variant_id": zod.string(),
+  "quantity": zod.number(),
+  "customer_name": zod.string(),
+  "customer_phone": zod.string(),
+  "hold_type": zod.enum(['deposit', 'order_hold', 'cart_hold']),
+  "status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "effective_status": zod.enum(['active', 'fulfilled', 'released', 'expired']),
+  "agreed_price": zod.number(),
+  "paid_amount": zod.number(),
+  "notes": zod.string().nullish(),
+  "expires_at": zod.coerce.date().nullish(),
+  "created_by": zod.string(),
+  "fulfilled_by": zod.string().nullish(),
+  "fulfilled_at": zod.coerce.date().nullish(),
+  "released_by": zod.string().nullish(),
+  "released_at": zod.coerce.date().nullish(),
+  "release_reason": zod.string().nullish(),
+  "created_at": zod.coerce.date(),
+  "updated_at": zod.coerce.date(),
+  "product_title": zod.string().nullish(),
+  "variant_sku": zod.string().nullish()
+})
+
+
