@@ -131,3 +131,21 @@ export async function searchProducts(
   });
   return { data, error };
 }
+
+/**
+ * Atomically record final payment and fulfil reservation via `fulfil_reservation` RPC (C2).
+ * Applies final payment and creates counter_sale movement within a single database transaction.
+ */
+export async function fulfilReservation(
+  c: SupabaseClient<Database>,
+  reservationId: string,
+  actorId: string,
+  finalPayment: number = 0,
+): Promise<{ data: unknown; error: unknown }> {
+  const { data, error } = await (c as any).rpc("fulfil_reservation", {
+    p_reservation_id: reservationId,
+    p_actor_id: actorId,
+    p_final_payment: finalPayment,
+  });
+  return { data, error };
+}

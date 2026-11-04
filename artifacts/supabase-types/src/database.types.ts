@@ -1776,6 +1776,14 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      fulfil_reservation: {
+        Args: {
+          p_actor_id: string;
+          p_final_payment?: number;
+          p_reservation_id: string;
+        };
+        Returns: Json;
+      };
       decrement_order_stock: {
         Args: {
           p_order_id: string;
