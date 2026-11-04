@@ -21,6 +21,13 @@ Full reasoning: `docs/tasks/warehouse-architecture.md`. These are the rules that
 - Quantity and the sum of movements must never be able to disagree.
 - Quantity cannot go negative; concurrent decrements must stay atomic.
 
+## Operational repair
+- `rebuild_on_hand` is an emergency owner-only repair function to resynchronize cached `on_hand`
+  with the canonical sum of `stock_movements`.
+- It is the sole authorized bypass for `trg_guard_variant_on_hand_update`, using the transaction-scoped
+  configuration setting `inventory.allow_on_hand_repair`.
+- Never set or reference `inventory.allow_on_hand_repair` outside the repair function's own migration.
+
 ## Reservations are not movements
 A reservation (a deposit, a held order) does not change what is physically present. It reduces
 *available*, not *on hand*. Writing a reservation into the movement ledger corrupts the meaning of

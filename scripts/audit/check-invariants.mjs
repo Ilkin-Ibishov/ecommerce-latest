@@ -149,6 +149,97 @@ checks.push(
       return hits;
     },
   },
+  {
+    id: 'on-hand-repair-setting-isolation',
+    why: 'inventory.allow_on_hand_repair bypasses the on_hand guard and must be set only in the repair migration.',
+    run: (files) => {
+      const ALLOWED = new Set([
+        'supabase/migrations/20261104110000_m2a_functions_triggers.sql',
+        'scripts/audit/check-invariants.mjs',
+      ]);
+      const pat = /inventory\.allow_on_hand_repair/;
+      const hits = [];
+      for (const { file, text } of files) {
+        if (!isCode(file) && !isSql(file)) continue;
+        const r = rel(file);
+        if (ALLOWED.has(r)) continue;
+        text.split('\n').forEach((line, i) => {
+          if (pat.test(line)) {
+            hits.push({ file: r, line: i + 1, text: line.trim().slice(0, 140) });
+          }
+        });
+      }
+      return hits;
+    },
+  },
+  {
+    id: 'no-direct-variant-costs-writes',
+    why: 'variant_costs is a cache and opening carrier managed by the inventory cost module, not arbitrary code.',
+    run: (files) => {
+      const ALLOWED = [
+        /^artifacts\/api-server\/src\/lib\/inventory\//,
+        /^artifacts\/api-server\/src\/routes\/inventory\.ts$/,
+        /^artifacts\/api-server\/src\/routes\/admin\/inventory\.ts$/,
+        /^artifacts\/api-server\/src\/routes\/admin\/products\.ts$/,
+        /^artifacts\/api-server\/src\/routes\/admin\/receipts\.ts$/,
+        /^supabase\/migrations\//,
+        /^scripts\/audit\//,
+      ];
+      const pat = /(from\(['"]variant_costs['"]\)\s*\.(insert|update|upsert|delete))|(insert\s+into\s+[\w."]*variant_costs|update\s+[\w."]*variant_costs)/i;
+      const hits = [];
+      for (const { file, text } of files) {
+        if (!isCode(file) && !isSql(file)) continue;
+        const r = rel(file);
+        if (ALLOWED.some((re) => re.test(r))) continue;
+        if (/\.test\.(ts|js|mjs)$/.test(r) || /\/__tests__\//.test(r)) continue;
+        text.split('\n').forEach((line, i) => {
+          if (pat.test(line)) {
+            hits.push({ file: r, line: i + 1, text: line.trim().slice(0, 140) });
+          }
+        });
+      }
+      return hits;
+    },
+  },
+  {
+    id: 'no-cost-column-on-staff-tables',
+    why: 'Staff tokens query PostgREST directly where RLS governs rows, not columns. Staff-accessible tables must not have cost columns.',
+    run: (files) => {
+      const STAFF_TABLES = new Set([
+        'stock_movements',
+        'goods_receipts',
+        'goods_receipt_lines',
+        'suppliers',
+        'products',
+        'product_variants',
+        'orders',
+        'order_items',
+        'cart_items',
+        'users',
+      ]);
+      const costColPat = /\b(unit_cost|cost_price|total_cost|additional_costs|cogs|supplier_price)\b/i;
+      const hits = [];
+      for (const { file, text } of files) {
+        if (!isSql(file)) continue;
+        const r = rel(file);
+        // Only inspect current schema.sql and migrations starting from M2a
+        const isPostM1Migration = /^supabase\/migrations\/20261104/.test(r);
+        const isCurrentSchema = r === 'supabase/schema.sql';
+        if (!isPostM1Migration && !isCurrentSchema) continue;
+
+        text.split('\n').forEach((line, i) => {
+          if (/\bdrop\s+column\b/i.test(line)) return;
+          for (const tbl of STAFF_TABLES) {
+            const tableRe = new RegExp(`\\b${tbl}\\b`, 'i');
+            if (tableRe.test(line) && costColPat.test(line)) {
+              hits.push({ file: r, line: i + 1, text: line.trim().slice(0, 140) });
+            }
+          }
+        });
+      }
+      return hits;
+    },
+  },
 );
 
 /* ------------------------------------------------------------------- main */
