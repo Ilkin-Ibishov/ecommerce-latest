@@ -308,4 +308,34 @@ describe("M2b Stocktake Posting Integrity and Valuation", () => {
       expect(h.stocktakes.get("st1")?.status).toBe("draft");
     });
   });
+
+  describe("A3 — Counted-zero line clears non-zero quantity", () => {
+    it("6. on-hand 5 from legacy opening balance, counted 0, opening count → single movement of -5 and on_hand ends at 0", () => {
+      const h = new PostingIntegrityHarness();
+      h.onHand.set("v1", 5);
+      h.stocktakes.set("st-open", { id: "st-open", status: "draft", isOpeningCount: true, postingDate: 2000 });
+      h.lines.push({ id: "l1", stocktakeId: "st-open", variantId: "v1", countedQuantity: 0, capturedAt: 1500, snapshotOnHand: 5 });
+
+      h.postStocktake("st-open", "owner-1");
+
+      expect(h.movements.length).toBe(1);
+      expect(h.movements[0].reason).toBe("opening_balance");
+      expect(h.movements[0].quantityDelta).toBe(-5);
+      expect(h.onHand.get("v1")).toBe(0);
+    });
+
+    it("7. on-hand 5, counted 0, ordinary count → single movement of -5 with reason stocktake_correction and on_hand ends at 0", () => {
+      const h = new PostingIntegrityHarness();
+      h.onHand.set("v1", 5);
+      h.stocktakes.set("st1", { id: "st1", status: "draft", isOpeningCount: false, postingDate: 2000 });
+      h.lines.push({ id: "l1", stocktakeId: "st1", variantId: "v1", countedQuantity: 0, capturedAt: 1500, snapshotOnHand: 5 });
+
+      h.postStocktake("st1", "owner-1");
+
+      expect(h.movements.length).toBe(1);
+      expect(h.movements[0].reason).toBe("stocktake_correction");
+      expect(h.movements[0].quantityDelta).toBe(-5);
+      expect(h.onHand.get("v1")).toBe(0);
+    });
+  });
 });
