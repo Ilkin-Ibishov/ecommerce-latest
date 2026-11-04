@@ -83,9 +83,12 @@ export class PureCostEngine {
       if (m.reason === "goods_receipt") {
         unitCost = m.receipt_unit_cost ?? 0;
         totalCost = Number((m.quantity_delta * unitCost).toFixed(2));
-        if (basisQty <= 0) {
+        if (basisQty + m.quantity_delta <= 0) {
           avgCost = unitCost;
-          basisQty = m.quantity_delta;
+          basisQty = Math.max(0, m.quantity_delta);
+        } else if (basisQty <= 0) {
+          avgCost = unitCost;
+          basisQty = Math.max(0, m.quantity_delta);
         } else {
           avgCost = ((basisQty * avgCost) + (m.quantity_delta * unitCost)) / (basisQty + m.quantity_delta);
           basisQty = basisQty + m.quantity_delta;
@@ -97,11 +100,14 @@ export class PureCostEngine {
           totalCost = Number((m.quantity_delta * unitCost).toFixed(2));
           if (basisQty <= 0) {
             avgCost = unitCost;
-            basisQty = m.quantity_delta;
           } else {
-            avgCost = ((basisQty * avgCost) + (m.quantity_delta * unitCost)) / (basisQty + m.quantity_delta);
-            basisQty = basisQty + m.quantity_delta;
+            if (basisQty + m.quantity_delta > 0) {
+              avgCost = ((basisQty * avgCost) + (m.quantity_delta * unitCost)) / (basisQty + m.quantity_delta);
+            } else {
+              avgCost = unitCost;
+            }
           }
+          basisQty = Math.max(0, basisQty + m.quantity_delta);
           hasUnknown = false;
         } else {
           unitCost = 0;
@@ -243,5 +249,49 @@ describe("M2a Costing Engine Replay", () => {
     // (50 * 6 + 10 * 10) / 60 = 400 / 60 = 6.6667
     expect(receiptRecWithCost.running_avg_cost).toBe(6.6667);
     expect(receiptRecWithCost.running_cost_basis_qty).toBe(60);
+  });
+
+  it("F6: negative opening balance clamps basis to 0 and subsequent receipt avoids division by zero", () => {
+    const movements: PhysicalMovement[] = [
+      {
+        id: "m-legacy",
+        variant_id: "v-f6",
+        posting_date: "2026-11-01T08:00:00Z",
+        created_at: "2026-11-01T08:00:00Z",
+        quantity_delta: 10,
+        reason: "opening_balance",
+      },
+      {
+        id: "m-stocktake-open",
+        variant_id: "v-f6",
+        posting_date: "2026-11-02T08:00:00Z",
+        created_at: "2026-11-02T08:00:00Z",
+        quantity_delta: -6,
+        reason: "opening_balance",
+      },
+      {
+        id: "m-receipt",
+        variant_id: "v-f6",
+        posting_date: "2026-11-03T08:00:00Z",
+        created_at: "2026-11-03T08:00:00Z",
+        quantity_delta: 6,
+        reason: "goods_receipt",
+        receipt_unit_cost: 30.0,
+      },
+    ];
+
+    const engineUnvalued = new PureCostEngine(undefined);
+    expect(() => engineUnvalued.recompute(movements)).not.toThrow();
+    const receiptRecUnvalued = engineUnvalued.records.find((r) => r.movement_id === "m-receipt")!;
+    expect(receiptRecUnvalued.running_avg_cost).toBe(30.0);
+    expect(receiptRecUnvalued.running_cost_basis_qty).toBe(6);
+    expect(receiptRecUnvalued.running_quantity).toBe(10);
+
+    const engineValued = new PureCostEngine(20.0);
+    expect(() => engineValued.recompute(movements)).not.toThrow();
+    const receiptRecValued = engineValued.records.find((r) => r.movement_id === "m-receipt")!;
+    expect(receiptRecValued.running_avg_cost).toBe(26.0);
+    expect(receiptRecValued.running_cost_basis_qty).toBe(10);
+    expect(receiptRecValued.running_quantity).toBe(10);
   });
 });
