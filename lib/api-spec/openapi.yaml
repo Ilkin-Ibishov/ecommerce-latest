@@ -18,6 +18,8 @@ tags:
     description: Goods receipts and receiving workflow
   - name: margins
     description: Owner-only margin read and reports
+  - name: stocktakes
+    description: Physical stocktake, opening count, and variance review workflow
 paths:
   /healthz:
     get:
@@ -488,6 +490,333 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
 
+  /admin/stocktakes:
+    get:
+      operationId: listStocktakes
+      tags: [stocktakes]
+      summary: List stocktakes
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [draft, posted, cancelled]
+      responses:
+        "200":
+          description: List of stocktakes
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StocktakeList"
+    post:
+      operationId: createStocktake
+      tags: [stocktakes]
+      summary: Create draft stocktake
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateStocktakeRequest"
+      responses:
+        "201":
+          description: Stocktake created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stocktake"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/stocktakes/{id}:
+    get:
+      operationId: getStocktake
+      tags: [stocktakes]
+      summary: Get stocktake details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stocktake details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StocktakeDetail"
+        "404":
+          description: Stocktake not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateStocktake
+      tags: [stocktakes]
+      summary: Update draft stocktake header
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStocktakeRequest"
+      responses:
+        "200":
+          description: Stocktake updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Stocktake"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: discardStocktake
+      tags: [stocktakes]
+      summary: Discard draft stocktake
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stocktake discarded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error discarding stocktake
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/stocktakes/{id}/lines:
+    post:
+      operationId: addStocktakeLine
+      tags: [stocktakes]
+      summary: Scan or add line to draft stocktake
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddStocktakeLineRequest"
+      responses:
+        "201":
+          description: Line added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StocktakeLine"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/stocktakes/{id}/lines/{lineId}:
+    patch:
+      operationId: updateStocktakeLine
+      tags: [stocktakes]
+      summary: Fix typo on count line
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lineId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateStocktakeLineRequest"
+      responses:
+        "200":
+          description: Line updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StocktakeLine"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: removeStocktakeLine
+      tags: [stocktakes]
+      summary: Delete line
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lineId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Line removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error removing line
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/stocktakes/{id}/variance:
+    get:
+      operationId: getStocktakeVariance
+      tags: [stocktakes]
+      summary: Get variance and shrinkage report
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Variance report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StocktakeVarianceReport"
+        "400":
+          description: Error generating variance report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/stocktakes/{id}/resolve:
+    post:
+      operationId: resolveStocktakeVariant
+      tags: [stocktakes]
+      summary: Resolve multi-counter collision
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResolveVariantRequest"
+      responses:
+        "200":
+          description: Variant resolved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error resolving variant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/stocktakes/{id}/opening-costs:
+    post:
+      operationId: setStocktakeOpeningCosts
+      tags: [stocktakes]
+      summary: Set opening costs for opening count
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SetOpeningCostsRequest"
+      responses:
+        "200":
+          description: Opening costs saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error saving opening costs
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/stocktakes/{id}/post:
+    post:
+      operationId: postStocktakeAction
+      tags: [stocktakes]
+      summary: Atomically post stocktake
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stocktake posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error posting stocktake
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -897,3 +1226,298 @@ components:
         - categories
         - best_contributors
         - worst_contributors
+    Stocktake:
+      type: object
+      properties:
+        id:
+          type: string
+        stocktake_number:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [draft, posted, cancelled]
+        is_opening_count:
+          type: boolean
+        posting_date:
+          type: string
+        transaction_id:
+          type: string
+          nullable: true
+        created_by:
+          type: string
+          nullable: true
+        posted_by:
+          type: string
+          nullable: true
+        posted_at:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        total_lines:
+          type: integer
+      required:
+        - id
+        - stocktake_number
+        - title
+        - status
+        - is_opening_count
+        - posting_date
+        - created_at
+        - updated_at
+
+    StocktakeList:
+      type: object
+      properties:
+        stocktakes:
+          type: array
+          items:
+            $ref: "#/components/schemas/Stocktake"
+      required:
+        - stocktakes
+
+    StocktakeLine:
+      type: object
+      properties:
+        id:
+          type: string
+        stocktake_id:
+          type: string
+        variant_id:
+          type: string
+        counter_id:
+          type: string
+        counted_quantity:
+          type: number
+        location_note:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+        updated_at:
+          type: string
+        sku:
+          type: string
+          nullable: true
+        product_title:
+          type: string
+          nullable: true
+        counter_name:
+          type: string
+          nullable: true
+      required:
+        - id
+        - stocktake_id
+        - variant_id
+        - counter_id
+        - counted_quantity
+        - created_at
+        - updated_at
+
+    StocktakeDetail:
+      type: object
+      properties:
+        stocktake:
+          $ref: "#/components/schemas/Stocktake"
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/StocktakeLine"
+      required:
+        - stocktake
+        - lines
+
+    CreateStocktakeRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        is_opening_count:
+          type: boolean
+        notes:
+          type: string
+          nullable: true
+        posting_date:
+          type: string
+          nullable: true
+      required:
+        - title
+
+    UpdateStocktakeRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        notes:
+          type: string
+          nullable: true
+        posting_date:
+          type: string
+          nullable: true
+
+    AddStocktakeLineRequest:
+      type: object
+      properties:
+        variant_id:
+          type: string
+        counted_quantity:
+          type: number
+        location_note:
+          type: string
+          nullable: true
+      required:
+        - variant_id
+        - counted_quantity
+
+    UpdateStocktakeLineRequest:
+      type: object
+      properties:
+        counted_quantity:
+          type: number
+        location_note:
+          type: string
+          nullable: true
+      required:
+        - counted_quantity
+
+    ResolveVariantRequest:
+      type: object
+      properties:
+        variant_id:
+          type: string
+        resolution_type:
+          type: string
+          enum: [sum, override]
+        chosen_line_id:
+          type: string
+          nullable: true
+        resolved_quantity:
+          type: number
+      required:
+        - variant_id
+        - resolution_type
+        - resolved_quantity
+
+    SetOpeningCostsRequest:
+      type: object
+      properties:
+        costs:
+          type: array
+          items:
+            type: object
+            properties:
+              variant_id:
+                type: string
+              opening_unit_cost:
+                type: number
+            required:
+              - variant_id
+              - opening_unit_cost
+      required:
+        - costs
+
+    StocktakeVarianceItem:
+      type: object
+      properties:
+        variant_id:
+          type: string
+        sku:
+          type: string
+          nullable: true
+        product_title:
+          type: string
+        category_name:
+          type: string
+          nullable: true
+        scan_count:
+          type: integer
+        resolution_status:
+          type: string
+        counted_quantity:
+          type: number
+        snapshot_on_hand:
+          type: number
+        current_on_hand:
+          type: number
+        variance_quantity:
+          type: number
+        unit_cost:
+          type: number
+        variance_value:
+          type: number
+        is_unvalued:
+          type: boolean
+        has_interleaved_movements:
+          type: boolean
+        interleaved_window:
+          type: object
+          properties:
+            start:
+              type: string
+            end:
+              type: string
+          nullable: true
+        contributing_lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/StocktakeLine"
+      required:
+        - variant_id
+        - product_title
+        - scan_count
+        - resolution_status
+        - counted_quantity
+        - snapshot_on_hand
+        - current_on_hand
+        - variance_quantity
+        - unit_cost
+        - variance_value
+        - is_unvalued
+        - has_interleaved_movements
+
+    StocktakeVarianceSummary:
+      type: object
+      properties:
+        shrinkage_value:
+          type: number
+        unvalued_shrinkage_units:
+          type: number
+        total_items_counted:
+          type: integer
+        discrepant_items_count:
+          type: integer
+        uncounted_variants_count:
+          type: integer
+        unresolved_conflicts_count:
+          type: integer
+      required:
+        - shrinkage_value
+        - unvalued_shrinkage_units
+        - total_items_counted
+        - discrepant_items_count
+        - uncounted_variants_count
+        - unresolved_conflicts_count
+
+    StocktakeVarianceReport:
+      type: object
+      properties:
+        stocktake:
+          $ref: "#/components/schemas/Stocktake"
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/StocktakeVarianceItem"
+        summary:
+          $ref: "#/components/schemas/StocktakeVarianceSummary"
+      required:
+        - stocktake
+        - items
+        - summary
+

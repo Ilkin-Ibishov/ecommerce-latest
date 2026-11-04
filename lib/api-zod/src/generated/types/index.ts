@@ -6,8 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './addStocktakeLineRequest';
 export * from './barcodeScanMatch';
 export * from './barcodeScanResult';
+export * from './createStocktakeRequest';
 export * from './errorResponse';
 export * from './getMarginReportParams';
 export * from './goodsReceipt';
@@ -20,13 +22,30 @@ export * from './goodsReceiptReverseInput';
 export * from './goodsReceiptStatus';
 export * from './healthStatus';
 export * from './listGoodsReceiptsParams';
+export * from './listStocktakesParams';
+export * from './listStocktakesStatus';
 export * from './marginReportCategoryRow';
 export * from './marginReportResponse';
 export * from './marginReportVariantRow';
 export * from './productScanDetail';
+export * from './resolveVariantRequest';
+export * from './resolveVariantRequestResolutionType';
+export * from './setOpeningCostsRequest';
+export * from './setOpeningCostsRequestCostsItem';
+export * from './stocktake';
+export * from './stocktakeDetail';
+export * from './stocktakeLine';
+export * from './stocktakeList';
+export * from './stocktakeStatus';
+export * from './stocktakeVarianceItem';
+export * from './stocktakeVarianceItemInterleavedWindow';
+export * from './stocktakeVarianceReport';
+export * from './stocktakeVarianceSummary';
 export * from './successResponse';
 export * from './supplier';
 export * from './supplierInput';
 export * from './supplierList';
+export * from './updateStocktakeLineRequest';
+export * from './updateStocktakeRequest';
 export * from './variantOption';
 export * from './variantScanDetail';

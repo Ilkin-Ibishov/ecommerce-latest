@@ -20,7 +20,9 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AddStocktakeLineRequest,
   BarcodeScanResult,
+  CreateStocktakeRequest,
   ErrorResponse,
   GetMarginReportParams,
   GoodsReceipt,
@@ -32,11 +34,21 @@ import type {
   GoodsReceiptReverseInput,
   HealthStatus,
   ListGoodsReceiptsParams,
+  ListStocktakesParams,
   MarginReportResponse,
+  ResolveVariantRequest,
+  SetOpeningCostsRequest,
+  Stocktake,
+  StocktakeDetail,
+  StocktakeLine,
+  StocktakeList,
+  StocktakeVarianceReport,
   SuccessResponse,
   Supplier,
   SupplierInput,
-  SupplierList
+  SupplierList,
+  UpdateStocktakeLineRequest,
+  UpdateStocktakeRequest
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -1391,4 +1403,887 @@ export function useGetMarginReport<TData = Awaited<ReturnType<typeof getMarginRe
 
 
 
+
+export const getListStocktakesUrl = (params?: ListStocktakesParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/stocktakes?${stringifiedParams}` : `/api/admin/stocktakes`
+}
+
+/**
+ * @summary List stocktakes
+ */
+export const listStocktakes = async (params?: ListStocktakesParams, options?: RequestInit): Promise<StocktakeList> => {
+
+  return customFetch<StocktakeList>(getListStocktakesUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStocktakesQueryKey = (params?: ListStocktakesParams,) => {
+    return [
+    `/api/admin/stocktakes`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListStocktakesQueryOptions = <TData = Awaited<ReturnType<typeof listStocktakes>>, TError = ErrorType<unknown>>(params?: ListStocktakesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStocktakes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStocktakesQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStocktakes>>> = ({ signal }) => listStocktakes(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStocktakes>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListStocktakesQueryResult = NonNullable<Awaited<ReturnType<typeof listStocktakes>>>
+export type ListStocktakesQueryError = ErrorType<unknown>
+
+
+/**
+ * @summary List stocktakes
+ */
+
+export function useListStocktakes<TData = Awaited<ReturnType<typeof listStocktakes>>, TError = ErrorType<unknown>>(
+ params?: ListStocktakesParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStocktakes>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListStocktakesQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateStocktakeUrl = () => {
+
+
+
+
+  return `/api/admin/stocktakes`
+}
+
+/**
+ * @summary Create draft stocktake
+ */
+export const createStocktake = async (createStocktakeRequest: CreateStocktakeRequest, options?: RequestInit): Promise<Stocktake> => {
+
+  return customFetch<Stocktake>(getCreateStocktakeUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      createStocktakeRequest,)
+  }
+);}
+
+
+
+
+export const getCreateStocktakeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStocktake>>, TError,{data: BodyType<CreateStocktakeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStocktake>>, TError,{data: BodyType<CreateStocktakeRequest>}, TContext> => {
+
+const mutationKey = ['createStocktake'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStocktake>>, {data: BodyType<CreateStocktakeRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createStocktake(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStocktakeMutationResult = NonNullable<Awaited<ReturnType<typeof createStocktake>>>
+    export type CreateStocktakeMutationBody = BodyType<CreateStocktakeRequest>
+    export type CreateStocktakeMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Create draft stocktake
+ */
+export const useCreateStocktake = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStocktake>>, TError,{data: BodyType<CreateStocktakeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createStocktake>>,
+        TError,
+        {data: BodyType<CreateStocktakeRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateStocktakeMutationOptions(options));
+    }
+
+export const getGetStocktakeUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/stocktakes/${id}`
+}
+
+/**
+ * @summary Get stocktake details
+ */
+export const getStocktake = async (id: string, options?: RequestInit): Promise<StocktakeDetail> => {
+
+  return customFetch<StocktakeDetail>(getGetStocktakeUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStocktakeQueryKey = (id: string,) => {
+    return [
+    `/api/admin/stocktakes/${id}`
+    ] as const;
+    }
+
+
+export const getGetStocktakeQueryOptions = <TData = Awaited<ReturnType<typeof getStocktake>>, TError = ErrorType<ErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStocktake>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStocktakeQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStocktake>>> = ({ signal }) => getStocktake(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStocktake>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStocktakeQueryResult = NonNullable<Awaited<ReturnType<typeof getStocktake>>>
+export type GetStocktakeQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get stocktake details
+ */
+
+export function useGetStocktake<TData = Awaited<ReturnType<typeof getStocktake>>, TError = ErrorType<ErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStocktake>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStocktakeQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getUpdateStocktakeUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/stocktakes/${id}`
+}
+
+/**
+ * @summary Update draft stocktake header
+ */
+export const updateStocktake = async (id: string,
+    updateStocktakeRequest: UpdateStocktakeRequest, options?: RequestInit): Promise<Stocktake> => {
+
+  return customFetch<Stocktake>(getUpdateStocktakeUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateStocktakeRequest,)
+  }
+);}
+
+
+
+
+export const getUpdateStocktakeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStocktake>>, TError,{id: string;data: BodyType<UpdateStocktakeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateStocktake>>, TError,{id: string;data: BodyType<UpdateStocktakeRequest>}, TContext> => {
+
+const mutationKey = ['updateStocktake'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStocktake>>, {id: string;data: BodyType<UpdateStocktakeRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateStocktake(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateStocktakeMutationResult = NonNullable<Awaited<ReturnType<typeof updateStocktake>>>
+    export type UpdateStocktakeMutationBody = BodyType<UpdateStocktakeRequest>
+    export type UpdateStocktakeMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Update draft stocktake header
+ */
+export const useUpdateStocktake = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStocktake>>, TError,{id: string;data: BodyType<UpdateStocktakeRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateStocktake>>,
+        TError,
+        {id: string;data: BodyType<UpdateStocktakeRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateStocktakeMutationOptions(options));
+    }
+
+export const getDiscardStocktakeUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/stocktakes/${id}`
+}
+
+/**
+ * @summary Discard draft stocktake
+ */
+export const discardStocktake = async (id: string, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getDiscardStocktakeUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDiscardStocktakeMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discardStocktake>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof discardStocktake>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['discardStocktake'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof discardStocktake>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  discardStocktake(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DiscardStocktakeMutationResult = NonNullable<Awaited<ReturnType<typeof discardStocktake>>>
+
+    export type DiscardStocktakeMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Discard draft stocktake
+ */
+export const useDiscardStocktake = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discardStocktake>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof discardStocktake>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDiscardStocktakeMutationOptions(options));
+    }
+
+export const getAddStocktakeLineUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/stocktakes/${id}/lines`
+}
+
+/**
+ * @summary Scan or add line to draft stocktake
+ */
+export const addStocktakeLine = async (id: string,
+    addStocktakeLineRequest: AddStocktakeLineRequest, options?: RequestInit): Promise<StocktakeLine> => {
+
+  return customFetch<StocktakeLine>(getAddStocktakeLineUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      addStocktakeLineRequest,)
+  }
+);}
+
+
+
+
+export const getAddStocktakeLineMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addStocktakeLine>>, TError,{id: string;data: BodyType<AddStocktakeLineRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addStocktakeLine>>, TError,{id: string;data: BodyType<AddStocktakeLineRequest>}, TContext> => {
+
+const mutationKey = ['addStocktakeLine'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addStocktakeLine>>, {id: string;data: BodyType<AddStocktakeLineRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addStocktakeLine(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddStocktakeLineMutationResult = NonNullable<Awaited<ReturnType<typeof addStocktakeLine>>>
+    export type AddStocktakeLineMutationBody = BodyType<AddStocktakeLineRequest>
+    export type AddStocktakeLineMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Scan or add line to draft stocktake
+ */
+export const useAddStocktakeLine = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addStocktakeLine>>, TError,{id: string;data: BodyType<AddStocktakeLineRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addStocktakeLine>>,
+        TError,
+        {id: string;data: BodyType<AddStocktakeLineRequest>},
+        TContext
+      > => {
+      return useMutation(getAddStocktakeLineMutationOptions(options));
+    }
+
+export const getUpdateStocktakeLineUrl = (id: string,
+    lineId: string,) => {
+
+
+
+
+  return `/api/admin/stocktakes/${id}/lines/${lineId}`
+}
+
+/**
+ * @summary Fix typo on count line
+ */
+export const updateStocktakeLine = async (id: string,
+    lineId: string,
+    updateStocktakeLineRequest: UpdateStocktakeLineRequest, options?: RequestInit): Promise<StocktakeLine> => {
+
+  return customFetch<StocktakeLine>(getUpdateStocktakeLineUrl(id,lineId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      updateStocktakeLineRequest,)
+  }
+);}
+
+
+
+
+export const getUpdateStocktakeLineMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStocktakeLine>>, TError,{id: string;lineId: string;data: BodyType<UpdateStocktakeLineRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateStocktakeLine>>, TError,{id: string;lineId: string;data: BodyType<UpdateStocktakeLineRequest>}, TContext> => {
+
+const mutationKey = ['updateStocktakeLine'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateStocktakeLine>>, {id: string;lineId: string;data: BodyType<UpdateStocktakeLineRequest>}> = (props) => {
+          const {id,lineId,data} = props ?? {};
+
+          return  updateStocktakeLine(id,lineId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateStocktakeLineMutationResult = NonNullable<Awaited<ReturnType<typeof updateStocktakeLine>>>
+    export type UpdateStocktakeLineMutationBody = BodyType<UpdateStocktakeLineRequest>
+    export type UpdateStocktakeLineMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Fix typo on count line
+ */
+export const useUpdateStocktakeLine = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateStocktakeLine>>, TError,{id: string;lineId: string;data: BodyType<UpdateStocktakeLineRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateStocktakeLine>>,
+        TError,
+        {id: string;lineId: string;data: BodyType<UpdateStocktakeLineRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateStocktakeLineMutationOptions(options));
+    }
+
+export const getRemoveStocktakeLineUrl = (id: string,
+    lineId: string,) => {
+
+
+
+
+  return `/api/admin/stocktakes/${id}/lines/${lineId}`
+}
+
+/**
+ * @summary Delete line
+ */
+export const removeStocktakeLine = async (id: string,
+    lineId: string, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getRemoveStocktakeLineUrl(id,lineId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getRemoveStocktakeLineMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeStocktakeLine>>, TError,{id: string;lineId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeStocktakeLine>>, TError,{id: string;lineId: string}, TContext> => {
+
+const mutationKey = ['removeStocktakeLine'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeStocktakeLine>>, {id: string;lineId: string}> = (props) => {
+          const {id,lineId} = props ?? {};
+
+          return  removeStocktakeLine(id,lineId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveStocktakeLineMutationResult = NonNullable<Awaited<ReturnType<typeof removeStocktakeLine>>>
+
+    export type RemoveStocktakeLineMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Delete line
+ */
+export const useRemoveStocktakeLine = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeStocktakeLine>>, TError,{id: string;lineId: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof removeStocktakeLine>>,
+        TError,
+        {id: string;lineId: string},
+        TContext
+      > => {
+      return useMutation(getRemoveStocktakeLineMutationOptions(options));
+    }
+
+export const getGetStocktakeVarianceUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/stocktakes/${id}/variance`
+}
+
+/**
+ * @summary Get variance and shrinkage report
+ */
+export const getStocktakeVariance = async (id: string, options?: RequestInit): Promise<StocktakeVarianceReport> => {
+
+  return customFetch<StocktakeVarianceReport>(getGetStocktakeVarianceUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStocktakeVarianceQueryKey = (id: string,) => {
+    return [
+    `/api/admin/stocktakes/${id}/variance`
+    ] as const;
+    }
+
+
+export const getGetStocktakeVarianceQueryOptions = <TData = Awaited<ReturnType<typeof getStocktakeVariance>>, TError = ErrorType<ErrorResponse>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStocktakeVariance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStocktakeVarianceQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStocktakeVariance>>> = ({ signal }) => getStocktakeVariance(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStocktakeVariance>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStocktakeVarianceQueryResult = NonNullable<Awaited<ReturnType<typeof getStocktakeVariance>>>
+export type GetStocktakeVarianceQueryError = ErrorType<ErrorResponse>
+
+
+/**
+ * @summary Get variance and shrinkage report
+ */
+
+export function useGetStocktakeVariance<TData = Awaited<ReturnType<typeof getStocktakeVariance>>, TError = ErrorType<ErrorResponse>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStocktakeVariance>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStocktakeVarianceQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getResolveStocktakeVariantUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/stocktakes/${id}/resolve`
+}
+
+/**
+ * @summary Resolve multi-counter collision
+ */
+export const resolveStocktakeVariant = async (id: string,
+    resolveVariantRequest: ResolveVariantRequest, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getResolveStocktakeVariantUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      resolveVariantRequest,)
+  }
+);}
+
+
+
+
+export const getResolveStocktakeVariantMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveStocktakeVariant>>, TError,{id: string;data: BodyType<ResolveVariantRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof resolveStocktakeVariant>>, TError,{id: string;data: BodyType<ResolveVariantRequest>}, TContext> => {
+
+const mutationKey = ['resolveStocktakeVariant'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof resolveStocktakeVariant>>, {id: string;data: BodyType<ResolveVariantRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  resolveStocktakeVariant(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ResolveStocktakeVariantMutationResult = NonNullable<Awaited<ReturnType<typeof resolveStocktakeVariant>>>
+    export type ResolveStocktakeVariantMutationBody = BodyType<ResolveVariantRequest>
+    export type ResolveStocktakeVariantMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Resolve multi-counter collision
+ */
+export const useResolveStocktakeVariant = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof resolveStocktakeVariant>>, TError,{id: string;data: BodyType<ResolveVariantRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof resolveStocktakeVariant>>,
+        TError,
+        {id: string;data: BodyType<ResolveVariantRequest>},
+        TContext
+      > => {
+      return useMutation(getResolveStocktakeVariantMutationOptions(options));
+    }
+
+export const getSetStocktakeOpeningCostsUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/stocktakes/${id}/opening-costs`
+}
+
+/**
+ * @summary Set opening costs for opening count
+ */
+export const setStocktakeOpeningCosts = async (id: string,
+    setOpeningCostsRequest: SetOpeningCostsRequest, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getSetStocktakeOpeningCostsUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      setOpeningCostsRequest,)
+  }
+);}
+
+
+
+
+export const getSetStocktakeOpeningCostsMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setStocktakeOpeningCosts>>, TError,{id: string;data: BodyType<SetOpeningCostsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setStocktakeOpeningCosts>>, TError,{id: string;data: BodyType<SetOpeningCostsRequest>}, TContext> => {
+
+const mutationKey = ['setStocktakeOpeningCosts'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setStocktakeOpeningCosts>>, {id: string;data: BodyType<SetOpeningCostsRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  setStocktakeOpeningCosts(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetStocktakeOpeningCostsMutationResult = NonNullable<Awaited<ReturnType<typeof setStocktakeOpeningCosts>>>
+    export type SetStocktakeOpeningCostsMutationBody = BodyType<SetOpeningCostsRequest>
+    export type SetStocktakeOpeningCostsMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Set opening costs for opening count
+ */
+export const useSetStocktakeOpeningCosts = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setStocktakeOpeningCosts>>, TError,{id: string;data: BodyType<SetOpeningCostsRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setStocktakeOpeningCosts>>,
+        TError,
+        {id: string;data: BodyType<SetOpeningCostsRequest>},
+        TContext
+      > => {
+      return useMutation(getSetStocktakeOpeningCostsMutationOptions(options));
+    }
+
+export const getPostStocktakeActionUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/stocktakes/${id}/post`
+}
+
+/**
+ * @summary Atomically post stocktake
+ */
+export const postStocktakeAction = async (id: string, options?: RequestInit): Promise<SuccessResponse> => {
+
+  return customFetch<SuccessResponse>(getPostStocktakeActionUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPostStocktakeActionMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postStocktakeAction>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postStocktakeAction>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['postStocktakeAction'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postStocktakeAction>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  postStocktakeAction(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostStocktakeActionMutationResult = NonNullable<Awaited<ReturnType<typeof postStocktakeAction>>>
+
+    export type PostStocktakeActionMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Atomically post stocktake
+ */
+export const usePostStocktakeAction = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postStocktakeAction>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postStocktakeAction>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getPostStocktakeActionMutationOptions(options));
+    }
 

@@ -443,3 +443,297 @@ export const GetMarginReportResponse = zod.object({
 })
 
 
+/**
+ * @summary List stocktakes
+ */
+export const ListStocktakesQueryParams = zod.object({
+  "status": zod.enum(['draft', 'posted', 'cancelled']).optional()
+})
+
+export const ListStocktakesResponse = zod.object({
+  "stocktakes": zod.array(zod.object({
+  "id": zod.string(),
+  "stocktake_number": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'cancelled']),
+  "is_opening_count": zod.boolean(),
+  "posting_date": zod.string(),
+  "transaction_id": zod.string().nullish(),
+  "created_by": zod.string().nullish(),
+  "posted_by": zod.string().nullish(),
+  "posted_at": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "created_at": zod.string(),
+  "updated_at": zod.string(),
+  "total_lines": zod.number().optional()
+}))
+})
+
+
+/**
+ * @summary Create draft stocktake
+ */
+export const CreateStocktakeBody = zod.object({
+  "title": zod.string(),
+  "is_opening_count": zod.boolean().optional(),
+  "notes": zod.string().nullish(),
+  "posting_date": zod.string().nullish()
+})
+
+
+/**
+ * @summary Get stocktake details
+ */
+export const GetStocktakeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetStocktakeResponse = zod.object({
+  "stocktake": zod.object({
+  "id": zod.string(),
+  "stocktake_number": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'cancelled']),
+  "is_opening_count": zod.boolean(),
+  "posting_date": zod.string(),
+  "transaction_id": zod.string().nullish(),
+  "created_by": zod.string().nullish(),
+  "posted_by": zod.string().nullish(),
+  "posted_at": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "created_at": zod.string(),
+  "updated_at": zod.string(),
+  "total_lines": zod.number().optional()
+}),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "stocktake_id": zod.string(),
+  "variant_id": zod.string(),
+  "counter_id": zod.string(),
+  "counted_quantity": zod.number(),
+  "location_note": zod.string().nullish(),
+  "created_at": zod.string(),
+  "updated_at": zod.string(),
+  "sku": zod.string().nullish(),
+  "product_title": zod.string().nullish(),
+  "counter_name": zod.string().nullish()
+}))
+})
+
+
+/**
+ * @summary Update draft stocktake header
+ */
+export const UpdateStocktakeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateStocktakeBody = zod.object({
+  "title": zod.string().optional(),
+  "notes": zod.string().nullish(),
+  "posting_date": zod.string().nullish()
+})
+
+export const UpdateStocktakeResponse = zod.object({
+  "id": zod.string(),
+  "stocktake_number": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'cancelled']),
+  "is_opening_count": zod.boolean(),
+  "posting_date": zod.string(),
+  "transaction_id": zod.string().nullish(),
+  "created_by": zod.string().nullish(),
+  "posted_by": zod.string().nullish(),
+  "posted_at": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "created_at": zod.string(),
+  "updated_at": zod.string(),
+  "total_lines": zod.number().optional()
+})
+
+
+/**
+ * @summary Discard draft stocktake
+ */
+export const DiscardStocktakeParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DiscardStocktakeResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Scan or add line to draft stocktake
+ */
+export const AddStocktakeLineParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AddStocktakeLineBody = zod.object({
+  "variant_id": zod.string(),
+  "counted_quantity": zod.number(),
+  "location_note": zod.string().nullish()
+})
+
+
+/**
+ * @summary Fix typo on count line
+ */
+export const UpdateStocktakeLineParams = zod.object({
+  "id": zod.coerce.string(),
+  "lineId": zod.coerce.string()
+})
+
+export const UpdateStocktakeLineBody = zod.object({
+  "counted_quantity": zod.number(),
+  "location_note": zod.string().nullish()
+})
+
+export const UpdateStocktakeLineResponse = zod.object({
+  "id": zod.string(),
+  "stocktake_id": zod.string(),
+  "variant_id": zod.string(),
+  "counter_id": zod.string(),
+  "counted_quantity": zod.number(),
+  "location_note": zod.string().nullish(),
+  "created_at": zod.string(),
+  "updated_at": zod.string(),
+  "sku": zod.string().nullish(),
+  "product_title": zod.string().nullish(),
+  "counter_name": zod.string().nullish()
+})
+
+
+/**
+ * @summary Delete line
+ */
+export const RemoveStocktakeLineParams = zod.object({
+  "id": zod.coerce.string(),
+  "lineId": zod.coerce.string()
+})
+
+export const RemoveStocktakeLineResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Get variance and shrinkage report
+ */
+export const GetStocktakeVarianceParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetStocktakeVarianceResponse = zod.object({
+  "stocktake": zod.object({
+  "id": zod.string(),
+  "stocktake_number": zod.string(),
+  "title": zod.string(),
+  "status": zod.enum(['draft', 'posted', 'cancelled']),
+  "is_opening_count": zod.boolean(),
+  "posting_date": zod.string(),
+  "transaction_id": zod.string().nullish(),
+  "created_by": zod.string().nullish(),
+  "posted_by": zod.string().nullish(),
+  "posted_at": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "created_at": zod.string(),
+  "updated_at": zod.string(),
+  "total_lines": zod.number().optional()
+}),
+  "items": zod.array(zod.object({
+  "variant_id": zod.string(),
+  "sku": zod.string().nullish(),
+  "product_title": zod.string(),
+  "category_name": zod.string().nullish(),
+  "scan_count": zod.number(),
+  "resolution_status": zod.string(),
+  "counted_quantity": zod.number(),
+  "snapshot_on_hand": zod.number(),
+  "current_on_hand": zod.number(),
+  "variance_quantity": zod.number(),
+  "unit_cost": zod.number(),
+  "variance_value": zod.number(),
+  "is_unvalued": zod.boolean(),
+  "has_interleaved_movements": zod.boolean(),
+  "interleaved_window": zod.object({
+  "start": zod.string().optional(),
+  "end": zod.string().optional()
+}).nullish(),
+  "contributing_lines": zod.array(zod.object({
+  "id": zod.string(),
+  "stocktake_id": zod.string(),
+  "variant_id": zod.string(),
+  "counter_id": zod.string(),
+  "counted_quantity": zod.number(),
+  "location_note": zod.string().nullish(),
+  "created_at": zod.string(),
+  "updated_at": zod.string(),
+  "sku": zod.string().nullish(),
+  "product_title": zod.string().nullish(),
+  "counter_name": zod.string().nullish()
+})).optional()
+})),
+  "summary": zod.object({
+  "shrinkage_value": zod.number(),
+  "unvalued_shrinkage_units": zod.number(),
+  "total_items_counted": zod.number(),
+  "discrepant_items_count": zod.number(),
+  "uncounted_variants_count": zod.number(),
+  "unresolved_conflicts_count": zod.number()
+})
+})
+
+
+/**
+ * @summary Resolve multi-counter collision
+ */
+export const ResolveStocktakeVariantParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ResolveStocktakeVariantBody = zod.object({
+  "variant_id": zod.string(),
+  "resolution_type": zod.enum(['sum', 'override']),
+  "chosen_line_id": zod.string().nullish(),
+  "resolved_quantity": zod.number()
+})
+
+export const ResolveStocktakeVariantResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Set opening costs for opening count
+ */
+export const SetStocktakeOpeningCostsParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const SetStocktakeOpeningCostsBody = zod.object({
+  "costs": zod.array(zod.object({
+  "variant_id": zod.string(),
+  "opening_unit_cost": zod.number()
+}))
+})
+
+export const SetStocktakeOpeningCostsResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Atomically post stocktake
+ */
+export const PostStocktakeActionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const PostStocktakeActionResponse = zod.object({
+  "success": zod.boolean()
+})
+
+

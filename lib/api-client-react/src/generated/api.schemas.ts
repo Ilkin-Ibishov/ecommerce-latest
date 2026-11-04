@@ -178,6 +178,142 @@ export interface MarginReportResponse {
   worst_contributors: MarginReportVariantRow[];
 }
 
+export type StocktakeStatus = typeof StocktakeStatus[keyof typeof StocktakeStatus];
+
+
+export const StocktakeStatus = {
+  draft: 'draft',
+  posted: 'posted',
+  cancelled: 'cancelled',
+} as const;
+
+export interface Stocktake {
+  id: string;
+  stocktake_number: string;
+  title: string;
+  status: StocktakeStatus;
+  is_opening_count: boolean;
+  posting_date: string;
+  transaction_id?: string | null;
+  created_by?: string | null;
+  posted_by?: string | null;
+  posted_at?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  total_lines?: number;
+}
+
+export interface StocktakeList {
+  stocktakes: Stocktake[];
+}
+
+export interface StocktakeLine {
+  id: string;
+  stocktake_id: string;
+  variant_id: string;
+  counter_id: string;
+  counted_quantity: number;
+  location_note?: string | null;
+  created_at: string;
+  updated_at: string;
+  sku?: string | null;
+  product_title?: string | null;
+  counter_name?: string | null;
+}
+
+export interface StocktakeDetail {
+  stocktake: Stocktake;
+  lines: StocktakeLine[];
+}
+
+export interface CreateStocktakeRequest {
+  title: string;
+  is_opening_count?: boolean;
+  notes?: string | null;
+  posting_date?: string | null;
+}
+
+export interface UpdateStocktakeRequest {
+  title?: string;
+  notes?: string | null;
+  posting_date?: string | null;
+}
+
+export interface AddStocktakeLineRequest {
+  variant_id: string;
+  counted_quantity: number;
+  location_note?: string | null;
+}
+
+export interface UpdateStocktakeLineRequest {
+  counted_quantity: number;
+  location_note?: string | null;
+}
+
+export type ResolveVariantRequestResolutionType = typeof ResolveVariantRequestResolutionType[keyof typeof ResolveVariantRequestResolutionType];
+
+
+export const ResolveVariantRequestResolutionType = {
+  sum: 'sum',
+  override: 'override',
+} as const;
+
+export interface ResolveVariantRequest {
+  variant_id: string;
+  resolution_type: ResolveVariantRequestResolutionType;
+  chosen_line_id?: string | null;
+  resolved_quantity: number;
+}
+
+export type SetOpeningCostsRequestCostsItem = {
+  variant_id: string;
+  opening_unit_cost: number;
+};
+
+export interface SetOpeningCostsRequest {
+  costs: SetOpeningCostsRequestCostsItem[];
+}
+
+export type StocktakeVarianceItemInterleavedWindow = {
+  start?: string;
+  end?: string;
+} | null;
+
+export interface StocktakeVarianceItem {
+  variant_id: string;
+  sku?: string | null;
+  product_title: string;
+  category_name?: string | null;
+  scan_count: number;
+  resolution_status: string;
+  counted_quantity: number;
+  snapshot_on_hand: number;
+  current_on_hand: number;
+  variance_quantity: number;
+  unit_cost: number;
+  variance_value: number;
+  is_unvalued: boolean;
+  has_interleaved_movements: boolean;
+  interleaved_window?: StocktakeVarianceItemInterleavedWindow;
+  contributing_lines?: StocktakeLine[];
+}
+
+export interface StocktakeVarianceSummary {
+  shrinkage_value: number;
+  unvalued_shrinkage_units: number;
+  total_items_counted: number;
+  discrepant_items_count: number;
+  uncounted_variants_count: number;
+  unresolved_conflicts_count: number;
+}
+
+export interface StocktakeVarianceReport {
+  stocktake: Stocktake;
+  items: StocktakeVarianceItem[];
+  summary: StocktakeVarianceSummary;
+}
+
 export type ListGoodsReceiptsParams = {
 status?: string;
 search?: string;
@@ -188,4 +324,17 @@ startDate: string;
 endDate: string;
 categoryId?: string;
 };
+
+export type ListStocktakesParams = {
+status?: ListStocktakesStatus;
+};
+
+export type ListStocktakesStatus = typeof ListStocktakesStatus[keyof typeof ListStocktakesStatus];
+
+
+export const ListStocktakesStatus = {
+  draft: 'draft',
+  posted: 'posted',
+  cancelled: 'cancelled',
+} as const;
 
