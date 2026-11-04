@@ -1109,6 +1109,8 @@ CREATE TABLE IF NOT EXISTS public.stocktake_resolutions (
   resolution_type   text NOT NULL CHECK (resolution_type IN ('sum', 'override')),
   chosen_line_id    uuid REFERENCES public.stocktake_lines(id) ON DELETE SET NULL,
   resolved_quantity numeric(12,3) NOT NULL CHECK (resolved_quantity >= 0),
+  resolved_line_count integer NOT NULL DEFAULT 0,
+  resolved_latest_line_at timestamptz NOT NULL DEFAULT now(),
   resolved_by       uuid REFERENCES public.users(id),
   resolved_at       timestamptz NOT NULL DEFAULT now(),
   PRIMARY KEY (stocktake_id, variant_id)

@@ -1598,6 +1598,8 @@ export type Database = {
           resolution_type: "sum" | "override";
           chosen_line_id: string | null;
           resolved_quantity: number;
+          resolved_line_count: number;
+          resolved_latest_line_at: string;
           resolved_by: string | null;
           resolved_at: string;
         };
@@ -1607,6 +1609,8 @@ export type Database = {
           resolution_type: "sum" | "override";
           chosen_line_id?: string | null;
           resolved_quantity: number;
+          resolved_line_count?: number;
+          resolved_latest_line_at?: string;
           resolved_by?: string | null;
           resolved_at?: string;
         };
@@ -1616,6 +1620,8 @@ export type Database = {
           resolution_type?: "sum" | "override";
           chosen_line_id?: string | null;
           resolved_quantity?: number;
+          resolved_line_count?: number;
+          resolved_latest_line_at?: string;
           resolved_by?: string | null;
           resolved_at?: string;
         };

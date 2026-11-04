@@ -116,9 +116,18 @@ export async function computeStocktakeVariance(admin: SupabaseClient<any, any, a
     const res = resolutionMap.get(variantId);
     let countedQuantity = 0, resolutionStatus = "single";
 
-    if (res) {
+    const isStale = Boolean(res && (
+      vLines.length !== Number(res.resolved_line_count) ||
+      (vLines.length > 0 && Math.max(...vLines.map((l: any) => new Date(String(l.created_at)).getTime())) > new Date(String(res.resolved_latest_line_at)).getTime())
+    ));
+
+    if (res && !isStale) {
       countedQuantity = Number(res.resolved_quantity);
       resolutionStatus = res.resolution_type === "override" ? "override_resolved" : "sum_resolved";
+    } else if (res && isStale) {
+      // Resolution is stale: leave reading resolved_quantity, mark as needing re-resolution
+      countedQuantity = Number(res.resolved_quantity);
+      resolutionStatus = "unresolved_conflict";
     } else if (vLines.length === 1) {
       countedQuantity = Number(vLines[0].counted_quantity);
       resolutionStatus = "single";

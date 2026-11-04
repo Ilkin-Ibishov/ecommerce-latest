@@ -165,12 +165,27 @@ router.post("/admin/stocktakes/:id/resolve", requireAdmin, async (req: Request, 
     return res.status(400).json({ error: "Invalid resolution payload" });
   }
 
+  const { data: lines, error: linesErr } = await (admin as any)
+    .from("stocktake_lines")
+    .select("created_at")
+    .eq("stocktake_id", id)
+    .eq("variant_id", variant_id);
+
+  if (linesErr) return res.status(400).json({ error: linesErr.message });
+
+  const resolvedLineCount = (lines ?? []).length;
+  const resolvedLatestLineAt = lines && lines.length > 0
+    ? new Date(Math.max(...lines.map((l: any) => new Date(l.created_at).getTime()))).toISOString()
+    : new Date().toISOString();
+
   const { error } = await (admin as any).from("stocktake_resolutions").upsert({
     stocktake_id: id,
     variant_id,
     resolution_type,
     chosen_line_id: chosen_line_id ?? null,
     resolved_quantity,
+    resolved_line_count: resolvedLineCount,
+    resolved_latest_line_at: resolvedLatestLineAt,
     resolved_by: user.id,
     resolved_at: new Date().toISOString(),
   });

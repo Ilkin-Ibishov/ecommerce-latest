@@ -176,4 +176,37 @@ describe("M2b Stocktake Variance Snapshot Scoping & Invariant Guards", () => {
     expect(code).not.toContain("snapshotMap.get(latestLine.id) ?? currentOnHand");
     expect(code).not.toContain("?? currentOnHand");
   });
+
+  it("marks stale resolution as unresolved_conflict when count lines changed after resolution", async () => {
+    const admin = createMockAdmin({
+      stocktakes: [{ id: "st-1", status: "draft", is_opening_count: false }],
+      lines: [
+        { id: "l1", stocktake_id: "st-1", variant_id: "var-1", counter_id: "u1", counted_quantity: 10, created_at: new Date(1000).toISOString() },
+        { id: "l2", stocktake_id: "st-1", variant_id: "var-1", counter_id: "u2", counted_quantity: 5, created_at: new Date(1010).toISOString() },
+        // Late scan added at t=1510
+        { id: "l3", stocktake_id: "st-1", variant_id: "var-1", counter_id: "u3", counted_quantity: 4, created_at: new Date(1510).toISOString() },
+      ],
+      snapshots: [
+        { line_id: "l1", snapshot_on_hand: 20, captured_at: new Date(1000).toISOString() },
+        { line_id: "l2", snapshot_on_hand: 20, captured_at: new Date(1010).toISOString() },
+        { line_id: "l3", snapshot_on_hand: 20, captured_at: new Date(1510).toISOString() },
+      ],
+      resolutions: [{
+        stocktake_id: "st-1",
+        variant_id: "var-1",
+        resolution_type: "sum",
+        resolved_quantity: 15,
+        resolved_line_count: 2, // only 2 lines when resolved
+        resolved_latest_line_at: new Date(1010).toISOString(),
+      }],
+      variants: [{ id: "var-1", sku: "SKU-001", on_hand: 20, products: { title: "Test Product", categories: null } }],
+      costs: [{ variant_id: "var-1", cost_price: 10.0 }],
+      movements: [],
+    });
+
+    const report = await computeStocktakeVariance(admin, "st-1");
+    expect(report.items[0].resolution_status).toBe("unresolved_conflict");
+    expect(report.summary.unresolved_conflicts_count).toBe(1);
+    expect(report.items[0].counted_quantity).toBe(15); // Leaves reading resolved_quantity as required
+  });
 });

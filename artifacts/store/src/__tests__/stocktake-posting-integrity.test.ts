@@ -28,6 +28,14 @@ interface StocktakeLineSnapshot {
   capturedAt: number;
 }
 
+interface StocktakeResolution {
+  variantId: string;
+  resolutionType: "sum" | "override";
+  resolvedQuantity: number;
+  resolvedLineCount: number;
+  resolvedLatestLineAt: number;
+}
+
 interface StockMovement {
   id: string;
   variantId: string;
@@ -44,7 +52,27 @@ class PostingIntegrityHarness {
   public stocktakes = new Map<string, Stocktake>();
   public lines: StocktakeLine[] = [];
   public snapshots = new Map<string, StocktakeLineSnapshot>();
+  public resolutions = new Map<string, StocktakeResolution>();
   public openingCosts = new Map<string, number>();
+
+  public resolveVariant(
+    variantId: string,
+    resolutionType: "sum" | "override",
+    resolvedQuantity: number,
+    stocktakeId?: string,
+  ): void {
+    const targetStId = stocktakeId ?? this.lines.find((l) => l.variantId === variantId)?.stocktakeId;
+    const vLines = this.lines.filter((l) => l.variantId === variantId && (!targetStId || l.stocktakeId === targetStId));
+    const count = vLines.length;
+    const latestAt = count > 0 ? Math.max(...vLines.map((l) => l.capturedAt)) : 0;
+    this.resolutions.set(variantId, {
+      variantId,
+      resolutionType,
+      resolvedQuantity,
+      resolvedLineCount: count,
+      resolvedLatestLineAt: latestAt,
+    });
+  }
 
   public postStocktake(stocktakeId: string, actorId?: string): { success: boolean; txId: string } {
     if (!actorId) throw new Error("ST007: Actor ID is required");
@@ -78,6 +106,16 @@ class PostingIntegrityHarness {
       throw new Error("ST010: Stocktake posting_date cannot be earlier than contributing observations");
     }
 
+    // A4 Guard: Verify resolutions are not stale (ST011)
+    for (const [variantId, res] of this.resolutions.entries()) {
+      const vLines = stLines.filter((l) => l.variantId === variantId);
+      const curCount = vLines.length;
+      const curLatestAt = curCount > 0 ? Math.max(...vLines.map((l) => l.capturedAt)) : 0;
+      if (curCount !== res.resolvedLineCount || curLatestAt > res.resolvedLatestLineAt) {
+        throw new Error(`ST011: Cannot post stocktake ${stocktakeId}: resolution for variant ${variantId} is stale - lines changed after it was recorded`);
+      }
+    }
+
     const txId = `tx-${Date.now()}`;
     const proposedMovements: StockMovement[] = [];
 
@@ -104,7 +142,12 @@ class PostingIntegrityHarness {
       }
 
       const totalCounted = vLines.reduce((acc, l) => acc + l.countedQuantity, 0);
-      const delta = totalCounted - snap.snapshotOnHand;
+      let effectiveCounted = totalCounted;
+      const res = this.resolutions.get(variantId);
+      if (res) {
+        effectiveCounted = res.resolvedQuantity;
+      }
+      const delta = effectiveCounted - snap.snapshotOnHand;
       if (delta === 0) continue; // ledger forbids zero delta
 
       proposedMovements.push({
@@ -336,6 +379,62 @@ describe("M2b Stocktake Posting Integrity and Valuation", () => {
       expect(h.movements[0].reason).toBe("stocktake_correction");
       expect(h.movements[0].quantityDelta).toBe(-5);
       expect(h.onHand.get("v1")).toBe(0);
+    });
+  });
+
+  describe("A4 — Resolution staleness detection (ST011)", () => {
+    it("8. three-step sequence: resolve, add a late scan, attempt to post asserts ST011 and zero movements written", () => {
+      const h = new PostingIntegrityHarness();
+      h.onHand.set("v1", 20);
+      h.stocktakes.set("st1", { id: "st1", status: "draft", isOpeningCount: false, postingDate: 5000 });
+
+      // Step 1: Two counters scan same shelf at 15:00 (t=1000 and t=1010)
+      h.lines.push({ id: "l1", stocktakeId: "st1", variantId: "v1", countedQuantity: 10, capturedAt: 1000 });
+      h.lines.push({ id: "l2", stocktakeId: "st1", variantId: "v1", countedQuantity: 5, capturedAt: 1010 });
+      h.snapshots.set("l1", { lineId: "l1", snapshotOnHand: 20, capturedAt: 1000 });
+      h.snapshots.set("l2", { lineId: "l2", snapshotOnHand: 20, capturedAt: 1010 });
+
+      // Owner resolves at 15:00 with sum (15)
+      h.resolveVariant("v1", "sum", 15, "st1");
+
+      // Step 2: Third counter finishes back room at 15:10 (t=1510) and adds scan of 4
+      h.lines.push({ id: "l3", stocktakeId: "st1", variantId: "v1", countedQuantity: 4, capturedAt: 1510 });
+      h.snapshots.set("l3", { lineId: "l3", snapshotOnHand: 20, capturedAt: 1510 });
+
+      // Step 3: Posting at 15:20 blocks with ST011 and writes no movements
+      expect(() => h.postStocktake("st1", "owner-1")).toThrowError(/ST011.*resolution for variant v1 is stale - lines changed after it was recorded/);
+      expect(h.movements.length).toBe(0);
+      expect(h.onHand.get("v1")).toBe(20);
+      expect(h.stocktakes.get("st1")?.status).toBe("draft");
+    });
+
+    it("9. re-resolve after late scan asserts posting succeeds with quantity including late scan", () => {
+      const h = new PostingIntegrityHarness();
+      h.onHand.set("v1", 20);
+      h.stocktakes.set("st1", { id: "st1", status: "draft", isOpeningCount: false, postingDate: 5000 });
+
+      // Two initial scans (10 + 5 = 15) resolved by owner
+      h.lines.push({ id: "l1", stocktakeId: "st1", variantId: "v1", countedQuantity: 10, capturedAt: 1000 });
+      h.lines.push({ id: "l2", stocktakeId: "st1", variantId: "v1", countedQuantity: 5, capturedAt: 1010 });
+      h.snapshots.set("l1", { lineId: "l1", snapshotOnHand: 20, capturedAt: 1000 });
+      h.snapshots.set("l2", { lineId: "l2", snapshotOnHand: 20, capturedAt: 1010 });
+      h.resolveVariant("v1", "sum", 15, "st1");
+
+      // Late scan of 4 added
+      h.lines.push({ id: "l3", stocktakeId: "st1", variantId: "v1", countedQuantity: 4, capturedAt: 1510 });
+      h.snapshots.set("l3", { lineId: "l3", snapshotOnHand: 20, capturedAt: 1510 });
+
+      // Re-resolve including late scan (15 + 4 = 19)
+      h.resolveVariant("v1", "sum", 19, "st1");
+
+      // Post succeeds with quantity that includes late scan (19 - 20 = -1)
+      const res = h.postStocktake("st1", "owner-1");
+      expect(res.success).toBe(true);
+      expect(h.movements.length).toBe(1);
+      expect(h.movements[0].quantityDelta).toBe(-1);
+      expect(h.movements[0].reason).toBe("stocktake_correction");
+      expect(h.onHand.get("v1")).toBe(19);
+      expect(h.stocktakes.get("st1")?.status).toBe("posted");
     });
   });
 });
