@@ -13,70 +13,77 @@ lives in this repository; nothing important is only in a chat transcript.
 
 ## State
 
-**M1 is complete on `m1/variants-ledger` and verified. It has not been merged.**
+**M2a is complete on `m2/receiving-cost` and verified after adversarial audit fixes. It has not been merged.**  
+(Preceding phase M1 is complete on `m1/variants-ledger`.)
 
 Verified locally on 2026-11-04:
 
 | Check | Result |
 |---|---|
 | `pnpm run typecheck` | exit 0 |
-| `pnpm run test:unit` | 549 tests, 39 files, exit 0 |
-| `pnpm run audit:invariants:strict` | 0 violations, baseline empty |
+| `pnpm run test:unit` | 582 tests, 45 files, exit 0 |
+| `pnpm run audit:invariants:strict` | 9 checks, 0 violations, baseline empty |
 
-The empty baseline is the headline: the six direct stock-write violations that existed when the
-branch started are gone, and no new ones were introduced.
+The empty baseline remains preserved across all 9 invariant checks, including the newly added
+`security-definer-service-role-privileges` invariant.
 
-### What M1 delivered
+### What M2a delivered
 
-- **Variant layer.** Stock, price, SKU and barcode moved off `products` onto `product_variants`.
-  Options are data (`product_option_types` / `product_option_values` / `variant_option_values`),
-  never columns. Every product has at least one variant; there is no `has_variants` flag.
-- **Append-only movement ledger.** `stock_movements` with typed reasons. An `AFTER INSERT` trigger
-  applies each movement to the cached `on_hand` in the same transaction; a `BEFORE UPDATE OR DELETE`
-  trigger makes the table immutable; a `pg_trigger_depth()` guard rejects any direct write to
-  `on_hand`, so the ledger is structurally the only way a quantity changes.
-- **Cost isolation.** `variant_costs` is admin-only under RLS. Cost is not a column on a
-  publicly-readable table — the admin client talks to PostgREST directly, so RLS is the boundary,
-  not Express.
-- **Roles.** Owner sees cost and margin; staff do not. Staff cannot change prices (API check plus a
-  database trigger) and cannot post `opening_balance` or `stocktake_correction`.
-- **Barcodes as a table.** `variant_barcodes` with `source`, `is_primary`, `pack_quantity`,
-  `pack_unit`. No uniqueness on `barcode`, because one code may map to several variants and one
-  variant may carry several codes. Scanning a case of twelve posts twelve.
-- **Fields that cannot be backfilled**, added while the ledger was still empty: `posting_date`
-  (business date, distinct from `created_at`), `transaction_id`, `correlation_id`, `track_stock`,
-  `low_stock_threshold`.
+- **Goods receipts and suppliers.** Drafts, line entry, posting, and full reversal (`goods_receipts`,
+  `goods_receipt_lines`, `suppliers`). Posting generates immutable stock movements with
+  `reference_type = 'goods_receipt'` atomically under lock. Full reversal verifies that no received
+  units were already consumed and raises actionable error `ST008` naming the receipt, variant, SKU,
+  and consumed count if partially consumed.
+- **Weighted-average cost (WAC) replay.** `recompute_variant_cost` replays stock movements ordered by
+  `posting_date`, `created_at`, `id`. Excludes unvalued opening balances and unpriced movements from
+  cost calculations. Replay concurrency is secured by collision-free 64-bit integer advisory
+  transaction locks (`pg_advisory_xact_lock(int, int)`).
+- **Cost boundary isolation.** `variant_costs` and `goods_receipt_lines.unit_cost` are hidden from
+  staff and accessible only by admins/owners. Database RPCs use Postgres execute privileges
+  (`REVOKE ... FROM public, anon, authenticated; GRANT ... TO service_role`) rather than runtime
+  `auth.uid()` checks in function bodies.
+- **Granularity-corrected margin reporting.** Excludes unpriced outflows from revenue and COGS
+  (preventing phantom losses), tracking them separately as `unpriced_units_out` across categories,
+  variants, and on the UI report banner.
+- **Operational integrity tooling.** `rebuild_on_hand(variant)` and `verify_stock_integrity()`.
+  `rebuild_on_hand` recomputes both on-hand stock and cost projection atomically in a single transaction.
+- **Tenant negative stock control.** `allow_negative_stock` setting in `site_settings`, enforced via
+  `BEFORE INSERT` trigger on `stock_movements`, recording `negative_stock_override = true` on any
+  movement that drives stock below zero.
+- **Unit of Measure (UoM) immutability.** Prevents changing `uom` on variants once stock movements
+  exist in the ledger.
+- **Architectural invariant.** `security-definer-service-role-privileges` in
+  `scripts/audit/check-invariants.mjs` verifying privilege boundaries and prohibiting `auth.uid()`
+  dependencies in service-role RPCs.
 
 ### Decisions closed, and where the reasoning lives
 
 | Decision | Where |
 |---|---|
-| Ledger enforcement in the database, not the service layer | design note §2 Q1 — PostgREST has no cross-request transaction |
-| Cost replayed by `posting_date`, never computed in the trigger | migration comment, §A1 — WAC does not commute |
-| No bill of materials in M1 | work order §3 |
-| Reservations are not movements | `.agents/rules/inventory.md` |
-| Identification handled by a scenario matrix | `docs/tasks/identification-scenario-matrix.md` |
-| Image search deferred; internal labels first | same matrix |
+| RPC authorisation via Postgres privileges, not `auth.uid()` in body | `docs/audits/m2a-fix-notes.md` §F1 |
+| `BEFORE INSERT` trigger stamping `negative_stock_override` for negative stock | `docs/audits/m2a-fix-notes.md` §F2 |
+| Unpriced sales excluded from margin and reported as `unpriced_units_out` | `docs/audits/m2a-fix-notes.md` §F3 |
+| Reversal refusal on consumed goods with descriptive error diagnostic | `docs/audits/m2a-fix-notes.md` §F4 |
+| Two-argument 64-bit integer advisory locks for variant cost replay | `docs/audits/m2a-fix-notes.md` §F5 |
+| Cost projection recomputation coupled to `rebuild_on_hand` | `docs/audits/m2a-fix-notes.md` §F6 |
+| Privilege-level security blocking PostgREST staff calls | `docs/audits/m2a-fix-notes.md` §F7 |
+| Quick View property test timeout stabilization | `docs/audits/m2a-fix-notes.md` §Flaky-Test |
 
 ## Next
 
-**M2** — goods receipt, suppliers, weighted-average cost, stocktake, and reservations (deposits).
-Reservations moved forward from M5 because the first customer takes deposits daily.
+**M2b** — stocktake count sheets, count-entry UI, optimistic concurrency on observed on-hand,
+and reservations (deposits) ledger.
 
-Carried forward into M2, from the prior-art comparison and the M1 audits:
+Carried forward into M2b:
 
-- `rebuild_on_hand(variant)` and `verify_stock_integrity()` — a cached quantity makes divergence
-  unlikely, not impossible; both Odoo and ERPNext ship a repair tool
-- stocktake optimistic concurrency: accept `observed_on_hand` with the count and reject on mismatch,
-  or a count submitted thirty minutes late silently erases the sales in between
-- `allow_negative_stock` as a tenant setting, default off, each override recorded
-- unit-of-measure immutability once movements exist
-- `set_product_stock_safe` takes one parameter meaning either a variant id or a product id — split it
+- Stocktake count sheets and count entry workflow.
+- Stocktake optimistic concurrency: accept `observed_on_hand` with the count and reject on mismatch,
+  preventing silent overwrite of sales that occurred while counting.
+- Reservations (deposits) ledger: allocating stock without movement ledger consumption until
+  fulfillment or pickup.
 
-**M3** — counter sale, barcode flow, and a minimal bill of materials. The earlier plan was to sell
-boxes as a discounted multi-line sale; that was reversed. A discount rule cannot count boxes, give a
-box its own barcode, or price it as a thing, and Loyverse's free-tier import template shows shops in
-this segment do fill composites in. Build parent / component / quantity plus one produced flag.
+**M3** — counter sale, barcode flow, and a minimal bill of materials. Build parent / component /
+quantity plus one produced flag.
 
 ## Open
 
@@ -88,12 +95,13 @@ this segment do fill composites in. Build parent / component / quantity plus one
 
 **Technical:**
 
-4. `main` is merged only up to the chore batches; M1 is not merged and nothing is pushed. The
-   integration tier runs only in CI, so M1's concurrency and RLS tests are unverified until a push.
-5. Is the first customer's scanner in daily use or dormant? Do colour variants share one barcode?
-   What is the ~10% without barcodes? The model covers every answer; the answers decide which UI
-   ships first.
-6. `SESSION_SECRET` must be set in every deployed environment before the next deploy — the API now
+4. `main` is merged only up to the chore batches; `m1/variants-ledger` and `m2/receiving-cost` are not
+   merged to `main` and nothing is pushed.
+5. The Supabase project behind the CI secrets has not been confirmed as separate from production, so
+   no migration has been applied to any remote database. The integration tier runs only in CI.
+6. Is the first customer's scanner in daily use or dormant? Do colour variants share one barcode?
+   What is the ~10% without barcodes? The model covers every answer; the answers decide which UI ships first.
+7. `SESSION_SECRET` must be set in every deployed environment before the next deploy — the API now
    refuses to start without it, which is correct but will surprise a deploy that has not set it.
 
 ## How work runs here
@@ -105,8 +113,7 @@ there in M1, including cost being world-readable.
 Agents run headless through `scripts\agent\run-agent.cmd <prompt> [model] [effort]`, which writes
 its log under `.agent-runs/` and a completion marker to `.agent-runs/LAST-RUN.done`
 (`exit|prompt|log`). Builder runs on `gemini-3.8-flash-high`; the adversarial audit runs on
-`claude-opus-4-6-thinking`, deliberately a different model family — it caught a race condition the
-builder's own family had introduced. Claude models reject `--effort`; the wrapper omits it.
+`claude-opus-4-6-thinking`, deliberately a different model family.
 
 `scripts/audit/check-invariants.mjs` encodes architectural invariants as executable checks and runs
 in CI. Every audit finding that can be expressed mechanically should become one.
