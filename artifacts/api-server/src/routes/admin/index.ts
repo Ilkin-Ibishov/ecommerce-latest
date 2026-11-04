@@ -17,6 +17,7 @@ import receiptLines from "./receipt-lines";
 import margins from "./margins";
 import stocktakes from "./stocktakes";
 import stocktakeLines from "./stocktake-lines";
+import reservations from "./reservations";
 
 const router: IRouter = Router();
 
@@ -48,5 +49,6 @@ router.use(receiptLines);
 router.use(margins);
 router.use(stocktakes);
 router.use(stocktakeLines);
+router.use(reservations);
 
 export default router;
