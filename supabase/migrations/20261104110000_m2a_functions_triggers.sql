@@ -330,9 +330,13 @@ DECLARE
   v_total_cost numeric(12,2);
   v_opening_cost numeric(10,2);
   v_anchor_found boolean := false;
+  v_lock_k1 integer;
+  v_lock_k2 integer;
 BEGIN
-  -- 1. Advisory transaction lock per variant to serialize concurrent replays
-  PERFORM pg_advisory_xact_lock(hashtext('cost_replay_' || p_variant_id::text));
+  -- 1. Collision-free advisory transaction lock: derive two 32-bit integers from UUID (64 bits)
+  v_lock_k1 := ('x' || substr(replace(p_variant_id::text, '-', ''), 1, 8))::bit(32)::integer;
+  v_lock_k2 := ('x' || substr(replace(p_variant_id::text, '-', ''), 9, 8))::bit(32)::integer;
+  PERFORM pg_advisory_xact_lock(v_lock_k1, v_lock_k2);
 
   -- 2. Extract opening cost carrier for opening balances
   SELECT opening_cost INTO v_opening_cost
