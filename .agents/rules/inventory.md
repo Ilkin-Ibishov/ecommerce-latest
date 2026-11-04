@@ -34,6 +34,11 @@ A reservation (a deposit, a held order) does not change what is physically prese
 the ledger sum. Reservations belong in their own table with an expiry. This is the single most
 expensive mistake available in this domain.
 
+## Availability check bypass reasons
+Movement reason `online_sale` enforces available stock (`on_hand - reserved >= 0`). Deliberate bypasses:
+`counter_sale` (customer at till, unit present); `stocktake_correction` & `opening_balance` (physical observation outranks promise);
+`damage_write_off` & `return_to_supplier` (unit gone); `manual_adjustment` (owner correction); `goods_receipt` & `customer_return` (inbound).
+
 ## Blind counting
 Blind counting prevents the honest counter from being anchored by a screen value and forces a dishonest counter to query PostgREST directly (leaving traces), but does not prevent direct PostgREST reads of `product_variants.on_hand` because storefront/admin availability paths require that column to be readable.
 
