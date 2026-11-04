@@ -244,6 +244,66 @@ checks.push(
     },
   },
   {
+    id: 'no-private-columns-on-anon-grants',
+    why: 'No view or table granted to anon may expose columns matching /reserved|deficit|cost|margin/i.',
+    run: (files) => {
+      const hits = [];
+      const forbiddenColPat = /\b(reserved|deficit|cost|margin)\w*\b/i;
+
+      for (const { file, text } of files) {
+        if (!isSql(file)) continue;
+        const r = rel(file);
+        if (!/^supabase\/migrations\//.test(r) && r !== 'supabase/schema.sql') continue;
+
+        // Find objects granted to anon
+        const grantRe = /GRANT\s+SELECT\s+ON\s+(?:TABLE\s+)?(?:public\.)?([\w.]+)\s+TO\s+[^;]*\banon\b/gi;
+        let match;
+        const grantedObjects = new Set();
+        while ((match = grantRe.exec(text)) !== null) {
+          const objName = match[1].split('.').pop();
+          grantedObjects.add(objName);
+        }
+
+        for (const obj of grantedObjects) {
+          // Find CREATE VIEW definition
+          const viewRe = new RegExp(`CREATE\\s+(?:OR\\s+REPLACE\\s+)?VIEW\\s+(?:public\\.)?${obj}\\b[\\s\\S]*?AS\\s*SELECT([\\s\\S]*?)(?:FROM|;)`, 'i');
+          const vMatch = text.match(viewRe);
+          if (vMatch) {
+            const selectBody = vMatch[1];
+            selectBody.split('\n').forEach((line, i) => {
+              if (/^\s*--/.test(line)) return;
+              if (forbiddenColPat.test(line)) {
+                hits.push({
+                  file: r,
+                  line: i + 1,
+                  text: `View "${obj}" granted to anon exposes forbidden column: ${line.trim()}`,
+                });
+              }
+            });
+          }
+
+          // Find CREATE TABLE definition
+          const tableRe = new RegExp(`CREATE\\s+TABLE\\s+(?:IF\\s+NOT\\s+EXISTS\\s+)?(?:public\\.)?${obj}\\b[\\s\\S]*?\\(([\\s\\S]*?)\\);`, 'i');
+          const tMatch = text.match(tableRe);
+          if (tMatch) {
+            const tableBody = tMatch[1];
+            tableBody.split('\n').forEach((line, i) => {
+              if (/^\s*--/.test(line)) return;
+              if (forbiddenColPat.test(line)) {
+                hits.push({
+                  file: r,
+                  line: i + 1,
+                  text: `Table "${obj}" granted to anon exposes forbidden column: ${line.trim()}`,
+                });
+              }
+            });
+          }
+        }
+      }
+      return hits;
+    },
+  },
+  {
     id: 'no-expected-quantity-on-staff-endpoints',
     why: 'Staff endpoints and staff-facing tables must never expose snapshot or expected quantities, preserving blind counting.',
     run: (files) => {

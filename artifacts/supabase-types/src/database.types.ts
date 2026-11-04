@@ -1773,6 +1773,14 @@ export type Database = {
       };
     };
     Views: {
+      product_variant_public_availability: {
+        Row: {
+          variant_id: string;
+          product_id: string;
+          available_quantity: number;
+        };
+        Relationships: [];
+      };
       product_variant_availability: {
         Row: {
           variant_id: string;
