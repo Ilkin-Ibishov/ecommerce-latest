@@ -386,6 +386,8 @@ export const GetMarginReportResponse = zod.object({
   "total_gross_margin": zod.number(),
   "total_margin_percent": zod.number(),
   "total_units_sold": zod.number(),
+  "total_unpriced_units": zod.number().optional(),
+  "unpriced_units_out": zod.number().optional(),
   "variants": zod.array(zod.object({
   "variant_id": zod.string(),
   "sku": zod.string().nullish(),
@@ -397,7 +399,8 @@ export const GetMarginReportResponse = zod.object({
   "cogs": zod.number(),
   "gross_margin": zod.number(),
   "margin_percent": zod.number(),
-  "units_sold": zod.number()
+  "units_sold": zod.number(),
+  "unpriced_units_out": zod.number().optional()
 })),
   "categories": zod.array(zod.object({
   "category_id": zod.string().nullish(),
@@ -406,7 +409,8 @@ export const GetMarginReportResponse = zod.object({
   "cogs": zod.number(),
   "gross_margin": zod.number(),
   "margin_percent": zod.number(),
-  "units_sold": zod.number()
+  "units_sold": zod.number(),
+  "unpriced_units_out": zod.number().optional()
 })),
   "best_contributors": zod.array(zod.object({
   "variant_id": zod.string(),
@@ -419,7 +423,8 @@ export const GetMarginReportResponse = zod.object({
   "cogs": zod.number(),
   "gross_margin": zod.number(),
   "margin_percent": zod.number(),
-  "units_sold": zod.number()
+  "units_sold": zod.number(),
+  "unpriced_units_out": zod.number().optional()
 })),
   "worst_contributors": zod.array(zod.object({
   "variant_id": zod.string(),
@@ -432,7 +437,8 @@ export const GetMarginReportResponse = zod.object({
   "cogs": zod.number(),
   "gross_margin": zod.number(),
   "margin_percent": zod.number(),
-  "units_sold": zod.number()
+  "units_sold": zod.number(),
+  "unpriced_units_out": zod.number().optional()
 }))
 })
 

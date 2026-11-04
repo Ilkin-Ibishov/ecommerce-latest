@@ -18,4 +18,5 @@ export interface MarginReportVariantRow {
   gross_margin: number;
   margin_percent: number;
   units_sold: number;
+  unpriced_units_out?: number;
 }

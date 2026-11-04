@@ -693,17 +693,18 @@ CREATE OR REPLACE FUNCTION get_margin_report(
   p_category_id uuid DEFAULT NULL
 )
 RETURNS TABLE (
-  variant_id      uuid,
-  sku             text,
-  product_id      uuid,
-  product_title   text,
-  category_id     uuid,
-  category_name   text,
-  revenue         numeric,
-  cogs            numeric,
-  gross_margin    numeric,
-  margin_percent  numeric,
-  units_sold      numeric
+  variant_id          uuid,
+  sku                 text,
+  product_id          uuid,
+  product_title       text,
+  category_id         uuid,
+  category_name       text,
+  revenue             numeric,
+  cogs                numeric,
+  gross_margin        numeric,
+  margin_percent      numeric,
+  units_sold          numeric,
+  unpriced_units_out  numeric
 ) LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   RETURN QUERY
@@ -740,6 +741,7 @@ BEGIN
       ms.quantity_delta,
       ms.reason,
       ms.cogs_total,
+      (ms.reference_type = 'order' AND ovup.weighted_unit_price IS NOT NULL) AS is_priced,
       CASE
         WHEN ms.reason IN ('online_sale', 'counter_sale') AND ms.reference_type = 'order' THEN
           COALESCE(ovup.weighted_unit_price * ABS(ms.quantity_delta), 0)
@@ -757,16 +759,20 @@ BEGIN
     SELECT
       mr.variant_id,
       SUM(CASE 
-        WHEN mr.reason IN ('online_sale', 'counter_sale') THEN -mr.quantity_delta 
-        WHEN mr.reason = 'customer_return' THEN -mr.quantity_delta 
+        WHEN mr.is_priced AND mr.reason IN ('online_sale', 'counter_sale') THEN -mr.quantity_delta 
+        WHEN mr.is_priced AND mr.reason = 'customer_return' THEN -mr.quantity_delta 
         ELSE 0 
       END) AS net_units_sold,
       SUM(CASE 
-        WHEN mr.reason IN ('online_sale', 'counter_sale') THEN mr.cogs_total 
-        WHEN mr.reason = 'customer_return' THEN -mr.cogs_total 
+        WHEN mr.is_priced AND mr.reason IN ('online_sale', 'counter_sale') THEN mr.cogs_total 
+        WHEN mr.is_priced AND mr.reason = 'customer_return' THEN -mr.cogs_total 
         ELSE 0 
       END) AS total_cogs,
-      SUM(mr.revenue_amount) AS total_revenue
+      SUM(CASE WHEN mr.is_priced THEN mr.revenue_amount ELSE 0 END) AS total_revenue,
+      SUM(CASE 
+        WHEN NOT mr.is_priced AND mr.reason IN ('online_sale', 'counter_sale') THEN -mr.quantity_delta 
+        ELSE 0 
+      END) AS unpriced_units_out
     FROM movement_revenue mr
     GROUP BY mr.variant_id
   )
@@ -785,13 +791,18 @@ BEGIN
       THEN ROUND(((COALESCE(am.total_revenue, 0) - COALESCE(am.total_cogs, 0)) / am.total_revenue) * 100, 2)
       ELSE 0 
     END AS margin_percent,
-    COALESCE(am.net_units_sold, 0) AS units_sold
+    COALESCE(am.net_units_sold, 0) AS units_sold,
+    COALESCE(am.unpriced_units_out, 0) AS unpriced_units_out
   FROM public.product_variants pv
   JOIN public.products p ON p.id = pv.product_id
   LEFT JOIN public.categories c ON c.id = p.category_id
   LEFT JOIN aggregated_metrics am ON am.variant_id = pv.id
   WHERE (p_category_id IS NULL OR p.category_id = p_category_id)
-    AND ((am.net_units_sold IS NOT NULL AND am.net_units_sold <> 0) OR (am.total_revenue IS NOT NULL AND am.total_revenue <> 0))
+    AND (
+      (am.net_units_sold IS NOT NULL AND am.net_units_sold <> 0) 
+      OR (am.total_revenue IS NOT NULL AND am.total_revenue <> 0)
+      OR (am.unpriced_units_out IS NOT NULL AND am.unpriced_units_out <> 0)
+    )
   ORDER BY gross_margin DESC;
 END;
 $$;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { TrendingUp, ShieldAlert, Calendar } from "lucide-react";
+import { TrendingUp, ShieldAlert, Calendar, AlertTriangle } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
 import { useAdminRole } from "@/lib/hooks/useAdminRole";
 import { adminJson } from "@/lib/admin-fetch";
@@ -122,6 +122,19 @@ export default function MarginReportPage() {
         <div className="text-center py-12 text-sm text-muted-foreground">{t("Admin.Common.loading")}</div>
       ) : kpis ? (
         <div className="space-y-6">
+          {Number(kpis.unpriced_units_out ?? 0) > 0 && (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/20 text-amber-800 dark:text-amber-300 rounded-xl text-sm flex items-center gap-3">
+              <AlertTriangle size={20} className="shrink-0 text-amber-600 dark:text-amber-400" />
+              <div>
+                <span className="font-semibold block">
+                  {kpis.unpriced_units_out} {t("Admin.Margins.unpricedUnitsNote")}
+                </span>
+                <span className="text-xs text-muted-foreground block">
+                  {t("Admin.Margins.unpricedUnitsExplanation")}
+                </span>
+              </div>
+            </div>
+          )}
           <MarginKpis kpis={kpis} />
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <MarginContributorsTable

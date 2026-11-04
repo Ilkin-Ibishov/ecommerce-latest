@@ -4,12 +4,14 @@ import { requireAdmin } from "../../middlewares/requireAdmin";
 
 const router = Router();
 
-// GET /admin/reports/margins (Owner-Only)
-router.get("/admin/reports/margins", requireAdmin, async (req: Request, res: Response) => {
+// GET /admin/reports/margins and /admin/margins (Owner-Only)
+router.get(["/admin/reports/margins", "/admin/margins"], requireAdmin, async (req: Request, res: Response) => {
   const admin = getAdminSupabase();
-  const startDate = typeof req.query.startDate === "string" ? req.query.startDate : null;
-  const endDate = typeof req.query.endDate === "string" ? req.query.endDate : null;
-  const categoryId = typeof req.query.categoryId === "string" && req.query.categoryId.trim() ? req.query.categoryId : null;
+  const startDate = typeof req.query.startDate === "string" ? req.query.startDate : (typeof req.query.from === "string" ? req.query.from : null);
+  const endDate = typeof req.query.endDate === "string" ? req.query.endDate : (typeof req.query.to === "string" ? req.query.to : null);
+  const categoryId = typeof req.query.categoryId === "string" && req.query.categoryId.trim() 
+    ? req.query.categoryId 
+    : (typeof req.query.category_id === "string" && req.query.category_id.trim() ? req.query.category_id : null);
 
   if (!startDate || !endDate) {
     return res.status(400).json({ error: "startDate and endDate query parameters are required" });
@@ -37,6 +39,7 @@ router.get("/admin/reports/margins", requireAdmin, async (req: Request, res: Res
     gross_margin: Number(r.gross_margin ?? 0),
     margin_percent: Number(r.margin_percent ?? 0),
     units_sold: Number(r.units_sold ?? 0),
+    unpriced_units_out: Number(r.unpriced_units_out ?? 0),
   }));
 
   // Aggregate by category
@@ -48,16 +51,19 @@ router.get("/admin/reports/margins", requireAdmin, async (req: Request, res: Res
     gross_margin: number;
     margin_percent: number;
     units_sold: number;
+    unpriced_units_out: number;
   }>();
 
   let totalRev = 0;
   let totalCogs = 0;
   let totalUnits = 0;
+  let totalUnpricedUnits = 0;
 
   for (const v of variants) {
     totalRev += v.revenue;
     totalCogs += v.cogs;
     totalUnits += v.units_sold;
+    totalUnpricedUnits += v.unpriced_units_out;
 
     const catName = v.category_name ?? "Uncategorized";
     const cur = categoryMap.get(catName) ?? {
@@ -68,10 +74,12 @@ router.get("/admin/reports/margins", requireAdmin, async (req: Request, res: Res
       gross_margin: 0,
       margin_percent: 0,
       units_sold: 0,
+      unpriced_units_out: 0,
     };
     cur.revenue = Number((cur.revenue + v.revenue).toFixed(2));
     cur.cogs = Number((cur.cogs + v.cogs).toFixed(2));
     cur.units_sold += v.units_sold;
+    cur.unpriced_units_out += v.unpriced_units_out;
     cur.gross_margin = Number((cur.revenue - cur.cogs).toFixed(2));
     cur.margin_percent = cur.revenue > 0 ? Number(((cur.gross_margin / cur.revenue) * 100).toFixed(2)) : 0;
     categoryMap.set(catName, cur);
@@ -94,10 +102,42 @@ router.get("/admin/reports/margins", requireAdmin, async (req: Request, res: Res
     total_gross_margin: totalMargin,
     total_margin_percent: totalMarginPercent,
     total_units_sold: totalUnits,
+    total_unpriced_units: totalUnpricedUnits,
+    unpriced_units_out: totalUnpricedUnits,
     variants,
     categories,
     best_contributors: bestContributors,
     worst_contributors: worstContributors,
+    top_contributors: bestContributors.map((b) => ({
+      id: b.variant_id,
+      title: b.product_title + (b.sku ? ` (${b.sku})` : ""),
+      sku: b.sku,
+      margin: b.gross_margin,
+      margin_percent: b.margin_percent,
+      revenue: b.revenue,
+      cogs: b.cogs,
+      units_sold: b.units_sold,
+      unpriced_units_out: b.unpriced_units_out,
+    })),
+    bottom_contributors: worstContributors.map((w) => ({
+      id: w.variant_id,
+      title: w.product_title + (w.sku ? ` (${w.sku})` : ""),
+      sku: w.sku,
+      margin: w.gross_margin,
+      margin_percent: w.margin_percent,
+      revenue: w.revenue,
+      cogs: w.cogs,
+      units_sold: w.units_sold,
+      unpriced_units_out: w.unpriced_units_out,
+    })),
+    kpis: {
+      revenue: Number(totalRev.toFixed(2)),
+      cogs: Number(totalCogs.toFixed(2)),
+      gross_margin: totalMargin,
+      margin_percent: totalMarginPercent,
+      units_sold: totalUnits,
+      unpriced_units_out: totalUnpricedUnits,
+    },
   });
 });
 

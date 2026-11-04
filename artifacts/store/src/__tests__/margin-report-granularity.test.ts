@@ -39,6 +39,7 @@ interface MarginReportRow {
   total_cogs: number;
   gross_margin: number;
   margin_percent: number;
+  unpriced_units_out: number;
 }
 
 function calculateMarginReport(
@@ -73,20 +74,29 @@ function calculateMarginReport(
 
   for (const m of filteredMovs) {
     const key = `${m.reference_id}:${m.variant_id}`;
-    const weightedUnitPrice = m.reference_type === "order" ? (unitPriceMap.get(key) ?? 0) : 0;
+    const isPriced = m.reference_type === "order" && unitPriceMap.has(key);
+    const weightedUnitPrice = isPriced ? (unitPriceMap.get(key) ?? 0) : 0;
 
     let revenueDelta = 0;
     let cogsDelta = 0;
     let unitsDelta = 0;
+    let unpricedUnitsDelta = 0;
 
     if (m.reason === "online_sale" || m.reason === "counter_sale") {
-      unitsDelta = -m.quantity_delta;
-      cogsDelta = m.total_cost;
-      revenueDelta = weightedUnitPrice * Math.abs(m.quantity_delta);
+      if (isPriced) {
+        unitsDelta = -m.quantity_delta;
+        cogsDelta = m.total_cost;
+        revenueDelta = weightedUnitPrice * Math.abs(m.quantity_delta);
+      } else {
+        // F3: Unpriced sale contributes to NEITHER revenue nor COGS in margin
+        unpricedUnitsDelta = -m.quantity_delta;
+      }
     } else if (m.reason === "customer_return") {
-      unitsDelta = -m.quantity_delta; // negative delta decrements net units sold
-      cogsDelta = -m.total_cost;
-      revenueDelta = -(weightedUnitPrice * Math.abs(m.quantity_delta));
+      if (isPriced) {
+        unitsDelta = -m.quantity_delta; // negative delta decrements net units sold
+        cogsDelta = -m.total_cost;
+        revenueDelta = -(weightedUnitPrice * Math.abs(m.quantity_delta));
+      }
     }
 
     const cur = result.get(m.variant_id) ?? {
@@ -96,6 +106,7 @@ function calculateMarginReport(
       total_cogs: 0,
       gross_margin: 0,
       margin_percent: 0,
+      unpriced_units_out: 0,
     };
 
     cur.net_units_sold += unitsDelta;
@@ -103,6 +114,7 @@ function calculateMarginReport(
     cur.total_cogs = Number((cur.total_cogs + cogsDelta).toFixed(2));
     cur.gross_margin = Number((cur.total_revenue - cur.total_cogs).toFixed(2));
     cur.margin_percent = cur.total_revenue > 0 ? Number(((cur.gross_margin / cur.total_revenue) * 100).toFixed(2)) : 0;
+    cur.unpriced_units_out += unpricedUnitsDelta;
 
     result.set(m.variant_id, cur);
   }
@@ -198,5 +210,65 @@ describe("M2a Margin Report Granularity & Fan-out Prevention", () => {
     expect(teaReport?.total_revenue).toBe(40.0); // Exactly 4 * $10, not multiplied to 80
     expect(teaReport?.total_cogs).toBe(20.0);
     expect(teaReport?.gross_margin).toBe(20.0);
+  });
+
+  it("F3: a priced sale and an unpriced outflow in one period leave margin computed from priced one alone, with unpriced units counted", () => {
+    // Priced sale: 10 units @ $20 retail = $200 revenue
+    const orderItems: OrderItem[] = [
+      {
+        id: "oi-priced",
+        order_id: "ord-300",
+        variant_id: "var-coffee",
+        quantity: 10,
+        line_total: 200.0,
+        product_price_snapshot: 20.0,
+      },
+    ];
+
+    const movements: SaleMovement[] = [
+      // Priced sale movement: 10 units @ $10 unit cost = $100 COGS
+      {
+        movement_id: "mov-priced-10",
+        variant_id: "var-coffee",
+        posting_date: "2026-11-04T09:00:00Z",
+        quantity_delta: -10,
+        reason: "online_sale",
+        reference_type: "order",
+        reference_id: "ord-300",
+        unit_cost: 10.0,
+        total_cost: 100.0,
+      },
+      // Unpriced outflow: 5 units counter sale via stock adjustment (reference_type: "manual")
+      // Cost is $10/unit = $50 total cost, but system genuinely does not know price
+      {
+        movement_id: "mov-unpriced-5",
+        variant_id: "var-coffee",
+        posting_date: "2026-11-04T15:00:00Z",
+        quantity_delta: -5,
+        reason: "counter_sale",
+        reference_type: "manual",
+        reference_id: "manual-adj",
+        unit_cost: 10.0,
+        total_cost: 50.0,
+      },
+    ];
+
+    const report = calculateMarginReport(orderItems, movements, {
+      start: "2026-11-01T00:00:00Z",
+      end: "2026-11-05T00:00:00Z",
+    });
+
+    const coffeeReport = report.get("var-coffee");
+    expect(coffeeReport).toBeDefined();
+
+    // Margin computed strictly from priced units (10 units), NOT distorted by unpriced 5 units
+    expect(coffeeReport?.net_units_sold).toBe(10);
+    expect(coffeeReport?.total_revenue).toBe(200.0);
+    expect(coffeeReport?.total_cogs).toBe(100.0); // NOT $150 (unpriced COGS excluded from margin)
+    expect(coffeeReport?.gross_margin).toBe(100.0);
+    expect(coffeeReport?.margin_percent).toBe(50.0);
+
+    // Unpriced units counted separately and labelled
+    expect(coffeeReport?.unpriced_units_out).toBe(5);
   });
 });

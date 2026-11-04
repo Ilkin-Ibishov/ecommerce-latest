@@ -808,6 +808,8 @@ components:
           type: number
         units_sold:
           type: number
+        unpriced_units_out:
+          type: number
       required:
         - variant_id
         - product_id
@@ -836,6 +838,8 @@ components:
           type: number
         units_sold:
           type: number
+        unpriced_units_out:
+          type: number
       required:
         - category_name
         - revenue
@@ -860,6 +864,10 @@ components:
         total_margin_percent:
           type: number
         total_units_sold:
+          type: number
+        total_unpriced_units:
+          type: number
+        unpriced_units_out:
           type: number
         variants:
           type: array

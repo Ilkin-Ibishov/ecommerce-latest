@@ -1014,6 +1014,9 @@ const en = {
         category: "Category",
         margin: "Margin",
         empty: "No sales movements found for the selected period",
+        unpricedUnitsNote: "units left stock at an unknown price",
+        unpricedUnitsNotice: "{count} units left stock at an unknown price.",
+        unpricedUnitsExplanation: "Unpriced sales are excluded from revenue and COGS to prevent distorted margin figures.",
       },
 
       Setup: {

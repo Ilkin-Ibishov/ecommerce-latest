@@ -148,6 +148,7 @@ export interface MarginReportVariantRow {
   gross_margin: number;
   margin_percent: number;
   units_sold: number;
+  unpriced_units_out?: number;
 }
 
 export interface MarginReportCategoryRow {
@@ -158,6 +159,7 @@ export interface MarginReportCategoryRow {
   gross_margin: number;
   margin_percent: number;
   units_sold: number;
+  unpriced_units_out?: number;
 }
 
 export interface MarginReportResponse {
@@ -168,6 +170,8 @@ export interface MarginReportResponse {
   total_gross_margin: number;
   total_margin_percent: number;
   total_units_sold: number;
+  total_unpriced_units?: number;
+  unpriced_units_out?: number;
   variants: MarginReportVariantRow[];
   categories: MarginReportCategoryRow[];
   best_contributors: MarginReportVariantRow[];

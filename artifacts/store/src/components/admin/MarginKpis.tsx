@@ -6,6 +6,7 @@ export interface MarginKpiData {
   gross_margin: number;
   margin_percent: number;
   units_sold: number;
+  unpriced_units_out?: number;
 }
 
 export function MarginKpis({ kpis }: { kpis: MarginKpiData }) {

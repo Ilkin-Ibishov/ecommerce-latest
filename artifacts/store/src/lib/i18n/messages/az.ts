@@ -1014,6 +1014,9 @@ const az = {
         category: "Kateqoriya",
         margin: "Marja",
         empty: "Seçilmiş dövr üzrə heç bir satış hərəkəti tapılmadı",
+        unpricedUnitsNote: "naməlum qiymətlə çıxarılan vahidlər",
+        unpricedUnitsNotice: "{count} ədəd məhsul naməlum qiymətlə stokdan çıxarılıb.",
+        unpricedUnitsExplanation: "Təhrif olunmuş marjanın qarşısını almaq üçün bu çıxışlar gəlir və maya dəyərindən (COGS) çıxarılıb.",
       },
 
       Setup: {
