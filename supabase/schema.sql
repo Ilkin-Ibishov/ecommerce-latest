@@ -345,6 +345,7 @@ FOR EACH ROW EXECUTE FUNCTION trg_guard_variant_on_hand_update();
 CREATE TABLE IF NOT EXISTS public.variant_costs (
   variant_id   uuid PRIMARY KEY REFERENCES public.product_variants(id) ON DELETE CASCADE,
   cost_price   numeric(10,2) NOT NULL DEFAULT 0 CHECK (cost_price >= 0),
+  opening_cost numeric(10,2) CHECK (opening_cost >= 0),
   updated_at   timestamptz NOT NULL DEFAULT now()
 );
 
@@ -428,10 +429,9 @@ CREATE TABLE IF NOT EXISTS public.stock_movements (
   location_id     uuid,
   quantity_delta  numeric(12,3) NOT NULL CHECK (quantity_delta <> 0),
   reason          stock_movement_reason NOT NULL,
-  reference_type  text CHECK (reference_type IN ('order', 'purchase_order', 'stocktake', 'manual')),
+  reference_type  text CHECK (reference_type IN ('order', 'goods_receipt_line', 'purchase_order', 'stocktake', 'manual')),
   reference_id    text,
-  unit_cost       numeric(10,2) CHECK (unit_cost >= 0),
-  actor_id        uuid REFERENCES public.users(id),
+    actor_id        uuid REFERENCES public.users(id),
   note            text,
   posting_date    timestamptz NOT NULL DEFAULT now(),
   transaction_id  uuid,
@@ -871,3 +871,120 @@ for each row execute function set_updated_at();
 -- The API server creates this automatically on first upload.
 -- To pre-create it: Supabase Dashboard → Storage → New Bucket
 --   Name: product-images, Public: true, File size limit: 10MB
+
+-- ─── M2a: Suppliers, Goods Receipts, Valuation Projection ─────
+CREATE TABLE IF NOT EXISTS public.suppliers (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  name         text NOT NULL,
+  contact_info text,
+  notes        text,
+  is_active    boolean NOT NULL DEFAULT true,
+  created_at   timestamptz NOT NULL DEFAULT now(),
+  updated_at   timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.suppliers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Suppliers: staff/admin read" ON public.suppliers FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role IN ('admin', 'staff')));
+CREATE POLICY "Suppliers: staff insert" ON public.suppliers FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff'));
+CREATE POLICY "Suppliers: admin write" ON public.suppliers FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE TABLE IF NOT EXISTS public.goods_receipts (
+  id                uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  receipt_number    text UNIQUE NOT NULL,
+  supplier_id       uuid REFERENCES public.suppliers(id) ON DELETE SET NULL,
+  posting_date      timestamptz NOT NULL DEFAULT now(),
+  reference_note    text,
+  note              text,
+  status            text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'posted', 'reversed')),
+  transaction_id    uuid,
+  created_by        uuid REFERENCES public.users(id),
+  posted_by         uuid REFERENCES public.users(id),
+  posted_at         timestamptz,
+  created_at        timestamptz NOT NULL DEFAULT now(),
+  updated_at        timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_goods_receipts_posting_date ON public.goods_receipts(posting_date DESC);
+CREATE INDEX IF NOT EXISTS idx_goods_receipts_status ON public.goods_receipts(status);
+
+ALTER TABLE public.goods_receipts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "GoodsReceipts: staff/admin read" ON public.goods_receipts FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role IN ('admin', 'staff')));
+CREATE POLICY "GoodsReceipts: staff draft insert" ON public.goods_receipts FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff') AND status = 'draft');
+CREATE POLICY "GoodsReceipts: staff draft update" ON public.goods_receipts FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff') AND status = 'draft')
+  WITH CHECK (status = 'draft' AND posted_by IS NULL AND posted_at IS NULL AND transaction_id IS NULL);
+CREATE POLICY "GoodsReceipts: staff draft delete" ON public.goods_receipts FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff') AND status = 'draft');
+CREATE POLICY "GoodsReceipts: admin all" ON public.goods_receipts FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE TABLE IF NOT EXISTS public.goods_receipt_costs (
+  receipt_id        uuid PRIMARY KEY REFERENCES public.goods_receipts(id) ON DELETE CASCADE,
+  additional_costs  numeric(10,2) CHECK (additional_costs >= 0),
+  created_at        timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.goods_receipt_costs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ReceiptCosts: admin only" ON public.goods_receipt_costs FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE TABLE IF NOT EXISTS public.goods_receipt_lines (
+  id             uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  receipt_id     uuid NOT NULL REFERENCES public.goods_receipts(id) ON DELETE CASCADE,
+  variant_id     uuid NOT NULL REFERENCES public.product_variants(id) ON DELETE RESTRICT,
+  quantity       numeric(12,3) NOT NULL CHECK (quantity > 0),
+  sort_order     integer NOT NULL DEFAULT 0,
+  created_at     timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_receipt_lines_receipt ON public.goods_receipt_lines(receipt_id);
+CREATE INDEX IF NOT EXISTS idx_receipt_lines_variant ON public.goods_receipt_lines(variant_id);
+
+ALTER TABLE public.goods_receipt_lines ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ReceiptLines: staff/admin read" ON public.goods_receipt_lines FOR SELECT TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role IN ('admin', 'staff')));
+CREATE POLICY "ReceiptLines: staff draft insert" ON public.goods_receipt_lines FOR INSERT TO authenticated
+  WITH CHECK (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff') AND EXISTS (SELECT 1 FROM public.goods_receipts gr WHERE gr.id = receipt_id AND gr.status = 'draft'));
+CREATE POLICY "ReceiptLines: staff draft update" ON public.goods_receipt_lines FOR UPDATE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff') AND EXISTS (SELECT 1 FROM public.goods_receipts gr WHERE gr.id = receipt_id AND gr.status = 'draft'))
+  WITH CHECK (quantity > 0 AND EXISTS (SELECT 1 FROM public.goods_receipts gr WHERE gr.id = receipt_id AND gr.status = 'draft'));
+CREATE POLICY "ReceiptLines: staff draft delete" ON public.goods_receipt_lines FOR DELETE TO authenticated
+  USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff') AND EXISTS (SELECT 1 FROM public.goods_receipts gr WHERE gr.id = receipt_id AND gr.status = 'draft'));
+CREATE POLICY "ReceiptLines: admin all" ON public.goods_receipt_lines FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE TABLE IF NOT EXISTS public.goods_receipt_line_costs (
+  line_id     uuid PRIMARY KEY REFERENCES public.goods_receipt_lines(id) ON DELETE CASCADE,
+  unit_cost   numeric(10,2) NOT NULL CHECK (unit_cost >= 0),
+  created_at  timestamptz NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.goods_receipt_line_costs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ReceiptLineCosts: admin only" ON public.goods_receipt_line_costs FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE TABLE IF NOT EXISTS public.stock_movement_costs (
+  movement_id               uuid PRIMARY KEY REFERENCES public.stock_movements(id) ON DELETE CASCADE,
+  variant_id                uuid NOT NULL REFERENCES public.product_variants(id) ON DELETE CASCADE,
+  posting_date              timestamptz NOT NULL,
+  created_at                timestamptz NOT NULL,
+  quantity_delta            numeric(12,3) NOT NULL,
+  unit_cost                 numeric(10,2) NOT NULL CHECK (unit_cost >= 0),
+  total_cost                numeric(12,2) NOT NULL,
+  running_quantity          numeric(12,3) NOT NULL,
+  running_cost_basis_qty    numeric(12,3) NOT NULL,
+  running_avg_cost          numeric(10,4) NOT NULL CHECK (running_avg_cost >= 0),
+  has_unknown_cost_basis    boolean NOT NULL DEFAULT false,
+  computed_at               timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_smc_replay_order ON public.stock_movement_costs(variant_id, posting_date ASC, created_at ASC, movement_id ASC);
+
+ALTER TABLE public.stock_movement_costs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "MovementCosts: admin only" ON public.stock_movement_costs FOR ALL TO authenticated
+  USING (public.is_admin()) WITH CHECK (public.is_admin());

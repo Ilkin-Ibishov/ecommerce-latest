@@ -228,6 +228,7 @@ checks.push(
         if (!isPostM1Migration && !isCurrentSchema) continue;
 
         text.split('\n').forEach((line, i) => {
+          if (/^\s*--/.test(line)) return;
           if (/\bdrop\s+column\b/i.test(line)) return;
           for (const tbl of STAFF_TABLES) {
             const tableRe = new RegExp(`\\b${tbl}\\b`, 'i');

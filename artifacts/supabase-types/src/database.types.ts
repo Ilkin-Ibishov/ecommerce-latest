@@ -952,7 +952,6 @@ export type Database = {
           reason: Database["public"]["Enums"]["stock_movement_reason"];
           reference_id: string | null;
           reference_type: string | null;
-          unit_cost: number | null;
           variant_id: string;
           posting_date: string;
           transaction_id: string | null;
@@ -969,7 +968,6 @@ export type Database = {
           reason: Database["public"]["Enums"]["stock_movement_reason"];
           reference_id?: string | null;
           reference_type?: string | null;
-          unit_cost?: number | null;
           variant_id: string;
           posting_date?: string;
           transaction_id?: string | null;
@@ -986,7 +984,6 @@ export type Database = {
           reason?: Database["public"]["Enums"]["stock_movement_reason"];
           reference_id?: string | null;
           reference_type?: string | null;
-          unit_cost?: number | null;
           variant_id?: string;
           posting_date?: string;
           transaction_id?: string | null;
@@ -1052,16 +1049,19 @@ export type Database = {
       variant_costs: {
         Row: {
           cost_price: number;
+          opening_cost: number | null;
           updated_at: string;
           variant_id: string;
         };
         Insert: {
           cost_price?: number;
+          opening_cost?: number | null;
           updated_at?: string;
           variant_id: string;
         };
         Update: {
           cost_price?: number;
+          opening_cost?: number | null;
           updated_at?: string;
           variant_id?: string;
         };
@@ -1172,6 +1172,7 @@ export type Database = {
           store_name: Json;
           updated_at: string;
           working_hours: Json;
+          allow_negative_stock: boolean;
         };
         Insert: {
           colors?: Json;
@@ -1185,6 +1186,7 @@ export type Database = {
           store_name?: Json;
           updated_at?: string;
           working_hours?: Json;
+          allow_negative_stock?: boolean;
         };
         Update: {
           colors?: Json;
@@ -1198,6 +1200,7 @@ export type Database = {
           store_name?: Json;
           updated_at?: string;
           working_hours?: Json;
+          allow_negative_stock?: boolean;
         };
         Relationships: [];
       };
@@ -1281,6 +1284,246 @@ export type Database = {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      suppliers: {
+        Row: {
+          id: string;
+          name: string;
+          contact_info: string | null;
+          notes: string | null;
+          is_active: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          contact_info?: string | null;
+          notes?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          contact_info?: string | null;
+          notes?: string | null;
+          is_active?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      goods_receipts: {
+        Row: {
+          id: string;
+          receipt_number: string;
+          supplier_id: string | null;
+          posting_date: string;
+          reference_note: string | null;
+          note: string | null;
+          status: "draft" | "posted" | "reversed";
+          transaction_id: string | null;
+          created_by: string | null;
+          posted_by: string | null;
+          posted_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          receipt_number: string;
+          supplier_id?: string | null;
+          posting_date?: string;
+          reference_note?: string | null;
+          note?: string | null;
+          status?: "draft" | "posted" | "reversed";
+          transaction_id?: string | null;
+          created_by?: string | null;
+          posted_by?: string | null;
+          posted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          receipt_number?: string;
+          supplier_id?: string | null;
+          posting_date?: string;
+          reference_note?: string | null;
+          note?: string | null;
+          status?: "draft" | "posted" | "reversed";
+          transaction_id?: string | null;
+          created_by?: string | null;
+          posted_by?: string | null;
+          posted_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "goods_receipts_supplier_id_fkey";
+            columns: ["supplier_id"];
+            isOneToOne: false;
+            referencedRelation: "suppliers";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      goods_receipt_costs: {
+        Row: {
+          receipt_id: string;
+          additional_costs: number | null;
+          created_at: string;
+        };
+        Insert: {
+          receipt_id: string;
+          additional_costs?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          receipt_id?: string;
+          additional_costs?: number | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "goods_receipt_costs_receipt_id_fkey";
+            columns: ["receipt_id"];
+            isOneToOne: true;
+            referencedRelation: "goods_receipts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      goods_receipt_lines: {
+        Row: {
+          id: string;
+          receipt_id: string;
+          variant_id: string;
+          quantity: number;
+          sort_order: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          receipt_id: string;
+          variant_id: string;
+          quantity: number;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          receipt_id?: string;
+          variant_id?: string;
+          quantity?: number;
+          sort_order?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "goods_receipt_lines_receipt_id_fkey";
+            columns: ["receipt_id"];
+            isOneToOne: false;
+            referencedRelation: "goods_receipts";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "goods_receipt_lines_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      goods_receipt_line_costs: {
+        Row: {
+          line_id: string;
+          unit_cost: number;
+          created_at: string;
+        };
+        Insert: {
+          line_id: string;
+          unit_cost: number;
+          created_at?: string;
+        };
+        Update: {
+          line_id?: string;
+          unit_cost?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "goods_receipt_line_costs_line_id_fkey";
+            columns: ["line_id"];
+            isOneToOne: true;
+            referencedRelation: "goods_receipt_lines";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      stock_movement_costs: {
+        Row: {
+          movement_id: string;
+          variant_id: string;
+          posting_date: string;
+          created_at: string;
+          quantity_delta: number;
+          unit_cost: number;
+          total_cost: number;
+          running_quantity: number;
+          running_cost_basis_qty: number;
+          running_avg_cost: number;
+          has_unknown_cost_basis: boolean;
+          computed_at: string;
+        };
+        Insert: {
+          movement_id: string;
+          variant_id: string;
+          posting_date: string;
+          created_at: string;
+          quantity_delta: number;
+          unit_cost: number;
+          total_cost: number;
+          running_quantity: number;
+          running_cost_basis_qty: number;
+          running_avg_cost: number;
+          has_unknown_cost_basis?: boolean;
+          computed_at?: string;
+        };
+        Update: {
+          movement_id?: string;
+          variant_id?: string;
+          posting_date?: string;
+          created_at?: string;
+          quantity_delta?: number;
+          unit_cost?: number;
+          total_cost?: number;
+          running_quantity?: number;
+          running_cost_basis_qty?: number;
+          running_avg_cost?: number;
+          has_unknown_cost_basis?: boolean;
+          computed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "stock_movement_costs_movement_id_fkey";
+            columns: ["movement_id"];
+            isOneToOne: true;
+            referencedRelation: "stock_movements";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "stock_movement_costs_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
             referencedColumns: ["id"];
           },
         ];
