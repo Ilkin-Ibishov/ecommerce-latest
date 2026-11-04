@@ -4,7 +4,7 @@
 -- Description:
 --   1. trg_capture_stocktake_line_snapshot: Captures authoritative on-hand snapshot AFTER INSERT
 --   2. post_stocktake: Atomically reconciles counts against latest snapshots, writes movements, recomputes costs
---   3. get_stocktake_variance: Returns owner review dataset with monetary sorting and interleaved trade warnings
+--   (Note: variance review dataset computation is performed in TypeScript via artifacts/api-server/src/lib/stocktake-variance.ts)
 -- =============================================================================
 
 -- ─── 1. Snapshot Capture Trigger Function ────────────────────────────────────

@@ -1,22 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export interface StocktakeVarianceItem {
-  variant_id: string;
-  sku: string | null;
-  product_title: string;
-  category_name: string | null;
-  scan_count: number;
-  resolution_status: string;
-  counted_quantity: number;
-  snapshot_on_hand: number;
-  current_on_hand: number;
-  variance_quantity: number;
-  unit_cost: number;
-  variance_value: number;
-  is_unvalued: boolean;
-  has_interleaved_movements: boolean;
-  interleaved_window?: { start: string; end: string } | null;
-  contributing_lines: any[];
+  variant_id: string; sku: string | null; product_title: string; category_name: string | null;
+  scan_count: number; resolution_status: string; counted_quantity: number; snapshot_on_hand: number;
+  current_on_hand: number; variance_quantity: number; unit_cost: number; variance_value: number;
+  is_unvalued: boolean; has_interleaved_movements: boolean;
+  interleaved_window?: { start: string; end: string } | null; contributing_lines: any[];
 }
 
 export async function computeStocktakeVariance(admin: SupabaseClient<any, any, any>, stocktakeId: string) {
@@ -33,12 +22,25 @@ export async function computeStocktakeVariance(admin: SupabaseClient<any, any, a
     .select("id, stocktake_id, variant_id, counter_id, counted_quantity, location_note, created_at, updated_at, users(name)")
     .eq("stocktake_id", stocktakeId);
 
-  const { data: snapshots } = await (admin as any)
-    .from("stocktake_line_snapshots")
-    .select("line_id, snapshot_on_hand, captured_at");
+  const lineIds = (lines ?? []).map((l: any) => l.id);
+
+  const { data: snapshots, error: snapErr } = lineIds.length > 0
+    ? await (admin as any)
+        .from("stocktake_line_snapshots")
+        .select("line_id, snapshot_on_hand, captured_at")
+        .in("line_id", lineIds)
+    : { data: [], error: null };
+
+  if (snapErr) throw new Error(snapErr.message || "Failed to fetch snapshots");
 
   const snapshotMap = new Map<string, number>();
   (snapshots ?? []).forEach((s: any) => snapshotMap.set(s.line_id, Number(s.snapshot_on_hand)));
+
+  for (const line of lines ?? []) {
+    if (!snapshotMap.has(line.id)) {
+      throw new Error(`Missing snapshot for stocktake line ${line.id} (variant ${line.variant_id})`);
+    }
+  }
 
   const { data: resolutions } = await (admin as any)
     .from("stocktake_resolutions")
@@ -98,20 +100,21 @@ export async function computeStocktakeVariance(admin: SupabaseClient<any, any, a
     // R5: Reconcile against latest snapshot
     const sortedLines = [...vLines].sort((a: any, b: any) => new Date(String(b.created_at)).getTime() - new Date(String(a.created_at)).getTime());
     const latestLine = sortedLines[0];
-    const snapshotOnHand = snapshotMap.get(latestLine.id) ?? currentOnHand;
+    const snapshotOnHand = snapshotMap.get(latestLine.id);
+    if (snapshotOnHand === undefined) {
+      throw new Error(`Missing snapshot for stocktake line ${latestLine.id} (variant ${variantId})`);
+    }
 
     // R5: Interleaved movements check
     const timestamps = vLines.map((l: any) => new Date(String(l.created_at)).getTime());
-    const earliestTime = Math.min(...timestamps);
-    const latestTime = Math.max(...timestamps);
+    const earliestTime = Math.min(...timestamps), latestTime = Math.max(...timestamps);
     const hasInterleaved = earliestTime < latestTime && (recentMovements ?? []).some((m: any) => {
       const mTime = new Date(String(m.created_at)).getTime();
       return m.variant_id === variantId && mTime > earliestTime && mTime < latestTime;
     });
 
     const res = resolutionMap.get(variantId);
-    let countedQuantity = 0;
-    let resolutionStatus = "single";
+    let countedQuantity = 0, resolutionStatus = "single";
 
     if (res) {
       countedQuantity = Number(res.resolved_quantity);
@@ -149,19 +152,12 @@ export async function computeStocktakeVariance(admin: SupabaseClient<any, any, a
       is_unvalued: isUnvalued,
       has_interleaved_movements: hasInterleaved,
       interleaved_window: earliestTime < latestTime ? {
-        start: new Date(earliestTime).toISOString(),
-        end: new Date(latestTime).toISOString(),
+        start: new Date(earliestTime).toISOString(), end: new Date(latestTime).toISOString(),
       } : null,
       contributing_lines: vLines.map((l) => ({
-        id: l.id,
-        stocktake_id: l.stocktake_id,
-        variant_id: l.variant_id,
-        counter_id: l.counter_id,
-        counter_name: l.users?.name ?? null,
-        counted_quantity: Number(l.counted_quantity),
-        location_note: l.location_note ?? null,
-        created_at: l.created_at,
-        updated_at: l.updated_at,
+        id: l.id, stocktake_id: l.stocktake_id, variant_id: l.variant_id, counter_id: l.counter_id,
+        counter_name: l.users?.name ?? null, counted_quantity: Number(l.counted_quantity),
+        location_note: l.location_note ?? null, created_at: l.created_at, updated_at: l.updated_at,
       })),
     });
   }
@@ -191,15 +187,12 @@ export async function computeStocktakeVariance(admin: SupabaseClient<any, any, a
   }
 
   return {
-    stocktake,
-    items,
+    stocktake, items,
     summary: {
       shrinkage_value: Number(shrinkageValue.toFixed(2)),
       unvalued_shrinkage_units: Number(unvaluedShrinkageUnits.toFixed(3)),
-      total_items_counted: items.length,
-      discrepant_items_count: discrepantItems,
-      uncounted_variants_count: uncountedVariants,
-      unresolved_conflicts_count: unresolvedCount,
+      total_items_counted: items.length, discrepant_items_count: discrepantItems,
+      uncounted_variants_count: uncountedVariants, unresolved_conflicts_count: unresolvedCount,
     },
   };
 }
