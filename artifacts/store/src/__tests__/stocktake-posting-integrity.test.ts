@@ -19,7 +19,13 @@ interface StocktakeLine {
   variantId: string;
   countedQuantity: number;
   capturedAt: number;
+  snapshotOnHand?: number;
+}
+
+interface StocktakeLineSnapshot {
+  lineId: string;
   snapshotOnHand: number;
+  capturedAt: number;
 }
 
 interface StockMovement {
@@ -37,6 +43,7 @@ class PostingIntegrityHarness {
   public variantCosts = new Map<string, number>();
   public stocktakes = new Map<string, Stocktake>();
   public lines: StocktakeLine[] = [];
+  public snapshots = new Map<string, StocktakeLineSnapshot>();
   public openingCosts = new Map<string, number>();
 
   public postStocktake(stocktakeId: string, actorId?: string): { success: boolean; txId: string } {
@@ -47,8 +54,26 @@ class PostingIntegrityHarness {
     const stLines = this.lines.filter((l) => l.stocktakeId === stocktakeId);
     if (!stLines.length) throw new Error("ST004: No lines in stocktake");
 
+    // Initialize snapshots from line.snapshotOnHand if not explicitly set
+    for (const line of stLines) {
+      if (line.snapshotOnHand !== undefined && !this.snapshots.has(line.id)) {
+        this.snapshots.set(line.id, {
+          lineId: line.id,
+          snapshotOnHand: line.snapshotOnHand,
+          capturedAt: line.capturedAt,
+        });
+      }
+    }
+
+    // A2 Guard: Explicit check for missing snapshots on contributing lines
+    for (const line of stLines) {
+      if (!this.snapshots.has(line.id)) {
+        throw new Error(`ST010: Cannot post stocktake ${stocktakeId}: variant ${line.variantId} has count lines with no system snapshot`);
+      }
+    }
+
     // R2 Guard: posting_date cannot be earlier than any line snapshot
-    const latestSnapshotAt = Math.max(...stLines.map((l) => l.capturedAt));
+    const latestSnapshotAt = Math.max(...stLines.map((l) => this.snapshots.get(l.id)!.capturedAt));
     if (st.postingDate < latestSnapshotAt) {
       throw new Error("ST010: Stocktake posting_date cannot be earlier than contributing observations");
     }
@@ -56,19 +81,35 @@ class PostingIntegrityHarness {
     const txId = `tx-${Date.now()}`;
     const proposedMovements: StockMovement[] = [];
 
-    // Atomic preparation
+    // Group lines by variant
+    const linesByVariant = new Map<string, StocktakeLine[]>();
     for (const line of stLines) {
-      const delta = line.countedQuantity - line.snapshotOnHand;
-      if (delta === 0) continue; // ledger forbids zero delta
+      const list = linesByVariant.get(line.variantId) ?? [];
+      list.push(line);
+      linesByVariant.set(line.variantId, list);
+    }
+
+    // Atomic preparation per variant
+    for (const [variantId, vLines] of linesByVariant.entries()) {
+      const sorted = [...vLines].sort((a, b) => b.capturedAt - a.capturedAt);
+      const latestLine = sorted[0];
+      const snap = this.snapshots.get(latestLine.id);
+      if (!snap) {
+        throw new Error(`ST010: Cannot post stocktake ${stocktakeId}: variant ${variantId} has count lines with no system snapshot`);
+      }
 
       // Simulate failure condition on a specific variant (e.g. system fault)
-      if (line.variantId === "faulty_var") {
+      if (variantId === "faulty_var") {
         throw new Error("ST001: Atomic failure simulated on line");
       }
 
+      const totalCounted = vLines.reduce((acc, l) => acc + l.countedQuantity, 0);
+      const delta = totalCounted - snap.snapshotOnHand;
+      if (delta === 0) continue; // ledger forbids zero delta
+
       proposedMovements.push({
         id: `mov-${this.movements.length + proposedMovements.length + 1}`,
-        variantId: line.variantId,
+        variantId,
         quantityDelta: delta,
         reason: st.isOpeningCount ? "opening_balance" : "stocktake_correction",
         postingDate: st.postingDate,
@@ -239,6 +280,32 @@ describe("M2b Stocktake Posting Integrity and Valuation", () => {
       expect(h.movements[0].reason).toBe("stocktake_correction");
       expect(h.movements[0].quantityDelta).toBe(2);
       expect(h.onHand.get("v1")).toBe(7);
+    });
+  });
+
+  describe("A2 — Missing snapshot invariant guard", () => {
+    it("5. stocktake with two lines; delete one line's snapshot; assert posting raises ST010 and no movements written", () => {
+      const h = new PostingIntegrityHarness();
+      h.onHand.set("v1", 10);
+      h.onHand.set("v2", 20);
+      h.stocktakes.set("st1", { id: "st1", status: "draft", isOpeningCount: false, postingDate: 3000 });
+
+      // Two lines for two variants with snapshots
+      h.lines.push({ id: "l1", stocktakeId: "st1", variantId: "v1", countedQuantity: 12, capturedAt: 1000 });
+      h.lines.push({ id: "l2", stocktakeId: "st1", variantId: "v2", countedQuantity: 25, capturedAt: 1000 });
+      h.snapshots.set("l1", { lineId: "l1", snapshotOnHand: 10, capturedAt: 1000 });
+      h.snapshots.set("l2", { lineId: "l2", snapshotOnHand: 20, capturedAt: 1000 });
+
+      // Delete one line's row from stocktake_line_snapshots
+      h.snapshots.delete("l2");
+
+      expect(() => h.postStocktake("st1", "owner-1")).toThrowError(/ST010.*has count lines with no system snapshot/);
+
+      // Invariant: No movements written for EITHER variant
+      expect(h.movements.length).toBe(0);
+      expect(h.onHand.get("v1")).toBe(10);
+      expect(h.onHand.get("v2")).toBe(20);
+      expect(h.stocktakes.get("st1")?.status).toBe("draft");
     });
   });
 });

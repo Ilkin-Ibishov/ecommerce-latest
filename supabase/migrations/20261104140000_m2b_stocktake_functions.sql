@@ -53,6 +53,7 @@ DECLARE
   v_tx_id uuid := gen_random_uuid();
   v_var record;
   v_unresolved_count integer;
+  v_missing_snap_variant uuid;
 BEGIN
   IF p_actor_id IS NULL THEN
     RAISE EXCEPTION 'Actor ID is required for stocktake posting' USING ERRCODE = 'ST007';
@@ -130,6 +131,29 @@ BEGIN
   END IF;
 
   -- 6. Atomically compute reconciled count & latest snapshot delta (R5)
+  -- Pre-flight check: verify every reconciled variant has an authoritative system snapshot
+  SELECT vs.variant_id INTO v_missing_snap_variant
+  FROM (
+    SELECT DISTINCT variant_id
+    FROM public.stocktake_lines
+    WHERE stocktake_id = p_stocktake_id
+  ) vs
+  LEFT JOIN LATERAL (
+    SELECT stls.snapshot_on_hand
+    FROM public.stocktake_lines stl
+    JOIN public.stocktake_line_snapshots stls ON stls.line_id = stl.id
+    WHERE stl.stocktake_id = p_stocktake_id AND stl.variant_id = vs.variant_id
+    ORDER BY stl.created_at DESC
+    LIMIT 1
+  ) latest_snap ON true
+  WHERE latest_snap.snapshot_on_hand IS NULL
+  LIMIT 1;
+
+  IF v_missing_snap_variant IS NOT NULL THEN
+    RAISE EXCEPTION 'Cannot post stocktake %: variant % has count lines with no system snapshot',
+      p_stocktake_id, v_missing_snap_variant USING ERRCODE = 'ST010';
+  END IF;
+
   WITH variant_scans AS (
     SELECT
       stl.variant_id,
@@ -151,14 +175,14 @@ BEGIN
     FROM variant_scans vs
     LEFT JOIN public.stocktake_resolutions sr 
       ON sr.stocktake_id = p_stocktake_id AND sr.variant_id = vs.variant_id
-    CROSS JOIN LATERAL (
+    LEFT JOIN LATERAL (
       SELECT stls.snapshot_on_hand
       FROM public.stocktake_lines stl
       JOIN public.stocktake_line_snapshots stls ON stls.line_id = stl.id
       WHERE stl.stocktake_id = p_stocktake_id AND stl.variant_id = vs.variant_id
       ORDER BY stl.created_at DESC
       LIMIT 1
-    ) latest_snap
+    ) latest_snap ON true
   ),
   variant_deltas AS (
     SELECT
