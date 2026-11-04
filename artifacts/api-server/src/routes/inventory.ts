@@ -124,27 +124,32 @@ router.get("/admin/variants/:id/movements", requireStaffOrAdmin, async (req: Req
   const userRole = (req as any).userRole;
   const variantId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
 
+  const selectCols = userRole === "admin" ? `id, variant_id, quantity_delta, reason, reference_type, reference_id,
+      note, posting_date, transaction_id, correlation_id, created_at,
+      users(id, full_name, role),
+      stock_movement_costs(unit_cost, total_cost)` : `id, variant_id, quantity_delta, reason, reference_type, reference_id,
+      note, posting_date, transaction_id, correlation_id, created_at,
+      users(id, full_name, role)`;
+
   const { data: movements, error } = await (admin as any)
     .from("stock_movements")
-    .select(`
-      id, variant_id, quantity_delta, reason, reference_type, reference_id,
-      unit_cost, note, posting_date, transaction_id, correlation_id, created_at,
-      users(id, full_name, role)
-    `)
+    .select(selectCols)
     .eq("variant_id", variantId)
     .order("posting_date", { ascending: false })
     .order("created_at", { ascending: false });
 
   if (error) return res.status(500).json({ error: error.message });
 
-  // F4: Restrict unit_cost exclusively to admin. Staff must not see unit_cost or derive margins.
   const isStaff = userRole === "staff";
   const sanitized = (movements ?? []).map((m: any) => {
     if (isStaff) {
-      const { unit_cost, ...safeRow } = m;
+      const { stock_movement_costs, unit_cost, ...safeRow } = m;
       return safeRow;
     }
-    return m;
+    const smc = Array.isArray(m.stock_movement_costs) ? m.stock_movement_costs[0] : m.stock_movement_costs;
+    const unitCost = smc?.unit_cost != null ? Number(smc.unit_cost) : null;
+    const { stock_movement_costs, ...rest } = m;
+    return { ...rest, unit_cost: unitCost };
   });
 
   return res.json({ movements: sanitized });
@@ -401,8 +406,7 @@ router.post("/admin/stock/adjust", requireStaffOrAdmin, async (req: Request, res
     reference_type: "manual",
     actor_id: user.id,
     note: note || null,
-    unit_cost: userRole === "admin" && typeof unit_cost === "number" && unit_cost >= 0 ? unit_cost : null,
-  };
+      };
   if (posting_date) movementRow.posting_date = posting_date;
   if (transaction_id) movementRow.transaction_id = transaction_id;
   if (correlation_id) movementRow.correlation_id = correlation_id;

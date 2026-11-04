@@ -11,6 +11,10 @@ import users from "./users";
 import settings from "./settings";
 import comments from "./comments";
 import usage from "./usage";
+import suppliers from "./suppliers";
+import receipts from "./receipts";
+import receiptLines from "./receipt-lines";
+import margins from "./margins";
 
 const router: IRouter = Router();
 
@@ -36,5 +40,9 @@ router.use(whatsapp);
 router.use(users);
 router.use(settings);
 router.use(comments);
+router.use(suppliers);
+router.use(receipts);
+router.use(receiptLines);
+router.use(margins);
 
 export default router;
