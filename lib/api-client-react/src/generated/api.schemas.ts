@@ -9,6 +9,10 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface SuccessResponse {
+  success: boolean;
+}
+
 export interface ErrorResponse {
   error: string;
 }
@@ -45,4 +49,139 @@ export interface BarcodeScanMatch {
 }
 
 export type BarcodeScanResult = BarcodeScanMatch[];
+
+export interface Supplier {
+  id: string;
+  name: string;
+  contact_info?: string | null;
+  notes?: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SupplierInput {
+  name: string;
+  contact_info?: string | null;
+  notes?: string | null;
+  is_active?: boolean;
+}
+
+export type SupplierList = Supplier[];
+
+export interface GoodsReceiptLine {
+  id: string;
+  receipt_id: string;
+  variant_id: string;
+  sku?: string | null;
+  product_title?: string | null;
+  quantity: number;
+  sort_order: number;
+  unit_cost?: number | null;
+  total_cost?: number | null;
+  created_at: string;
+}
+
+export interface GoodsReceiptLineInput {
+  variant_id: string;
+  quantity: number;
+  unit_cost?: number | null;
+  sort_order?: number;
+}
+
+export interface GoodsReceiptLineUpdateInput {
+  quantity?: number;
+  unit_cost?: number | null;
+  sort_order?: number;
+}
+
+export type GoodsReceiptStatus = typeof GoodsReceiptStatus[keyof typeof GoodsReceiptStatus];
+
+
+export const GoodsReceiptStatus = {
+  draft: 'draft',
+  posted: 'posted',
+  reversed: 'reversed',
+} as const;
+
+export interface GoodsReceipt {
+  id: string;
+  receipt_number: string;
+  supplier_id?: string | null;
+  supplier_name?: string | null;
+  posting_date: string;
+  reference_note?: string | null;
+  note?: string | null;
+  status: GoodsReceiptStatus;
+  transaction_id?: string | null;
+  additional_costs?: number | null;
+  total_quantity?: number;
+  total_cost?: number | null;
+  lines?: GoodsReceiptLine[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GoodsReceiptInput {
+  supplier_id?: string | null;
+  posting_date?: string;
+  reference_note?: string | null;
+  note?: string | null;
+  additional_costs?: number | null;
+}
+
+export interface GoodsReceiptReverseInput {
+  reason?: string;
+}
+
+export type GoodsReceiptList = GoodsReceipt[];
+
+export interface MarginReportVariantRow {
+  variant_id: string;
+  sku?: string | null;
+  product_id: string;
+  product_title: string;
+  category_id?: string | null;
+  category_name?: string | null;
+  revenue: number;
+  cogs: number;
+  gross_margin: number;
+  margin_percent: number;
+  units_sold: number;
+}
+
+export interface MarginReportCategoryRow {
+  category_id?: string | null;
+  category_name: string;
+  revenue: number;
+  cogs: number;
+  gross_margin: number;
+  margin_percent: number;
+  units_sold: number;
+}
+
+export interface MarginReportResponse {
+  start_date: string;
+  end_date: string;
+  total_revenue: number;
+  total_cogs: number;
+  total_gross_margin: number;
+  total_margin_percent: number;
+  total_units_sold: number;
+  variants: MarginReportVariantRow[];
+  categories: MarginReportCategoryRow[];
+  best_contributors: MarginReportVariantRow[];
+  worst_contributors: MarginReportVariantRow[];
+}
+
+export type ListGoodsReceiptsParams = {
+status?: string;
+search?: string;
+};
+
+export type GetMarginReportParams = {
+startDate: string;
+endDate: string;
+categoryId?: string;
+};
 

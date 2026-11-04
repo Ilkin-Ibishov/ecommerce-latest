@@ -55,3 +55,385 @@ export const ScanBarcodeResponseItem = zod.object({
 export const ScanBarcodeResponse = zod.array(ScanBarcodeResponseItem)
 
 
+/**
+ * @summary List suppliers
+ */
+export const ListSuppliersResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "contact_info": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "is_active": zod.boolean(),
+  "created_at": zod.string(),
+  "updated_at": zod.string()
+})
+export const ListSuppliersResponse = zod.array(ListSuppliersResponseItem)
+
+
+/**
+ * @summary Create a supplier
+ */
+export const createSupplierBodyIsActiveDefault = true;
+
+export const CreateSupplierBody = zod.object({
+  "name": zod.string(),
+  "contact_info": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "is_active": zod.boolean().default(createSupplierBodyIsActiveDefault)
+})
+
+
+/**
+ * @summary Get supplier by ID
+ */
+export const GetSupplierParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetSupplierResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "contact_info": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "is_active": zod.boolean(),
+  "created_at": zod.string(),
+  "updated_at": zod.string()
+})
+
+
+/**
+ * @summary Update supplier
+ */
+export const UpdateSupplierParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateSupplierBodyIsActiveDefault = true;
+
+export const UpdateSupplierBody = zod.object({
+  "name": zod.string(),
+  "contact_info": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "is_active": zod.boolean().default(updateSupplierBodyIsActiveDefault)
+})
+
+export const UpdateSupplierResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "contact_info": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "is_active": zod.boolean(),
+  "created_at": zod.string(),
+  "updated_at": zod.string()
+})
+
+
+/**
+ * @summary Delete supplier
+ */
+export const DeleteSupplierParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteSupplierResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary List goods receipts
+ */
+export const ListGoodsReceiptsQueryParams = zod.object({
+  "status": zod.coerce.string().optional(),
+  "search": zod.coerce.string().optional()
+})
+
+export const ListGoodsReceiptsResponseItem = zod.object({
+  "id": zod.string(),
+  "receipt_number": zod.string(),
+  "supplier_id": zod.string().nullish(),
+  "supplier_name": zod.string().nullish(),
+  "posting_date": zod.string(),
+  "reference_note": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "transaction_id": zod.string().nullish(),
+  "additional_costs": zod.number().nullish(),
+  "total_quantity": zod.number().optional(),
+  "total_cost": zod.number().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "receipt_id": zod.string(),
+  "variant_id": zod.string(),
+  "sku": zod.string().nullish(),
+  "product_title": zod.string().nullish(),
+  "quantity": zod.number(),
+  "sort_order": zod.number(),
+  "unit_cost": zod.number().nullish(),
+  "total_cost": zod.number().nullish(),
+  "created_at": zod.string()
+})).optional(),
+  "created_at": zod.string(),
+  "updated_at": zod.string()
+})
+export const ListGoodsReceiptsResponse = zod.array(ListGoodsReceiptsResponseItem)
+
+
+/**
+ * @summary Create draft goods receipt
+ */
+export const CreateGoodsReceiptBody = zod.object({
+  "supplier_id": zod.string().nullish(),
+  "posting_date": zod.string().optional(),
+  "reference_note": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "additional_costs": zod.number().nullish()
+})
+
+
+/**
+ * @summary Get goods receipt with line items
+ */
+export const GetGoodsReceiptParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetGoodsReceiptResponse = zod.object({
+  "id": zod.string(),
+  "receipt_number": zod.string(),
+  "supplier_id": zod.string().nullish(),
+  "supplier_name": zod.string().nullish(),
+  "posting_date": zod.string(),
+  "reference_note": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "transaction_id": zod.string().nullish(),
+  "additional_costs": zod.number().nullish(),
+  "total_quantity": zod.number().optional(),
+  "total_cost": zod.number().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "receipt_id": zod.string(),
+  "variant_id": zod.string(),
+  "sku": zod.string().nullish(),
+  "product_title": zod.string().nullish(),
+  "quantity": zod.number(),
+  "sort_order": zod.number(),
+  "unit_cost": zod.number().nullish(),
+  "total_cost": zod.number().nullish(),
+  "created_at": zod.string()
+})).optional(),
+  "created_at": zod.string(),
+  "updated_at": zod.string()
+})
+
+
+/**
+ * @summary Update draft goods receipt header
+ */
+export const UpdateGoodsReceiptParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const UpdateGoodsReceiptBody = zod.object({
+  "supplier_id": zod.string().nullish(),
+  "posting_date": zod.string().optional(),
+  "reference_note": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "additional_costs": zod.number().nullish()
+})
+
+export const UpdateGoodsReceiptResponse = zod.object({
+  "id": zod.string(),
+  "receipt_number": zod.string(),
+  "supplier_id": zod.string().nullish(),
+  "supplier_name": zod.string().nullish(),
+  "posting_date": zod.string(),
+  "reference_note": zod.string().nullish(),
+  "note": zod.string().nullish(),
+  "status": zod.enum(['draft', 'posted', 'reversed']),
+  "transaction_id": zod.string().nullish(),
+  "additional_costs": zod.number().nullish(),
+  "total_quantity": zod.number().optional(),
+  "total_cost": zod.number().nullish(),
+  "lines": zod.array(zod.object({
+  "id": zod.string(),
+  "receipt_id": zod.string(),
+  "variant_id": zod.string(),
+  "sku": zod.string().nullish(),
+  "product_title": zod.string().nullish(),
+  "quantity": zod.number(),
+  "sort_order": zod.number(),
+  "unit_cost": zod.number().nullish(),
+  "total_cost": zod.number().nullish(),
+  "created_at": zod.string()
+})).optional(),
+  "created_at": zod.string(),
+  "updated_at": zod.string()
+})
+
+
+/**
+ * @summary Discard draft goods receipt
+ */
+export const DeleteGoodsReceiptParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteGoodsReceiptResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Add line to draft goods receipt
+ */
+export const AddGoodsReceiptLineParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const AddGoodsReceiptLineBody = zod.object({
+  "variant_id": zod.string(),
+  "quantity": zod.number(),
+  "unit_cost": zod.number().nullish(),
+  "sort_order": zod.number().optional()
+})
+
+
+/**
+ * @summary Update line in draft goods receipt
+ */
+export const UpdateGoodsReceiptLineParams = zod.object({
+  "id": zod.coerce.string(),
+  "lineId": zod.coerce.string()
+})
+
+export const UpdateGoodsReceiptLineBody = zod.object({
+  "quantity": zod.number().optional(),
+  "unit_cost": zod.number().nullish(),
+  "sort_order": zod.number().optional()
+})
+
+export const UpdateGoodsReceiptLineResponse = zod.object({
+  "id": zod.string(),
+  "receipt_id": zod.string(),
+  "variant_id": zod.string(),
+  "sku": zod.string().nullish(),
+  "product_title": zod.string().nullish(),
+  "quantity": zod.number(),
+  "sort_order": zod.number(),
+  "unit_cost": zod.number().nullish(),
+  "total_cost": zod.number().nullish(),
+  "created_at": zod.string()
+})
+
+
+/**
+ * @summary Remove line from draft goods receipt
+ */
+export const DeleteGoodsReceiptLineParams = zod.object({
+  "id": zod.coerce.string(),
+  "lineId": zod.coerce.string()
+})
+
+export const DeleteGoodsReceiptLineResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Atomically post goods receipt (Owner only)
+ */
+export const PostGoodsReceiptActionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const PostGoodsReceiptActionResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Reverse posted goods receipt (Owner only)
+ */
+export const ReverseGoodsReceiptActionParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const ReverseGoodsReceiptActionBody = zod.object({
+  "reason": zod.string().optional()
+})
+
+export const ReverseGoodsReceiptActionResponse = zod.object({
+  "success": zod.boolean()
+})
+
+
+/**
+ * @summary Read margin report (Owner only)
+ */
+export const GetMarginReportQueryParams = zod.object({
+  "startDate": zod.coerce.string(),
+  "endDate": zod.coerce.string(),
+  "categoryId": zod.coerce.string().optional()
+})
+
+export const GetMarginReportResponse = zod.object({
+  "start_date": zod.string(),
+  "end_date": zod.string(),
+  "total_revenue": zod.number(),
+  "total_cogs": zod.number(),
+  "total_gross_margin": zod.number(),
+  "total_margin_percent": zod.number(),
+  "total_units_sold": zod.number(),
+  "variants": zod.array(zod.object({
+  "variant_id": zod.string(),
+  "sku": zod.string().nullish(),
+  "product_id": zod.string(),
+  "product_title": zod.string(),
+  "category_id": zod.string().nullish(),
+  "category_name": zod.string().nullish(),
+  "revenue": zod.number(),
+  "cogs": zod.number(),
+  "gross_margin": zod.number(),
+  "margin_percent": zod.number(),
+  "units_sold": zod.number()
+})),
+  "categories": zod.array(zod.object({
+  "category_id": zod.string().nullish(),
+  "category_name": zod.string(),
+  "revenue": zod.number(),
+  "cogs": zod.number(),
+  "gross_margin": zod.number(),
+  "margin_percent": zod.number(),
+  "units_sold": zod.number()
+})),
+  "best_contributors": zod.array(zod.object({
+  "variant_id": zod.string(),
+  "sku": zod.string().nullish(),
+  "product_id": zod.string(),
+  "product_title": zod.string(),
+  "category_id": zod.string().nullish(),
+  "category_name": zod.string().nullish(),
+  "revenue": zod.number(),
+  "cogs": zod.number(),
+  "gross_margin": zod.number(),
+  "margin_percent": zod.number(),
+  "units_sold": zod.number()
+})),
+  "worst_contributors": zod.array(zod.object({
+  "variant_id": zod.string(),
+  "sku": zod.string().nullish(),
+  "product_id": zod.string(),
+  "product_title": zod.string(),
+  "category_id": zod.string().nullish(),
+  "category_name": zod.string().nullish(),
+  "revenue": zod.number(),
+  "cogs": zod.number(),
+  "gross_margin": zod.number(),
+  "margin_percent": zod.number(),
+  "units_sold": zod.number()
+}))
+})
+
+

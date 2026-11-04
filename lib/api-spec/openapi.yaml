@@ -12,6 +12,12 @@ tags:
     description: Health operations
   - name: inventory
     description: Inventory and barcode scan operations
+  - name: suppliers
+    description: Suppliers management
+  - name: receipts
+    description: Goods receipts and receiving workflow
+  - name: margins
+    description: Owner-only margin read and reports
 paths:
   /healthz:
     get:
@@ -26,6 +32,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
   /inventory/scan/{barcode}:
     get:
       operationId: scanBarcode
@@ -51,6 +58,436 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/suppliers:
+    get:
+      operationId: listSuppliers
+      tags: [suppliers]
+      summary: List suppliers
+      responses:
+        "200":
+          description: List of suppliers
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SupplierList"
+    post:
+      operationId: createSupplier
+      tags: [suppliers]
+      summary: Create a supplier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierInput"
+      responses:
+        "201":
+          description: Supplier created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/suppliers/{id}:
+    get:
+      operationId: getSupplier
+      tags: [suppliers]
+      summary: Get supplier by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Supplier details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "404":
+          description: Supplier not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateSupplier
+      tags: [suppliers]
+      summary: Update supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SupplierInput"
+      responses:
+        "200":
+          description: Supplier updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Supplier"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteSupplier
+      tags: [suppliers]
+      summary: Delete supplier
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Supplier deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error deleting supplier
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/receipts:
+    get:
+      operationId: listGoodsReceipts
+      tags: [receipts]
+      summary: List goods receipts
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of goods receipts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoodsReceiptList"
+    post:
+      operationId: createGoodsReceipt
+      tags: [receipts]
+      summary: Create draft goods receipt
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoodsReceiptInput"
+      responses:
+        "201":
+          description: Goods receipt created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoodsReceipt"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/receipts/{id}:
+    get:
+      operationId: getGoodsReceipt
+      tags: [receipts]
+      summary: Get goods receipt with line items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Goods receipt details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoodsReceipt"
+        "404":
+          description: Receipt not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateGoodsReceipt
+      tags: [receipts]
+      summary: Update draft goods receipt header
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoodsReceiptInput"
+      responses:
+        "200":
+          description: Goods receipt updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoodsReceipt"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteGoodsReceipt
+      tags: [receipts]
+      summary: Discard draft goods receipt
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Receipt discarded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error discarding receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/receipts/{id}/lines:
+    post:
+      operationId: addGoodsReceiptLine
+      tags: [receipts]
+      summary: Add line to draft goods receipt
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoodsReceiptLineInput"
+      responses:
+        "201":
+          description: Line added
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoodsReceiptLine"
+        "400":
+          description: Error adding line
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/receipts/{id}/lines/{lineId}:
+    patch:
+      operationId: updateGoodsReceiptLine
+      tags: [receipts]
+      summary: Update line in draft goods receipt
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lineId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoodsReceiptLineUpdateInput"
+      responses:
+        "200":
+          description: Line updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoodsReceiptLine"
+        "400":
+          description: Error updating line
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteGoodsReceiptLine
+      tags: [receipts]
+      summary: Remove line from draft goods receipt
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: lineId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Line removed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error removing line
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/receipts/{id}/post:
+    post:
+      operationId: postGoodsReceiptAction
+      tags: [receipts]
+      summary: Atomically post goods receipt (Owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Receipt posted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error posting receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/receipts/{id}/reverse:
+    post:
+      operationId: reverseGoodsReceiptAction
+      tags: [receipts]
+      summary: Reverse posted goods receipt (Owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoodsReceiptReverseInput"
+      responses:
+        "200":
+          description: Receipt reversed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SuccessResponse"
+        "400":
+          description: Error reversing receipt
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /admin/reports/margins:
+    get:
+      operationId: getMarginReport
+      tags: [margins]
+      summary: Read margin report (Owner only)
+      parameters:
+        - name: startDate
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: endDate
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: categoryId
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Margin report metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MarginReportResponse"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          description: Forbidden (owner-only)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -60,6 +497,13 @@ components:
           type: string
       required:
         - status
+    SuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+      required:
+        - success
     ErrorResponse:
       type: object
       properties:
@@ -145,3 +589,303 @@ components:
       type: array
       items:
         $ref: "#/components/schemas/BarcodeScanMatch"
+
+    Supplier:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        contact_info:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+        created_at:
+          type: string
+        updated_at:
+          type: string
+      required:
+        - id
+        - name
+        - is_active
+        - created_at
+        - updated_at
+
+    SupplierInput:
+      type: object
+      properties:
+        name:
+          type: string
+        contact_info:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        is_active:
+          type: boolean
+          default: true
+      required:
+        - name
+
+    SupplierList:
+      type: array
+      items:
+        $ref: "#/components/schemas/Supplier"
+
+    GoodsReceiptLine:
+      type: object
+      properties:
+        id:
+          type: string
+        receipt_id:
+          type: string
+        variant_id:
+          type: string
+        sku:
+          type: string
+          nullable: true
+        product_title:
+          type: string
+          nullable: true
+        quantity:
+          type: number
+        sort_order:
+          type: number
+        unit_cost:
+          type: number
+          nullable: true
+        total_cost:
+          type: number
+          nullable: true
+        created_at:
+          type: string
+      required:
+        - id
+        - receipt_id
+        - variant_id
+        - quantity
+        - sort_order
+        - created_at
+
+    GoodsReceiptLineInput:
+      type: object
+      properties:
+        variant_id:
+          type: string
+        quantity:
+          type: number
+        unit_cost:
+          type: number
+          nullable: true
+        sort_order:
+          type: number
+      required:
+        - variant_id
+        - quantity
+
+    GoodsReceiptLineUpdateInput:
+      type: object
+      properties:
+        quantity:
+          type: number
+        unit_cost:
+          type: number
+          nullable: true
+        sort_order:
+          type: number
+
+    GoodsReceipt:
+      type: object
+      properties:
+        id:
+          type: string
+        receipt_number:
+          type: string
+        supplier_id:
+          type: string
+          nullable: true
+        supplier_name:
+          type: string
+          nullable: true
+        posting_date:
+          type: string
+        reference_note:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [draft, posted, reversed]
+        transaction_id:
+          type: string
+          nullable: true
+        additional_costs:
+          type: number
+          nullable: true
+        total_quantity:
+          type: number
+        total_cost:
+          type: number
+          nullable: true
+        lines:
+          type: array
+          items:
+            $ref: "#/components/schemas/GoodsReceiptLine"
+        created_at:
+          type: string
+        updated_at:
+          type: string
+      required:
+        - id
+        - receipt_number
+        - posting_date
+        - status
+        - created_at
+        - updated_at
+
+    GoodsReceiptInput:
+      type: object
+      properties:
+        supplier_id:
+          type: string
+          nullable: true
+        posting_date:
+          type: string
+        reference_note:
+          type: string
+          nullable: true
+        note:
+          type: string
+          nullable: true
+        additional_costs:
+          type: number
+          nullable: true
+
+    GoodsReceiptReverseInput:
+      type: object
+      properties:
+        reason:
+          type: string
+
+    GoodsReceiptList:
+      type: array
+      items:
+        $ref: "#/components/schemas/GoodsReceipt"
+
+    MarginReportVariantRow:
+      type: object
+      properties:
+        variant_id:
+          type: string
+        sku:
+          type: string
+          nullable: true
+        product_id:
+          type: string
+        product_title:
+          type: string
+        category_id:
+          type: string
+          nullable: true
+        category_name:
+          type: string
+          nullable: true
+        revenue:
+          type: number
+        cogs:
+          type: number
+        gross_margin:
+          type: number
+        margin_percent:
+          type: number
+        units_sold:
+          type: number
+      required:
+        - variant_id
+        - product_id
+        - product_title
+        - revenue
+        - cogs
+        - gross_margin
+        - margin_percent
+        - units_sold
+
+    MarginReportCategoryRow:
+      type: object
+      properties:
+        category_id:
+          type: string
+          nullable: true
+        category_name:
+          type: string
+        revenue:
+          type: number
+        cogs:
+          type: number
+        gross_margin:
+          type: number
+        margin_percent:
+          type: number
+        units_sold:
+          type: number
+      required:
+        - category_name
+        - revenue
+        - cogs
+        - gross_margin
+        - margin_percent
+        - units_sold
+
+    MarginReportResponse:
+      type: object
+      properties:
+        start_date:
+          type: string
+        end_date:
+          type: string
+        total_revenue:
+          type: number
+        total_cogs:
+          type: number
+        total_gross_margin:
+          type: number
+        total_margin_percent:
+          type: number
+        total_units_sold:
+          type: number
+        variants:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarginReportVariantRow"
+        categories:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarginReportCategoryRow"
+        best_contributors:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarginReportVariantRow"
+        worst_contributors:
+          type: array
+          items:
+            $ref: "#/components/schemas/MarginReportVariantRow"
+      required:
+        - start_date
+        - end_date
+        - total_revenue
+        - total_cogs
+        - total_gross_margin
+        - total_margin_percent
+        - total_units_sold
+        - variants
+        - categories
+        - best_contributors
+        - worst_contributors
