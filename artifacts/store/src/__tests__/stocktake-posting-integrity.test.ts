@@ -10,7 +10,7 @@ interface Stocktake {
   id: string;
   status: "draft" | "posted";
   isOpeningCount: boolean;
-  postingDate: number;
+  postingDate?: number | null;
 }
 
 interface StocktakeLine {
@@ -100,9 +100,11 @@ class PostingIntegrityHarness {
       }
     }
 
-    // R2 Guard: posting_date cannot be earlier than any line snapshot
+    const effectivePostingDate = st.postingDate ?? Date.now();
+
+    // R2 Guard: posting_date cannot be earlier than any line snapshot (only when explicitly set)
     const latestSnapshotAt = Math.max(...stLines.map((l) => this.snapshots.get(l.id)!.capturedAt));
-    if (st.postingDate < latestSnapshotAt) {
+    if (st.postingDate != null && st.postingDate < latestSnapshotAt) {
       throw new Error("ST010: Stocktake posting_date cannot be earlier than contributing observations");
     }
 
@@ -155,7 +157,7 @@ class PostingIntegrityHarness {
         variantId,
         quantityDelta: delta,
         reason: st.isOpeningCount ? "opening_balance" : "stocktake_correction",
-        postingDate: st.postingDate,
+        postingDate: effectivePostingDate,
         transactionId: txId,
       });
     }
@@ -174,13 +176,33 @@ class PostingIntegrityHarness {
       }
     }
 
+    st.postingDate = effectivePostingDate;
     st.status = "posted";
     return { success: true, txId };
   }
 }
 
 describe("M2b Stocktake Posting Integrity and Valuation", () => {
-  it("R2: postStocktake rejects posting_date earlier than line snapshot", () => {
+  it("F1: ordinary flow with no posting_date succeeds and movements carry posting moment", () => {
+    const h = new PostingIntegrityHarness();
+    const t0 = Date.now();
+    // Created with no posting_date
+    h.stocktakes.set("st1", { id: "st1", status: "draft", isOpeningCount: false });
+    // Line scanned later with snapshot captured at t0 + 500
+    h.lines.push({ id: "l1", stocktakeId: "st1", variantId: "v1", countedQuantity: 8, capturedAt: t0 + 500, snapshotOnHand: 10 });
+
+    const res = h.postStocktake("st1", "owner-1");
+    expect(res.success).toBe(true);
+    const st = h.stocktakes.get("st1");
+    expect(st?.status).toBe("posted");
+    expect(st?.postingDate).toBeDefined();
+    expect(st?.postingDate).toBeGreaterThanOrEqual(t0);
+    expect(h.movements.length).toBe(1);
+    expect(h.movements[0].postingDate).toBe(st?.postingDate);
+    expect(h.movements[0].quantityDelta).toBe(-2);
+  });
+
+  it("F1 / R2: postStocktake rejects explicit owner posting_date earlier than line snapshot", () => {
     const h = new PostingIntegrityHarness();
     h.stocktakes.set("st1", { id: "st1", status: "draft", isOpeningCount: false, postingDate: 1000 });
     // Line was observed at t=1200, which is after postingDate 1000

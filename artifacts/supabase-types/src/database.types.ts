@@ -1478,7 +1478,7 @@ export type Database = {
           title: string;
           status: "draft" | "posted" | "cancelled";
           is_opening_count: boolean;
-          posting_date: string;
+          posting_date: string | null;
           transaction_id: string | null;
           created_by: string | null;
           posted_by: string | null;
@@ -1493,7 +1493,7 @@ export type Database = {
           title: string;
           status?: "draft" | "posted" | "cancelled";
           is_opening_count?: boolean;
-          posting_date?: string;
+          posting_date?: string | null;
           transaction_id?: string | null;
           created_by?: string | null;
           posted_by?: string | null;
@@ -1508,7 +1508,7 @@ export type Database = {
           title?: string;
           status?: "draft" | "posted" | "cancelled";
           is_opening_count?: boolean;
-          posting_date?: string;
+          posting_date?: string | null;
           transaction_id?: string | null;
           created_by?: string | null;
           posted_by?: string | null;

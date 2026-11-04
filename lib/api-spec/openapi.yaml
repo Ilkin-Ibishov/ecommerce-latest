@@ -1242,6 +1242,7 @@ components:
           type: boolean
         posting_date:
           type: string
+          nullable: true
         transaction_id:
           type: string
           nullable: true
@@ -1269,7 +1270,6 @@ components:
         - title
         - status
         - is_opening_count
-        - posting_date
         - created_at
         - updated_at
 

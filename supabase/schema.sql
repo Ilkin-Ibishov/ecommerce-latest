@@ -1025,7 +1025,7 @@ CREATE TABLE IF NOT EXISTS public.stocktakes (
   title             text NOT NULL,
   status            text NOT NULL DEFAULT 'draft' CHECK (status IN ('draft', 'posted', 'cancelled')),
   is_opening_count  boolean NOT NULL DEFAULT false,
-  posting_date      timestamptz NOT NULL DEFAULT now(),
+  posting_date      timestamptz,
   transaction_id    uuid,
   created_by        uuid REFERENCES public.users(id),
   posted_by         uuid REFERENCES public.users(id),
@@ -1048,7 +1048,7 @@ CREATE POLICY "Stocktakes: staff draft insert" ON public.stocktakes FOR INSERT T
   WITH CHECK (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff') AND status = 'draft' AND is_opening_count = false AND posted_by IS NULL AND posted_at IS NULL AND transaction_id IS NULL);
 CREATE POLICY "Stocktakes: staff draft update" ON public.stocktakes FOR UPDATE TO authenticated
   USING (EXISTS (SELECT 1 FROM public.users u WHERE u.id = auth.uid() AND u.role = 'staff') AND status = 'draft')
-  WITH CHECK (status = 'draft' AND is_opening_count = false AND posted_by IS NULL AND posted_at IS NULL AND transaction_id IS NULL AND posting_date = (SELECT s.posting_date FROM public.stocktakes s WHERE s.id = stocktakes.id));
+  WITH CHECK (status = 'draft' AND is_opening_count = false AND posted_by IS NULL AND posted_at IS NULL AND transaction_id IS NULL AND posting_date IS NOT DISTINCT FROM (SELECT s.posting_date FROM public.stocktakes s WHERE s.id = stocktakes.id));
 CREATE POLICY "Stocktakes: admin all" ON public.stocktakes FOR ALL TO authenticated
   USING (public.is_admin()) WITH CHECK (public.is_admin());
 
