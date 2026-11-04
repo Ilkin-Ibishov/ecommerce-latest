@@ -57,10 +57,6 @@ DECLARE
   v_cached_on_hand numeric(12,3);
   v_true_on_hand   numeric(12,3);
 BEGIN
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Forbidden: rebuild_on_hand is owner-only' USING ERRCODE = '42501';
-  END IF;
-
   -- 1. Exclusively lock the variant row to serialize against concurrent sales/receipts
   SELECT pv.on_hand INTO v_cached_on_hand
   FROM public.product_variants pv
@@ -103,10 +99,6 @@ RETURNS TABLE (
   details         text
 ) LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Forbidden: verify_stock_integrity is owner-only' USING ERRCODE = '42501';
-  END IF;
-
   RETURN QUERY
   -- Check 1: Ledger sum vs Cached on_hand
   WITH ledger_totals AS (
@@ -487,8 +479,8 @@ DECLARE
   v_tx_id uuid := gen_random_uuid();
   v_var record;
 BEGIN
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Forbidden: only the store owner can post goods receipts' USING ERRCODE = '42501';
+  IF p_actor_id IS NULL THEN
+    RAISE EXCEPTION 'Actor ID is required to attribute movements' USING ERRCODE = 'ST007';
   END IF;
 
   -- 1. Lock receipt and verify status
@@ -579,8 +571,8 @@ DECLARE
   v_rev_tx_id uuid := gen_random_uuid();
   v_var record;
 BEGIN
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Forbidden: only the store owner can reverse goods receipts' USING ERRCODE = '42501';
+  IF p_actor_id IS NULL THEN
+    RAISE EXCEPTION 'Actor ID is required to attribute movements' USING ERRCODE = 'ST007';
   END IF;
 
   SELECT * INTO v_receipt
@@ -662,10 +654,6 @@ RETURNS TABLE (
   units_sold      numeric
 ) LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
-  IF NOT public.is_admin() THEN
-    RAISE EXCEPTION 'Forbidden: margin report is owner-only' USING ERRCODE = '42501';
-  END IF;
-
   RETURN QUERY
   WITH movement_sales AS (
     SELECT
@@ -755,3 +743,27 @@ BEGIN
   ORDER BY gross_margin DESC;
 END;
 $$;
+
+
+-- ─── 10. Execute Privileges for Service Role RPCs ─────────────────────────────
+-- Revoke execution from public/anon/authenticated to block direct PostgREST calls.
+-- Grant execution strictly to service_role; Express routes handle JWT authentication,
+-- requireAdmin authorization, and audit logging before invoking with service credentials.
+REVOKE EXECUTE ON FUNCTION public.rebuild_on_hand(uuid) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rebuild_on_hand(uuid) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.verify_stock_integrity() FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.verify_stock_integrity() TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.recompute_variant_cost(uuid, timestamptz) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.recompute_variant_cost(uuid, timestamptz) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.post_goods_receipt(uuid, uuid) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.post_goods_receipt(uuid, uuid) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.reverse_goods_receipt(uuid, uuid, text) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.reverse_goods_receipt(uuid, uuid, text) TO service_role;
+
+REVOKE EXECUTE ON FUNCTION public.get_margin_report(timestamptz, timestamptz, uuid) FROM public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.get_margin_report(timestamptz, timestamptz, uuid) TO service_role;
+

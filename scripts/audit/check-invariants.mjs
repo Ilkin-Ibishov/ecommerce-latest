@@ -241,6 +241,47 @@ checks.push(
       return hits;
     },
   },
+  {
+    id: 'security-definer-service-role-privileges',
+    why: 'Service-role SECURITY DEFINER functions have no auth.uid() context so must not contain auth.uid/is_admin guards, and must enforce explicit REVOKE/GRANT privileges.',
+    run: (files) => {
+      const hits = [];
+      for (const { file, text } of files) {
+        if (!isSql(file)) continue;
+        const r = rel(file);
+        if (!/^supabase\/migrations\/20261104/.test(r)) continue;
+
+        const fnPattern = /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+([\w.]+)\s*\(([^)]*)\)[\s\S]*?LANGUAGE\s+plpgsql\s+SECURITY\s+DEFINER[\s\S]*?\$\$(.*?)\$\$;/gi;
+        let match;
+        while ((match = fnPattern.exec(text)) !== null) {
+          const fnName = match[1].split('.').pop();
+          const fnBody = match[3];
+
+          // 1. Guard against auth.uid() or is_admin() in body
+          if (/\b(auth\.uid\(\)|is_admin\(\))\b/i.test(fnBody)) {
+            hits.push({
+              file: r,
+              line: 0,
+              text: `SECURITY DEFINER function "${fnName}" contains auth.uid() or is_admin() which fails when called via service role client`,
+            });
+          }
+
+          // 2. Guard against missing REVOKE/GRANT
+          const revokeRe = new RegExp(`REVOKE\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+[\\w.]*${fnName}\\b[\\s\\S]*?FROM\\s+[^;]*public`, 'i');
+          const grantRe = new RegExp(`GRANT\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+[\\w.]*${fnName}\\b[\\s\\S]*?TO\\s+[^;]*service_role`, 'i');
+
+          if (!revokeRe.test(text) || !grantRe.test(text)) {
+            hits.push({
+              file: r,
+              line: 0,
+              text: `SECURITY DEFINER function "${fnName}" missing explicit REVOKE ... FROM public or GRANT ... TO service_role`,
+            });
+          }
+        }
+      }
+      return hits;
+    },
+  },
 );
 
 /* ------------------------------------------------------------------- main */
