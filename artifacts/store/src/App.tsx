@@ -31,6 +31,10 @@ const AdminSetupPage = lazy(() => import("@/pages/admin/AdminSetupPage"));
 const DashboardPage = lazy(() => import("@/pages/admin/DashboardPage"));
 const AdminProductsPage = lazy(() => import("@/pages/admin/ProductsPage"));
 const AdminInventoryPage = lazy(() => import("@/pages/admin/InventoryPage"));
+const AdminSuppliersPage = lazy(() => import("@/pages/admin/SuppliersPage"));
+const AdminReceiptsPage = lazy(() => import("@/pages/admin/ReceiptsPage"));
+const AdminReceiptDetailPage = lazy(() => import("@/pages/admin/ReceiptDetailPage"));
+const AdminMarginReportPage = lazy(() => import("@/pages/admin/MarginReportPage"));
 const ProductFormPage = lazy(() => import("@/pages/admin/ProductFormPage"));
 const AdminOrdersPage = lazy(() => import("@/pages/admin/OrdersPage"));
 const OrderDetailPage = lazy(() => import("@/pages/admin/OrderDetailPage"));
@@ -121,6 +125,10 @@ function AdminRoutes() {
             <Route path="/admin/products/:id/edit">{(params) => <ProductFormPage productId={params.id} />}</Route>
             <Route path="/admin/products" component={AdminProductsPage} />
             <Route path="/admin/inventory" component={AdminInventoryPage} />
+            <Route path="/admin/receipts/:id">{(params) => <AdminReceiptDetailPage id={params.id} />}</Route>
+            <Route path="/admin/receipts" component={AdminReceiptsPage} />
+            <Route path="/admin/suppliers" component={AdminSuppliersPage} />
+            <Route path="/admin/margins" component={AdminMarginReportPage} />
             <Route path="/admin/orders/:id">{(params) => <OrderDetailPage id={params.id} />}</Route>
             <Route path="/admin/orders" component={AdminOrdersPage} />
             <Route path="/admin/users" component={AdminUsersPage} />

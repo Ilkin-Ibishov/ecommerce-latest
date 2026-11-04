@@ -74,6 +74,7 @@ function AdminLayoutInner({
   const [location] = useLocation();
   const [checking, setChecking] = useState(true);
   const [authed, setAuthed] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
   const [bootstrapAvailable, setBootstrapAvailable] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -180,7 +181,7 @@ function AdminLayoutInner({
         </button>
       </div>
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-        {navItems.map(({ href, labelKey, icon: Icon }) => {
+        {navItems.filter((item: any) => !item.adminOnly || userRole === "admin").map(({ href, labelKey, icon: Icon }) => {
           const active = href === "/admin" ? location === "/admin" : location.startsWith(href);
           return (
             <Link
