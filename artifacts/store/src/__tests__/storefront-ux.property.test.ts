@@ -670,7 +670,7 @@ describe("Property 3: Quick View addItem uses correct variant data", () => {
   /** Validates: Requirements 3.3, 3.4 */
 
   // Property 3 with chained generator can take >2.5s under parallel test suite CPU load.
-  // Reduced from 200 to 100 runs and set test timeout to 15s to permanently prevent timeout flakes
+  // Kept at 200 runs with 15s test timeout to permanently prevent timeout flakes
   // while maintaining thorough randomized coverage.
   it("for products with variants, addItem uses the selected variant's price and label", () => {
     fc.assert(
@@ -697,7 +697,7 @@ describe("Property 3: Quick View addItem uses correct variant data", () => {
           expect(result.image).toBe(product.image);
         },
       ),
-      { numRuns: 100 },
+      { numRuns: 200 },
     );
   }, 15000);
 
