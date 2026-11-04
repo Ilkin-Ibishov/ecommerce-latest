@@ -42,6 +42,7 @@ DECLARE
   v_var record;
   v_unresolved_count integer;
   v_missing_snap_variant uuid;
+  v_override_no_line_variant uuid;
   v_stale_variant uuid;
   v_effective_posting timestamptz;
 BEGIN
@@ -147,7 +148,20 @@ BEGIN
       updated_at = now();
   END IF;
 
-  -- 6. Atomically compute reconciled count & latest snapshot delta (R5)
+  -- 5b. Guard: override resolution must specify chosen_line_id (F2)
+  SELECT sr.variant_id INTO v_override_no_line_variant
+  FROM public.stocktake_resolutions sr
+  WHERE sr.stocktake_id = p_stocktake_id
+    AND sr.resolution_type = 'override'
+    AND sr.chosen_line_id IS NULL
+  LIMIT 1;
+
+  IF v_override_no_line_variant IS NOT NULL THEN
+    RAISE EXCEPTION 'Cannot post stocktake %: variant % has override resolution with no chosen line',
+      p_stocktake_id, v_override_no_line_variant USING ERRCODE = 'ST013';
+  END IF;
+
+  -- 6. Atomically compute reconciled count & snapshot delta (R5, F2)
   -- Pre-flight check: verify every reconciled variant has an authoritative system snapshot
   SELECT vs.variant_id INTO v_missing_snap_variant
   FROM (
@@ -155,6 +169,13 @@ BEGIN
     FROM public.stocktake_lines
     WHERE stocktake_id = p_stocktake_id
   ) vs
+  LEFT JOIN public.stocktake_resolutions sr
+    ON sr.stocktake_id = p_stocktake_id AND sr.variant_id = vs.variant_id
+  LEFT JOIN LATERAL (
+    SELECT stls.snapshot_on_hand
+    FROM public.stocktake_line_snapshots stls
+    WHERE stls.line_id = sr.chosen_line_id
+  ) override_snap ON sr.resolution_type = 'override'
   LEFT JOIN LATERAL (
     SELECT stls.snapshot_on_hand
     FROM public.stocktake_lines stl
@@ -162,8 +183,11 @@ BEGIN
     WHERE stl.stocktake_id = p_stocktake_id AND stl.variant_id = vs.variant_id
     ORDER BY stl.created_at DESC
     LIMIT 1
-  ) latest_snap ON true
-  WHERE latest_snap.snapshot_on_hand IS NULL
+  ) latest_snap ON (sr.resolution_type IS NULL OR sr.resolution_type <> 'override')
+  WHERE CASE
+    WHEN sr.resolution_type = 'override' THEN override_snap.snapshot_on_hand
+    ELSE latest_snap.snapshot_on_hand
+  END IS NULL
   LIMIT 1;
 
   IF v_missing_snap_variant IS NOT NULL THEN
@@ -188,10 +212,18 @@ BEGIN
         WHEN sr.resolution_type = 'sum' THEN sr.resolved_quantity
         ELSE vs.sum_counted
       END AS effective_counted,
-      latest_snap.snapshot_on_hand AS effective_snapshot
+      CASE
+        WHEN sr.resolution_type = 'override' THEN override_snap.snapshot_on_hand
+        ELSE latest_snap.snapshot_on_hand
+      END AS effective_snapshot
     FROM variant_scans vs
     LEFT JOIN public.stocktake_resolutions sr 
       ON sr.stocktake_id = p_stocktake_id AND sr.variant_id = vs.variant_id
+    LEFT JOIN LATERAL (
+      SELECT stls.snapshot_on_hand
+      FROM public.stocktake_line_snapshots stls
+      WHERE stls.line_id = sr.chosen_line_id
+    ) override_snap ON sr.resolution_type = 'override'
     LEFT JOIN LATERAL (
       SELECT stls.snapshot_on_hand
       FROM public.stocktake_lines stl
@@ -199,7 +231,7 @@ BEGIN
       WHERE stl.stocktake_id = p_stocktake_id AND stl.variant_id = vs.variant_id
       ORDER BY stl.created_at DESC
       LIMIT 1
-    ) latest_snap ON true
+    ) latest_snap ON (sr.resolution_type IS NULL OR sr.resolution_type <> 'override')
   ),
   variant_deltas AS (
     SELECT

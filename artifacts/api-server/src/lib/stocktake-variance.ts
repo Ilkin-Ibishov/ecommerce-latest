@@ -97,12 +97,18 @@ export async function computeStocktakeVariance(admin: SupabaseClient<any, any, a
     const productTitle = vInfo?.products?.title ?? "Unknown Product";
     const categoryName = vInfo?.products?.categories?.name ?? null;
 
-    // R5: Reconcile against latest snapshot
+    const res = resolutionMap.get(variantId);
+
+    // R5 / F2: Reconcile against chosen line snapshot if override, or latest snapshot otherwise
     const sortedLines = [...vLines].sort((a: any, b: any) => new Date(String(b.created_at)).getTime() - new Date(String(a.created_at)).getTime());
     const latestLine = sortedLines[0];
-    const snapshotOnHand = snapshotMap.get(latestLine.id);
+    const chosenLine = res?.resolution_type === "override" && res.chosen_line_id
+      ? vLines.find((l: any) => l.id === res.chosen_line_id)
+      : null;
+    const effectiveLine = chosenLine ?? latestLine;
+    const snapshotOnHand = effectiveLine ? snapshotMap.get(effectiveLine.id) : undefined;
     if (snapshotOnHand === undefined) {
-      throw new Error(`Missing snapshot for stocktake line ${latestLine.id} (variant ${variantId})`);
+      throw new Error(`Missing snapshot for stocktake line ${effectiveLine?.id} (variant ${variantId})`);
     }
 
     // R5: Interleaved movements check
@@ -113,7 +119,6 @@ export async function computeStocktakeVariance(admin: SupabaseClient<any, any, a
       return m.variant_id === variantId && mTime > earliestTime && mTime < latestTime;
     });
 
-    const res = resolutionMap.get(variantId);
     let countedQuantity = 0, resolutionStatus = "single";
 
     const isStale = Boolean(res && (

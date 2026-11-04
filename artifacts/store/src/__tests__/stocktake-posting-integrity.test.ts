@@ -34,6 +34,7 @@ interface StocktakeResolution {
   resolvedQuantity: number;
   resolvedLineCount: number;
   resolvedLatestLineAt: number;
+  chosenLineId?: string;
 }
 
 interface StockMovement {
@@ -60,6 +61,7 @@ class PostingIntegrityHarness {
     resolutionType: "sum" | "override",
     resolvedQuantity: number,
     stocktakeId?: string,
+    chosenLineId?: string,
   ): void {
     const targetStId = stocktakeId ?? this.lines.find((l) => l.variantId === variantId)?.stocktakeId;
     const vLines = this.lines.filter((l) => l.variantId === variantId && (!targetStId || l.stocktakeId === targetStId));
@@ -71,6 +73,7 @@ class PostingIntegrityHarness {
       resolvedQuantity,
       resolvedLineCount: count,
       resolvedLatestLineAt: latestAt,
+      chosenLineId,
     });
   }
 
@@ -118,6 +121,13 @@ class PostingIntegrityHarness {
       }
     }
 
+    // F2 Guard: Override resolution must specify chosen_line_id (ST013)
+    for (const [variantId, res] of this.resolutions.entries()) {
+      if (res.resolutionType === "override" && !res.chosenLineId) {
+        throw new Error(`ST013: Cannot post stocktake ${stocktakeId}: variant ${variantId} has override resolution with no chosen line`);
+      }
+    }
+
     const txId = `tx-${Date.now()}`;
     const proposedMovements: StockMovement[] = [];
 
@@ -131,9 +141,15 @@ class PostingIntegrityHarness {
 
     // Atomic preparation per variant
     for (const [variantId, vLines] of linesByVariant.entries()) {
-      const sorted = [...vLines].sort((a, b) => b.capturedAt - a.capturedAt);
-      const latestLine = sorted[0];
-      const snap = this.snapshots.get(latestLine.id);
+      const res = this.resolutions.get(variantId);
+      let snap: StocktakeLineSnapshot | undefined;
+      if (res && res.resolutionType === "override" && res.chosenLineId) {
+        snap = this.snapshots.get(res.chosenLineId);
+      } else {
+        const sorted = [...vLines].sort((a, b) => b.capturedAt - a.capturedAt);
+        const latestLine = sorted[0];
+        snap = this.snapshots.get(latestLine.id);
+      }
       if (!snap) {
         throw new Error(`ST010: Cannot post stocktake ${stocktakeId}: variant ${variantId} has count lines with no system snapshot`);
       }
@@ -145,7 +161,6 @@ class PostingIntegrityHarness {
 
       const totalCounted = vLines.reduce((acc, l) => acc + l.countedQuantity, 0);
       let effectiveCounted = totalCounted;
-      const res = this.resolutions.get(variantId);
       if (res) {
         effectiveCounted = res.resolvedQuantity;
       }
@@ -457,6 +472,86 @@ describe("M2b Stocktake Posting Integrity and Valuation", () => {
       expect(h.movements[0].reason).toBe("stocktake_correction");
       expect(h.onHand.get("v1")).toBe(19);
       expect(h.stocktakes.get("st1")?.status).toBe("posted");
+    });
+
+    it("F2: override resolution measures against chosen line snapshot, preserving interleaved sales", () => {
+      const h = new PostingIntegrityHarness();
+      // Store initially has 10 units on-hand
+      h.onHand.set("v1", 10);
+      h.stocktakes.set("st1", { id: "st1", status: "draft", isOpeningCount: false, postingDate: 5000 });
+
+      // Step 1: Count 10 at 10:00 (t=1000). Snapshot on-hand is 10.
+      h.lines.push({ id: "l1", stocktakeId: "st1", variantId: "v1", countedQuantity: 10, capturedAt: 1000 });
+      h.snapshots.set("l1", { lineId: "l1", snapshotOnHand: 10, capturedAt: 1000 });
+
+      // Step 2: Between 10:00 and 12:00, 2 units sold. Store on-hand drops to 8.
+      h.onHand.set("v1", 8);
+      h.movements.push({
+        id: "mov-sale-1",
+        variantId: "v1",
+        quantityDelta: -2,
+        reason: "online_sale",
+        postingDate: 1100,
+        transactionId: "tx-sale",
+      });
+
+      // Step 3: Rescan 6 at 12:00 (t=1200). Snapshot on-hand is 8.
+      h.lines.push({ id: "l2", stocktakeId: "st1", variantId: "v1", countedQuantity: 6, capturedAt: 1200 });
+      h.snapshots.set("l2", { lineId: "l2", snapshotOnHand: 8, capturedAt: 1200 });
+
+      // Step 4: Owner overrides to line 1 (counted 10, chosen_line_id = l1)
+      h.resolveVariant("v1", "override", 10, "st1", "l1");
+
+      // Step 5: Post stocktake. Delta = counted (10) - chosen snapshot (10) = 0.
+      // Store on-hand remains at 8 (the 2 sales between scans are NOT erased).
+      const res = h.postStocktake("st1", "owner-1");
+      expect(res.success).toBe(true);
+      expect(h.onHand.get("v1")).toBe(8);
+      // No stocktake_correction movement written because delta is 0
+      const stocktakeMovs = h.movements.filter((m) => m.reason === "stocktake_correction");
+      expect(stocktakeMovs.length).toBe(0);
+    });
+
+    it("F2: sum resolution keeps using the latest snapshot", () => {
+      const h = new PostingIntegrityHarness();
+      h.onHand.set("v1", 10);
+      h.stocktakes.set("st1", { id: "st1", status: "draft", isOpeningCount: false, postingDate: 5000 });
+
+      // Scan 1 at 10:00: count 4, snapshot 10
+      h.lines.push({ id: "l1", stocktakeId: "st1", variantId: "v1", countedQuantity: 4, capturedAt: 1000 });
+      h.snapshots.set("l1", { lineId: "l1", snapshotOnHand: 10, capturedAt: 1000 });
+
+      // 2 units sold: on-hand drops to 8
+      h.onHand.set("v1", 8);
+
+      // Scan 2 at 12:00: count 6, snapshot 8
+      h.lines.push({ id: "l2", stocktakeId: "st1", variantId: "v1", countedQuantity: 6, capturedAt: 1200 });
+      h.snapshots.set("l2", { lineId: "l2", snapshotOnHand: 8, capturedAt: 1200 });
+
+      // Sum resolution: resolved_quantity = 10
+      h.resolveVariant("v1", "sum", 10, "st1");
+
+      // Sum uses latest snapshot (8). Delta = 10 - 8 = +2. On-hand becomes 8 + 2 = 10.
+      const res = h.postStocktake("st1", "owner-1");
+      expect(res.success).toBe(true);
+      expect(h.onHand.get("v1")).toBe(10);
+      const stocktakeMovs = h.movements.filter((m) => m.reason === "stocktake_correction");
+      expect(stocktakeMovs.length).toBe(1);
+      expect(stocktakeMovs[0].quantityDelta).toBe(2);
+    });
+
+    it("F2: override resolution with missing chosen_line_id raises ST013", () => {
+      const h = new PostingIntegrityHarness();
+      h.stocktakes.set("st1", { id: "st1", status: "draft", isOpeningCount: false, postingDate: 5000 });
+      h.lines.push({ id: "l1", stocktakeId: "st1", variantId: "v1", countedQuantity: 5, capturedAt: 1000 });
+      h.lines.push({ id: "l2", stocktakeId: "st1", variantId: "v1", countedQuantity: 6, capturedAt: 1010 });
+      h.snapshots.set("l1", { lineId: "l1", snapshotOnHand: 10, capturedAt: 1000 });
+      h.snapshots.set("l2", { lineId: "l2", snapshotOnHand: 10, capturedAt: 1010 });
+
+      // Override without chosenLineId
+      h.resolveVariant("v1", "override", 5, "st1");
+
+      expect(() => h.postStocktake("st1", "owner-1")).toThrowError(/ST013.*override resolution with no chosen line/);
     });
   });
 });
