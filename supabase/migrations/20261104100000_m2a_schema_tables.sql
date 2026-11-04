@@ -258,6 +258,9 @@ ALTER TABLE public.stock_movements
   DROP COLUMN IF EXISTS unit_cost;
 
 ALTER TABLE public.stock_movements
+  ADD COLUMN IF NOT EXISTS negative_stock_override boolean NOT NULL DEFAULT false;
+
+ALTER TABLE public.stock_movements
   DROP CONSTRAINT IF EXISTS stock_movements_reference_type_check;
 
 ALTER TABLE public.stock_movements

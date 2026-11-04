@@ -955,6 +955,7 @@ export type Database = {
           variant_id: string;
           posting_date: string;
           transaction_id: string | null;
+          negative_stock_override: boolean;
         };
         Insert: {
           correlation_id?: string | null;
@@ -971,6 +972,7 @@ export type Database = {
           variant_id: string;
           posting_date?: string;
           transaction_id?: string | null;
+          negative_stock_override?: boolean;
         };
         Update: {
           correlation_id?: string | null;
@@ -987,6 +989,7 @@ export type Database = {
           variant_id?: string;
           posting_date?: string;
           transaction_id?: string | null;
+          negative_stock_override?: boolean;
         };
         Relationships: [
           {

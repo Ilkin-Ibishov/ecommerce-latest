@@ -432,6 +432,7 @@ CREATE TABLE IF NOT EXISTS public.stock_movements (
   reference_type  text CHECK (reference_type IN ('order', 'goods_receipt_line', 'purchase_order', 'stocktake', 'manual')),
   reference_id    text,
     actor_id        uuid REFERENCES public.users(id),
+  negative_stock_override boolean NOT NULL DEFAULT false,
   note            text,
   posting_date    timestamptz NOT NULL DEFAULT now(),
   transaction_id  uuid,
@@ -494,18 +495,40 @@ FOR EACH ROW EXECUTE FUNCTION trg_stock_movements_immutable();
 CREATE OR REPLACE FUNCTION trg_apply_stock_movement() RETURNS trigger LANGUAGE plpgsql AS $
 DECLARE
   v_new_stock numeric(12,3);
+  v_allow_negative boolean := false;
 BEGIN
-  UPDATE public.product_variants
-  SET on_hand = on_hand + NEW.quantity_delta,
-      updated_at = now()
-  WHERE id = NEW.variant_id AND (on_hand + NEW.quantity_delta) >= 0
-  RETURNING on_hand INTO v_new_stock;
+  -- Check tenant setting for negative stock
+  SELECT COALESCE(allow_negative_stock, false) INTO v_allow_negative
+  FROM public.site_settings
+  LIMIT 1;
 
-  IF NOT FOUND THEN
-    IF NOT EXISTS (SELECT 1 FROM public.product_variants WHERE id = NEW.variant_id) THEN
+  IF v_allow_negative THEN
+    UPDATE public.product_variants
+    SET on_hand = on_hand + NEW.quantity_delta,
+        updated_at = now()
+    WHERE id = NEW.variant_id
+    RETURNING on_hand INTO v_new_stock;
+
+    IF NOT FOUND THEN
       RAISE EXCEPTION 'Variant not found: %', NEW.variant_id USING ERRCODE = 'ST002';
-    ELSE
-      RAISE EXCEPTION 'Insufficient stock for variant %', NEW.variant_id USING ERRCODE = 'ST001';
+    END IF;
+
+    IF v_new_stock < 0 THEN
+      NEW.negative_stock_override := true;
+    END IF;
+  ELSE
+    UPDATE public.product_variants
+    SET on_hand = on_hand + NEW.quantity_delta,
+        updated_at = now()
+    WHERE id = NEW.variant_id AND (on_hand + NEW.quantity_delta) >= 0
+    RETURNING on_hand INTO v_new_stock;
+
+    IF NOT FOUND THEN
+      IF NOT EXISTS (SELECT 1 FROM public.product_variants WHERE id = NEW.variant_id) THEN
+        RAISE EXCEPTION 'Variant not found: %', NEW.variant_id USING ERRCODE = 'ST002';
+      ELSE
+        RAISE EXCEPTION 'Insufficient stock for variant %', NEW.variant_id USING ERRCODE = 'ST001';
+      END IF;
     END IF;
   END IF;
 
@@ -514,7 +537,9 @@ END;
 $;
 
 DROP TRIGGER IF EXISTS stock_movements_after_insert ON public.stock_movements;
-CREATE TRIGGER stock_movements_after_insert AFTER INSERT ON public.stock_movements
+DROP TRIGGER IF EXISTS stock_movements_before_insert ON public.stock_movements;
+CREATE TRIGGER stock_movements_before_insert
+BEFORE INSERT ON public.stock_movements
 FOR EACH ROW EXECUTE FUNCTION trg_apply_stock_movement();
 
 
@@ -988,3 +1013,6 @@ CREATE INDEX IF NOT EXISTS idx_smc_replay_order ON public.stock_movement_costs(v
 ALTER TABLE public.stock_movement_costs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "MovementCosts: admin only" ON public.stock_movement_costs FOR ALL TO authenticated
   USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+ALTER TABLE public.site_settings
+  ADD COLUMN IF NOT EXISTS allow_negative_stock boolean NOT NULL DEFAULT false;

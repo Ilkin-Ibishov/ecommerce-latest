@@ -25,6 +25,7 @@ const VALID_FIELDS = [
   "contact",
   "working_hours",
   "footer_text",
+  "allow_negative_stock",
 ] as const;
 
 /**
@@ -152,6 +153,7 @@ const DEFAULT_SETTINGS = {
   contact: { phone: "", email: "", address: "", social_links: {} },
   working_hours: { az: "", ru: "", en: "" },
   footer_text: { az: "", ru: "", en: "" },
+  allow_negative_stock: false,
   created_at: null,
   updated_at: null,
 };
@@ -222,6 +224,13 @@ router.patch("/site-settings", requireAdmin, async (req, res): Promise<void> => 
     const fontErrors = validateFonts(updates.fonts);
     if (fontErrors) {
       Object.assign(allErrors, fontErrors);
+    }
+  }
+
+  // Validate allow_negative_stock if provided
+  if ("allow_negative_stock" in updates) {
+    if (typeof updates.allow_negative_stock !== "boolean") {
+      allErrors.allow_negative_stock = "allow_negative_stock must be a boolean";
     }
   }
 

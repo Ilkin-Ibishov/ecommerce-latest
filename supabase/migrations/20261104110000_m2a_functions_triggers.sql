@@ -45,6 +45,58 @@ END;
 $$;
 
 
+-- ─── 2b. Stock Movement Apply Trigger (allow_negative_stock support) ───────────
+CREATE OR REPLACE FUNCTION trg_apply_stock_movement() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE
+  v_new_stock numeric(12,3);
+  v_allow_negative boolean := false;
+BEGIN
+  -- Check tenant setting for negative stock
+  SELECT COALESCE(allow_negative_stock, false) INTO v_allow_negative
+  FROM public.site_settings
+  LIMIT 1;
+
+  IF v_allow_negative THEN
+    UPDATE public.product_variants
+    SET on_hand = on_hand + NEW.quantity_delta,
+        updated_at = now()
+    WHERE id = NEW.variant_id
+    RETURNING on_hand INTO v_new_stock;
+
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'Variant not found: %', NEW.variant_id USING ERRCODE = 'ST002';
+    END IF;
+
+    IF v_new_stock < 0 THEN
+      NEW.negative_stock_override := true;
+    END IF;
+  ELSE
+    UPDATE public.product_variants
+    SET on_hand = on_hand + NEW.quantity_delta,
+        updated_at = now()
+    WHERE id = NEW.variant_id AND (on_hand + NEW.quantity_delta) >= 0
+    RETURNING on_hand INTO v_new_stock;
+
+    IF NOT FOUND THEN
+      IF NOT EXISTS (SELECT 1 FROM public.product_variants WHERE id = NEW.variant_id) THEN
+        RAISE EXCEPTION 'Variant not found: %', NEW.variant_id USING ERRCODE = 'ST002';
+      ELSE
+        RAISE EXCEPTION 'Insufficient stock for variant %', NEW.variant_id USING ERRCODE = 'ST001';
+      END IF;
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS stock_movements_after_insert ON public.stock_movements;
+DROP TRIGGER IF EXISTS stock_movements_before_insert ON public.stock_movements;
+CREATE TRIGGER stock_movements_before_insert
+BEFORE INSERT ON public.stock_movements
+FOR EACH ROW EXECUTE FUNCTION trg_apply_stock_movement();
+
+
 -- ─── 3. Operational Repair: rebuild_on_hand ──────────────────────────────────
 CREATE OR REPLACE FUNCTION rebuild_on_hand(p_variant_id uuid)
 RETURNS TABLE (
