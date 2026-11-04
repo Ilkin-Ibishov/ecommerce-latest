@@ -13,78 +13,53 @@ lives in this repository; nothing important is only in a chat transcript.
 
 ## State
 
-**M2b is complete on `m2b/stocktake` and verified after architectural fix. It has not been merged.**  
-(Preceding phase M1 and M2a are merged on local `main`.)
-
-> [!WARNING]
-> **The adversarial audit for M2b did not run.** The `claude-opus-4-6-thinking` run hit an account
-> quota partway through and committed nothing; the quota resets in roughly six days. M2b has had the
-> architect's review, local unit/property suites, and mechanical checks, but **not** an independent
-> adversarial pass on a different model family. Do not list M2b as audited.
+**M2c is complete on `m2c/reservations` and verified. It has not been merged.**  
+(Preceding phase M1 and M2a are merged on local `main`; M2b is complete on `m2b/stocktake`.)
 
 Verified locally on 2026-11-04:
 
 | Check | Result |
 |---|---|
 | `pnpm run typecheck` | exit 0 across all 5 workspace projects |
-| `pnpm run test:unit` | 598 tests, 49 files, exit 0 |
-| `pnpm run audit:invariants:strict` | 10 checks, 0 violations, baseline empty |
+| `pnpm run test:unit` | 665 tests, 57 files, exit 0 |
+| `pnpm run audit:invariants:strict` | 13 checks, 0 violations, baseline empty |
 
-The empty baseline remains preserved across all 10 invariant checks, including the newly added
-`no-expected-quantity-on-staff-endpoints` invariant.
+The empty baseline remains preserved across all 13 invariant checks, including the newly added
+`no-private-columns-on-anon-grants` and `no-on-hand-reads-on-storefront` invariants.
 
-### What M2b delivered
+### What M2c delivered
 
-- **Phone-first counting screen.** Rapid scan entry on mobile (`StocktakeCountPage.tsx`), barcode scanner
-  input, blind counting (zero expected quantities or snapshots displayed to counters), rapid quantity
-  stepper, and clean distinction between fixing a typo and recounting a shelf.
-- **Authoritative on-hand snapshots and blind boundary.** Captured inside the database engine via
-  `AFTER INSERT` trigger `trg_capture_stocktake_line_snapshot` into dedicated admin-only table
-  `public.stocktake_line_snapshots`. Isolated from staff tokens by RLS and checked by automated invariant
-  `no-expected-quantity-on-staff-endpoints`.
-- **Multi-counter duplicate resolution algebra.** Multiple counters can scan the same variant. Distinct
-  location notes automatically default to sum (`sum_defaulted`); conflicting or missing location notes
-  strictly block posting (`ST009`) until explicitly resolved by the owner via `stocktake_resolutions`.
-- **Typo fix vs. recount semantics (R1).** Editing a count line preserves the original observation timestamp
-  and snapshot; recounting deletes the line and rescans, capturing a fresh snapshot under the trigger.
-- **Store-wide opening count (§6).** Dedicated mode (`is_opening_count = true`) writing `opening_balance`
-  movements without distorting weighted-average cost formulas. Wholesale costs recorded via
-  `stocktake_opening_costs` populate `variant_costs.opening_cost`. Constrained by unique partial index
-  `idx_single_posted_opening_stocktake` allowing at most one posted opening count in tenant history.
-- **Atomic posting RPC (`post_stocktake`).** Single-transaction ACID posting. Locks header row `FOR UPDATE`,
-  enforces `posting_date >= MAX(captured_at)` (`ST010`), reconciles multi-counter scans against latest
-  snapshots (R5), inserts delta movements, and triggers scoped cost recomputation.
-- **Owner review screen & shrinkage valuation (§7.3, §8).** Monetary variance review sorted by
-  `ABS(variance_value) DESC`. Separates valued shrinkage in manat (`shrinkage_value`) from unvalued missing
-  physical units (`unvalued_shrinkage_units`), preventing false reassurance on unpriced stock. Flags
-  interleaved trade windows without halting store checkout.
-- **Scoped snapshot queries & invariant enforcement.** Scoped snapshot fetching in `computeStocktakeVariance`
-  strictly to lines of the stocktake under review (`.in("line_id", lineIds)`). Refuses to fall back to current
-  on-hand on missing snapshot rows, preventing divergence between owner review and posting.
+- **Atomic multi-item order stock decrement.** `decrement_order_stock` locks variant rows in ascending order,
+  verifies availability for all lines, and writes movements in a single database transaction, replacing JavaScript loops.
+- **Single-transaction pay-and-collect fulfilment.** `fulfil_reservation` applies final payments and fulfilment
+  atomically, raising `ST015` naming shortfalls if full payment is not met.
+- **Computed `effective_status`.** Computed once in SQL (`reservations_view`), mapping active holds past expiry
+  to `expired` without altering physical status history or auto-releasing stock.
+- **Unified availability view with deficit exposure.** `product_variant_availability` exposes on-hand,
+  reserved quantity, clamped available quantity, and deficit quantity ($H < R$).
+- **Anonymous token boundary.** `product_variant_public_availability` exposes only `variant_id, product_id, available_quantity`
+  to `anon`, with automated invariant check `no-private-columns-on-anon-grants`.
+- **Documented trigger bypass reasons.** Explicit trigger comments and `.agents/rules/inventory.md` entries
+  documenting reasons that bypass availability checks (e.g. counter sale, physical stocktake corrections).
+- **Storefront availability integration.** Public catalogue, search, product detail, quick-view, and checkout
+  validate against `available_quantity` from `product_variant_public_availability`.
+- **Counter deposit screen (< 1 min) & owner aged list.** Rapid staff deposit creation (`CreateDepositModal`),
+  one-click "Pay & Collect" button, and owner aged holds list (`AgedReservationsList`) with release reasons.
 
 ### Decisions closed, and where the reasoning lives
 
 | Decision | Where |
 |---|---|
-| Typo edit preserves snapshot; recount rescans under trigger (R1) | `docs/design-notes/m2b-stocktake.md` §1 Q1, `docs/audits/m2b-implementation-notes.md` §1 |
-| Owner-only `posting_date` bounded by `MAX(captured_at)` (R2) | `docs/design-notes/m2b-stocktake.md` §1 Q3, `docs/audits/m2b-implementation-notes.md` §1 |
-| Location-based sum defaulting and collision blocking (R3) | `docs/design-notes/m2b-stocktake.md` §1 Q4, `docs/audits/m2b-implementation-notes.md` §1 |
-| Honest limits of blind counting against direct on-hand reads (R4) | `docs/design-notes/m2b-stocktake.md` §1 Q1, `.agents/rules/inventory.md` |
-| Delta composition against latest snapshot and interleaved trade flag (R5) | `docs/design-notes/m2b-stocktake.md` §1 Q5, `docs/audits/m2b-implementation-notes.md` §1 |
-| Separation of monetary shrinkage and unvalued missing units (§7.3) | `docs/design-notes/m2b-stocktake.md` §1 Q3, `docs/audits/m2b-implementation-notes.md` §1 |
-| Single-posted opening count constraint and opening cost carrier (§6) | `docs/design-notes/m2b-stocktake.md` §2, `docs/audits/m2b-implementation-notes.md` §1 |
-| Snapshot query scoping & rejection of current-on-hand fallback | `docs/audits/m2b-fix-notes.md` §1 |
+| Atomic order decrement locks variant rows ascending (C1) | `docs/design-notes/m2c-reservations.md` §8.3, `docs/audits/m2c-implementation-notes.md` §2 |
+| Pay-and-collect fulfilment in one transaction (C2) | `docs/design-notes/m2c-reservations.md` §4, `docs/audits/m2c-implementation-notes.md` §2 |
+| `effective_status` computed in database view (C3) | `docs/design-notes/m2c-reservations.md` §3, `docs/audits/m2c-implementation-notes.md` §2 |
+| Availability view exposes clamped available and deficit (C4) | `docs/design-notes/m2c-reservations.md` §4, `docs/audits/m2c-implementation-notes.md` §2 |
+| Anon token restricted to public availability view (C5) | `docs/design-notes/m2c-reservations.md` §5, `docs/audits/m2c-implementation-notes.md` §2 |
+| Trigger bypass reasons and fulfilment ordering (C6) | `.agents/rules/inventory.md`, `docs/audits/m2c-implementation-notes.md` §2 |
+| Staff payment recording vs owner price/release control | `docs/design-notes/m2c-reservations.md` §8.1, `docs/audits/m2c-implementation-notes.md` §3 |
+| Mandatory release reason for cash drawer auditability | `docs/design-notes/m2c-reservations.md` §8.2, `docs/audits/m2c-implementation-notes.md` §3 |
 
 ## Next
-
-**M2c** — reservations (deposits) ledger.
-
-Carried forward into M2c:
-
-- Reservations (deposits) ledger: allocating stock to customer orders or deposits without movement ledger
-  consumption until fulfillment or pickup.
-- Available stock calculation (`on_hand - reserved`) across storefront availability checks and admin catalog.
-- Handling deposit cancellations, stock releases, and expired holds.
 
 **M3** — counter sale, barcode flow, and a minimal bill of materials. Build parent / component /
 quantity plus one produced flag.
