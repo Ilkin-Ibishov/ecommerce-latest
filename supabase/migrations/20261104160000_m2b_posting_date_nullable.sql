@@ -192,7 +192,7 @@ BEGIN
 
   IF v_missing_snap_variant IS NOT NULL THEN
     RAISE EXCEPTION 'Cannot post stocktake %: variant % has count lines with no system snapshot',
-      p_stocktake_id, v_missing_snap_variant USING ERRCODE = 'ST010';
+      p_stocktake_id, v_missing_snap_variant USING ERRCODE = 'ST012';
   END IF;
 
   WITH variant_scans AS (

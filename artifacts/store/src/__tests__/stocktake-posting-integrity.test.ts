@@ -100,7 +100,7 @@ export class PostingIntegrityHarness {
     // A2 Guard: Explicit check for missing snapshots on contributing lines
     for (const line of stLines) {
       if (!this.snapshots.has(line.id)) {
-        throw new Error(`ST010: Cannot post stocktake ${stocktakeId}: variant ${line.variantId} has count lines with no system snapshot`);
+        throw new Error(`ST012: Cannot post stocktake ${stocktakeId}: variant ${line.variantId} has count lines with no system snapshot`);
       }
     }
 
@@ -152,7 +152,7 @@ export class PostingIntegrityHarness {
         snap = this.snapshots.get(latestLine.id);
       }
       if (!snap) {
-        throw new Error(`ST010: Cannot post stocktake ${stocktakeId}: variant ${variantId} has count lines with no system snapshot`);
+        throw new Error(`ST012: Cannot post stocktake ${stocktakeId}: variant ${variantId} has count lines with no system snapshot`);
       }
 
       // Simulate failure condition on a specific variant (e.g. system fault)
@@ -364,8 +364,8 @@ describe("M2b Stocktake Posting Integrity and Valuation", () => {
     });
   });
 
-  describe("A2 — Missing snapshot invariant guard", () => {
-    it("5. stocktake with two lines; delete one line's snapshot; assert posting raises ST010 and no movements written", () => {
+  describe("A2 / F7 — Missing snapshot invariant guard (ST012)", () => {
+    it("5. stocktake with two lines; delete one line's snapshot; assert posting raises ST012 and no movements written", () => {
       const h = new PostingIntegrityHarness();
       h.onHand.set("v1", 10);
       h.onHand.set("v2", 20);
@@ -380,7 +380,7 @@ describe("M2b Stocktake Posting Integrity and Valuation", () => {
       // Delete one line's row from stocktake_line_snapshots
       h.snapshots.delete("l2");
 
-      expect(() => h.postStocktake("st1", "owner-1")).toThrowError(/ST010.*has count lines with no system snapshot/);
+      expect(() => h.postStocktake("st1", "owner-1")).toThrowError(/ST012.*has count lines with no system snapshot/);
 
       // Invariant: No movements written for EITHER variant
       expect(h.movements.length).toBe(0);
