@@ -1773,7 +1773,32 @@ export type Database = {
       };
     };
     Views: {
-      [_ in never]: never;
+      reservations_view: {
+        Row: {
+          id: string;
+          reservation_number: string;
+          variant_id: string;
+          quantity: number;
+          customer_name: string;
+          customer_phone: string;
+          hold_type: "deposit" | "order_hold" | "cart_hold";
+          status: "active" | "fulfilled" | "released" | "expired";
+          effective_status: "active" | "fulfilled" | "released" | "expired";
+          agreed_price: number;
+          paid_amount: number;
+          notes: string | null;
+          expires_at: string | null;
+          created_by: string;
+          fulfilled_by: string | null;
+          fulfilled_at: string | null;
+          released_by: string | null;
+          released_at: string | null;
+          release_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Relationships: [];
+      };
     };
     Functions: {
       fulfil_reservation: {
