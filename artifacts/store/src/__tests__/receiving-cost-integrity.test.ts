@@ -197,6 +197,13 @@ class ReceivingAndIntegrityHarness {
       .reduce((sum, m) => sum + m.quantity_delta, 0);
 
     this.onHand.set(variantId, trueLedger);
+
+    // F6: Recompute projection for that variant in the same transaction
+    const latestProj = [...this.projections].reverse().find((p) => p.variant_id === variantId);
+    if (latestProj) {
+      latestProj.running_quantity = trueLedger;
+    }
+
     return { repaired: trueLedger, delta: trueLedger - cached };
   }
 }
@@ -284,12 +291,20 @@ describe("M2a Receiving & Integrity Checks", () => {
       { id: "m-1", variant_id: "v3", quantity_delta: 20, reason: "goods_receipt" },
       { id: "m-2", variant_id: "v3", quantity_delta: -5, reason: "online_sale" },
     );
-    // True ledger sum = 15. Deliberately corrupt cached onHand to 25.
+    // True ledger sum = 15. Deliberately corrupt cached onHand to 25 and projection running_quantity to 25.
     harness.onHand.set("v3", 25);
+    harness.projections.push({
+      movement_id: "m-2",
+      variant_id: "v3",
+      running_quantity: 25,
+      running_avg_cost: 10.0,
+    });
 
     const issuesBefore = harness.verifyIntegrity("v3");
     const onHandIssue = issuesBefore.find((i) => i.check_name === "ledger_vs_on_hand");
+    const projIssue = issuesBefore.find((i) => i.check_name === "projection_vs_ledger");
     expect(onHandIssue).toBeDefined();
+    expect(projIssue).toBeDefined();
     expect(onHandIssue?.expected_value).toBe(15);
     expect(onHandIssue?.actual_value).toBe(25);
     expect(onHandIssue?.diff).toBe(10);
@@ -298,8 +313,10 @@ describe("M2a Receiving & Integrity Checks", () => {
     expect(repairRes.repaired).toBe(15);
     expect(repairRes.delta).toBe(-10);
 
+    // F6: rebuild_on_hand resolves both on_hand divergence and projection_vs_ledger
     const issuesAfter = harness.verifyIntegrity("v3");
     expect(issuesAfter.some((i) => i.check_name === "ledger_vs_on_hand")).toBe(false);
+    expect(issuesAfter.some((i) => i.check_name === "projection_vs_ledger")).toBe(false);
   });
 
   it("integrity check reports projection divergence, unvalued movements, and stale cache", () => {

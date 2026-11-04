@@ -134,6 +134,9 @@ BEGIN
     WHERE id = p_variant_id;
   END IF;
 
+  -- 4. Recompute cost projection in the same transaction to synchronize valuation with repaired on_hand (F6)
+  PERFORM public.recompute_variant_cost(p_variant_id);
+
   RETURN QUERY SELECT p_variant_id, v_cached_on_hand, v_true_on_hand, (v_true_on_hand - v_cached_on_hand);
 END;
 $$;
