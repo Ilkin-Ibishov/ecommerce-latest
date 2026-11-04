@@ -641,6 +641,30 @@ BEGIN
       USING ERRCODE = 'ST006';
   END IF;
 
+  -- Pre-flight check: ensure goods have not been consumed before attempting reversal (F4)
+  FOR v_var IN (
+    SELECT
+      sm.variant_id,
+      pv.sku,
+      SUM(sm.quantity_delta) AS received_qty,
+      pv.on_hand
+    FROM public.stock_movements sm
+    JOIN public.product_variants pv ON pv.id = sm.variant_id
+    WHERE sm.transaction_id = v_receipt.transaction_id
+    GROUP BY sm.variant_id, pv.sku, pv.on_hand
+  ) LOOP
+    IF v_var.on_hand < v_var.received_qty THEN
+      RAISE EXCEPTION 'Cannot reverse receipt %: variant % (SKU: %) has % units already consumed (% on hand, % received)',
+        v_receipt.receipt_number,
+        v_var.variant_id,
+        COALESCE(v_var.sku, 'N/A'),
+        (v_var.received_qty - v_var.on_hand),
+        v_var.on_hand,
+        v_var.received_qty
+        USING ERRCODE = 'ST008';
+    END IF;
+  END LOOP;
+
   -- Insert offsetting return_to_supplier movements linked to original movements
   INSERT INTO public.stock_movements (
     variant_id,

@@ -102,6 +102,16 @@ class ReceivingAndIntegrityHarness {
     const revTxId = `rev-tx-${receiptId}`;
     const origMovs = this.movements.filter((m) => m.transaction_id === receipt.transaction_id);
 
+    // F4 Pre-flight check: ensure goods have not been consumed before attempting reversal
+    for (const om of origMovs) {
+      const cur = this.onHand.get(om.variant_id) ?? 0;
+      if (cur < om.quantity_delta) {
+        throw new Error(
+          `Cannot reverse receipt ${receipt.receipt_number}: variant ${om.variant_id} has ${om.quantity_delta - cur} units already consumed (${cur} on hand, ${om.quantity_delta} received)`
+        );
+      }
+    }
+
     for (const om of origMovs) {
       this.movements.push({
         id: `rev-mov-${om.id}`,
@@ -234,6 +244,38 @@ describe("M2a Receiving & Integrity Checks", () => {
     const revMov = harness.movements.find((m) => m.reason === "return_to_supplier")!;
     expect(revMov.quantity_delta).toBe(-15);
     expect(revMov.correlation_id).toBe(harness.receipts.get("rec-2")?.transaction_id);
+  });
+
+  it("F4: reversal after partial consumption is refused with specific diagnostic error naming consumed units", () => {
+    const harness = new ReceivingAndIntegrityHarness();
+    harness.receipts.set("rec-consumed", {
+      id: "rec-consumed",
+      receipt_number: "GR-004",
+      status: "draft",
+      posting_date: "2026-11-04T10:00:00Z",
+      lines: [
+        { id: "line-c1", variant_id: "var-consumed", quantity: 10, unit_cost: 5.0 },
+      ],
+    });
+
+    harness.postReceipt("rec-consumed", "user-1");
+    expect(harness.onHand.get("var-consumed")).toBe(10);
+
+    // Consume 8 units physically via sale
+    harness.movements.push({
+      id: "mov-sale-8",
+      variant_id: "var-consumed",
+      quantity_delta: -8,
+      reason: "counter_sale",
+    });
+    harness.onHand.set("var-consumed", 2);
+
+    // Attempting reversal must be refused before inserting anything and name variant and consumed units (8)
+    expect(() => harness.reverseReceipt("rec-consumed")).toThrow(
+      /Cannot reverse receipt GR-004: variant var-consumed has 8 units already consumed \(2 on hand, 10 received\)/
+    );
+    expect(harness.onHand.get("var-consumed")).toBe(2);
+    expect(harness.receipts.get("rec-consumed")?.status).toBe("posted");
   });
 
   it("integrity check reports on_hand corruption and rebuild_on_hand repairs it", () => {
