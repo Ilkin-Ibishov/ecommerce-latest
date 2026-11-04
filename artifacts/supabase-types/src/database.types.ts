@@ -1471,6 +1471,156 @@ export type Database = {
           },
         ];
       };
+      stocktakes: {
+        Row: {
+          id: string;
+          stocktake_number: string;
+          title: string;
+          status: "draft" | "posted" | "cancelled";
+          is_opening_count: boolean;
+          posting_date: string;
+          transaction_id: string | null;
+          created_by: string | null;
+          posted_by: string | null;
+          posted_at: string | null;
+          notes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          stocktake_number: string;
+          title: string;
+          status?: "draft" | "posted" | "cancelled";
+          is_opening_count?: boolean;
+          posting_date?: string;
+          transaction_id?: string | null;
+          created_by?: string | null;
+          posted_by?: string | null;
+          posted_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          stocktake_number?: string;
+          title?: string;
+          status?: "draft" | "posted" | "cancelled";
+          is_opening_count?: boolean;
+          posting_date?: string;
+          transaction_id?: string | null;
+          created_by?: string | null;
+          posted_by?: string | null;
+          posted_at?: string | null;
+          notes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      stocktake_lines: {
+        Row: {
+          id: string;
+          stocktake_id: string;
+          variant_id: string;
+          counter_id: string;
+          counted_quantity: number;
+          location_note: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          stocktake_id: string;
+          variant_id: string;
+          counter_id: string;
+          counted_quantity: number;
+          location_note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          stocktake_id?: string;
+          variant_id?: string;
+          counter_id?: string;
+          counted_quantity?: number;
+          location_note?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      stocktake_line_snapshots: {
+        Row: {
+          line_id: string;
+          snapshot_on_hand: number;
+          captured_at: string;
+        };
+        Insert: {
+          line_id: string;
+          snapshot_on_hand: number;
+          captured_at?: string;
+        };
+        Update: {
+          line_id?: string;
+          snapshot_on_hand?: number;
+          captured_at?: string;
+        };
+        Relationships: [];
+      };
+      stocktake_opening_costs: {
+        Row: {
+          stocktake_id: string;
+          variant_id: string;
+          opening_unit_cost: number;
+          created_at: string;
+        };
+        Insert: {
+          stocktake_id: string;
+          variant_id: string;
+          opening_unit_cost: number;
+          created_at?: string;
+        };
+        Update: {
+          stocktake_id?: string;
+          variant_id?: string;
+          opening_unit_cost?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      stocktake_resolutions: {
+        Row: {
+          stocktake_id: string;
+          variant_id: string;
+          resolution_type: "sum" | "override";
+          chosen_line_id: string | null;
+          resolved_quantity: number;
+          resolved_by: string | null;
+          resolved_at: string;
+        };
+        Insert: {
+          stocktake_id: string;
+          variant_id: string;
+          resolution_type: "sum" | "override";
+          chosen_line_id?: string | null;
+          resolved_quantity: number;
+          resolved_by?: string | null;
+          resolved_at?: string;
+        };
+        Update: {
+          stocktake_id?: string;
+          variant_id?: string;
+          resolution_type?: "sum" | "override";
+          chosen_line_id?: string | null;
+          resolved_quantity?: number;
+          resolved_by?: string | null;
+          resolved_at?: string;
+        };
+        Relationships: [];
+      };
       stock_movement_costs: {
         Row: {
           movement_id: string;
