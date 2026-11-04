@@ -1773,6 +1773,19 @@ export type Database = {
       };
     };
     Views: {
+      product_variant_availability: {
+        Row: {
+          variant_id: string;
+          product_id: string;
+          sku: string | null;
+          price: number;
+          on_hand: number;
+          reserved_quantity: number;
+          available_quantity: number;
+          deficit_quantity: number;
+        };
+        Relationships: [];
+      };
       reservations_view: {
         Row: {
           id: string;
