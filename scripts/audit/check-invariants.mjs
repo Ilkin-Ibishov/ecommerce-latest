@@ -417,6 +417,27 @@ checks.push(
       return hits;
     },
   },
+  {
+    id: 'no-on-hand-reads-on-storefront',
+    why: 'Public storefront paths must read availability, never raw physical on_hand.',
+    run: (files) => {
+      const hits = [];
+      const STOREFRONT_PAT = /^artifacts\/store\/src\/(pages|components)\/storefront\//;
+      const onHandPat = /\bon_hand\b/;
+      for (const { file, text } of files) {
+        if (!isCode(file)) continue;
+        const r = rel(file);
+        if (!STOREFRONT_PAT.test(r)) continue;
+        text.split('\n').forEach((line, i) => {
+          if (/^\s*(\/\/|\/\*|\*)/.test(line)) return;
+          if (onHandPat.test(line)) {
+            hits.push({ file: r, line: i + 1, text: line.trim().slice(0, 140) });
+          }
+        });
+      }
+      return hits;
+    },
+  },
 );
 
 /* ------------------------------------------------------------------- main */
