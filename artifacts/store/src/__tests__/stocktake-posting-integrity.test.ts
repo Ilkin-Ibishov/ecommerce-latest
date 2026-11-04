@@ -58,7 +58,7 @@ class PostingIntegrityHarness {
 
     // Atomic preparation
     for (const line of stLines) {
-      const delta = st.isOpeningCount ? line.countedQuantity : line.countedQuantity - line.snapshotOnHand;
+      const delta = line.countedQuantity - line.snapshotOnHand;
       if (delta === 0) continue; // ledger forbids zero delta
 
       // Simulate failure condition on a specific variant (e.g. system fault)
@@ -184,5 +184,61 @@ describe("M2b Stocktake Posting Integrity and Valuation", () => {
 
     expect(shrinkageValue).toBe(100.0); // 4 * 25 ₼ = 100 ₼
     expect(unvaluedShrinkageUnits).toBe(10); // 10 unvalued units missing
+  });
+
+  describe("A1 — Opening count and ordinary count delta arithmetic", () => {
+    it("1. legacy opening balance 5, counted 7, opening count → on_hand ends at exactly 7", () => {
+      const h = new PostingIntegrityHarness();
+      h.onHand.set("v1", 5);
+      h.stocktakes.set("st-open", { id: "st-open", status: "draft", isOpeningCount: true, postingDate: 2000 });
+      h.lines.push({ id: "l1", stocktakeId: "st-open", variantId: "v1", countedQuantity: 7, capturedAt: 1500, snapshotOnHand: 5 });
+
+      h.postStocktake("st-open", "owner-1");
+
+      expect(h.movements.length).toBe(1);
+      expect(h.movements[0].reason).toBe("opening_balance");
+      expect(h.movements[0].quantityDelta).toBe(2);
+      expect(h.onHand.get("v1")).toBe(7);
+    });
+
+    it("2. legacy opening balance 0 (no prior movements), counted 7, opening count → ends at 7", () => {
+      const h = new PostingIntegrityHarness();
+      h.onHand.set("v1", 0);
+      h.stocktakes.set("st-open", { id: "st-open", status: "draft", isOpeningCount: true, postingDate: 2000 });
+      h.lines.push({ id: "l1", stocktakeId: "st-open", variantId: "v1", countedQuantity: 7, capturedAt: 1500, snapshotOnHand: 0 });
+
+      h.postStocktake("st-open", "owner-1");
+
+      expect(h.movements.length).toBe(1);
+      expect(h.movements[0].reason).toBe("opening_balance");
+      expect(h.movements[0].quantityDelta).toBe(7);
+      expect(h.onHand.get("v1")).toBe(7);
+    });
+
+    it("3. legacy opening balance 5, counted 5, opening count → ends at 5 and no movement is written", () => {
+      const h = new PostingIntegrityHarness();
+      h.onHand.set("v1", 5);
+      h.stocktakes.set("st-open", { id: "st-open", status: "draft", isOpeningCount: true, postingDate: 2000 });
+      h.lines.push({ id: "l1", stocktakeId: "st-open", variantId: "v1", countedQuantity: 5, capturedAt: 1500, snapshotOnHand: 5 });
+
+      h.postStocktake("st-open", "owner-1");
+
+      expect(h.movements.length).toBe(0);
+      expect(h.onHand.get("v1")).toBe(5);
+    });
+
+    it("4. ordinary count, snapshot 5, counted 7 → ends at 7 with reason stocktake_correction", () => {
+      const h = new PostingIntegrityHarness();
+      h.onHand.set("v1", 5);
+      h.stocktakes.set("st1", { id: "st1", status: "draft", isOpeningCount: false, postingDate: 2000 });
+      h.lines.push({ id: "l1", stocktakeId: "st1", variantId: "v1", countedQuantity: 7, capturedAt: 1500, snapshotOnHand: 5 });
+
+      h.postStocktake("st1", "owner-1");
+
+      expect(h.movements.length).toBe(1);
+      expect(h.movements[0].reason).toBe("stocktake_correction");
+      expect(h.movements[0].quantityDelta).toBe(2);
+      expect(h.onHand.get("v1")).toBe(7);
+    });
   });
 });

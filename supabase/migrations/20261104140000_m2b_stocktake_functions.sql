@@ -163,12 +163,12 @@ BEGIN
   variant_deltas AS (
     SELECT
       variant_id,
-      CASE
-        WHEN v_st.is_opening_count THEN effective_counted
-        ELSE (effective_counted - effective_snapshot)
-      END AS delta
+      (effective_counted - effective_snapshot) AS delta
     FROM reconciled
   )
+  -- An opening_balance movement may be negative, because an opening count establishes
+  -- the true quantity over a migrated placeholder, and the sum of a variant's opening_balance
+  -- movements is its established opening quantity.
   INSERT INTO public.stock_movements (
     variant_id,
     quantity_delta,
