@@ -1687,11 +1687,103 @@ export type Database = {
           },
         ];
       };
+      reservations: {
+        Row: {
+          id: string;
+          reservation_number: string;
+          variant_id: string;
+          quantity: number;
+          customer_name: string;
+          customer_phone: string;
+          hold_type: "deposit" | "order_hold" | "cart_hold";
+          status: "active" | "fulfilled" | "released" | "expired";
+          agreed_price: number;
+          paid_amount: number;
+          notes: string | null;
+          expires_at: string | null;
+          created_by: string;
+          fulfilled_by: string | null;
+          fulfilled_at: string | null;
+          released_by: string | null;
+          released_at: string | null;
+          release_reason: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          reservation_number: string;
+          variant_id: string;
+          quantity: number;
+          customer_name: string;
+          customer_phone: string;
+          hold_type?: "deposit" | "order_hold" | "cart_hold";
+          status?: "active" | "fulfilled" | "released" | "expired";
+          agreed_price: number;
+          paid_amount?: number;
+          notes?: string | null;
+          expires_at?: string | null;
+          created_by: string;
+          fulfilled_by?: string | null;
+          fulfilled_at?: string | null;
+          released_by?: string | null;
+          released_at?: string | null;
+          release_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          reservation_number?: string;
+          variant_id?: string;
+          quantity?: number;
+          customer_name?: string;
+          customer_phone?: string;
+          hold_type?: "deposit" | "order_hold" | "cart_hold";
+          status?: "active" | "fulfilled" | "released" | "expired";
+          agreed_price?: number;
+          paid_amount?: number;
+          notes?: string | null;
+          expires_at?: string | null;
+          created_by?: string;
+          fulfilled_by?: string | null;
+          fulfilled_at?: string | null;
+          released_by?: string | null;
+          released_at?: string | null;
+          release_reason?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "reservations_variant_id_fkey";
+            columns: ["variant_id"];
+            isOneToOne: false;
+            referencedRelation: "product_variants";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "reservations_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
     };
     Functions: {
+      decrement_order_stock: {
+        Args: {
+          p_order_id: string;
+          p_lines: { variant_id: string; quantity: number }[];
+          p_actor_id?: string | null;
+        };
+        Returns: undefined;
+      };
       decrement_stock_safe: {
         Args: {
           p_actor_id?: string | null;

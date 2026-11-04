@@ -6,7 +6,7 @@ import { validate } from "../middlewares/validate";
 import { platformStatus } from "../middlewares/platformStatus";
 import { queueNotification } from "../lib/notifications";
 import { calculateDiscount } from "../lib/coupon-calc";
-import { decrementStockSafe, incrementStock } from "../lib/rpc";
+import { decrementOrderStock, decrementStockSafe, incrementStock } from "../lib/rpc";
 import { orderRateLimit } from "../middlewares/rateLimits";
 import { OrderBodySchema } from "./admin/schemas";
 
@@ -105,31 +105,27 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
 
   const totalAzn = subtotal - discountAmount;
 
-  // SEC-005: Decrement stock BEFORE order insert to eliminate TOCTOU race
-  const decremented: { targetId: string; qty: number }[] = [];
+  // M2c C1: Atomically lock variants in ascending order and decrement stock in one DB call
+  const orderId = crypto.randomUUID();
+  const orderLines = orderItems.map((item) => ({
+    variant_id: item.variant_id ?? item.product_id,
+    quantity: item.quantity,
+  }));
 
-  for (const item of orderItems) {
-    const targetId = item.variant_id ?? item.product_id;
-    const { error } = await decrementStockSafe(admin, targetId, item.quantity);
-    if (error) {
-      // Roll back all previous decrements (best-effort)
-      for (const d of decremented) {
-        await incrementStock(admin, d.targetId, d.qty).catch((e) =>
-          req.log.error({ error: e, targetId: d.targetId }, "Stock rollback failed")
-        );
-      }
-      res.status(409).json({ error: "Out of stock", product_id: item.product_id });
-      return;
-    }
-    decremented.push({ targetId, qty: item.quantity });
+  const { error: stockError } = await decrementOrderStock(admin, orderId, orderLines, user.id);
+  if (stockError) {
+    const message = (stockError as any)?.message ?? "Out of stock";
+    res.status(409).json({ error: "Out of stock", message });
+    return;
   }
 
-  // All stock decrements succeeded — insert order + order_items
+  // Stock decrement succeeded atomically — insert order + order_items
   let order: { id: string };
   try {
     const { data: orderData, error: orderError } = await admin
       .from("orders")
       .insert({
+        id: orderId,
         user_id: user.id,
         status: "pending",
         customer_name,
@@ -150,10 +146,11 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
       orderItems.map((item) => ({ ...item, order_id: order.id }))
     );
   } catch (err) {
-    // Order insert failed — roll back ALL stock decrements
-    for (const d of decremented) {
-      await incrementStock(admin, d.targetId, d.qty).catch((e) =>
-        req.log.error({ error: e, targetId: d.targetId }, "Stock rollback failed after order insert error")
+    // Order insert failed — roll back all stock decrements
+    for (const item of orderItems) {
+      const targetId = item.variant_id ?? item.product_id;
+      await incrementStock(admin, targetId, item.quantity).catch((e) =>
+        req.log.error({ error: e, targetId }, "Stock rollback failed after order insert error")
       );
     }
     throw err; // Let errorHandler return 500
@@ -187,9 +184,10 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
         // Roll back order + stock (no coupon side effects occurred)
         await admin.from("order_items").delete().eq("order_id", order.id);
         await admin.from("orders").delete().eq("id", order.id);
-        for (const d of decremented) {
-          await incrementStock(admin, d.targetId, d.qty).catch((e) =>
-            req.log.error({ error: e, targetId: d.targetId }, "Stock rollback failed after per-user coupon limit")
+        for (const item of orderItems) {
+          const targetId = item.variant_id ?? item.product_id;
+          await incrementStock(admin, targetId, item.quantity).catch((e) =>
+            req.log.error({ error: e, targetId }, "Stock rollback failed after per-user coupon limit")
           );
         }
         res.status(400).json({ error: "Coupon usage limit reached for your account" });
@@ -209,9 +207,10 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
       // Race condition: global coupon limit exceeded — roll back order + stock
       await admin.from("order_items").delete().eq("order_id", order.id);
       await admin.from("orders").delete().eq("id", order.id);
-      for (const d of decremented) {
-        await incrementStock(admin, d.targetId, d.qty).catch((e) =>
-          req.log.error({ error: e, targetId: d.targetId }, "Stock rollback failed after coupon limit race")
+      for (const item of orderItems) {
+        const targetId = item.variant_id ?? item.product_id;
+        await incrementStock(admin, targetId, item.quantity).catch((e) =>
+          req.log.error({ error: e, targetId }, "Stock rollback failed after coupon limit race")
         );
       }
       res.status(400).json({ error: "Coupon usage limit exceeded" });

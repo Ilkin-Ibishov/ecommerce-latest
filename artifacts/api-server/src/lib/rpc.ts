@@ -10,6 +10,8 @@ import type { Database } from "@workspace/supabase-types";
  * with IDENTICAL args as today's inline call sites (R16.4):
  *   - decrementStockSafe → `decrement_stock_safe` { p_product_id, p_qty }
  *       (matches routes/orders.ts)
+ *   - decrementOrderStock → `decrement_order_stock` { p_order_id, p_lines, p_actor_id }
+ *       (matches routes/orders.ts multi-item orders)
  *   - incrementStock     → `increment_stock`      { p_product_id, p_qty }
  *       (matches routes/admin.ts)
  *   - setProductStockSafe → `set_product_stock_safe` { p_product_id, p_target_stock, ... }
@@ -42,6 +44,24 @@ export async function decrementStockSafe(
   const { error } = await (c as any).rpc("decrement_stock_safe", {
     p_product_id: productId,
     p_qty: qty,
+  });
+  return { error };
+}
+
+/**
+ * Atomically decrement stock for a multi-line order via the `decrement_order_stock` RPC (C1).
+ * Locks variants in ascending variant_id order and validates available stock against active reservations.
+ */
+export async function decrementOrderStock(
+  c: SupabaseClient<Database>,
+  orderId: string,
+  lines: { variant_id: string; quantity: number }[],
+  actorId?: string,
+): Promise<{ error: unknown }> {
+  const { error } = await (c as any).rpc("decrement_order_stock", {
+    p_order_id: orderId,
+    p_lines: lines,
+    p_actor_id: actorId ?? null,
   });
   return { error };
 }
