@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "wouter";
+import { ClipboardCheck } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { StockCell } from "@/components/admin/StockCell";
 import { SearchInput } from "@/components/admin/SearchInput";
@@ -152,11 +153,20 @@ export default function AdminInventoryPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">{t("Admin.Inventory.title")}</h1>
-        {!loading && (
-          <p className="text-sm text-muted-foreground">
-            {t("Admin.Inventory.totalValue")} <span className="font-semibold text-foreground">{totalValue.toFixed(2)} AZN</span>
-          </p>
-        )}
+        <div className="flex items-center gap-3">
+          <Link
+            href="/admin/stocktakes"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input bg-card hover:bg-muted text-xs font-semibold text-foreground transition"
+          >
+            <ClipboardCheck size={15} className="text-primary" />
+            Physical Stocktake & Opening Count
+          </Link>
+          {!loading && (
+            <p className="text-sm text-muted-foreground">
+              {t("Admin.Inventory.totalValue")} <span className="font-semibold text-foreground">{totalValue.toFixed(2)} AZN</span>
+            </p>
+          )}
+        </div>
       </div>
 
       {/* Summary cards */}

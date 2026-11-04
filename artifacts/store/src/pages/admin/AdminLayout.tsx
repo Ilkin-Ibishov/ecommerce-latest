@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  LayoutDashboard, Package, Boxes, ShoppingCart, Users, Tag, FolderOpen,
+  LayoutDashboard, Package, Boxes, ClipboardCheck, ShoppingCart, Users, Tag, FolderOpen,
   MessageSquare, FileText, LogOut, ShieldCheck, Image, Menu, X, Settings2,
   BookOpen, Award,
 } from "lucide-react";
@@ -27,6 +27,7 @@ const navItems = [
   { href: "/admin", labelKey: "Admin.Nav.dashboard", icon: LayoutDashboard },
   { href: "/admin/products", labelKey: "Admin.Nav.products", icon: Package },
   { href: "/admin/inventory", labelKey: "Admin.Nav.inventory", icon: Boxes },
+  { href: "/admin/stocktakes", labelKey: "Admin.Nav.stocktakes", icon: ClipboardCheck },
   { href: "/admin/orders", labelKey: "Admin.Nav.orders", icon: ShoppingCart },
   { href: "/admin/users", labelKey: "Admin.Nav.customers", icon: Users },
   { href: "/admin/coupons", labelKey: "Admin.Nav.coupons", icon: Tag },

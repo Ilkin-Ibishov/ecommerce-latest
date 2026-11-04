@@ -35,6 +35,9 @@ const AdminSuppliersPage = lazy(() => import("@/pages/admin/SuppliersPage"));
 const AdminReceiptsPage = lazy(() => import("@/pages/admin/ReceiptsPage"));
 const AdminReceiptDetailPage = lazy(() => import("@/pages/admin/ReceiptDetailPage"));
 const AdminMarginReportPage = lazy(() => import("@/pages/admin/MarginReportPage"));
+const AdminStocktakesPage = lazy(() => import("@/pages/admin/StocktakesPage"));
+const StocktakeCountPage = lazy(() => import("@/pages/admin/StocktakeCountPage"));
+const StocktakeVariancePage = lazy(() => import("@/pages/admin/StocktakeVariancePage"));
 const ProductFormPage = lazy(() => import("@/pages/admin/ProductFormPage"));
 const AdminOrdersPage = lazy(() => import("@/pages/admin/OrdersPage"));
 const OrderDetailPage = lazy(() => import("@/pages/admin/OrderDetailPage"));
@@ -125,6 +128,9 @@ function AdminRoutes() {
             <Route path="/admin/products/:id/edit">{(params) => <ProductFormPage productId={params.id} />}</Route>
             <Route path="/admin/products" component={AdminProductsPage} />
             <Route path="/admin/inventory" component={AdminInventoryPage} />
+            <Route path="/admin/stocktakes/:id/count">{(params) => <StocktakeCountPage id={params.id} />}</Route>
+            <Route path="/admin/stocktakes/:id/review">{(params) => <StocktakeVariancePage id={params.id} />}</Route>
+            <Route path="/admin/stocktakes" component={AdminStocktakesPage} />
             <Route path="/admin/receipts/:id">{(params) => <AdminReceiptDetailPage id={params.id} />}</Route>
             <Route path="/admin/receipts" component={AdminReceiptsPage} />
             <Route path="/admin/suppliers" component={AdminSuppliersPage} />
