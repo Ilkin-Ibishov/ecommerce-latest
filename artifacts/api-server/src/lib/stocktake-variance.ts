@@ -144,9 +144,7 @@ export async function computeStocktakeVariance(admin: SupabaseClient<any, any, a
       resolutionStatus = isDistinctLocations ? "sum_defaulted" : "unresolved_conflict";
     }
 
-    const varianceQty = stocktake.is_opening_count
-      ? countedQuantity
-      : Number((countedQuantity - snapshotOnHand).toFixed(3));
+    const varianceQty = Number((countedQuantity - snapshotOnHand).toFixed(3));
     const varianceVal = Number((varianceQty * unitCost).toFixed(2));
     const isUnvalued = unitCost <= 0;
 

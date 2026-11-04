@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import fs from "node:fs";
 import path from "node:path";
 import { computeStocktakeVariance } from "../../../../artifacts/api-server/src/lib/stocktake-variance";
+import { PostingIntegrityHarness } from "./stocktake-posting-integrity.test";
 
 /**
  * M2b Stocktake Variance Service Unit Suite
@@ -208,5 +209,55 @@ describe("M2b Stocktake Variance Snapshot Scoping & Invariant Guards", () => {
     expect(report.items[0].resolution_status).toBe("unresolved_conflict");
     expect(report.summary.unresolved_conflicts_count).toBe(1);
     expect(report.items[0].counted_quantity).toBe(15); // Leaves reading resolved_quantity as required
+  });
+
+  it("F3: opening count variance and shrinkage calculation agrees with posted movements", async () => {
+    // Legacy on-hand 10 at cost 20, counted 4 -> variance -6, shrinkage_value 120, posted movement -6
+    const admin = createMockAdmin({
+      stocktakes: [{ id: "st-open", status: "draft", is_opening_count: true }],
+      lines: [
+        {
+          id: "line-1",
+          stocktake_id: "st-open",
+          variant_id: "var-1",
+          counter_id: "u1",
+          counted_quantity: 4,
+          created_at: new Date(1000).toISOString(),
+        },
+      ],
+      snapshots: [
+        { line_id: "line-1", snapshot_on_hand: 10, captured_at: new Date(1000).toISOString() },
+      ],
+      variants: [{
+        id: "var-1",
+        sku: "SKU-001",
+        on_hand: 10,
+        products: { title: "Test Product", categories: null },
+      }],
+      costs: [{ variant_id: "var-1", cost_price: 20.0 }],
+      movements: [],
+    });
+
+    const report = await computeStocktakeVariance(admin, "st-open");
+    expect(report.items.length).toBe(1);
+    expect(report.items[0].variance_quantity).toBe(-6);
+    expect(report.items[0].variance_value).toBe(-120);
+    expect(report.summary.shrinkage_value).toBe(120);
+
+    // Verify posting applies the exact same delta (-6)
+    const h = new PostingIntegrityHarness();
+    h.onHand.set("var-1", 10);
+    h.stocktakes.set("st-open", { id: "st-open", status: "draft", isOpeningCount: true });
+    h.lines.push({ id: "line-1", stocktakeId: "st-open", variantId: "var-1", countedQuantity: 4, capturedAt: 1000, snapshotOnHand: 10 });
+    h.openingCosts.set("var-1", 20);
+
+    const postRes = h.postStocktake("st-open", "owner-1");
+    expect(postRes.success).toBe(true);
+    expect(h.movements.length).toBe(1);
+    expect(h.movements[0].quantityDelta).toBe(-6);
+    expect(h.movements[0].reason).toBe("opening_balance");
+
+    // Assert the screen figure and the movement agree
+    expect(report.items[0].variance_quantity).toBe(h.movements[0].quantityDelta);
   });
 });

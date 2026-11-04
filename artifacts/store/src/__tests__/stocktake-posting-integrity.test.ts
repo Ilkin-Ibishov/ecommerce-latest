@@ -46,7 +46,7 @@ interface StockMovement {
   transactionId: string;
 }
 
-class PostingIntegrityHarness {
+export class PostingIntegrityHarness {
   public onHand = new Map<string, number>();
   public movements: StockMovement[] = [];
   public variantCosts = new Map<string, number>();
