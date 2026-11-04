@@ -123,7 +123,7 @@ export async function computeStocktakeVariance(admin: SupabaseClient<any, any, a
 
     const isStale = Boolean(res && (
       vLines.length !== Number(res.resolved_line_count) ||
-      (vLines.length > 0 && Math.max(...vLines.map((l: any) => new Date(String(l.created_at)).getTime())) > new Date(String(res.resolved_latest_line_at)).getTime())
+      (vLines.length > 0 && Math.max(...vLines.map((l: any) => Math.max(new Date(String(l.created_at)).getTime(), new Date(String(l.updated_at || l.created_at)).getTime()))) > new Date(String(res.resolved_latest_line_at)).getTime())
     ));
 
     if (res && !isStale) {

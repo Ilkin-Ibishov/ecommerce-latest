@@ -167,7 +167,7 @@ router.post("/admin/stocktakes/:id/resolve", requireAdmin, async (req: Request, 
 
   const { data: lines, error: linesErr } = await (admin as any)
     .from("stocktake_lines")
-    .select("created_at")
+    .select("created_at, updated_at")
     .eq("stocktake_id", id)
     .eq("variant_id", variant_id);
 
@@ -175,7 +175,7 @@ router.post("/admin/stocktakes/:id/resolve", requireAdmin, async (req: Request, 
 
   const resolvedLineCount = (lines ?? []).length;
   const resolvedLatestLineAt = lines && lines.length > 0
-    ? new Date(Math.max(...lines.map((l: any) => new Date(l.created_at).getTime()))).toISOString()
+    ? new Date(Math.max(...lines.map((l: any) => Math.max(new Date(l.created_at).getTime(), new Date(l.updated_at || l.created_at).getTime())))).toISOString()
     : new Date().toISOString();
 
   const { error } = await (admin as any).from("stocktake_resolutions").upsert({

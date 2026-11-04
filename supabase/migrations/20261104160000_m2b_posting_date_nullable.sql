@@ -112,14 +112,14 @@ BEGIN
       p_stocktake_id, v_unresolved_count USING ERRCODE = 'ST009';
   END IF;
 
-  -- 4b. Guard: Verify resolutions are not stale (A4)
+  -- 4b. Guard: Verify resolutions are not stale (A4, F4)
   SELECT sr.variant_id INTO v_stale_variant
   FROM public.stocktake_resolutions sr
   LEFT JOIN (
     SELECT
       variant_id,
       COUNT(*) AS current_line_count,
-      MAX(created_at) AS current_latest_line_at
+      MAX(GREATEST(created_at, updated_at)) AS current_latest_line_at
     FROM public.stocktake_lines
     WHERE stocktake_id = p_stocktake_id
     GROUP BY variant_id

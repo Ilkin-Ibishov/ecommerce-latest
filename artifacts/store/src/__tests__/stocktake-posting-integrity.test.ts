@@ -19,6 +19,7 @@ interface StocktakeLine {
   variantId: string;
   countedQuantity: number;
   capturedAt: number;
+  updatedAt?: number;
   snapshotOnHand?: number;
 }
 
@@ -66,7 +67,7 @@ export class PostingIntegrityHarness {
     const targetStId = stocktakeId ?? this.lines.find((l) => l.variantId === variantId)?.stocktakeId;
     const vLines = this.lines.filter((l) => l.variantId === variantId && (!targetStId || l.stocktakeId === targetStId));
     const count = vLines.length;
-    const latestAt = count > 0 ? Math.max(...vLines.map((l) => l.capturedAt)) : 0;
+    const latestAt = count > 0 ? Math.max(...vLines.map((l) => Math.max(l.capturedAt, l.updatedAt ?? l.capturedAt))) : 0;
     this.resolutions.set(variantId, {
       variantId,
       resolutionType,
@@ -111,11 +112,11 @@ export class PostingIntegrityHarness {
       throw new Error("ST010: Stocktake posting_date cannot be earlier than contributing observations");
     }
 
-    // A4 Guard: Verify resolutions are not stale (ST011)
+    // A4 / F4 Guard: Verify resolutions are not stale (ST011)
     for (const [variantId, res] of this.resolutions.entries()) {
       const vLines = stLines.filter((l) => l.variantId === variantId);
       const curCount = vLines.length;
-      const curLatestAt = curCount > 0 ? Math.max(...vLines.map((l) => l.capturedAt)) : 0;
+      const curLatestAt = curCount > 0 ? Math.max(...vLines.map((l) => Math.max(l.capturedAt, l.updatedAt ?? l.capturedAt))) : 0;
       if (curCount !== res.resolvedLineCount || curLatestAt > res.resolvedLatestLineAt) {
         throw new Error(`ST011: Cannot post stocktake ${stocktakeId}: resolution for variant ${variantId} is stale - lines changed after it was recorded`);
       }
@@ -471,6 +472,43 @@ describe("M2b Stocktake Posting Integrity and Valuation", () => {
       expect(h.movements[0].quantityDelta).toBe(-1);
       expect(h.movements[0].reason).toBe("stocktake_correction");
       expect(h.onHand.get("v1")).toBe(19);
+      expect(h.stocktakes.get("st1")?.status).toBe("posted");
+    });
+
+    it("F4: resolution staleness check detects edited line / typo fix and blocks posting with ST011", () => {
+      const h = new PostingIntegrityHarness();
+      h.onHand.set("v1", 20);
+      h.stocktakes.set("st1", { id: "st1", status: "draft", isOpeningCount: false, postingDate: 5000 });
+
+      // Two staff scan Variant V at 10:00 (t=1000) and 10:05 (t=1005), each entering 5
+      const line1: StocktakeLine = { id: "l1", stocktakeId: "st1", variantId: "v1", countedQuantity: 5, capturedAt: 1000 };
+      const line2: StocktakeLine = { id: "l2", stocktakeId: "st1", variantId: "v1", countedQuantity: 5, capturedAt: 1005 };
+      h.lines.push(line1, line2);
+      h.snapshots.set("l1", { lineId: "l1", snapshotOnHand: 20, capturedAt: 1000 });
+      h.snapshots.set("l2", { lineId: "l2", snapshotOnHand: 20, capturedAt: 1005 });
+
+      // Owner resolves conflict at 10:10 with sum (10)
+      h.resolveVariant("v1", "sum", 10, "st1");
+
+      // At 10:15 (t=1015), Counter 1 fixes typo on line 1: changes 5 to 50
+      line1.countedQuantity = 50;
+      line1.updatedAt = 1015;
+
+      // Line count is still 2 and capturedAt (created_at) is still 1000.
+      // But updatedAt (1015) > resolvedLatestLineAt (1005)!
+      // Posting must raise ST011:
+      expect(() => h.postStocktake("st1", "owner-1")).toThrowError(/ST011.*lines changed after it was recorded/);
+      expect(h.movements.length).toBe(0);
+
+      // Re-resolving at 10:20 (t=1020) with corrected quantity (50 + 5 = 55)
+      h.resolveVariant("v1", "sum", 55, "st1");
+
+      // Posting succeeds and posts corrected delta (55 - 20 = 35)
+      const res = h.postStocktake("st1", "owner-1");
+      expect(res.success).toBe(true);
+      expect(h.movements.length).toBe(1);
+      expect(h.movements[0].quantityDelta).toBe(35);
+      expect(h.onHand.get("v1")).toBe(55);
       expect(h.stocktakes.get("st1")?.status).toBe("posted");
     });
 
