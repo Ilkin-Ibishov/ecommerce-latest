@@ -73,6 +73,17 @@ router.get("/inventory/scan/:barcode", requireStaffOrAdmin, async (req: Request,
     return res.status(404).json({ error: "Barcode not found" });
   }
 
+  const variantIds = barcodeRows.map((r: any) => r.product_variants?.id).filter(Boolean);
+  const { data: availRows } = await (admin as any)
+    .from("product_variant_availability")
+    .select("variant_id, reserved_quantity, available_quantity, deficit_quantity")
+    .in("variant_id", variantIds);
+
+  const availMap = new Map<string, any>();
+  for (const r of availRows ?? []) {
+    availMap.set(r.variant_id, r);
+  }
+
   const results = barcodeRows
     .filter((row: any) => row.product_variants)
     .map((row: any) => {
@@ -88,6 +99,12 @@ router.get("/inventory/scan/:barcode", requireStaffOrAdmin, async (req: Request,
         value: vov?.product_option_values?.value ?? "",
       }));
 
+      const avail = availMap.get(variant.id);
+      const onHand = Number(variant.on_hand);
+      const reserved = avail ? Number(avail.reserved_quantity) : 0;
+      const available = avail ? Number(avail.available_quantity) : Math.max(0, onHand - reserved);
+      const deficit = avail ? Number(avail.deficit_quantity) : Math.max(0, reserved - onHand);
+
       return {
         variant: {
           id: variant.id,
@@ -96,7 +113,10 @@ router.get("/inventory/scan/:barcode", requireStaffOrAdmin, async (req: Request,
           pack_quantity: Number(row.pack_quantity ?? 1),
           pack_unit: row.pack_unit ?? variant.unit_of_measure,
           price: Number(variant.price),
-          on_hand: Number(variant.on_hand),
+          on_hand: onHand,
+          reserved,
+          available,
+          deficit,
           unit_of_measure: variant.unit_of_measure,
           track_stock: variant.track_stock ?? true,
           low_stock_threshold: variant.low_stock_threshold != null ? Number(variant.low_stock_threshold) : null,

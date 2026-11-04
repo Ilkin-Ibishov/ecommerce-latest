@@ -16,6 +16,7 @@ interface Props {
   isOnSale?: boolean;
   isDealOfDay?: boolean;
   stock?: number;
+  availableStock?: number;
   locale: string;
   rating?: number | null;
   ratingCount?: number;
@@ -42,15 +43,16 @@ function StarRow({ rating }: { rating: number }) {
 
 export default function ProductCard({
   slug, title, price, originalPrice, image, isOnSale, isDealOfDay,
-  stock, locale, rating, ratingCount, brand, productId, headingLevel = 3,
+  stock, availableStock, locale, rating, ratingCount, brand, productId, headingLevel = 3,
 }: Props) {
   const [added, setAdded] = useState(false);
   const [quickViewOpen, setQuickViewOpen] = useState(false);
   const quickViewTriggerRef = useRef<HTMLButtonElement>(null);
   const { addItem } = useCart();
   const { t } = useI18n();
-  const outOfStock = typeof stock === "number" && stock === 0;
-  const lowStock   = typeof stock === "number" && stock > 0 && stock < 5;
+  const effectiveStock = typeof availableStock === "number" ? availableStock : stock;
+  const outOfStock = typeof effectiveStock === "number" && effectiveStock === 0;
+  const lowStock   = typeof effectiveStock === "number" && effectiveStock > 0 && effectiveStock < 5;
   const monthlyPrice = (price / INSTALLMENT_MONTHS).toFixed(2);
   const discount = originalPrice && originalPrice > price
     ? Math.round(((originalPrice - price) / originalPrice) * 100)
@@ -183,7 +185,7 @@ export default function ProductCard({
         </p>
 
         {lowStock && (
-          <p className="text-[10px] text-orange-500">{t("ProductCard.onlyLeft").replace("{count}", String(stock))}</p>
+          <p className="text-[10px] text-orange-500">{t("ProductCard.onlyLeft").replace("{count}", String(effectiveStock))}</p>
         )}
       </div>
     </Link>

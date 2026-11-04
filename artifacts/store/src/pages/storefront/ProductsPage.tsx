@@ -51,7 +51,18 @@ export default function ProductsPage({ locale }: { locale: string }) {
       if (sale === "true") query = query.eq("is_on_sale", true);
       if (deal === "true") query = query.eq("is_deal_of_day", true);
       if (brandParam) query = query.eq("brand", brandParam);
-      if (inStockParam) query = query.gt("stock", 0);
+      if (inStockParam) {
+        const { data: inStockAvail } = await (supabase as any)
+          .from("product_variant_public_availability")
+          .select("product_id")
+          .gt("available_quantity", 0);
+        const inStockIds = [...new Set((inStockAvail ?? []).map((r: any) => r.product_id))];
+        if (inStockIds.length > 0) {
+          query = query.in("id", inStockIds);
+        } else {
+          query = query.eq("id", "00000000-0000-0000-0000-000000000000");
+        }
+      }
       if (priceMinParam) query = query.gte("price", parseFloat(priceMinParam));
       if (priceMaxParam) query = query.lte("price", parseFloat(priceMaxParam));
 
@@ -61,7 +72,31 @@ export default function ProductsPage({ locale }: { locale: string }) {
       else query = query.order("sort_order");
 
       const { data, count: total } = await query;
-      setProducts(data ?? []);
+      if (data && data.length > 0) {
+        const productIds = data.map((p: any) => p.id);
+        const { data: availRows } = await (supabase as any)
+          .from("product_variant_public_availability")
+          .select("product_id, available_quantity")
+          .in("product_id", productIds);
+
+        const availMap = new Map<string, number>();
+        for (const row of availRows ?? []) {
+          availMap.set(row.product_id, (availMap.get(row.product_id) ?? 0) + Number(row.available_quantity));
+        }
+
+        const enriched = data.map((p: any) => {
+          const avail = availMap.has(p.id) ? availMap.get(p.id)! : p.stock;
+          return {
+            ...p,
+            stock: avail,
+            availableStock: avail,
+            available_quantity: avail,
+          };
+        });
+        setProducts(enriched);
+      } else {
+        setProducts([]);
+      }
       setCount(total ?? 0);
 
       const { data: cats } = await supabase.from("categories")

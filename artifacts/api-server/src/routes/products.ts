@@ -22,9 +22,20 @@ router.post("/products/prices", platformStatus("storefront_read"), async (req, r
     .select("id, price, stock, slug")
     .in("id", product_ids);
 
-  const priceMap: Record<string, { price: number; stock: number; slug: string }> = {};
+  const { data: availRows } = await (admin as any)
+    .from("product_variant_public_availability")
+    .select("product_id, available_quantity")
+    .in("product_id", product_ids);
+
+  const availMap = new Map<string, number>();
+  for (const row of availRows ?? []) {
+    availMap.set(row.product_id, (availMap.get(row.product_id) ?? 0) + Number(row.available_quantity));
+  }
+
+  const priceMap: Record<string, { price: number; stock: number; available: number; slug: string }> = {};
   for (const p of data ?? []) {
-    priceMap[p.id] = { price: Number(p.price), stock: p.stock, slug: p.slug };
+    const available = availMap.has(p.id) ? availMap.get(p.id)! : Number(p.stock);
+    priceMap[p.id] = { price: Number(p.price), stock: available, available, slug: p.slug };
   }
 
   res.json(priceMap);
@@ -65,6 +76,25 @@ router.get("/products/:id/related", platformStatus("storefront_read"), async (re
     .in("id", productIds)
     .order("sort_order")
     .limit(8);
+
+  if (products && products.length > 0) {
+    const { data: availRows } = await (admin as any)
+      .from("product_variant_public_availability")
+      .select("product_id, available_quantity")
+      .in("product_id", productIds);
+
+    const availMap = new Map<string, number>();
+    for (const row of availRows ?? []) {
+      availMap.set(row.product_id, (availMap.get(row.product_id) ?? 0) + Number(row.available_quantity));
+    }
+
+    for (const p of products) {
+      if (availMap.has(p.id)) {
+        p.stock = availMap.get(p.id)!;
+        (p as any).available_quantity = availMap.get(p.id)!;
+      }
+    }
+  }
 
   return res.json(products ?? []);
 });

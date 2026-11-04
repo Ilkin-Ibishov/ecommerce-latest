@@ -40,7 +40,7 @@ export default function ProductPage({ locale, slug }: { locale: string; slug: st
         description: picked?.description ?? null,
       };
 
-      const [commentsRes, specsRes, relatedRes] = await Promise.all([
+      const [commentsRes, specsRes, relatedRes, availRes] = await Promise.all([
         supabase
           .from("comments")
           .select("id, content, rating, created_at, users(full_name)")
@@ -50,10 +50,17 @@ export default function ProductPage({ locale, slug }: { locale: string; slug: st
           .limit(10),
         fetch(apiUrl(`/products/${data.id}/specs`)).then((r) => r.ok ? r.json() : []).catch(() => []),
         fetch(apiUrl(`/products/${data.id}/related`)).then((r) => r.ok ? r.json() : []).catch(() => []),
+        (supabase as any).from("product_variant_public_availability").select("available_quantity").eq("product_id", data.id),
       ]);
+
+      const totalAvail = (availRes.data ?? []).reduce((acc: number, r: any) => acc + Number(r.available_quantity), 0);
+      const effectiveStock = availRes.data && availRes.data.length > 0 ? totalAvail : data.stock;
 
       setProduct({
         ...data,
+        stock: effectiveStock,
+        available_quantity: effectiveStock,
+        availableStock: effectiveStock,
         _sortedImages: sortedImages,
         _translation: translation,
         _comments: commentsRes.data ?? [],

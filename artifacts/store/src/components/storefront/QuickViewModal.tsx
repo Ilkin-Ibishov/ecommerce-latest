@@ -47,6 +47,14 @@ async function fetchQuickViewProduct(
 
   if (!data) return null;
 
+  const { data: availRows } = await (supabase as any)
+    .from("product_variant_public_availability")
+    .select("available_quantity")
+    .eq("product_id", data.id);
+
+  const totalAvail = (availRows ?? []).reduce((acc: number, r: any) => acc + Number(r.available_quantity), 0);
+  const effectiveStock = availRows && availRows.length > 0 ? totalAvail : (data.stock ?? 0);
+
   const sortedImages = [...(data.product_images ?? [])].sort(
     (a: any, b: any) => a.sort_order - b.sort_order
   );
@@ -65,7 +73,7 @@ async function fetchQuickViewProduct(
     price: data.price,
     original_price: data.original_price,
     image: sortedImages[0]?.url ?? null,
-    stock: data.stock ?? 0,
+    stock: effectiveStock,
   };
 }
 

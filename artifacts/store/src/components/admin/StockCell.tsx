@@ -65,6 +65,9 @@ export function StockCell({ productId, initialStock, onSaved }: {
   if (editing) {
     return (
       <div className="flex flex-col gap-1 items-end py-1">
+        <span className="text-[10px] text-muted-foreground whitespace-nowrap font-sans">
+          Modifies physical on-hand (H) only — not reservations
+        </span>
         <div className="flex items-center gap-1">
           <input
             type="number"
@@ -76,13 +79,14 @@ export function StockCell({ productId, initialStock, onSaved }: {
               if (e.key === "Escape") cancel();
             }}
             className="w-16 px-2 py-0.5 rounded border border-primary bg-background text-sm text-right focus:outline-none"
+            title="Physical on-hand quantity"
             autoFocus
           />
           <button
             onClick={save}
             disabled={saving}
             className="p-1 rounded text-primary hover:bg-primary/10 transition disabled:opacity-50"
-            title="Save adjustment"
+            title="Save physical on-hand adjustment"
           >
             <Check size={14} />
           </button>
@@ -118,7 +122,7 @@ export function StockCell({ productId, initialStock, onSaved }: {
         setReason(initialStock > 0 ? "stocktake_correction" : "manual_adjustment");
         setEditing(true);
       }}
-      title="Click to edit stock with reason"
+      title="Click to edit physical on-hand (H) with reason. Does not alter reservations."
       className={`font-medium hover:underline cursor-text text-right w-full block ${
         initialStock === 0 ? "text-red-400" : initialStock < 5 ? "text-orange-400" : ""
       }`}

@@ -54,11 +54,14 @@ export default function CheckoutPage({ locale }: { locale: string }) {
           if (!server) {
             // Product no longer exists — remove from cart
             removeItem(item.product_id);
-          } else if (server.stock <= 0) {
-            removeItem(item.product_id);
-          } else if (server.price !== item.price) {
-            // Price changed — update locally (cart context will persist to localStorage)
-            updateQty(item.product_id, Math.min(item.quantity, server.stock));
+          } else {
+            const serverStock = typeof server.available === "number" ? server.available : server.stock;
+            if (serverStock <= 0) {
+              removeItem(item.product_id);
+            } else if (server.price !== item.price || item.quantity > serverStock) {
+              // Price changed or requested quantity exceeds available stock — update locally
+              updateQty(item.product_id, Math.min(item.quantity, serverStock));
+            }
           }
         }
         setPriceRefreshed(true);

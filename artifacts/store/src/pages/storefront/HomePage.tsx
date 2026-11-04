@@ -63,6 +63,7 @@ function ProductGrid({ title, products, locale, showSaleBadge }: {
               isOnSale={showSaleBadge || product.is_on_sale}
               isDealOfDay={product.is_deal_of_day}
               stock={product.stock}
+              availableStock={product.availableStock ?? product.stock}
               brand={product.brand}
               locale={locale}
             />
@@ -143,9 +144,41 @@ export default function HomePage({ locale }: { locale: string }) {
         supabase.from("products").select("*, product_images(*), product_translations(*)").eq("is_deal_of_day", true).order("sort_order").limit(1).maybeSingle(),
         supabase.from("categories").select("*, category_translations(*)").is("parent_id", null).limit(12),
       ]);
-      setFeatured(featRes.data ?? []);
-      setOnSale(saleRes.data ?? []);
-      setDealOfDay(dealRes.data ?? null);
+      const allProductIds = [
+        ...(featRes.data ?? []).map((p: any) => p.id),
+        ...(saleRes.data ?? []).map((p: any) => p.id),
+        ...(dealRes.data ? [dealRes.data.id] : []),
+      ];
+
+      if (allProductIds.length > 0) {
+        const { data: availRows } = await (supabase as any)
+          .from("product_variant_public_availability")
+          .select("product_id, available_quantity")
+          .in("product_id", allProductIds);
+
+        const availMap = new Map<string, number>();
+        for (const row of availRows ?? []) {
+          availMap.set(row.product_id, (availMap.get(row.product_id) ?? 0) + Number(row.available_quantity));
+        }
+
+        const enrich = (list: any[]) =>
+          list.map((p) => {
+            const avail = availMap.has(p.id) ? availMap.get(p.id)! : p.stock;
+            return {
+              ...p,
+              stock: avail,
+              availableStock: avail,
+            };
+          });
+
+        setFeatured(enrich(featRes.data ?? []));
+        setOnSale(enrich(saleRes.data ?? []));
+        setDealOfDay(dealRes.data ? enrich([dealRes.data])[0] : null);
+      } else {
+        setFeatured(featRes.data ?? []);
+        setOnSale(saleRes.data ?? []);
+        setDealOfDay(dealRes.data ?? null);
+      }
       setCategories(catRes.data ?? []);
       setLoading(false);
     }

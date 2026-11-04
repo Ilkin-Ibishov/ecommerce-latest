@@ -52,6 +52,26 @@ router.get("/categories/:slug/products", platformStatus("storefront_read"), asyn
 
   const { data: products } = await query;
 
+  if (products && products.length > 0) {
+    const productIds = products.map((p) => p.id);
+    const { data: availRows } = await (admin as any)
+      .from("product_variant_public_availability")
+      .select("product_id, available_quantity")
+      .in("product_id", productIds);
+
+    const availMap = new Map<string, number>();
+    for (const row of availRows ?? []) {
+      availMap.set(row.product_id, (availMap.get(row.product_id) ?? 0) + Number(row.available_quantity));
+    }
+
+    for (const p of products) {
+      if (availMap.has(p.id)) {
+        p.stock = availMap.get(p.id)!;
+        (p as any).available_quantity = availMap.get(p.id)!;
+      }
+    }
+  }
+
   return res.json({ category: cat, products: products ?? [], total, page, pageSize });
 });
 

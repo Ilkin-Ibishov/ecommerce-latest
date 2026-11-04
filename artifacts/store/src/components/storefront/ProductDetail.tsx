@@ -130,7 +130,10 @@ export default function ProductDetail({ product, images, translation, comments: 
     setCommentLoading(false);
   };
 
-  const inStock = product.stock > 0;
+  const availableStock = typeof product.available_quantity === "number"
+    ? product.available_quantity
+    : (typeof product.availableStock === "number" ? product.availableStock : (product.stock ?? 0));
+  const inStock = availableStock > 0;
   const originalPrice = product.original_price;
   const discount = originalPrice && originalPrice > product.price
     ? Math.round(((originalPrice - product.price) / originalPrice) * 100)
@@ -233,7 +236,7 @@ export default function ProductDetail({ product, images, translation, comments: 
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600">
                 <span className="w-2 h-2 rounded-full bg-green-500" />
                 {t("ProductDetail.inStock")}
-                {product.stock < 10 && <span className="text-orange-500">— {t("ProductDetail.onlyLeft").replace("{count}", String(product.stock))}</span>}
+                {availableStock < 10 && <span className="text-orange-500">— {t("ProductDetail.onlyLeft").replace("{count}", String(availableStock))}</span>}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
@@ -256,7 +259,7 @@ export default function ProductDetail({ product, images, translation, comments: 
                 </button>
                 <span className="w-11 text-center text-sm font-semibold select-none">{qty}</span>
                 <button
-                  onClick={() => setQty(Math.min(product.stock, qty + 1))}
+                  onClick={() => setQty(Math.min(availableStock, qty + 1))}
                   className="w-10 h-10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all duration-200"
                 >
                   <Plus size={14} />
@@ -459,7 +462,7 @@ export default function ProductDetail({ product, images, translation, comments: 
           title: translation.title,
           price: product.price,
           image: images[0]?.url ?? null,
-          stock: product.stock,
+          stock: availableStock,
         }}
         primaryCtaRef={primaryCtaRef}
       />

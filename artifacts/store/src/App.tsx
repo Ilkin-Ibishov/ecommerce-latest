@@ -52,6 +52,7 @@ const AdminSettingsPage = lazy(() => import("@/pages/admin/SettingsPage"));
 const AdminPagesPage = lazy(() => import("@/pages/admin/PagesPage"));
 const PageEditorPage = lazy(() => import("@/pages/admin/PageEditorPage"));
 const NotificationCenterPage = lazy(() => import("@/pages/admin/NotificationCenterPage"));
+const AdminReservationsPage = lazy(() => import("@/pages/admin/ReservationsPage"));
 
 // ─── Platform pages (lazy — super-admin only) ────────────────────────────────
 const StoreDashboardPage = lazy(() => import("@/pages/platform/StoreDashboardPage"));
@@ -128,6 +129,7 @@ function AdminRoutes() {
             <Route path="/admin/products/:id/edit">{(params) => <ProductFormPage productId={params.id} />}</Route>
             <Route path="/admin/products" component={AdminProductsPage} />
             <Route path="/admin/inventory" component={AdminInventoryPage} />
+            <Route path="/admin/reservations" component={AdminReservationsPage} />
             <Route path="/admin/stocktakes/:id/count">{(params) => <StocktakeCountPage id={params.id} />}</Route>
             <Route path="/admin/stocktakes/:id/review">{(params) => <StocktakeVariancePage id={params.id} />}</Route>
             <Route path="/admin/stocktakes" component={AdminStocktakesPage} />
