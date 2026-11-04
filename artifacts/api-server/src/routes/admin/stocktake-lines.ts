@@ -77,11 +77,18 @@ router.patch("/admin/stocktakes/:id/lines/:lineId", requireStaffOrAdmin, async (
   const admin = (req as any).admin;
   const user = (req as any).user;
   const userRole = (req as any).userRole;
+  const stocktakeId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const lineId = Array.isArray(req.params.lineId) ? req.params.lineId[0] : req.params.lineId;
   const { counted_quantity, location_note } = req.body;
 
   if (typeof counted_quantity !== "number" || counted_quantity < 0) {
     return res.status(400).json({ error: "Non-negative counted_quantity is required" });
+  }
+
+  const { data: st, error: stErr } = await (admin as any).from("stocktakes").select("status").eq("id", stocktakeId).single();
+  if (stErr || !st) return res.status(404).json({ error: "Stocktake not found" });
+  if (st.status !== "draft") {
+    return res.status(400).json({ error: `Cannot modify lines on a ${st.status} stocktake` });
   }
 
   const { data: existingLine } = await (admin as any).from("stocktake_lines").select("*").eq("id", lineId).single();
@@ -113,7 +120,14 @@ router.delete("/admin/stocktakes/:id/lines/:lineId", requireStaffOrAdmin, async 
   const admin = (req as any).admin;
   const user = (req as any).user;
   const userRole = (req as any).userRole;
+  const stocktakeId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const lineId = Array.isArray(req.params.lineId) ? req.params.lineId[0] : req.params.lineId;
+
+  const { data: st, error: stErr } = await (admin as any).from("stocktakes").select("status").eq("id", stocktakeId).single();
+  if (stErr || !st) return res.status(404).json({ error: "Stocktake not found" });
+  if (st.status !== "draft") {
+    return res.status(400).json({ error: `Cannot delete lines on a ${st.status} stocktake` });
+  }
 
   const { data: existingLine } = await (admin as any).from("stocktake_lines").select("counter_id").eq("id", lineId).single();
   if (!existingLine) return res.status(404).json({ error: "Line not found" });

@@ -120,6 +120,12 @@ router.patch("/admin/stocktakes/:id", requireStaffOrAdmin, async (req: Request, 
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { title, notes, posting_date } = req.body;
 
+  const { data: st, error: stErr } = await (admin as any).from("stocktakes").select("status").eq("id", id).single();
+  if (stErr || !st) return res.status(404).json({ error: "Stocktake not found" });
+  if (st.status !== "draft") {
+    return res.status(400).json({ error: `Cannot modify a ${st.status} stocktake` });
+  }
+
   const updates: Record<string, any> = { updated_at: new Date().toISOString() };
   if (title !== undefined) updates.title = String(title).trim();
   if (notes !== undefined) updates.notes = notes ? String(notes).trim() : null;
@@ -134,7 +140,7 @@ router.patch("/admin/stocktakes/:id", requireStaffOrAdmin, async (req: Request, 
 });
 
 // ─── 5. Discard Draft Stocktake ───────────────────────────────────────────────
-router.delete("/admin/stocktakes/:id", requireStaffOrAdmin, async (req: Request, res: Response) => {
+router.delete("/admin/stocktakes/:id", requireAdmin, async (req: Request, res: Response) => {
   const admin = (req as any).admin;
   const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const { error } = await (admin as any).from("stocktakes").delete().eq("id", id).eq("status", "draft");

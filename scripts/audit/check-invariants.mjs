@@ -323,6 +323,40 @@ checks.push(
       return hits;
     },
   },
+  {
+    id: 'stocktake-mutations-check-draft-status',
+    why: 'Service-role route mutations on stocktakes or stocktake_lines bypass RLS and must explicitly verify draft status to protect posted audit trails.',
+    run: (files) => {
+      const hits = [];
+      for (const { file, text } of files) {
+        const r = rel(file);
+        if (!r.startsWith('artifacts/api-server/src/routes/')) continue;
+        if (!isCode(file)) continue;
+
+        const routeRegex = /router\.(post|patch|put|delete)\s*\(\s*["']([^"']+)["'][\s\S]*?(?=\nrouter\.(?:post|patch|put|delete|get)|export\s+default|$)/g;
+        let match;
+        while ((match = routeRegex.exec(text)) !== null) {
+          const method = match[1];
+          const routePath = match[2];
+          const handlerCode = match[0];
+
+          const mutatesStocktakes = /\.from\s*\(\s*["'](?:stocktakes|stocktake_lines)["']\s*\)\s*\.\s*(?:insert|update|delete)\b/.test(handlerCode);
+          if (mutatesStocktakes) {
+            const checksStatus = /\bstatus\b/.test(handlerCode);
+            if (!checksStatus) {
+              const line = text.slice(0, match.index).split('\n').length;
+              hits.push({
+                file: r,
+                line,
+                text: `${method.toUpperCase()} ${routePath} mutates stocktake tables without referencing status`,
+              });
+            }
+          }
+        }
+      }
+      return hits;
+    },
+  },
 );
 
 /* ------------------------------------------------------------------- main */
