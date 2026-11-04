@@ -209,6 +209,8 @@ checks.push(
         'stock_movements',
         'goods_receipts',
         'goods_receipt_lines',
+        'stocktakes',
+        'stocktake_lines',
         'suppliers',
         'products',
         'product_variants',
@@ -237,6 +239,45 @@ checks.push(
             }
           }
         });
+      }
+      return hits;
+    },
+  },
+  {
+    id: 'no-expected-quantity-on-staff-endpoints',
+    why: 'Staff endpoints and staff-facing tables must never expose snapshot or expected quantities, preserving blind counting.',
+    run: (files) => {
+      const hits = [];
+      const forbiddenPropPat = /\b(snapshot_on_hand|expected_quantity)\b/i;
+
+      for (const { file, text } of files) {
+        const r = rel(file);
+
+        // 1. Check migrations/schema: stocktakes and stocktake_lines tables must not contain snapshot or expected_quantity
+        if (isSql(file)) {
+          if (!/^supabase\/migrations\/20261104/.test(r) && r !== 'supabase/schema.sql') continue;
+          text.split('\n').forEach((line, i) => {
+            if (/^\s*--/.test(line)) return;
+            if (/\b(stocktakes|stocktake_lines)\b/i.test(line) && forbiddenPropPat.test(line)) {
+              hits.push({ file: r, line: i + 1, text: line.trim().slice(0, 140) });
+            }
+          });
+        }
+
+        // 2. Check OpenAPI spec for staff-facing stocktake schemas
+        if (r === 'lib/api-spec/openapi.yaml') {
+          let inStaffSchema = false;
+          text.split('\n').forEach((line, i) => {
+            if (/^\s*(StocktakeLine|StocktakeStaffDetail|DraftStocktakeLine):/.test(line)) {
+              inStaffSchema = true;
+            } else if (/^\s*[A-Z]\w+:/.test(line) && !line.includes('properties:')) {
+              inStaffSchema = false;
+            }
+            if (inStaffSchema && forbiddenPropPat.test(line)) {
+              hits.push({ file: r, line: i + 1, text: line.trim().slice(0, 140) });
+            }
+          });
+        }
       }
       return hits;
     },

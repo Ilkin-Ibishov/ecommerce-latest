@@ -34,6 +34,9 @@ A reservation (a deposit, a held order) does not change what is physically prese
 the ledger sum. Reservations belong in their own table with an expiry. This is the single most
 expensive mistake available in this domain.
 
+## Blind counting
+Blind counting prevents the honest counter from being anchored by a screen value and forces a dishonest counter to query PostgREST directly (leaving traces), but does not prevent direct PostgREST reads of `product_variants.on_hand` because storefront/admin availability paths require that column to be readable.
+
 ## Quantities
 - Quantity columns are numeric with scale, not integers — a later customer will sell by weight or
   length. The admin UI does not expose fractional entry until a customer needs it.
