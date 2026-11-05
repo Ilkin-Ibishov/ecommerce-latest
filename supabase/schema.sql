@@ -1399,6 +1399,8 @@ FROM public.reservations r;
 ALTER VIEW public.reservations_view OWNER TO postgres;
 REVOKE ALL ON public.reservations_view FROM anon;
 GRANT SELECT ON public.reservations_view TO authenticated, service_role;
+-- security_invoker ensures calling role's RLS on public.reservations applies (prevents customer data leak)
+ALTER VIEW public.reservations_view SET (security_invoker = true);
 
 -- ─── M2c Product Variant Availability View ──────────────────────────
 -- ─── M2c C4: Variant Availability View with Deficit Exposure ──────────
