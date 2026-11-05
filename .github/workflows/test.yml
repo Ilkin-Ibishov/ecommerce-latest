@@ -88,6 +88,7 @@ jobs:
         env:
           PORT: "5000"
           NODE_ENV: development
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
           # Test-only: bypass the SEC-004 auth rate limiter for this CI server.
           # The api-integration suite drives ~12 login-using files from one IP
           # with shuffle on, exceeding 10 req/min and tripping a 429 (60s window
