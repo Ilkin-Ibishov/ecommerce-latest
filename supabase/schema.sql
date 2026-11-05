@@ -1428,18 +1428,18 @@ LEFT JOIN (
 ) r ON r.variant_id = pv.id;
 
 ALTER VIEW public.product_variant_availability OWNER TO postgres;
-REVOKE ALL ON public.product_variant_availability FROM anon;
-GRANT SELECT ON public.product_variant_availability TO authenticated, service_role;
+REVOKE ALL ON public.product_variant_availability FROM anon, authenticated;
+GRANT SELECT ON public.product_variant_availability TO service_role;
 
 -- ─── M2c Public Availability Grant ───────────────────────────────────
 -- ─── M2c C5: Split Public Availability View and Anon Access Boundary ───
 -- product_variant_public_availability selects variant_id, product_id, available_quantity
 -- from product_variant_availability and nothing else.
 -- Granted to anon, authenticated, service_role.
--- Anon access revoked from product_variant_availability.
+-- Anon and authenticated access revoked from product_variant_availability.
 
-REVOKE ALL ON public.product_variant_availability FROM anon;
-GRANT SELECT ON public.product_variant_availability TO authenticated, service_role;
+REVOKE ALL ON public.product_variant_availability FROM anon, authenticated;
+GRANT SELECT ON public.product_variant_availability TO service_role;
 
 CREATE OR REPLACE VIEW public.product_variant_public_availability AS
 SELECT

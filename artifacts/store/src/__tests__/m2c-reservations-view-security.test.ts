@@ -116,3 +116,73 @@ describe("M2c V1: reservations_view security_invoker RLS enforcement", () => {
     expect(schemaRaw).toMatch(/--.*security_invoker/i);
   });
 });
+
+describe("M2c V2: product_variant_availability privilege restriction", () => {
+  class MockVariantAvailabilityServer {
+    private availabilityData = [
+      {
+        variant_id: "var-001",
+        product_id: "prod-001",
+        on_hand: 10,
+        reserved_quantity: 2,
+        available_quantity: 8,
+        deficit_quantity: 0,
+      },
+    ];
+
+    public queryFullAvailability(role: "anon" | "customer" | "staff" | "admin" | "service_role") {
+      // V2: Revoked from authenticated (customers and staff direct postgrest). Granted to service_role only.
+      if (role === "anon" || role === "customer" || role === "staff") {
+        throw new Error("403: Permission denied. Access to product_variant_availability is refused for anon and authenticated.");
+      }
+      return { status: 200, data: this.availabilityData };
+    }
+
+    public queryPublicAvailability(role: "anon" | "customer" | "staff" | "admin" | "service_role") {
+      // Granted to anon, authenticated, service_role
+      return {
+        status: 200,
+        data: [{ variant_id: "var-001", product_id: "prod-001", available_quantity: 8 }],
+      };
+    }
+  }
+
+  it("refuses customer (authenticated) read of product_variant_availability while anon read of public view succeeds", () => {
+    const server = new MockVariantAvailabilityServer();
+
+    // 1. Authenticated customer token reading full view is refused (403)
+    expect(() => {
+      server.queryFullAvailability("customer");
+    }).toThrow(/403: Permission denied/);
+
+    // 2. Anonymous read of public view returns available_quantity
+    const anonPublicRes = server.queryPublicAvailability("anon");
+    expect(anonPublicRes.status).toBe(200);
+    expect(anonPublicRes.data[0]).toEqual({
+      variant_id: "var-001",
+      product_id: "prod-001",
+      available_quantity: 8,
+    });
+    expect(anonPublicRes.data[0]).not.toHaveProperty("reserved_quantity");
+    expect(anonPublicRes.data[0]).not.toHaveProperty("deficit_quantity");
+
+    // 3. Service role read of full view succeeds
+    const serviceRes = server.queryFullAvailability("service_role");
+    expect(serviceRes.status).toBe(200);
+    expect(serviceRes.data[0].reserved_quantity).toBe(2);
+  });
+
+  it("verifies DDL revokes authenticated and grants service_role on product_variant_availability", () => {
+    const root = path.resolve(import.meta.dirname, "../../../..");
+    const schemaSql = fs.readFileSync(path.join(root, "supabase/schema.sql"), "utf-8").toLowerCase();
+    const migrationSql = fs
+      .readFileSync(path.join(root, "supabase/migrations/20261105200000_m2c_view_security.sql"), "utf-8")
+      .toLowerCase();
+
+    expect(migrationSql).toContain("revoke all on public.product_variant_availability from authenticated");
+    expect(migrationSql).toContain("grant select on public.product_variant_availability to service_role");
+
+    expect(schemaSql).toContain("revoke all on public.product_variant_availability from anon, authenticated");
+    expect(schemaSql).toContain("grant select on public.product_variant_availability to service_role");
+  });
+});

@@ -47,9 +47,9 @@ class MockPostgrestServer {
     }
 
     if (viewName === "product_variant_availability") {
-      // Granted to authenticated and service_role only. Revoked from anon!
-      if (auth.role === "anon") {
-        throw new Error("403: Permission denied. Access to product_variant_availability is refused for anon.");
+      // V2: Granted to service_role only. Revoked from anon AND authenticated!
+      if (auth.role === "anon" || auth.role === "authenticated") {
+        throw new Error("403: Permission denied. Access to product_variant_availability is refused for anon and authenticated.");
       }
       return { status: 200, data: this.fullViewData };
     }
@@ -79,16 +79,23 @@ describe("M2c C5: Public Availability Grant & Column Privacy", () => {
     expect(row).not.toHaveProperty("cost_price");
   });
 
-  it("refuses anon reads of the full product_variant_availability view", () => {
+  it("refuses anon and authenticated (customer) reads of the full product_variant_availability view (V2)", () => {
     const server = new MockPostgrestServer();
+
+    // Anon read is refused
     expect(() => {
       server.queryView("product_variant_availability", { role: "anon" });
     }).toThrow(/403: Permission denied/);
 
-    // Staff/authenticated read succeeds
-    const staffRes = server.queryView("product_variant_availability", { role: "authenticated" });
-    expect(staffRes.status).toBe(200);
-    expect(staffRes.data[0]).toHaveProperty("reserved_quantity", 1);
+    // Authenticated (customer) read is refused
+    expect(() => {
+      server.queryView("product_variant_availability", { role: "authenticated" });
+    }).toThrow(/403: Permission denied/);
+
+    // Service-role read succeeds
+    const serviceRes = server.queryView("product_variant_availability", { role: "service_role" });
+    expect(serviceRes.status).toBe(200);
+    expect(serviceRes.data[0]).toHaveProperty("reserved_quantity", 1);
   });
 
   it("verifies DDL grant and revoke declarations in migration and schema", () => {
@@ -97,10 +104,19 @@ describe("M2c C5: Public Availability Grant & Column Privacy", () => {
     const migrationSql = fs
       .readFileSync(path.join(root, "supabase/migrations/20261104185000_m2c_public_availability_grant.sql"), "utf-8")
       .toLowerCase();
+    const fixMigrationSql = fs
+      .readFileSync(path.join(root, "supabase/migrations/20261105200000_m2c_view_security.sql"), "utf-8")
+      .toLowerCase();
 
     // Verify anon revoked from full view and granted only to public view
     expect(migrationSql).toContain("revoke all on public.product_variant_availability from anon");
     expect(migrationSql).toContain("grant select on public.product_variant_public_availability to anon");
     expect(schemaSql).toContain("create or replace view public.product_variant_public_availability");
+
+    // Verify V2 revoke from authenticated and grant only to service_role
+    expect(fixMigrationSql).toContain("revoke all on public.product_variant_availability from authenticated");
+    expect(fixMigrationSql).toContain("grant select on public.product_variant_availability to service_role");
+    expect(schemaSql).toContain("revoke all on public.product_variant_availability from anon, authenticated");
+    expect(schemaSql).toContain("grant select on public.product_variant_availability to service_role");
   });
 });
