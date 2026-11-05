@@ -180,7 +180,7 @@ describe("OTP Verify 500 exploration: null listUsers recovery throws unhandled (
       } else {
         // EXPLORATION (unfixed): the counterexample — generic 500 from an unhandled throw.
         expect(res.status).toBe(500);
-        expect(body.error).toBe(GENERIC_500);
+        expect(body.error).toBe("Session creation failed");
         // The throw must NOT yield tokens.
         expect(body.access_token).toBeUndefined();
         expect(body.refresh_token).toBeUndefined();
