@@ -438,6 +438,161 @@ checks.push(
       return hits;
     },
   },
+  {
+    id: 'no-sensitive-columns-in-exposed-views',
+    why: 'A CREATE VIEW granted to anon or authenticated must set security_invoker = true or expose no sensitive columns.',
+    run: (files) => {
+      const hits = [];
+      const SENSITIVE_COLS = /customer_name|customer_phone|agreed_price|paid_amount|reserved_quantity|deficit_quantity|cost|margin/i;
+
+      function stripSqlComments(sql) {
+        return sql
+          .replace(/--.*$/gm, (m) => ' '.repeat(m.length))
+          .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\r\n]/g, ' '));
+      }
+
+      function parseViewDefinitions(rawSqlText) {
+        const cleanSql = stripSqlComments(rawSqlText);
+        const views = new Map();
+        const viewRe = /CREATE\s+(?:OR\s+REPLACE\s+)?VIEW\s+(?:(?:"?public"?\.)?"?(\w+)"?)\s+AS\s+SELECT([\s\S]*?)(?:\bFROM\s+(?:public\.)?[\w."]+|\n\s*FROM\s+)/gi;
+        let match;
+        while ((match = viewRe.exec(cleanSql)) !== null) {
+          const viewName = match[1];
+          const selectBody = match[2];
+          const line = rawSqlText.slice(0, match.index).split('\n').length;
+          const sensitiveMatches = [];
+          for (const rawLine of selectBody.split('\n')) {
+            const trimmed = rawLine.trim();
+            if (!trimmed) continue;
+            if (SENSITIVE_COLS.test(trimmed)) {
+              sensitiveMatches.push(trimmed.slice(0, 100));
+            }
+          }
+          views.set(viewName, {
+            name: viewName,
+            line,
+            selectBody,
+            hasSensitiveCols: sensitiveMatches.length > 0,
+            sensitiveMatches,
+          });
+        }
+        return views;
+      }
+
+      // 1. Check supabase/schema.sql
+      const schemaFile = files.find((f) => rel(f.file) === 'supabase/schema.sql');
+      if (schemaFile) {
+        const rawText = schemaFile.text;
+        const text = stripSqlComments(rawText);
+        const views = parseViewDefinitions(rawText);
+
+        for (const [viewName, info] of views) {
+          const invokerRe = new RegExp(`ALTER\\s+VIEW\\s+(?:(?:"?public"?\\.)?"?${viewName}"?)\\s+SET\\s*\\(\\s*security_invoker\\s*=\\s*true\\s*\\)`, 'i');
+          const inlineInvokerRe = new RegExp(`CREATE\\s+(?:OR\\s+REPLACE\\s+)?VIEW\\s+(?:(?:"?public"?\\.)?"?${viewName}"?)\\s+WITH\\s*\\(\\s*security_invoker\\s*=\\s*true\\s*\\)`, 'i');
+          const hasSecurityInvoker = invokerRe.test(text) || inlineInvokerRe.test(text);
+
+          let grantedToAnon = false;
+          let grantedToAuth = false;
+
+          const stmtRe = new RegExp(`\\b(GRANT|REVOKE)\\s+([A-Za-z,\\s]+?)\\s+ON\\s+(?:TABLE\\s+|VIEW\\s+)?(?:(?:"?public"?\\.)?"?${viewName}"?)\\b\\s+(TO|FROM)\\s+([^;]+);`, 'gi');
+          let stmtMatch;
+          while ((stmtMatch = stmtRe.exec(text)) !== null) {
+            const action = stmtMatch[1].toUpperCase();
+            const targets = stmtMatch[4].toLowerCase();
+            const hasAnon = /\banon\b/.test(targets);
+            const hasAuth = /\bauthenticated\b/.test(targets);
+
+            if (action === 'GRANT') {
+              if (hasAnon) grantedToAnon = true;
+              if (hasAuth) grantedToAuth = true;
+            } else if (action === 'REVOKE') {
+              if (hasAnon || /\ball\b/.test(stmtMatch[2].toLowerCase())) {
+                grantedToAnon = false;
+              }
+              if (hasAuth || /\ball\b/.test(stmtMatch[2].toLowerCase())) {
+                grantedToAuth = false;
+              }
+            }
+          }
+
+          const isExposed = grantedToAnon || grantedToAuth;
+          if (isExposed && info.hasSensitiveCols && !hasSecurityInvoker) {
+            hits.push({
+              file: 'supabase/schema.sql',
+              line: info.line,
+              text: `View "${viewName}" exposed to ${grantedToAnon ? 'anon ' : ''}${grantedToAuth ? 'authenticated' : ''} contains sensitive columns without security_invoker = true`,
+            });
+          }
+        }
+      }
+
+      // 2. Check migrations in timestamp order
+      const migrationFiles = files
+        .filter((f) => /^supabase\/migrations\/.*\.sql$/.test(rel(f.file)))
+        .sort((a, b) => rel(a.file).localeCompare(rel(b.file)));
+
+      const migrationViews = new Map();
+
+      for (const mf of migrationFiles) {
+        const rawText = mf.text;
+        const text = stripSqlComments(rawText);
+        const r = rel(mf.file);
+        const defs = parseViewDefinitions(rawText);
+
+        for (const [vName, info] of defs) {
+          migrationViews.set(vName, {
+            ...info,
+            file: r,
+            hasSecurityInvoker: false,
+            grantedToAnon: false,
+            grantedToAuth: false,
+          });
+        }
+
+        for (const [vName, state] of migrationViews) {
+          const invokerRe = new RegExp(`ALTER\\s+VIEW\\s+(?:(?:"?public"?\\.)?"?${vName}"?)\\s+SET\\s*\\(\\s*security_invoker\\s*=\\s*true\\s*\\)`, 'i');
+          const inlineInvokerRe = new RegExp(`CREATE\\s+(?:OR\\s+REPLACE\\s+)?VIEW\\s+(?:(?:"?public"?\\.)?"?${vName}"?)\\s+WITH\\s*\\(\\s*security_invoker\\s*=\\s*true\\s*\\)`, 'i');
+          if (invokerRe.test(text) || inlineInvokerRe.test(text)) {
+            state.hasSecurityInvoker = true;
+          }
+
+          const stmtRe = new RegExp(`\\b(GRANT|REVOKE)\\s+([A-Za-z,\\s]+?)\\s+ON\\s+(?:TABLE\\s+|VIEW\\s+)?(?:(?:"?public"?\\.)?"?${vName}"?)\\b\\s+(TO|FROM)\\s+([^;]+);`, 'gi');
+          let stmtMatch;
+          while ((stmtMatch = stmtRe.exec(text)) !== null) {
+            const action = stmtMatch[1].toUpperCase();
+            const targets = stmtMatch[4].toLowerCase();
+            const hasAnon = /\banon\b/.test(targets);
+            const hasAuth = /\bauthenticated\b/.test(targets);
+
+            if (action === 'GRANT') {
+              if (hasAnon) state.grantedToAnon = true;
+              if (hasAuth) state.grantedToAuth = true;
+            } else if (action === 'REVOKE') {
+              if (hasAnon || /\ball\b/.test(stmtMatch[2].toLowerCase())) {
+                state.grantedToAnon = false;
+              }
+              if (hasAuth || /\ball\b/.test(stmtMatch[2].toLowerCase())) {
+                state.grantedToAuth = false;
+              }
+            }
+          }
+        }
+      }
+
+      for (const [vName, state] of migrationViews) {
+        const isExposed = state.grantedToAnon || state.grantedToAuth;
+        if (isExposed && state.hasSensitiveCols && !state.hasSecurityInvoker) {
+          hits.push({
+            file: state.file,
+            line: state.line,
+            text: `View "${vName}" exposed to ${state.grantedToAnon ? 'anon ' : ''}${state.grantedToAuth ? 'authenticated' : ''} contains sensitive columns without security_invoker = true`,
+          });
+        }
+      }
+
+      return hits;
+    },
+  },
 );
 
 /* ------------------------------------------------------------------- main */

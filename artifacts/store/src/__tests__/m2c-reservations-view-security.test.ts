@@ -186,3 +186,20 @@ describe("M2c V2: product_variant_availability privilege restriction", () => {
     expect(schemaSql).toContain("grant select on public.product_variant_availability to service_role");
   });
 });
+
+describe("M2c V3: Architectural Invariant no-sensitive-columns-in-exposed-views", () => {
+  it("verifies the invariant definition and sensitive column regex in check-invariants.mjs", () => {
+    const root = path.resolve(import.meta.dirname, "../../../..");
+    const checkerCode = fs.readFileSync(path.join(root, "scripts/audit/check-invariants.mjs"), "utf-8");
+
+    // Must define no-sensitive-columns-in-exposed-views
+    expect(checkerCode).toContain("id: 'no-sensitive-columns-in-exposed-views'");
+
+    // Must match the exact prescribed sensitive column regex
+    const expectedRegex = "customer_name|customer_phone|agreed_price|paid_amount|reserved_quantity|deficit_quantity|cost|margin";
+    expect(checkerCode).toContain(expectedRegex);
+
+    // Must enforce security_invoker = true
+    expect(checkerCode).toContain("security_invoker");
+  });
+});
