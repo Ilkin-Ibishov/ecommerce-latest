@@ -38,7 +38,9 @@ jobs:
   # Runs only after the unit gate passes. Needs repo secrets:
   # SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
   integration-e2e:
-    runs-on: ubuntu-latest
+    # Pinned: ubuntu-latest moved to 26.04, which Playwright 1.60.0 does not
+    # support yet (playwright install --with-deps chromium fails outright).
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     needs: unit
 
