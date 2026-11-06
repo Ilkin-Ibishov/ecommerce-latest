@@ -105,6 +105,48 @@ const EXPECTED_ROUTES = [
   // comments.ts
   "PATCH /admin/comments/:id",
   "DELETE /admin/comments/:id",
+  // suppliers.ts
+  "GET /admin/suppliers",
+  "GET /admin/suppliers/:id",
+  "POST /admin/suppliers",
+  "PATCH /admin/suppliers/:id",
+  "DELETE /admin/suppliers/:id",
+  // receipts.ts
+  "GET /admin/receipts",
+  "POST /admin/receipts",
+  "GET /admin/receipts/:id",
+  "PATCH /admin/receipts/:id",
+  "DELETE /admin/receipts/:id",
+  "POST /admin/receipts/:id/post",
+  "POST /admin/receipts/:id/reverse",
+  // receipt-lines.ts
+  "POST /admin/receipts/:id/lines",
+  "PATCH /admin/receipts/:id/lines/:lineId",
+  "DELETE /admin/receipts/:id/lines/:lineId",
+  // margins.ts
+  "GET /admin/reports/margins,/admin/margins",
+  // stocktakes.ts
+  "GET /admin/stocktakes",
+  "POST /admin/stocktakes",
+  "GET /admin/stocktakes/:id",
+  "PATCH /admin/stocktakes/:id",
+  "DELETE /admin/stocktakes/:id",
+  "GET /admin/stocktakes/:id/variance",
+  "POST /admin/stocktakes/:id/resolve",
+  "POST /admin/stocktakes/:id/opening-costs",
+  "POST /admin/stocktakes/:id/post",
+  // stocktake-lines.ts
+  "POST /admin/stocktakes/:id/lines",
+  "PATCH /admin/stocktakes/:id/lines/:lineId",
+  "DELETE /admin/stocktakes/:id/lines/:lineId",
+  // reservations.ts
+  "GET /admin/reservations",
+  "GET /admin/reservations/aged",
+  "POST /admin/reservations",
+  "POST /admin/reservations/:id/payment",
+  "POST /admin/reservations/:id/fulfil",
+  "POST /admin/reservations/:id/release",
+  "PATCH /admin/reservations/:id/price",
 ] as const;
 
 describe("admin router registration parity (R9.4, design §13)", () => {
