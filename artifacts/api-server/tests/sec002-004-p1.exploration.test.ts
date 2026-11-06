@@ -97,21 +97,36 @@ describe("SEC-002 exploration: size_guides world-writable via anon client (Prope
   // `size_guides.category_id` carries a UNIQUE constraint, so each test that
   // creates a row must target a DISTINCT category to avoid collisions.
   let categoryIds: string[] = [];
+  const createdCategoryIds: string[] = [];
   // Every row written through the anon key (or seeded for UPDATE/DELETE targets)
   // is tracked and removed via the service role in afterAll.
   const sizeGuideIds = new Set<string>();
 
   beforeAll(async () => {
-    const { data, error } = await admin.from("categories").select("id").limit(3);
-    if (error || !data || data.length < 3) {
-      throw new Error(`[SEC-002] need >=3 categories for distinct rows: ${error?.message}`);
+    const { data } = await admin.from("categories").select("id").limit(3);
+    categoryIds = (data ?? []).map((c) => c.id);
+    while (categoryIds.length < 3) {
+      const slug = `test-cat-p1-${Date.now()}-${categoryIds.length}`;
+      const { data: created, error: catErr } = await admin
+        .from("categories")
+        .insert({ slug })
+        .select("id")
+        .single();
+      if (catErr || !created) {
+        throw new Error(`[SEC-002] failed creating category: ${catErr?.message}`);
+      }
+      categoryIds.push(created.id);
+      createdCategoryIds.push(created.id);
     }
-    categoryIds = data.map((c) => c.id);
   });
 
   afterAll(async () => {
     if (sizeGuideIds.size > 0) {
       await admin.from("size_guides").delete().in("id", Array.from(sizeGuideIds));
+    }
+    if (createdCategoryIds.length > 0) {
+      await admin.from("size_guides").delete().in("category_id", createdCategoryIds);
+      await admin.from("categories").delete().in("id", createdCategoryIds);
     }
   });
 

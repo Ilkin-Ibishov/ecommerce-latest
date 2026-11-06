@@ -218,6 +218,38 @@ describe("[3.2] size_guides preservation: public read + service-role write (Prop
 // ─────────────────────────────────────────────────────────────────────────────
 describe("[3.9] admin coupon list retrievable via the service role (Property 8)", () => {
   const admin = serviceClient();
+  let createdCouponId: string | null = null;
+
+  beforeAll(async () => {
+    const { data: existing } = await admin
+      .from("coupons")
+      .select("id")
+      .eq("code", "WELCOME10")
+      .maybeSingle();
+    if (!existing) {
+      const { data: created, error } = await admin
+        .from("coupons")
+        .insert({
+          code: "WELCOME10",
+          discount_type: "percentage",
+          discount_value: 10,
+          min_order_amount: 50,
+          is_active: true,
+        })
+        .select("id")
+        .single();
+      if (error || !created) {
+        throw new Error(`[3.9] failed creating WELCOME10 coupon: ${error?.message}`);
+      }
+      createdCouponId = created.id;
+    }
+  });
+
+  afterAll(async () => {
+    if (createdCouponId) {
+      await admin.from("coupons").delete().eq("id", createdCouponId);
+    }
+  });
 
   it("service-role select returns the coupon list (incl. WELCOME10) [3.9]", async () => {
     // Durable invariant: the admin coupon list is retrievable by an admin path.
@@ -242,10 +274,40 @@ describe("[3.9] admin coupon list retrievable via the service role (Property 8)"
 // when the server is unreachable.
 // ─────────────────────────────────────────────────────────────────────────────
 describe("[3.3] POST /api/coupons/validate preserves WELCOME10 validation (Property 8)", () => {
+  const admin = serviceClient();
   let serverUp = false;
+  let createdCouponId: string | null = null;
 
   beforeAll(async () => {
     serverUp = await apiServerReachable();
+    const { data: existing } = await admin
+      .from("coupons")
+      .select("id")
+      .eq("code", "WELCOME10")
+      .maybeSingle();
+    if (!existing) {
+      const { data: created, error } = await admin
+        .from("coupons")
+        .insert({
+          code: "WELCOME10",
+          discount_type: "percentage",
+          discount_value: 10,
+          min_order_amount: 50,
+          is_active: true,
+        })
+        .select("id")
+        .single();
+      if (error || !created) {
+        throw new Error(`[3.3] failed creating WELCOME10 coupon: ${error?.message}`);
+      }
+      createdCouponId = created.id;
+    }
+  });
+
+  afterAll(async () => {
+    if (createdCouponId) {
+      await admin.from("coupons").delete().eq("id", createdCouponId);
+    }
   });
 
   it("validates WELCOME10 and returns the correct 10% discount [3.3]", async (ctx) => {
