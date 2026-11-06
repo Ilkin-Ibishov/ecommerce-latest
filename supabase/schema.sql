@@ -794,6 +794,7 @@ create table if not exists public.comments (
   product_id uuid not null references public.products(id) on delete cascade,
   content    text not null,
   approved   boolean not null default false,
+  rating     integer check (rating >= 1 and rating <= 5),
   created_at timestamptz not null default now()
 );
 alter table public.comments enable row level security;
