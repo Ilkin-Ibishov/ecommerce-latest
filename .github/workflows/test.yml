@@ -115,6 +115,8 @@ jobs:
 
       - name: Run API integration tests
         run: pnpm exec vitest --run --project api-integration --project env-validation
+        env:
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
 
       - name: Start store dev server
         run: pnpm --filter @workspace/store run dev &
