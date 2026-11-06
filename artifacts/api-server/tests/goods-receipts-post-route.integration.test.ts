@@ -15,6 +15,8 @@ import { generatePhone } from "./helpers/isolation.js";
  * Runs in CI `integration-e2e` via vitest --project api-integration.
  * Requires live Supabase credentials and a running API server on port 5000.
  */
+const BASE_URL = process.env.API_URL || "http://localhost:5000";
+
 describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () => {
   let serviceClient: SupabaseClient<Database>;
   let adminSession: AuthSession | null = null;
@@ -34,7 +36,7 @@ describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () =>
 
     // 1. Provision an admin session for testing the Express route
     const adminPhone = generatePhone();
-    adminSession = await loginTestUser(adminPhone, "admin");
+    adminSession = await loginTestUser(BASE_URL, adminPhone);
 
     // 2. Create prerequisite supplier, product, variant
     const { data: supplier, error: supErr } = await (serviceClient as any)
