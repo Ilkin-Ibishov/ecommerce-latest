@@ -57,9 +57,11 @@ jobs:
       # against the now-fixed database. (The SEC-005 leg is a no-toggle invariant
       # and is unaffected.) The `unit` job runs only `store-unit` (no toggle
       # files), so it intentionally does not set these.
+      # OTP_VERIFY_FIXED is the fourth toggle, asserting the fixed OTP verify recovery path.
       SEC001_FIXED: "1"
       P1_FIXED: "1"
       P2_FIXED: "1"
+      OTP_VERIFY_FIXED: "1"
 
     steps:
       - uses: actions/checkout@v4
