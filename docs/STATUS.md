@@ -1,7 +1,27 @@
 # Project status — handoff
 
-Last updated: 2026-11-05. Written as the entry point for a new session. Everything referenced here
+Last updated: 2026-11-06. Written as the entry point for a new session. Everything referenced here
 lives in this repository; nothing important is only in a chat transcript.
+
+## Start here — first thing to do in a new session
+
+A CI run is in flight, started at the end of the last session, independent of any chat session:
+**[run 42272107493](https://github.com/Ilkin-Ibishov/ecommerce-latest/actions/runs/42272107493)**
+on branch `claude/davam-840a9f`, dispatched after merging `chore/ci-first-run-fixes` (see below).
+It may already be finished by the time you read this.
+
+```bash
+gh run view 42272107493 --repo Ilkin-Ibishov/ecommerce-latest --json status,conclusion
+```
+
+- If `conclusion: success` — the integration tier is fully green for the first time ever. Update
+  this file's state section to say so and move to open item 5's remaining sub-items (the
+  security-definer-view decision, the June-era-secrets note is now resolved).
+- If `conclusion: failure` — read the log (`gh run view 42272107493 --repo Ilkin-Ibishov/ecommerce-latest --log-failed`),
+  diagnose the same way the previous session did (see "Two failure modes" below), and fix. Given
+  the previous round took 3 iterations (Playwright runner image, `SESSION_SECRET` wiring, then 8
+  real test bugs), a clean run on this attempt is plausible but not guaranteed.
+- If `status: in_progress` — wait for it; don't dispatch a second run on top of it.
 
 ## Where to start
 
@@ -14,7 +34,13 @@ lives in this repository; nothing important is only in a chat transcript.
 ## State
 
 **M1, M2a, M2b and M2c are all complete and merged on local `main`, together with
-`chore/ci-repair`.** Nothing has been pushed: `main` is 121 commits ahead of `origin/main`.
+`chore/ci-repair`.** `main` itself is still local-only and unpushed (open item 4).
+
+**`claude/davam-840a9f` is a clean fast-forward ahead of `main`** (confirmed:
+`git merge-base --is-ancestor main claude/davam-840a9f` holds) and carries this session's
+Supabase bootstrap + CI work (item 5) on top of everything `main` has. It is pushed to `origin`;
+`main` is not (open item 4). Fast-forwarding local `main` to `claude/davam-840a9f` once CI is
+green is a reasonable next step, not yet done.
 
 Verified on 2026-11-05 at the merge point:
 
@@ -60,27 +86,39 @@ Before M3, the highest-leverage work is open item 5 — the test Supabase projec
 **Technical:**
 
 4. `main` is local-only and unpushed.
-5. **A dedicated test Supabase project now exists and carries the full schema** —
-   `ecommerce-warehouse` (ref `jcvsnoiacrknzejouxah`, ap-south-1, Postgres 17) — the first time
-   any migration in this repository has run against a real Postgres. Full account of what this
-   uncovered (schema.sql and supabase/migrations/ are each independently incomplete; a
-   `products.brand` column existed only on some real project, never in any tracked file) is in
-   `docs/audits/test-supabase-project-bootstrap.md`. 41 tables, all RLS-enabled; Data API
-   confirmed working with no extra exposure grants needed.
+5. **The test Supabase project is bootstrapped, all three GitHub secrets point at it, and CI has
+   run the integration tier against it three times, fixing real bugs each round.** State as of
+   end of session (2026-11-06), in order of what happened:
+   - Bootstrapped `ecommerce-warehouse` (ref `jcvsnoiacrknzejouxah`, ap-south-1, Postgres 17) —
+     the first time any migration in this repository has run against a real Postgres. 41 tables,
+     all RLS-enabled. Full account, including the discovery that `schema.sql` and
+     `supabase/migrations/` are each independently incomplete and `products.brand` existed only
+     on some untracked real project, is in `docs/audits/test-supabase-project-bootstrap.md`.
+   - `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY` now all point at
+     `jcvsnoiacrknzejouxah` (repointed from stale June-era values).
+   - Added `workflow_dispatch` to `.github/workflows/test.yml` so the integration tier can run
+     without pushing to `main` or opening a PR.
+   - **Round 1**: `integration-e2e` failed before any test ran — `ubuntu-latest` moved to 26.04,
+     unsupported by Playwright 1.60.0. Fixed: pinned that job to `ubuntu-24.04`.
+   - **Round 2**: failed on `Missing required environment variable: SESSION_SECRET` — the "Run
+     API integration tests" step had no `env:` block at all (only the separately-started API
+     server got the secret). Fixed: added it to that step too.
+   - **Round 3**: ran for real — **1119 of 1146 tests passed**. The 8 failures were diagnosed,
+     delegated to the project's own AGY builder agent (`prompts/chore-ci-first-run-fixes.md`,
+     branch `chore/ci-first-run-fixes`), audited, and merged into `claude/davam-840a9f`: a missing
+     `comments.rating` column (migration applied), a stale `admin-routes.test.ts` route list, a
+     `loginTestUser` argument-order bug, two test files that assumed phantom hand-created seed
+     data (now self-provisioning their own fixtures), and a missing `OTP_VERIFY_FIXED` CI toggle.
+     Full writeup: `docs/audits/chore-ci-first-run-fixes-notes.md`.
+   - **Round 4 is in flight** — see "Start here" at the top of this file for the run link and
+     what to do with its result.
 
-   Remaining work, in order:
+   Remaining after round 4 resolves:
    - decide the ERROR-level `product_variant_public_availability` security-definer-view finding
      from `get_advisors` — may be intentional (C5's whole point is anon-safe exposure) but needs
      an explicit decision recorded, not silence
-   - point the three GitHub secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`,
-     `SUPABASE_SERVICE_ROLE_KEY`) at `jcvsnoiacrknzejouxah`. They currently hold June-era values
-     for an unidentified project.
-   - run `.github/workflows/test.yml`'s integration tier against this project and see what's red
-   - expect the first red run to be auth configuration (email confirmation, OTP rate limits) rather
-     than schema
-
-   Already done: `SESSION_SECRET` exists as a GitHub secret and is wired into `test.yml`'s API
-   server step; the stale assertion in `otp-verify-500.exploration.test.ts` is fixed.
+   - `main` is still behind `claude/davam-840a9f` (see State above) — fast-forward it once CI is
+     green, or decide not to and say why
 
 6. **M2b has had no independent adversarial audit from a different model family.** Its audit ran on
    the builder's own family (clean context, shared blind spots) after the quota described below ran
@@ -133,7 +171,13 @@ Consequences for planning:
   `.agents/rules/*.md` trigger-loading works in the CLI is likewise unverified.
 - `agy mcp list` shows the `supabase` server configured at **account scope** (no `project_ref`), so
   a builder run can reach every Supabase project including production. The only thing standing in
-  its way is prose in `AGENTS.md`. Re-add it scoped to the test project's ref once that exists.
+  its way is prose in `AGENTS.md`. Re-add it scoped to the test project's ref now that it exists
+  (`jcvsnoiacrknzejouxah`) — not yet done.
+- Launching `scripts\agent\run-agent.cmd` from a Bash tool via `cmd.exe /c "scripts\agent\run-agent.cmd ..."`
+  silently no-ops: it prints the Windows banner and returns exit 0, but never creates `.agent-runs/`
+  and never starts `agy.exe`. Launch it from PowerShell directly instead
+  (`& "scripts\agent\run-agent.cmd" "prompts\<file>.md"`, run in background) — that one actually
+  works. Confirmed `.agent-runs/` appearing within a few seconds as the signal it's really running.
 
 ### Two failure modes this project has actually produced
 
