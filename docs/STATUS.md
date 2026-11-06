@@ -60,24 +60,22 @@ Before M3, the highest-leverage work is open item 5 — the test Supabase projec
 **Technical:**
 
 4. `main` is local-only and unpushed.
-5. **No migration in this repository has ever been executed against a real Postgres**, and CI's
-   integration tier has been failing since 1 July 2026. The SQL — five phases, several thousand
-   lines of PL/pgSQL — is checked only by a TypeScript re-implementation of its logic. The M2a
-   blocker (`is_admin()` inside a `SECURITY DEFINER` function called with the service-role client,
-   which made every new RPC raise) lived precisely in that untested seam and no green test saw it.
+5. **A dedicated test Supabase project now exists and carries the full schema** —
+   `ecommerce-warehouse` (ref `jcvsnoiacrknzejouxah`, ap-south-1, Postgres 17) — the first time
+   any migration in this repository has run against a real Postgres. Full account of what this
+   uncovered (schema.sql and supabase/migrations/ are each independently incomplete; a
+   `products.brand` column existed only on some real project, never in any tracked file) is in
+   `docs/audits/test-supabase-project-bootstrap.md`. 41 tables, all RLS-enabled; Data API
+   confirmed working with no extra exposure grants needed.
 
    Remaining work, in order:
-   - create a dedicated test Supabase project (never point CI at production)
-   - apply the migrations: `npx supabase db push --remote=<ref|url> --include-all --dry-run` first,
-     then without `--dry-run`. **The flag is `--remote`, not `--db-url`** — verified against CLI
-     v3.0.0 help. A scoped personal access token with `database_write` is enough; prefer it to a DB
-     password.
-   - run `npx supabase db advisors` afterwards and fix what it reports
-   - check the Data API settings: on a fresh project, tables created by SQL are not necessarily
-     exposed to `anon`/`authenticated`, and several integration tests read PostgREST directly
+   - decide the ERROR-level `product_variant_public_availability` security-definer-view finding
+     from `get_advisors` — may be intentional (C5's whole point is anon-safe exposure) but needs
+     an explicit decision recorded, not silence
    - point the three GitHub secrets (`SUPABASE_URL`, `SUPABASE_ANON_KEY`,
-     `SUPABASE_SERVICE_ROLE_KEY`) at the new project. They currently hold June-era values for an
-     unidentified project.
+     `SUPABASE_SERVICE_ROLE_KEY`) at `jcvsnoiacrknzejouxah`. They currently hold June-era values
+     for an unidentified project.
+   - run `.github/workflows/test.yml`'s integration tier against this project and see what's red
    - expect the first red run to be auth configuration (email confirmation, OTP rate limits) rather
      than schema
 

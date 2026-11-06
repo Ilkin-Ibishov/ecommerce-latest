@@ -128,6 +128,7 @@ create table if not exists public.products (
   id             uuid primary key default gen_random_uuid(),
   sku            text unique,
   slug           text not null unique,
+  brand          text,
   price          numeric(10,2) not null check (price >= 0),
   stock          integer not null default 0 check (stock >= 0),
   is_featured    boolean not null default false,
