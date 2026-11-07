@@ -70,7 +70,7 @@ describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () =>
         receipt_number: `GR-INT-${Date.now()}`,
         supplier_id: testSupplierId,
         status: "draft",
-        created_by: adminSession.user.id,
+        created_by: adminSession.userId,
       })
       .select("id")
       .single();
@@ -111,7 +111,7 @@ describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () =>
       await (serviceClient as any).from("suppliers").delete().eq("id", testSupplierId);
     }
     if (adminSession) {
-      await cleanupTestUser(adminSession.user.id);
+      await cleanupTestUser(adminSession.userId);
     }
   });
 
