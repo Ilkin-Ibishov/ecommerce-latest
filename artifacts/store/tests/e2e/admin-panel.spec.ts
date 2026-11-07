@@ -52,7 +52,7 @@ test.describe("Admin Panel", () => {
   test.describe("Dashboard", () => {
     test("shows KPI cards with revenue and order data", async ({ page }) => {
       await expect(page.getByText("Revenue").first()).toBeVisible();
-      await expect(page.getByText("Orders")).toBeVisible();
+      await expect(page.getByText("Orders").first()).toBeVisible();
       await expect(page.getByText("Avg Order Value")).toBeVisible();
       await expect(page.getByText("AZN").first()).toBeVisible();
     });
