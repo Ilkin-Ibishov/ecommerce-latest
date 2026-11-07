@@ -798,7 +798,11 @@ create table if not exists public.comments (
   created_at timestamptz not null default now()
 );
 alter table public.comments enable row level security;
-create policy "Comments: public read approved" on public.comments for select using (approved = true);
+create policy "comments_public_read" on public.comments for select using (
+  approved = true
+  or user_id = auth.uid()
+  or exists (select 1 from public.users u where u.id = auth.uid() and u.role = 'admin')
+);
 create policy "Comments: own insert" on public.comments for insert with check (auth.uid() = user_id and approved = false);
 create policy "Comments: admin all" on public.comments for all using (
   exists (select 1 from public.users u where u.id = auth.uid() and u.role = 'admin')
