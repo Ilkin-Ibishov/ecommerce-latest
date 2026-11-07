@@ -49,7 +49,7 @@ describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () =>
 
     const { data: product, error: prodErr } = await (serviceClient as any)
       .from("products")
-      .insert({ title: "Receipt Integration Product", price: 25.0, stock: 0 })
+      .insert({ slug: `receipt-int-${Date.now()}`, price: 25.0, stock: 0 })
       .select("id")
       .single();
     if (prodErr || !product) throw new Error(`Failed to create test product: ${prodErr?.message}`);
