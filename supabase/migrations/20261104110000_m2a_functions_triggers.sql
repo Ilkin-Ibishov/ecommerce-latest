@@ -156,90 +156,98 @@ RETURNS TABLE (
 BEGIN
   RETURN QUERY
   -- Check 1: Ledger sum vs Cached on_hand
-  WITH ledger_totals AS (
-    SELECT sm.variant_id, COALESCE(SUM(sm.quantity_delta), 0) AS true_qty
-    FROM public.stock_movements sm
-    GROUP BY sm.variant_id
+  (
+    WITH ledger_totals AS (
+      SELECT sm.variant_id, COALESCE(SUM(sm.quantity_delta), 0) AS true_qty
+      FROM public.stock_movements sm
+      GROUP BY sm.variant_id
+    )
+    SELECT
+      pv.id AS variant_id,
+      pv.sku,
+      'ledger_vs_on_hand'::text AS check_name,
+      COALESCE(lt.true_qty, 0) AS expected_value,
+      pv.on_hand AS actual_value,
+      (pv.on_hand - COALESCE(lt.true_qty, 0)) AS diff,
+      'Cached on_hand does not match sum of stock_movements'::text AS details
+    FROM public.product_variants pv
+    LEFT JOIN ledger_totals lt ON lt.variant_id = pv.id
+    WHERE pv.on_hand IS DISTINCT FROM COALESCE(lt.true_qty, 0)
   )
-  SELECT
-    pv.id AS variant_id,
-    pv.sku,
-    'ledger_vs_on_hand'::text AS check_name,
-    COALESCE(lt.true_qty, 0) AS expected_value,
-    pv.on_hand AS actual_value,
-    (pv.on_hand - COALESCE(lt.true_qty, 0)) AS diff,
-    'Cached on_hand does not match sum of stock_movements'::text AS details
-  FROM public.product_variants pv
-  LEFT JOIN ledger_totals lt ON lt.variant_id = pv.id
-  WHERE pv.on_hand IS DISTINCT FROM COALESCE(lt.true_qty, 0)
 
   UNION ALL
 
   -- Check 2: Latest projection running_quantity vs Ledger sum (R1 replay integrity)
-  WITH latest_projection AS (
-    SELECT DISTINCT ON (smc.variant_id)
-      smc.variant_id,
-      smc.running_quantity,
-      smc.running_avg_cost
-    FROM public.stock_movement_costs smc
-    ORDER BY smc.variant_id, smc.posting_date DESC, smc.created_at DESC, smc.movement_id DESC
-  ),
-  ledger_totals AS (
-    SELECT sm.variant_id, COALESCE(SUM(sm.quantity_delta), 0) AS true_qty
-    FROM public.stock_movements sm
-    GROUP BY sm.variant_id
+  (
+    WITH latest_projection AS (
+      SELECT DISTINCT ON (smc.variant_id)
+        smc.variant_id,
+        smc.running_quantity,
+        smc.running_avg_cost
+      FROM public.stock_movement_costs smc
+      ORDER BY smc.variant_id, smc.posting_date DESC, smc.created_at DESC, smc.movement_id DESC
+    ),
+    ledger_totals AS (
+      SELECT sm.variant_id, COALESCE(SUM(sm.quantity_delta), 0) AS true_qty
+      FROM public.stock_movements sm
+      GROUP BY sm.variant_id
+    )
+    SELECT
+      pv.id AS variant_id,
+      pv.sku,
+      'projection_vs_ledger'::text AS check_name,
+      lt.true_qty AS expected_value,
+      lp.running_quantity AS actual_value,
+      (lp.running_quantity - lt.true_qty) AS diff,
+      'Projection running_quantity diverges from cumulative ledger sum'::text AS details
+    FROM latest_projection lp
+    JOIN ledger_totals lt ON lt.variant_id = lp.variant_id
+    JOIN public.product_variants pv ON pv.id = lp.variant_id
+    WHERE lp.running_quantity IS DISTINCT FROM lt.true_qty
   )
-  SELECT
-    pv.id AS variant_id,
-    pv.sku,
-    'projection_vs_ledger'::text AS check_name,
-    lt.true_qty AS expected_value,
-    lp.running_quantity AS actual_value,
-    (lp.running_quantity - lt.true_qty) AS diff,
-    'Projection running_quantity diverges from cumulative ledger sum'::text AS details
-  FROM latest_projection lp
-  JOIN ledger_totals lt ON lt.variant_id = lp.variant_id
-  JOIN public.product_variants pv ON pv.id = lp.variant_id
-  WHERE lp.running_quantity IS DISTINCT FROM lt.true_qty
 
   UNION ALL
 
   -- Check 3: Missing valuation records for movements
-  SELECT
-    pv.id AS variant_id,
-    pv.sku,
-    'unvalued_movement'::text AS check_name,
-    1::numeric AS expected_value,
-    0::numeric AS actual_value,
-    -1::numeric AS diff,
-    ('Movement ' || sm.id::text || ' has no row in stock_movement_costs')::text AS details
-  FROM public.stock_movements sm
-  JOIN public.product_variants pv ON pv.id = sm.variant_id
-  LEFT JOIN public.stock_movement_costs smc ON smc.movement_id = sm.id
-  WHERE smc.movement_id IS NULL
+  (
+    SELECT
+      pv.id AS variant_id,
+      pv.sku,
+      'unvalued_movement'::text AS check_name,
+      1::numeric AS expected_value,
+      0::numeric AS actual_value,
+      -1::numeric AS diff,
+      ('Movement ' || sm.id::text || ' has no row in stock_movement_costs')::text AS details
+    FROM public.stock_movements sm
+    JOIN public.product_variants pv ON pv.id = sm.variant_id
+    LEFT JOIN public.stock_movement_costs smc ON smc.movement_id = sm.id
+    WHERE smc.movement_id IS NULL
+  )
 
   UNION ALL
 
   -- Check 4: variant_costs cache vs latest projection running_avg_cost
-  WITH latest_projection AS (
-    SELECT DISTINCT ON (smc.variant_id)
-      smc.variant_id,
-      smc.running_avg_cost
-    FROM public.stock_movement_costs smc
-    ORDER BY smc.variant_id, smc.posting_date DESC, smc.created_at DESC, smc.movement_id DESC
-  )
-  SELECT
-    pv.id AS variant_id,
-    pv.sku,
-    'cache_vs_projection'::text AS check_name,
-    ROUND(lp.running_avg_cost, 2) AS expected_value,
-    vc.cost_price AS actual_value,
-    (vc.cost_price - ROUND(lp.running_avg_cost, 2)) AS diff,
-    'variant_costs.cost_price cache is stale relative to latest projection running average'::text AS details
-  FROM public.variant_costs vc
-  JOIN latest_projection lp ON lp.variant_id = vc.variant_id
-  JOIN public.product_variants pv ON pv.id = vc.variant_id
-  WHERE vc.cost_price IS DISTINCT FROM ROUND(lp.running_avg_cost, 2);
+  (
+    WITH latest_projection AS (
+      SELECT DISTINCT ON (smc.variant_id)
+        smc.variant_id,
+        smc.running_avg_cost
+      FROM public.stock_movement_costs smc
+      ORDER BY smc.variant_id, smc.posting_date DESC, smc.created_at DESC, smc.movement_id DESC
+    )
+    SELECT
+      pv.id AS variant_id,
+      pv.sku,
+      'cache_vs_projection'::text AS check_name,
+      ROUND(lp.running_avg_cost, 2) AS expected_value,
+      vc.cost_price AS actual_value,
+      (vc.cost_price - ROUND(lp.running_avg_cost, 2)) AS diff,
+      'variant_costs.cost_price cache is stale relative to latest projection running average'::text AS details
+    FROM public.variant_costs vc
+    JOIN latest_projection lp ON lp.variant_id = vc.variant_id
+    JOIN public.product_variants pv ON pv.id = vc.variant_id
+    WHERE vc.cost_price IS DISTINCT FROM ROUND(lp.running_avg_cost, 2)
+  );
 END;
 $$;
 
