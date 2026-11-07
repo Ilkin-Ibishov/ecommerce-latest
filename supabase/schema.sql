@@ -130,6 +130,7 @@ create table if not exists public.products (
   slug           text not null unique,
   brand          text,
   price          numeric(10,2) not null check (price >= 0),
+  original_price numeric(10,2) check (original_price is null or original_price >= 0),
   stock          integer not null default 0 check (stock >= 0),
   is_featured    boolean not null default false,
   is_on_sale     boolean not null default false,
