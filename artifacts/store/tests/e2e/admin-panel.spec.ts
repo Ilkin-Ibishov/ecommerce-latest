@@ -51,7 +51,7 @@ test.describe("Admin Panel", () => {
 
   test.describe("Dashboard", () => {
     test("shows KPI cards with revenue and order data", async ({ page }) => {
-      await expect(page.getByText("Revenue")).toBeVisible();
+      await expect(page.getByText("Revenue").first()).toBeVisible();
       await expect(page.getByText("Orders")).toBeVisible();
       await expect(page.getByText("Avg Order Value")).toBeVisible();
       await expect(page.getByText("AZN").first()).toBeVisible();
@@ -129,8 +129,8 @@ test.describe("Admin Panel", () => {
     });
 
     test("sortable columns work", async ({ page }) => {
-      await page.locator("th").filter({ hasText: "Stock" }).click();
-      await expect(page.locator("th").filter({ hasText: "Stock" }).locator("svg")).toBeVisible();
+      await page.locator("th").filter({ hasText: "On Hand" }).click();
+      await expect(page.locator("th").filter({ hasText: "On Hand" }).locator("svg")).toBeVisible();
     });
 
     test("CSV export button exists", async ({ page }) => {

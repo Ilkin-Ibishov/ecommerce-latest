@@ -12,19 +12,14 @@ import { test, expect } from "@playwright/test";
 
 test.describe("Checkout Flow", () => {
   test.beforeEach(async ({ page }) => {
-    // Pre-populate cart with a product via localStorage
-    await page.goto("/az");
-    await page.evaluate(() => {
-      const cartItem = {
-        product_id: "test-product-id",
-        slug: "test-product",
-        title: "Test Product",
-        price: 50,
-        quantity: 1,
-        image: null,
-      };
-      localStorage.setItem("cart_items", JSON.stringify([cartItem]));
-    });
+    // Add a real product to the cart via the storefront's own add-to-cart button, so the
+    // checkout page's server-side price/stock check (POST /api/products/prices) finds a real
+    // row instead of emptying the cart.
+    await page.goto("/az/products");
+    await page.waitForLoadState("networkidle");
+    const addToCartBtn = page.getByRole("button", { name: "Səbətə əlavə et" }).first();
+    await expect(addToCartBtn).toBeVisible({ timeout: 15_000 });
+    await addToCartBtn.click();
   });
 
   test("checkout page shows order summary", async ({ page }) => {
@@ -36,10 +31,11 @@ test.describe("Checkout Flow", () => {
     await expect(heading).toBeVisible({ timeout: 10_000 });
 
     // Should show the product from cart
-    await expect(page.locator("text=Test Product")).toBeVisible({ timeout: 5_000 });
+    const orderItem = page.locator("ul li").first();
+    await expect(orderItem).toBeVisible({ timeout: 5_000 });
 
     // Should show the price
-    await expect(page.locator("text=AZN")).toBeVisible();
+    await expect(page.locator("text=AZN").first()).toBeVisible();
   });
 
   test("form validation shows errors for empty fields", async ({ page }) => {
