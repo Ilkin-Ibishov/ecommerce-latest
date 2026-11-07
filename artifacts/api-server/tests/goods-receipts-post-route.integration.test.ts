@@ -37,6 +37,9 @@ describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () =>
     // 1. Provision an admin session for testing the Express route
     const adminPhone = generatePhone();
     adminSession = await loginTestUser(BASE_URL, adminPhone);
+    // Promote via the service role so requireAdmin's users.role lookup resolves
+    // (same pattern as sec005-007-p2.integration.test.ts).
+    await (serviceClient as any).from("users").update({ role: "admin" }).eq("id", adminSession.userId);
 
     // 2. Create prerequisite supplier, product, variant
     const { data: supplier, error: supErr } = await (serviceClient as any)
