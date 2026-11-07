@@ -117,10 +117,10 @@ describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () =>
 
   it("posts receipt through Express route and asserts ledger movements exist without 42501", async () => {
     const apiPort = process.env.PORT || "5000";
-    const postRes = await fetch(`http://localhost:${apiPort}/admin/receipts/${testReceiptId}/post`, {
+    const postRes = await fetch(`http://localhost:${apiPort}/api/admin/receipts/${testReceiptId}/post`, {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${adminSession!.token}`,
+        Authorization: `Bearer ${adminSession!.accessToken}`,
         "Content-Type": "application/json",
       },
     });
@@ -136,7 +136,7 @@ describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () =>
       .eq("id", testReceiptId)
       .single();
     expect(updatedRcpt?.status).toBe("posted");
-    expect(updatedRcpt?.posted_by).toBe(adminSession!.user.id);
+    expect(updatedRcpt?.posted_by).toBe(adminSession!.userId);
     expect(updatedRcpt?.transaction_id).toBeTruthy();
 
     // Assert immutable ledger movements exist and match
@@ -150,7 +150,7 @@ describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () =>
     expect(Number(movements![0].quantity_delta)).toBe(10);
     expect(movements![0].reason).toBe("goods_receipt");
     expect(movements![0].reference_type).toBe("goods_receipt_line");
-    expect(movements![0].actor_id).toBe(adminSession!.user.id);
+    expect(movements![0].actor_id).toBe(adminSession!.userId);
   });
 
   it("direct service-role RPC call succeeds without auth.uid() dependency", async () => {
@@ -158,7 +158,7 @@ describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () =>
     // against already posted receipt, raising business ST003 (already posted) instead of 42501.
     const { error } = await (serviceClient as any).rpc("post_goods_receipt", {
       p_receipt_id: testReceiptId,
-      p_actor_id: adminSession!.user.id,
+      p_actor_id: adminSession!.userId,
     });
 
     expect(error).toBeTruthy();
