@@ -32,7 +32,7 @@ test.describe("Storefront Browsing", () => {
     await page.waitForLoadState("networkidle");
 
     // Product grid should have items or an empty state
-    const productGrid = page.locator('[class*="grid"]').first();
+    const productGrid = page.locator('div[class*="grid"]').first();
     await expect(productGrid).toBeVisible({ timeout: 15_000 });
   });
 

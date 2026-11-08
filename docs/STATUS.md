@@ -1,7 +1,17 @@
 # Project status — handoff
 
-Last updated: 2026-11-05. Written as the entry point for a new session. Everything referenced here
+Last updated: 2026-11-07. Written as the entry point for a new session. Everything referenced here
 lives in this repository; nothing important is only in a chat transcript.
+
+## Do this first
+
+1. Read "Next" and "Open" below — M3's fiscal-device gate is now cleared, item 5 (test Supabase
+   project + CI) is the highest-leverage remaining work.
+2. `docs/knowledgebase/` is new this session — read it before touching local dev servers or any
+   Supabase project in this account; it records real gotchas that cost time to find.
+3. Nothing is running in the background from this session. No branch was pushed. One new
+   migration (`supabase/migrations/20261107052641_create_banners.sql`) exists in the repo but has
+   **not** been applied to any live database — see item 10 below.
 
 ## Where to start
 
@@ -10,6 +20,8 @@ lives in this repository; nothing important is only in a chat transcript.
 3. `docs/design-notes/` — the implementer's proposals, written before code
 4. `docs/audits/` — every review and every agent's own notes, in order
 5. `.agents/rules/` — domain invariants
+6. `docs/knowledgebase/` — cross-cutting operational lessons (environment quirks, infra state)
+   that aren't tied to one phase
 
 ## State
 
@@ -42,11 +54,12 @@ Per-phase detail lives in `docs/audits/m2*-implementation-notes.md` and the desi
 
 **M3** — counter sale, barcode flow, offline queue, and a minimal bill of materials.
 
-**M3 is gated on open item 3 below.** If a certified fiscal device is mandatory for cash retail,
-the counter-sale design is cancelled and the system stays back-office only. Do not start M3 before
-that answer arrives; it is roughly a quarter of the remaining engineering.
+**M3's fiscal-device gate is cleared (2026-11-07): a plain (non-certified) receipt is enough** —
+answered secondhand via the customer, not yet in writing from the accountant. The counter-sale
+design can proceed on that basis; get the accountant's answer in writing before relying on it for
+anything legally load-bearing.
 
-Before M3, the highest-leverage work is open item 5 — the test Supabase project and CI.
+Before M3, the highest-leverage work is still open item 5 — the test Supabase project and CI.
 
 ## Open
 
@@ -55,7 +68,9 @@ Before M3, the highest-leverage work is open item 5 — the test Supabase projec
 1. The 500 products' names, prices and photos. Nobody is assigned; the website cannot launch empty.
    Engineering completing M3 and M4 still leaves a finished, empty system.
 2. Design-partner agreement and the monthly price.
-3. The accountant's written answer on fiscal receipt requirements. Gates M3.
+3. ~~The accountant's written answer on fiscal receipt requirements. Gates M3.~~ Answered
+   2026-11-07 (secondhand, via customer): a plain receipt is enough, no certified fiscal device
+   required. Still worth getting in writing from the accountant directly before go-live.
 
 **Technical:**
 
@@ -90,10 +105,30 @@ Before M3, the highest-leverage work is open item 5 — the test Supabase projec
    including a blocker, so it is not unreviewed — only single-family reviewed.
 7. Blind counting is not tamper-proof: a staff token can read `product_variants.on_hand` directly,
    because the storefront needs that column readable. Recorded in `.agents/rules/inventory.md`.
-8. Open customer questions that decide which UI ships first: is the scanner in daily use or dormant?
-   Do colour variants share one barcode? What is the ~10% of goods without barcodes?
+8. Customer answered the three questions that decide which UI ships first (2026-11-07, relayed
+   secondhand from a shop owner, not yet written): the barcode scanner is in **daily use**,
+   **colour variants share one barcode** (printed by the shop's own barcode device), and that
+   device now **covers the ~10% that previously had none**. This was asked about one specific
+   shop; a *different* shop owner has no barcode device and doesn't use barcodes at all — raised
+   2026-11-07. Decided (2026-11-07): no image recognition — M3's counter-sale/warehouse screens
+   add a plain text search alongside barcode entry, as the non-barcode path for that shop. This is
+   a decision for the M3 design note to carry forward, not yet implemented.
 9. `SESSION_SECRET` must be set in every deployed environment before the next deploy — the API
    refuses to start without it.
+10. **New this session (2026-11-07):** got the app running locally end-to-end against a real
+    Supabase project (`ecommerce-warehouse`) for the first time — see
+    `docs/knowledgebase/supabase-projects.md` for exactly what state that project is in (full
+    M1–M2c schema + sample data, but predates the V1–V3 security fixes; treat as local-viewing-only,
+    not a real staging target). While poking at the running storefront, found and fixed a real,
+    pre-existing bug unrelated to M1–M2c: `GET /api/banners` and the whole admin banners CRUD query
+    a `banners` table that was **never migrated** in this repo (since the hero-carousel feature was
+    added). Migration `supabase/migrations/20261107052641_create_banners.sql` is written and ready
+    but **not applied to any live database yet** — applying migrations against a live project got
+    blocked by this harness's own safety classifier (consistent with the "never migrate against
+    production" rule below), so a human needs to run it. Also added
+    `@tailwindcss/oxide-win32-x64-msvc` as a root devDependency — Windows needs it explicitly
+    (`pnpm install` alone doesn't pull the right native binding); version is `^4.3.5` against the
+    rest of the tree's `4.3.0` and should be reconciled properly rather than left as this ad hoc fix.
 
 ## How work runs here
 

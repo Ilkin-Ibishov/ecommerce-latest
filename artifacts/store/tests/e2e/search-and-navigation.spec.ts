@@ -65,7 +65,7 @@ test.describe("Search and Navigation", () => {
     await expect(notFoundText.first()).toBeVisible({ timeout: 10_000 });
 
     // Should have a link back to products
-    const backLink = page.locator("a[href*='/products']");
+    const backLink = page.locator("a[href*='/products']").first();
     await expect(backLink).toBeVisible();
   });
 
