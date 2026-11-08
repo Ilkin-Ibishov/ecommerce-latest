@@ -1,7 +1,8 @@
 # AGENTS.md
 
 House rules for every agent session in this repository. Always in context — keep it short.
-Detailed rules live in `.agents/rules/` and load on trigger. Specs live in `docs/tasks/`.
+Modular rules live in `.agents/rules/` and directory-level `AGENTS.md` (loaded on trigger/scope).
+Workflow runbooks live in `.agents/skills/`. Subagents live in `.agents/agents/`. Specs live in `docs/tasks/`.
 
 ## Stack
 pnpm workspaces · Node 24 · TypeScript 5.9 · Express 5 API · React + wouter storefront/admin ·
@@ -10,18 +11,22 @@ Supabase/Postgres with RLS · Zod validation · Orval codegen from OpenAPI · Vi
 Layout: `artifacts/store` (UI), `artifacts/api-server` (API), `lib/*` (shared, generated),
 `supabase/migrations` (schema), `supabase/control-plane` (multi-tenant control plane).
 
-## Commands
+## Commands & Workflows
 - `pnpm run typecheck` — full typecheck, must pass before any commit
-- `pnpm test` — vitest
-- `pnpm run audit:invariants` — architectural invariant checks, must pass before any commit
-- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks/schemas after spec changes
+- `pnpm test:unit` — offline unit tests (runs without database or server)
+- `pnpm run audit:invariants` — architectural invariant checks (see skill `audit-invariants`)
+- `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks/schemas (see skill `openapi-codegen`)
 - `pnpm --filter @workspace/api-server run dev` — API on port 5000
 
 ## How work is organised
-1. Read the spec named in your launch prompt from `docs/tasks/`. Do not ask for it to be pasted.
-2. Write a design note to `docs/design-notes/<phase>.md`, commit it, and **stop**. Wait for review.
-3. Only after approval, implement in small commits on the phase branch.
-4. Make `typecheck`, `pnpm test:unit` and `audit:invariants` pass before declaring done.
+1. **Auto-Mode / Triage**:
+   - *Simple tasks*: resolve directly and cleanly.
+   - *Complex / architectural tasks*: plan deeply, evaluate invariants, write design note to `docs/design-notes/<phase>.md`, commit, and **stop** for review.
+   - *Multi-file / review tasks*: delegate cleanly to subagents (e.g. `auditor`, `architect`).
+2. Read the spec named in your launch prompt from `docs/tasks/`. Do not ask for it to be pasted.
+3. Write a design note to `docs/design-notes/<phase>.md`, commit it, and **stop**. Wait for review.
+4. Only after approval, implement in small commits on the phase branch.
+5. Make `typecheck`, `pnpm test:unit` and `audit:invariants` pass before declaring done.
    The `api-integration` and `env-validation` projects need Supabase credentials and a running API
    server; they run in CI (`.github/workflows/test.yml`), not in a bare local checkout. Do not
    claim they passed locally — say which tiers you actually ran.
@@ -40,6 +45,7 @@ design note and explain the trade-off — do not silently deviate during impleme
 - Never delete or `.skip()` an existing test. If a test breaks, fix the cause or report it.
 - Never disable a lint rule or add `@ts-ignore` / `as any` to make a build pass. Fix the type.
 - No new file over 200 lines without saying in the design note why it must be that long.
+- Never use external PreInvocation hooks or prompt-routing wrapper scripts that introduce interface latency. Manage agent routing purely through internal rules and instructions.
 
 ## Conventions
 - Migrations: one concern per file, follow the existing timestamped naming in `supabase/migrations/`.
