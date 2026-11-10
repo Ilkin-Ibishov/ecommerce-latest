@@ -55,17 +55,21 @@ function asQuotaUsage(value: unknown): Record<string, number> {
     return {};
   }
 
-  const result: Record<string, number> = {};
+  const entries: [string, number][] = [];
 
   for (const [key, val] of Object.entries(value as Record<string, unknown>)) {
     const validated = asNonNegativeInt(val);
     if (validated !== null) {
-      result[key] = validated;
+      entries.push([key, validated]);
     }
     // Keys with invalid values are silently excluded
   }
 
-  return result;
+  // Object.fromEntries defines each property directly (CreateDataPropertyOrThrow),
+  // unlike result[key] = val, which for key === "__proto__" invokes the
+  // prototype setter instead of creating an own property — silently dropping
+  // a legitimately-keyed "__proto__" entry instead of preserving it.
+  return Object.fromEntries(entries);
 }
 
 // ---------------------------------------------------------------------------
