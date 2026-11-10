@@ -312,9 +312,10 @@ alongside barcode entry) into that design note.
     but **not applied to any live database**, including the test project — a human needs to run it
     (the harness declines `CREATE TRIGGER`, see item 10). Review before applying: it is not
     tenant-scoped, unlike the tables around it (AGENTS.md conventions).
-12. `AGENTS.md` (from `antigravity-development`) now has a "simple tasks: resolve directly" triage
-    step listed before the unconditional "write a design note and stop" step. The two read as
-    contradictory; the architect should state which one wins.
+12. **RESOLVED (2026-11-10).** `AGENTS.md`'s new triage step (from `antigravity-development`)
+    contradicted the unconditional design-note gate. Resolved in `AGENTS.md`: phase work from a
+    spec, or anything architectural, always goes through the design-note gate; only simple tasks
+    without a spec (bug, test or docs fixes) are resolved directly.
 
 ## How work runs here
 

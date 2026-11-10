@@ -19,9 +19,10 @@ Layout: `artifacts/store` (UI), `artifacts/api-server` (API), `lib/*` (shared, g
 - `pnpm --filter @workspace/api-server run dev` — API on port 5000
 
 ## How work is organised
-1. **Auto-Mode / Triage**:
-   - *Simple tasks*: resolve directly and cleanly.
-   - *Complex / architectural tasks*: plan deeply, evaluate invariants, write design note to `docs/design-notes/<phase>.md`, commit, and **stop** for review.
+1. **Triage first**:
+   - *Phase work* (launch prompt names a spec in `docs/tasks/`, or the change is architectural):
+     always follow steps 2–4 — the design-note gate is never skipped.
+   - *Simple tasks* without a spec (a bug fix, a test fix, a docs update): resolve directly, skip to step 5.
    - *Multi-file / review tasks*: delegate cleanly to subagents (e.g. `auditor`, `architect`).
 2. Read the spec named in your launch prompt from `docs/tasks/`. Do not ask for it to be pasted.
 3. Write a design note to `docs/design-notes/<phase>.md`, commit it, and **stop**. Wait for review.
