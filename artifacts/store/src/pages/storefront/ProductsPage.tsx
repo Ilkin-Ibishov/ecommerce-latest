@@ -69,7 +69,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
       if (sortParam === "price_asc") query = query.order("price", { ascending: true });
       else if (sortParam === "price_desc") query = query.order("price", { ascending: false });
       else if (sortParam === "newest") query = query.order("created_at", { ascending: false });
-      else query = query.order("sort_order");
+      else query = query.order("sort_order").order("id");
 
       const { data, count: total } = await query;
       if (data && data.length > 0) {
