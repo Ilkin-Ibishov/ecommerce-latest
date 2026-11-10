@@ -80,7 +80,7 @@ test.describe("Cart Flow", () => {
       // Product title should appear in the drawer
       await expect(drawerContent).toContainText(productTitle?.slice(0, 20) || "", { timeout: 3_000 });
       // Price in AZN should be visible
-      await expect(drawerContent.locator("text=AZN")).toBeVisible();
+      await expect(drawerContent.locator("text=AZN").first()).toBeVisible();
     }
   });
 
