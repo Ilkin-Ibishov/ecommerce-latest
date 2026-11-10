@@ -56,6 +56,11 @@ test.describe("Cart Flow", () => {
     }
     await productLink.click();
     await page.waitForURL("**/products/**");
+    // waitForURL only waits for the URL to change, not for ProductPage's async
+    // fetch + render to finish — read the h1 too early and Playwright can
+    // still see the previous page's h1 (e.g. the listing page's own
+    // "Bütün məhsullar" heading). Wait for the real content to settle first.
+    await page.waitForLoadState("networkidle");
 
     // Get product title for verification
     const productTitle = await page.locator("h1").textContent();
