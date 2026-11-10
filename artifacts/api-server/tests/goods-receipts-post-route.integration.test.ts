@@ -58,6 +58,16 @@ describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () =>
     if (prodErr || !product) throw new Error(`Failed to create test product: ${prodErr?.message}`);
     testProductId = product.id;
 
+    // A real ledger movement (posted below) can never be deleted — stock_movements
+    // is append-only by design (see trg_stock_movements_immutable). So this test's
+    // product/variant can never be fully cleaned up in afterAll once the receipt
+    // actually posts, and ends up as a permanent row in the test project. Give it
+    // a translation now so it never breaks a storefront E2E test that happens to
+    // list or link to it (az is the locale those tests use).
+    await (serviceClient as any)
+      .from("product_translations")
+      .insert({ product_id: testProductId, lang_code: "az", title: "Qəbz Test Məhsulu" });
+
     const { data: variant, error: varErr } = await (serviceClient as any)
       .from("product_variants")
       .insert({ product_id: testProductId, sku: `RCPT-INT-${Date.now()}`, price: 25.0, on_hand: 0 })
@@ -99,12 +109,36 @@ describe("Goods Receipts Post Route & Service-Role RPC (api-integration)", () =>
   });
 
   afterAll(async () => {
+    // Deletion order matters: goods_receipt_line_costs and stock_movement_costs
+    // are children of goods_receipt_lines / stock_movements respectively, with
+    // no ON DELETE CASCADE (the ledger tables are deliberately append-only/
+    // restrict-by-default). Deleting a parent before its children silently
+    // fails the FK constraint; errors here were never checked, so every CI run
+    // left this test's product, variant, receipt and lines behind as
+    // permanent orphans in the test Supabase project.
     if (testReceiptId) {
+      const { data: lines } = await (serviceClient as any)
+        .from("goods_receipt_lines")
+        .select("id")
+        .eq("receipt_id", testReceiptId);
+      const lineIds = (lines ?? []).map((l: any) => l.id);
+      if (lineIds.length > 0) {
+        await (serviceClient as any).from("goods_receipt_line_costs").delete().in("line_id", lineIds);
+      }
       await (serviceClient as any).from("goods_receipt_lines").delete().eq("receipt_id", testReceiptId);
       await (serviceClient as any).from("goods_receipts").delete().eq("id", testReceiptId);
     }
     if (testVariantId) {
+      const { data: movements } = await (serviceClient as any)
+        .from("stock_movements")
+        .select("id")
+        .eq("variant_id", testVariantId);
+      const movementIds = (movements ?? []).map((m: any) => m.id);
+      if (movementIds.length > 0) {
+        await (serviceClient as any).from("stock_movement_costs").delete().in("movement_id", movementIds);
+      }
       await (serviceClient as any).from("stock_movements").delete().eq("variant_id", testVariantId);
+      await (serviceClient as any).from("variant_costs").delete().eq("variant_id", testVariantId);
       await (serviceClient as any).from("product_variants").delete().eq("id", testVariantId);
     }
     if (testProductId) {
