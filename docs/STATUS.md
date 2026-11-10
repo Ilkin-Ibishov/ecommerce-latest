@@ -62,7 +62,7 @@ assuming the next red run is a new problem, most of CI's remaining fragility is 
 
 Work still open from this (none blocking, all tracked in "Open" below): the
 `product_variants_guard_uom` trigger is still missing on the test project (item 10); the
-`banners` migration is in the repo but not applied anywhere (item 11); the security-definer-view
+`banners` table is not tenant-scoped (item 11); the security-definer-view
 decision (sub-bullet of item 5).
 
 ## Where to start
@@ -309,9 +309,9 @@ alongside barcode entry) into that design note.
     ```
 11. `GET /api/banners` and the admin banners CRUD query a `banners` table that was never migrated
     (since the hero-carousel feature). Migration `20261107052641_create_banners.sql` is in the repo
-    but **not applied to any live database**, including the test project — a human needs to run it
-    (the harness declines `CREATE TRIGGER`, see item 10). Review before applying: it is not
-    tenant-scoped, unlike the tables around it (AGENTS.md conventions).
+    and **is applied on the test project** (`jcvsnoiacrknzejouxah` — table, RLS, both policies and
+    `trg_banners_updated_at` verified live 2026-11-10). Still open: it is not tenant-scoped, unlike
+    the tables around it (AGENTS.md conventions) — decide before any production deploy.
 12. **RESOLVED (2026-11-10).** `AGENTS.md`'s new triage step (from `antigravity-development`)
     contradicted the unconditional design-note gate. Resolved in `AGENTS.md`: phase work from a
     spec, or anything architectural, always goes through the design-note gate; only simple tasks
