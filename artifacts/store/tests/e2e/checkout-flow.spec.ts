@@ -79,24 +79,23 @@ test.describe("Checkout Flow", () => {
     await page.goto("/az/checkout");
     await page.waitForLoadState("networkidle");
 
-    // Look for promo/coupon section toggle
-    const promoToggle = page.locator("button").filter({ hasText: /promo|kupon|code/i }).first();
-    if (await promoToggle.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await promoToggle.click();
-      await page.waitForTimeout(300);
+    // CheckoutPage has no toggle to expand the coupon field — it's always
+    // visible directly (see artifacts/store/src/pages/storefront/
+    // CheckoutPage.tsx around line 244). A prior version of this test looked
+    // for a toggle button first, matching "promo|kupon|code"; on the real
+    // page that regex instead matched the (closed, off-screen) cart drawer's
+    // own promo toggle, which Playwright reported as "visible" but could
+    // never actually scroll into the viewport — timing out the whole test.
+    const couponInput = page.locator('input[placeholder*="code" i], input[placeholder*="kod" i]').first();
+    await expect(couponInput).toBeVisible({ timeout: 10_000 });
 
-      // Enter invalid coupon code
-      const couponInput = page.locator('input[placeholder*="code" i], input[placeholder*="kod" i]').first();
-      if (await couponInput.isVisible()) {
-        await couponInput.fill("INVALID_CODE_XYZ");
-        await couponInput.press("Enter");
+    // Enter invalid coupon code
+    await couponInput.fill("INVALID_CODE_XYZ");
+    await couponInput.press("Enter");
 
-        // Should show error message for invalid coupon
-        await page.waitForTimeout(2000); // Wait for API response
-        const errorText = page.locator(".text-destructive, [class*='destructive']").first();
-        await expect(errorText).toBeVisible({ timeout: 5_000 });
-      }
-    }
+    // Should show error message for invalid coupon
+    const errorText = page.locator(".text-destructive, [class*='destructive']").first();
+    await expect(errorText).toBeVisible({ timeout: 5_000 });
   });
 
   test("checkout requires authentication", async ({ page }) => {
