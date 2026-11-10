@@ -61,8 +61,8 @@ assuming the next red run is a new problem, most of CI's remaining fragility is 
   renders once real data has loaded (the add-to-cart button) before reading anything else.
 
 Work still open from this (none blocking, all tracked in "Open" below): the
-`product_variants_guard_uom` trigger is still missing on the test project (item 10); the
-security-definer-view decision and fast-forwarding `main` (sub-bullets of item 5).
+`banners` table is not tenant-scoped (item 11); the security-definer-view
+decision (sub-bullet of item 5).
 
 ## Where to start
 
@@ -72,18 +72,27 @@ security-definer-view decision and fast-forwarding `main` (sub-bullets of item 5
 4. `docs/audits/` — every review and every agent's own notes, in order
 5. `.agents/rules/` — domain invariants
 6. `docs/knowledgebase/` — cross-cutting operational lessons (Supabase project facts, harness
-   tool restrictions, Playwright/SPA gotchas) that aren't tied to one phase
+   tool restrictions, Playwright/SPA gotchas, Windows local-dev quirks) that aren't tied to one
+   phase. Index in its `README.md`
+7. `.agents/skills/` and the per-package `AGENTS.md` files (`artifacts/api-server/`,
+   `artifacts/store/`) — runbooks and scoped rules added on `antigravity-development`
 
 ## State
 
-**M1, M2a, M2b and M2c are all complete and merged on local `main`, together with
-`chore/ci-repair`.** `main` itself is still local-only and unpushed (open item 4).
+**M1, M2a, M2b and M2c are all complete and merged on `main`, together with the CI work
+(item 5).** `main` was fast-forwarded to `claude/davam-840a9f` (`c413d11`) and pushed to `origin`
+on 2026-11-10.
 
-**`claude/davam-840a9f` is a clean fast-forward ahead of `main`** (confirmed:
-`git merge-base --is-ancestor main claude/davam-840a9f` holds) and carries this session's
-Supabase bootstrap + CI work (item 5) on top of everything `main` has. It is pushed to `origin`;
-`main` is not (open item 4). Fast-forwarding local `main` to `claude/davam-840a9f` once CI is
-green is a reasonable next step, not yet done.
+**Branches (2026-11-10):** two side branches were not yet in `main` — `antigravity-development`
+(2 commits, built with the Antigravity agent: modular agent context in `.agents/skills/`,
+`.agents/rules/`, per-package `AGENTS.md`; checkout input `maxLength` limits with tests) and
+`claude/project-status-review-041dc6` (the 2026-11-07 handoff: business answers, banners
+migration, knowledgebase docs — already carried into `antigravity-development`). Both are merged
+by `claude/project-status-merge-2f8c33`. Where `antigravity-development` and `main` both edited a
+file (`STATUS.md`, `knowledgebase/supabase-projects.md`, two E2E specs), `main`'s newer version
+was kept and the branch's facts were folded in here. Not carried over from the review branch: the
+ad hoc `@tailwindcss/oxide-win32-x64-msvc` devDependency and `.claude/launch.json`. Every other
+local branch (`m1/*`, `m2*/*`, `chore/*`) is already contained in `main` and can be deleted.
 
 Verified on 2026-11-05 at the merge point:
 
@@ -111,15 +120,12 @@ Per-phase detail lives in `docs/audits/m2*-implementation-notes.md` and the desi
 
 **M3** — counter sale, barcode flow, offline queue, and a minimal bill of materials.
 
-**M3 is gated on open item 3 below.** If a certified fiscal device is mandatory for cash retail,
-the counter-sale design is cancelled and the system stays back-office only. Do not start M3 before
-that answer arrives; it is roughly a quarter of the remaining engineering.
-
-Open item 5 (the test Supabase project and CI) is now **done** — see "Start here". With that
-clear, the remaining blocker on M3 is open item 3 (the accountant's fiscal-receipt answer); note
-that a different session's branch (`claude/project-status-review-041dc6`, not merged into this
-one) recorded that question as answered secondhand on 2026-11-07 — worth checking before treating
-item 3 as still fully open here.
+**M3's fiscal-device gate is cleared (2026-11-07): a plain (non-certified) receipt is enough** —
+answered secondhand via the customer, not yet in writing from the accountant. The counter-sale
+design can proceed on that basis; get the accountant's answer in writing before relying on it for
+anything legally load-bearing. With item 5 (CI) also done, **nothing engineering-side blocks
+starting M3** — the next step is the M3 spec and design note. Carry item 8's decision (text search
+alongside barcode entry) into that design note.
 
 ## Open
 
@@ -128,11 +134,13 @@ item 3 as still fully open here.
 1. The 500 products' names, prices and photos. Nobody is assigned; the website cannot launch empty.
    Engineering completing M3 and M4 still leaves a finished, empty system.
 2. Design-partner agreement and the monthly price.
-3. The accountant's written answer on fiscal receipt requirements. Gates M3.
+3. ~~The accountant's written answer on fiscal receipt requirements. Gates M3.~~ Answered
+   2026-11-07 (secondhand, via customer): a plain receipt is enough, no certified fiscal device
+   required. Still worth getting in writing from the accountant directly before go-live.
 
 **Technical:**
 
-4. `main` is local-only and unpushed.
+4. **DONE (2026-11-10).** `main` is pushed to `origin`.
 5. **DONE (2026-11-10).** The test Supabase project is bootstrapped, all three GitHub secrets
    point at it, and CI is fully green end to end for the first time ever — see "Start here" at the
    top of this file for the final run and the summary of what it took. Full round-by-round history
@@ -270,9 +278,7 @@ item 3 as still fully open here.
 
    Still open from this item: decide the ERROR-level `product_variant_public_availability`
    security-definer-view finding from `get_advisors` — may be intentional (that view's whole
-   point is anon-safe availability exposure) but needs an explicit decision recorded, not silence;
-   and fast-forward local `main` to `claude/davam-840a9f` now that CI is green on it, or decide
-   not to and say why (see open item 4).
+   point is anon-safe availability exposure) but needs an explicit decision recorded, not silence.
 
 6. **M2b has had no independent adversarial audit from a different model family.** Its audit ran on
    the builder's own family (clean context, shared blind spots) after the quota described below ran
@@ -280,22 +286,27 @@ item 3 as still fully open here.
    including a blocker, so it is not unreviewed — only single-family reviewed.
 7. Blind counting is not tamper-proof: a staff token can read `product_variants.on_hand` directly,
    because the storefront needs that column readable. Recorded in `.agents/rules/inventory.md`.
-8. Open customer questions that decide which UI ships first: is the scanner in daily use or dormant?
-   Do colour variants share one barcode? What is the ~10% of goods without barcodes?
+8. Customer answered the three questions that decide which UI ships first (2026-11-07, relayed
+   secondhand from a shop owner, not yet written): the barcode scanner is in **daily use**,
+   **colour variants share one barcode** (printed by the shop's own barcode device), and that
+   device now **covers the ~10% that previously had none**. A *different* shop owner has no
+   barcode device at all. Decided (2026-11-07): no image recognition — M3's counter-sale/warehouse
+   screens add a plain text search alongside barcode entry. Not yet implemented.
 9. `SESSION_SECRET` must be set in every deployed environment before the next deploy — the API
    refuses to start without it.
-10. The `product_variants_guard_uom` trigger (part of
-    `supabase/migrations/20261104110000_m2a_functions_triggers.sql`) is still missing on the test
-    project — every other object in that migration applied fine via the Supabase MCP'''s
-    `execute_sql` tool, but `CREATE TRIGGER` specifically is declined by the harness'''s safety
-    classifier every time it'''s tried. Not needed by any currently-passing test (nothing exercises
-    `unit_of_measure` updates), but a human should run this once:
-    ```sql
-    DROP TRIGGER IF EXISTS product_variants_guard_uom ON public.product_variants;
-    CREATE TRIGGER product_variants_guard_uom
-    BEFORE UPDATE OF unit_of_measure ON public.product_variants
-    FOR EACH ROW EXECUTE FUNCTION trg_guard_variant_uom_immutable();
-    ```
+10. **DONE (2026-11-10).** The `product_variants_guard_uom` trigger (part of
+    `supabase/migrations/20261104110000_m2a_functions_triggers.sql`) was run by hand on the test
+    project and verified live (`pg_trigger`, enabled). The harness declines `CREATE TRIGGER`, so
+    any future trigger change needs the same human step.
+11. `GET /api/banners` and the admin banners CRUD query a `banners` table that was never migrated
+    (since the hero-carousel feature). Migration `20261107052641_create_banners.sql` is in the repo
+    and **is applied on the test project** (`jcvsnoiacrknzejouxah` — table, RLS, both policies and
+    `trg_banners_updated_at` verified live 2026-11-10). Still open: it is not tenant-scoped, unlike
+    the tables around it (AGENTS.md conventions) — decide before any production deploy.
+12. **RESOLVED (2026-11-10).** `AGENTS.md`'s new triage step (from `antigravity-development`)
+    contradicted the unconditional design-note gate. Resolved in `AGENTS.md`: phase work from a
+    spec, or anything architectural, always goes through the design-note gate; only simple tasks
+    without a spec (bug, test or docs fixes) are resolved directly.
 
 ## How work runs here
 

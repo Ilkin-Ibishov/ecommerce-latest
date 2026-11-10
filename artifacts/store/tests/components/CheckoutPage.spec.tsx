@@ -73,18 +73,26 @@ test("required field validation", async ({ mount, page }) => {
   // Assert customer_name input has required attribute
   const nameInput = component.locator('input[placeholder="Adınız"]');
   await expect(nameInput).toHaveAttribute("required", "");
+  await expect(nameInput).toHaveAttribute("maxlength", "100");
 
   // Assert customer_phone input has required attribute
   const phoneInput = component.locator('input[placeholder="+994 XX XXX XX XX"]');
   await expect(phoneInput).toHaveAttribute("required", "");
+  await expect(phoneInput).toHaveAttribute("maxlength", "25");
 
   // Assert delivery_address input has required attribute
   const addressInput = component.locator('input[placeholder="Şəhər, küçə, ev nömrəsi"]');
   await expect(addressInput).toHaveAttribute("required", "");
+  await expect(addressInput).toHaveAttribute("maxlength", "250");
 
   // Assert notes textarea does NOT have required attribute
   const notesTextarea = component.locator('textarea[placeholder="Kuryer üçün qeyd…"]');
   await expect(notesTextarea).not.toHaveAttribute("required", "");
+  await expect(notesTextarea).toHaveAttribute("maxlength", "500");
+
+  // Assert coupon input has maxLength
+  const couponInput = component.locator('input[placeholder="KOD DAXİL EDİN"]');
+  await expect(couponInput).toHaveAttribute("maxlength", "50");
 });
 
 test("fields visible and editable", async ({ mount, page }) => {
