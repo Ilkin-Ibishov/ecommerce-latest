@@ -56,17 +56,21 @@ test.describe("Cart Flow", () => {
     }
     await productLink.click();
     await page.waitForURL("**/products/**");
-    // waitForURL only waits for the URL to change, not for ProductPage's async
-    // fetch + render to finish — read the h1 too early and Playwright can
-    // still see the previous page's h1 (e.g. the listing page's own
-    // "Bütün məhsullar" heading). Wait for the real content to settle first.
-    await page.waitForLoadState("networkidle");
+    // This is a client-side (wouter) route change, not a real navigation, so
+    // Playwright's load-state tracking never resets here — waitForLoadState
+    // is a no-op and resolves instantly, well before ProductPage's async
+    // Supabase fetch + render finishes. Reading h1 right after can still see
+    // the previous page's h1 (e.g. the listing page's own "Bütün məhsullar"
+    // heading). Wait for the add-to-cart button instead: it only renders once
+    // the real product data has loaded, by which point the real h1 is in
+    // place too (same render).
+    const addToCartBtn = page.locator("button").filter({ hasText: /səbətə|cart|корзин/i }).first();
+    await expect(addToCartBtn).toBeVisible({ timeout: 15_000 });
 
     // Get product title for verification
     const productTitle = await page.locator("h1").textContent();
 
     // Add to cart
-    const addToCartBtn = page.locator("button").filter({ hasText: /səbətə|cart|корзин/i }).first();
     await addToCartBtn.click();
 
     // Cart drawer should show the product
