@@ -71,6 +71,8 @@ security-definer-view decision and fast-forwarding `main` (sub-bullets of item 5
 3. `docs/design-notes/` — the implementer's proposals, written before code
 4. `docs/audits/` — every review and every agent's own notes, in order
 5. `.agents/rules/` — domain invariants
+6. `docs/knowledgebase/` — cross-cutting operational lessons (Supabase project facts, harness
+   tool restrictions, Playwright/SPA gotchas) that aren't tied to one phase
 
 ## State
 
