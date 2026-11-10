@@ -127,6 +127,22 @@ anything legally load-bearing. With item 5 (CI) also done, **nothing engineering
 starting M3** — the next step is the M3 spec and design note. Carry item 8's decision (text search
 alongside barcode entry) into that design note.
 
+**M3 spec written (2026-11-11):** `docs/tasks/warehouse-m3-counter-sale.md`, audited by a separate
+Opus pass in `docs/audits/m3-spec-audit.md` (verdict on the first draft: *needs rework*, 15 findings;
+14 fixed, 1 rejected in part — see the Resolution table there). Branch `spec/m3-counter-sale`.
+Next: the customer answers §16 of the spec, and the implementer writes the design note
+(`docs/design-notes/m3-counter-sale.md`) and stops for review. M3 is split into M3a (online counter)
+and M3b (offline queue); M3a merges first.
+
+**Security — found by the M3 spec work, not yet fixed (spec §12, first commits of M3):**
+`decrement_order_stock` and `fulfil_reservation` were very likely callable through PostgREST by
+`anon` and every shopper (M2c revoked only `FROM public`; Supabase grants `anon`/`authenticated`
+directly). Confirm read-only with `has_function_privilege('anon',
+'public.decrement_order_stock(uuid,jsonb,uuid)','EXECUTE')` on the test project and **before any
+production deploy**. The invariant meant to catch it (`security-definer-service-role-privileges`)
+matches no function at all (missing regex `s` flag). `fulfil_reservation` also cannot succeed on a
+real database (`reference_type = 'reservation'` violates the CHECK).
+
 ## Open
 
 **Business — blocking go-live, not engineering. None of these moved between 29 Oct and 5 Nov:**
