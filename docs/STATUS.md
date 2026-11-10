@@ -61,7 +61,6 @@ assuming the next red run is a new problem, most of CI's remaining fragility is 
   renders once real data has loaded (the add-to-cart button) before reading anything else.
 
 Work still open from this (none blocking, all tracked in "Open" below): the
-`product_variants_guard_uom` trigger is still missing on the test project (item 10); the
 `banners` table is not tenant-scoped (item 11); the security-definer-view
 decision (sub-bullet of item 5).
 
@@ -295,18 +294,10 @@ alongside barcode entry) into that design note.
    screens add a plain text search alongside barcode entry. Not yet implemented.
 9. `SESSION_SECRET` must be set in every deployed environment before the next deploy — the API
    refuses to start without it.
-10. The `product_variants_guard_uom` trigger (part of
-    `supabase/migrations/20261104110000_m2a_functions_triggers.sql`) is still missing on the test
-    project — every other object in that migration applied fine via the Supabase MCP'''s
-    `execute_sql` tool, but `CREATE TRIGGER` specifically is declined by the harness'''s safety
-    classifier every time it'''s tried. Not needed by any currently-passing test (nothing exercises
-    `unit_of_measure` updates), but a human should run this once:
-    ```sql
-    DROP TRIGGER IF EXISTS product_variants_guard_uom ON public.product_variants;
-    CREATE TRIGGER product_variants_guard_uom
-    BEFORE UPDATE OF unit_of_measure ON public.product_variants
-    FOR EACH ROW EXECUTE FUNCTION trg_guard_variant_uom_immutable();
-    ```
+10. **DONE (2026-11-10).** The `product_variants_guard_uom` trigger (part of
+    `supabase/migrations/20261104110000_m2a_functions_triggers.sql`) was run by hand on the test
+    project and verified live (`pg_trigger`, enabled). The harness declines `CREATE TRIGGER`, so
+    any future trigger change needs the same human step.
 11. `GET /api/banners` and the admin banners CRUD query a `banners` table that was never migrated
     (since the hero-carousel feature). Migration `20261107052641_create_banners.sql` is in the repo
     and **is applied on the test project** (`jcvsnoiacrknzejouxah` — table, RLS, both policies and
