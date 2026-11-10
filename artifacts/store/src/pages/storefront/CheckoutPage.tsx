@@ -215,14 +215,14 @@ export default function CheckoutPage({ locale }: { locale: string }) {
               </div>
             )}
             <div className="grid sm:grid-cols-2 gap-4">
-              <Field label={t("Checkout.nameLabel")} value={form.customer_name} onChange={(v) => { setForm((f) => ({ ...f, customer_name: v })); setFieldErrors((e) => ({ ...e, customer_name: "" })); }} placeholder={t("Checkout.namePlaceholder")} required error={fieldErrors.customer_name} />
-              <Field label={t("Checkout.phoneLabel")} value={form.customer_phone} onChange={(v) => { setForm((f) => ({ ...f, customer_phone: v })); setFieldErrors((e) => ({ ...e, customer_phone: "" })); }} placeholder={t("Checkout.phonePlaceholder")} type="tel" required error={fieldErrors.customer_phone} />
+              <Field label={t("Checkout.nameLabel")} value={form.customer_name} onChange={(v) => { setForm((f) => ({ ...f, customer_name: v })); setFieldErrors((e) => ({ ...e, customer_name: "" })); }} placeholder={t("Checkout.namePlaceholder")} required maxLength={100} error={fieldErrors.customer_name} />
+              <Field label={t("Checkout.phoneLabel")} value={form.customer_phone} onChange={(v) => { setForm((f) => ({ ...f, customer_phone: v })); setFieldErrors((e) => ({ ...e, customer_phone: "" })); }} placeholder={t("Checkout.phonePlaceholder")} type="tel" required maxLength={25} error={fieldErrors.customer_phone} />
             </div>
-            <Field label={t("Checkout.addressLabel")} value={form.delivery_address} onChange={(v) => { setForm((f) => ({ ...f, delivery_address: v })); setFieldErrors((e) => ({ ...e, delivery_address: "" })); }} placeholder={t("Checkout.addressPlaceholder")} required error={fieldErrors.delivery_address} />
+            <Field label={t("Checkout.addressLabel")} value={form.delivery_address} onChange={(v) => { setForm((f) => ({ ...f, delivery_address: v })); setFieldErrors((e) => ({ ...e, delivery_address: "" })); }} placeholder={t("Checkout.addressPlaceholder")} required maxLength={250} error={fieldErrors.delivery_address} />
             <div>
               <label className="block text-sm font-medium mb-1">{t("Checkout.notesLabel")}</label>
               <textarea value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder={t("Checkout.notesPlaceholder")} rows={2}
+                placeholder={t("Checkout.notesPlaceholder")} rows={2} maxLength={500}
                 className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring resize-none" />
             </div>
           </div>
@@ -247,6 +247,7 @@ export default function CheckoutPage({ locale }: { locale: string }) {
                   <input type="text" value={couponCode} onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), applyCoupon())}
                     placeholder={t("Checkout.enterCode")}
+                    maxLength={50}
                     className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring uppercase tracking-wide" />
                   <button type="button" onClick={() => applyCoupon()} disabled={couponLoading || !couponCode.trim()}
                     className="px-4 py-2 rounded-lg bg-secondary text-sm font-medium hover:bg-secondary/80 transition disabled:opacity-50">
@@ -308,13 +309,13 @@ export default function CheckoutPage({ locale }: { locale: string }) {
   );
 }
 
-function Field({ label, value, onChange, placeholder, type = "text", required, error }: {
-  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; required?: boolean; error?: string;
+function Field({ label, value, onChange, placeholder, type = "text", required, error, maxLength }: {
+  label: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; required?: boolean; error?: string; maxLength?: number;
 }) {
   return (
     <div>
       <label className="block text-sm font-medium mb-1">{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required}
+      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required} maxLength={maxLength}
         className={`w-full px-3 py-2 rounded-lg border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring ${error ? "border-destructive" : "border-border"}`} />
       {error && <p className="text-destructive text-xs mt-1">{error}</p>}
     </div>

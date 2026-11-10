@@ -24,6 +24,7 @@ const BASELINE = path.join(ROOT, 'scripts', 'audit', 'baseline.json');
 const SKIP_DIRS = new Set([
   'node_modules', '.git', 'dist', 'build', '.next', 'coverage',
   '.migration-backup', '.turbo', 'playwright-report', 'test-results',
+  '.claude', '.agent-runs',
 ]);
 
 const args = process.argv.slice(2);
