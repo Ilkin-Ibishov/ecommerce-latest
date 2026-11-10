@@ -43,7 +43,7 @@ test.describe("Checkout Flow", () => {
     await page.waitForLoadState("networkidle");
 
     // Click submit without filling form
-    const submitBtn = page.locator('button[type="submit"]');
+    const submitBtn = page.locator('button[type="submit"]').filter({ hasText: "Sifariş" });
     await expect(submitBtn).toBeVisible({ timeout: 10_000 });
     await submitBtn.click();
 
@@ -67,7 +67,7 @@ test.describe("Checkout Flow", () => {
     await addressInput.fill("Baku, Test Street");
 
     // Submit
-    const submitBtn = page.locator('button[type="submit"]');
+    const submitBtn = page.locator('button[type="submit"]').filter({ hasText: "Sifariş" });
     await submitBtn.click();
 
     // Should show phone validation error
@@ -113,7 +113,7 @@ test.describe("Checkout Flow", () => {
     await addressInput.fill("Baku, Narimanov, Test Street 12");
 
     // Submit form
-    const submitBtn = page.locator('button[type="submit"]');
+    const submitBtn = page.locator('button[type="submit"]').filter({ hasText: "Sifariş" });
     await submitBtn.click();
 
     // Should prompt for login (since we're not authenticated)

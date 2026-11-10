@@ -66,7 +66,7 @@ test.describe("Cart Flow", () => {
 
     // Cart drawer should show the product
     await page.waitForTimeout(500);
-    const drawerContent = page.locator('[class*="fixed"][class*="right-0"]');
+    const drawerContent = page.locator('[class*="fixed"][class*="right-0"][class*="max-w-md"]');
     if (await drawerContent.isVisible()) {
       // Product title should appear in the drawer
       await expect(drawerContent).toContainText(productTitle?.slice(0, 20) || "", { timeout: 3_000 });

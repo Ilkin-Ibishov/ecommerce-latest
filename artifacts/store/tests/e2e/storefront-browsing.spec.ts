@@ -49,7 +49,7 @@ test.describe("Storefront Browsing", () => {
       await page.waitForURL("**/products/**");
 
       // Product detail should show price
-      await expect(page.locator("text=AZN")).toBeVisible({ timeout: 10_000 });
+      await expect(page.locator("text=AZN").first()).toBeVisible({ timeout: 10_000 });
     }
   });
 
