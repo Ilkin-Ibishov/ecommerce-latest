@@ -991,3 +991,169 @@ export const UpdateReservationPriceResponse = zod.object({
 })
 
 
+/**
+ * @summary Find variants by exact barcode, else by name or SKU (staff)
+ */
+export const counterLookupQueryQMax = 100;
+
+
+
+export const CounterLookupQueryParams = zod.object({
+  "q": zod.coerce.string().min(1).max(counterLookupQueryQMax)
+})
+
+export const CounterLookupResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Active bundles with their lines (staff)
+ */
+export const ListCounterBundlesResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary List counter sales; flags only for the owner
+ */
+export const ListCounterSalesResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Post a counter sale (idempotent by id)
+ */
+export const postCounterSaleBodyNoteMax = 500;
+
+export const postCounterSaleBodyOwnerDiscountDefault = 0;
+export const postCounterSaleBodyOwnerDiscountMin = 0;
+
+export const postCounterSaleBodyDisplayedTotalMin = 0;
+
+export const postCounterSaleBodyLinesItemQuantityMax = 10000;
+
+export const postCounterSaleBodyLinesItemChargedUnitPriceMin = 0;
+
+export const postCounterSaleBodyLinesMax = 200;
+
+
+
+export const PostCounterSaleBody = zod.object({
+  "id": zod.string().uuid(),
+  "sold_at": zod.coerce.date(),
+  "payment_method": zod.enum(['cash', 'card', 'other']),
+  "note": zod.string().max(postCounterSaleBodyNoteMax).optional(),
+  "owner_discount": zod.number().min(postCounterSaleBodyOwnerDiscountMin).default(postCounterSaleBodyOwnerDiscountDefault),
+  "displayed_total": zod.number().min(postCounterSaleBodyDisplayedTotalMin),
+  "lines": zod.array(zod.object({
+  "variant_id": zod.string().uuid(),
+  "quantity": zod.number().min(1).max(postCounterSaleBodyLinesItemQuantityMax),
+  "charged_unit_price": zod.number().min(postCounterSaleBodyLinesItemChargedUnitPriceMin),
+  "bundle_id": zod.string().uuid().nullish()
+})).min(1).max(postCounterSaleBodyLinesMax)
+})
+
+
+/**
+ * @summary Get one counter sale with lines
+ */
+export const GetCounterSaleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetCounterSaleResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Void a counter sale (owner only)
+ */
+export const VoidCounterSaleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const voidCounterSaleBodyReasonMax = 500;
+
+
+
+export const VoidCounterSaleBody = zod.object({
+  "reason": zod.string().min(1).max(voidCounterSaleBodyReasonMax)
+})
+
+export const VoidCounterSaleResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Post a needs_owner sale after fixing stock (owner only)
+ */
+export const PostPendingCounterSaleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const PostPendingCounterSaleResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Flagged lines and needs_owner sales (owner only)
+ */
+export const ListCounterFlaggedResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Create a bundle (owner only)
+ */
+export const createBundleBodyNameMax = 200;
+
+export const createBundleBodyBundlePriceMin = 0;
+
+export const createBundleBodyIsActiveDefault = true;
+export const createBundleBodyLinesMax = 50;
+
+
+
+export const CreateBundleBody = zod.object({
+  "name": zod.string().min(1).max(createBundleBodyNameMax),
+  "bundle_price": zod.number().min(createBundleBodyBundlePriceMin).nullish(),
+  "is_active": zod.boolean().default(createBundleBodyIsActiveDefault),
+  "lines": zod.array(zod.object({
+  "variant_id": zod.string().uuid(),
+  "quantity": zod.number().min(1)
+})).min(1).max(createBundleBodyLinesMax)
+})
+
+
+/**
+ * @summary Replace a bundle's fields and lines (owner only)
+ */
+export const UpdateBundleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const updateBundleBodyNameMax = 200;
+
+export const updateBundleBodyBundlePriceMin = 0;
+
+export const updateBundleBodyIsActiveDefault = true;
+export const updateBundleBodyLinesMax = 50;
+
+
+
+export const UpdateBundleBody = zod.object({
+  "name": zod.string().min(1).max(updateBundleBodyNameMax),
+  "bundle_price": zod.number().min(updateBundleBodyBundlePriceMin).nullish(),
+  "is_active": zod.boolean().default(updateBundleBodyIsActiveDefault),
+  "lines": zod.array(zod.object({
+  "variant_id": zod.string().uuid(),
+  "quantity": zod.number().min(1)
+})).min(1).max(updateBundleBodyLinesMax)
+})
+
+export const UpdateBundleResponse = zod.record(zod.string(), zod.unknown())
+
+
+/**
+ * @summary Deactivate a bundle (owner only)
+ */
+export const DeleteBundleParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const DeleteBundleResponse = zod.record(zod.string(), zod.unknown())
+
+
