@@ -460,6 +460,8 @@ const en = {
         suppliers: "Suppliers",
         margins: "Margin Report",
         stocktakes: "Stocktakes",
+        counter: "Counter",
+        bundles: "Bundles",
       },
       Layout: {
         adminPanel: "Admin Panel",

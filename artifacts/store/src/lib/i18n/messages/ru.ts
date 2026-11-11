@@ -460,6 +460,8 @@ const ru = {
         suppliers: "Поставщики",
         margins: "Отчет по марже",
         stocktakes: "Инвентаризация",
+        counter: "Касса",
+        bundles: "Наборы",
       },
       Layout: {
         adminPanel: "Панель администратора",

@@ -460,6 +460,8 @@ const az = {
         suppliers: "Təchizatçılar",
         margins: "Marja hesabatı",
         stocktakes: "Sayım",
+        counter: "Kassa",
+        bundles: "Dəstlər",
       },
       Layout: {
         adminPanel: "Admin Panel",

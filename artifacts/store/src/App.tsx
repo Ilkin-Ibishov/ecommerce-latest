@@ -53,6 +53,10 @@ const AdminPagesPage = lazy(() => import("@/pages/admin/PagesPage"));
 const PageEditorPage = lazy(() => import("@/pages/admin/PageEditorPage"));
 const NotificationCenterPage = lazy(() => import("@/pages/admin/NotificationCenterPage"));
 const AdminReservationsPage = lazy(() => import("@/pages/admin/ReservationsPage"));
+const AdminCounterPage = lazy(() => import("@/pages/admin/CounterPage"));
+const AdminCounterSalesPage = lazy(() => import("@/pages/admin/CounterSalesPage"));
+const AdminCounterReceiptPage = lazy(() => import("@/pages/admin/CounterReceiptPage"));
+const AdminBundlesPage = lazy(() => import("@/pages/admin/BundlesPage"));
 
 // ─── Platform pages (lazy — super-admin only) ────────────────────────────────
 const StoreDashboardPage = lazy(() => import("@/pages/platform/StoreDashboardPage"));
@@ -130,6 +134,10 @@ function AdminRoutes() {
             <Route path="/admin/products" component={AdminProductsPage} />
             <Route path="/admin/inventory" component={AdminInventoryPage} />
             <Route path="/admin/reservations" component={AdminReservationsPage} />
+            <Route path="/admin/counter" component={AdminCounterPage} />
+            <Route path="/admin/counter/sales" component={AdminCounterSalesPage} />
+            <Route path="/admin/counter/receipt/:id" component={AdminCounterReceiptPage} />
+            <Route path="/admin/bundles" component={AdminBundlesPage} />
             <Route path="/admin/stocktakes/:id/count">{(params) => <StocktakeCountPage id={params.id} />}</Route>
             <Route path="/admin/stocktakes/:id/review">{(params) => <StocktakeVariancePage id={params.id} />}</Route>
             <Route path="/admin/stocktakes" component={AdminStocktakesPage} />
