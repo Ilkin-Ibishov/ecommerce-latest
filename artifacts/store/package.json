@@ -94,6 +94,7 @@
   "dependencies": {
     "@supabase/ssr": "^0.10.3",
     "@supabase/supabase-js": "^2.105.4",
+    "@workspace/counter-pricing": "workspace:*",
     "bcryptjs": "^3.0.3",
     "browser-image-compression": "^2.0.2"
   }
