@@ -120,6 +120,12 @@ jobs:
         env:
           SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
 
+      # Runs alone because allow_negative_stock is a global tenant setting that breaks parallel stock tests.
+      - name: Run serial integration tests (global settings)
+        run: pnpm --filter @workspace/api-server exec vitest --run --config vitest.config.serial.ts
+        env:
+          SESSION_SECRET: ${{ secrets.SESSION_SECRET }}
+
       - name: Start store dev server
         run: pnpm --filter @workspace/store run dev &
         env:
