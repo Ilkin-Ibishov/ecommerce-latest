@@ -44,6 +44,16 @@ No empty-database run is available locally (`migrations.md` asks for both). That
 **Integration and E2E.** These tiers run only in CI and were **not run locally**. The integration
 tests are the first real execution of the three plpgsql functions and the new margin report.
 
+## Found by the first CI run
+
+`get_margin_report` had never worked on the test project. It selected `p.title`, `p.category_id`
+and `c.name`, but the real schema keeps titles in `product_translations` and categories in
+`product_categories` / `category_translations`. Every call failed with `42703`. The M2a version had
+the same columns, so the margin report has been broken since M2a on any database built like the
+test project. Migration `20261111120800` fixes the final SELECT. Before it was applied, its query
+was run read-only against the test project and returned 13 titled rows. The void test used to pass
+on an empty (failed) report; both report tests now assert that the call itself succeeded.
+
 ## Not covered by a test
 
 - **`allow_negative_stock = true` oversell** (design note Q1, migration `20261111120000`). A test
