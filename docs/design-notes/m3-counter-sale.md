@@ -1,5 +1,8 @@
 # M3a Design Note: Counter Sale, Scan-or-Search, Bundles, Void
 
+> **Approved by the owner (architect) on 2026-11-11**, after the Opus audit and the revision below.
+> Implementation proceeds on `m3a/counter-sale`.
+
 Spec: `docs/tasks/warehouse-m3-counter-sale.md`. Audit of the spec: `docs/audits/m3-spec-audit.md`.
 Audit of this note: `docs/audits/m3a-design-note-audit.md` (12 findings). §8 says how each was handled.
 Scope: **M3a only** (spec §2). M3b (offline queue) gets its own addendum before it starts, once §16.5 is
