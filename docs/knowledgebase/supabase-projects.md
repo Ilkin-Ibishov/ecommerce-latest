@@ -111,6 +111,19 @@ above), which makes it a poor branching parent; a separate project keeps CI's te
 seeded admin user away from real customers; and branching adds nothing at the size of this product.
 Revisit branching only if per-PR preview databases become useful.
 
+**Postponed (2026-11-11, owner's decision):** no production and no Pro plan until development is
+mature and the product data is in hand. Until then everything runs on the Free `ecommerce-warehouse`.
+Consequences to keep in mind:
+
+- A Free project pauses after 7 days of low activity. Regular CI runs keep it awake; if it does
+  pause, CI fails until someone restores it from the dashboard.
+- A hosted test API (e.g. a new Railway project) is only worth creating when someone must use the
+  app away from a developer's machine — a customer demo, or M3's till on the shop's own device.
+  If one is created, the OTP test bypass (`+994550000001` / `999999`, an admin on this project) must
+  be off there, or anyone with the URL can sign in as admin.
+- Product data imported now goes into `ecommerce-warehouse`, so the import script must be re-runnable
+  against the future production project.
+
 Before production can be created, the schema needs one reproducible source: neither `schema.sql`
 nor `supabase/migrations/` alone rebuilds it (see above). The test project is the only database CI
 has proven end to end, so a schema-only dump of it is the practical baseline.
