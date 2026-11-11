@@ -23,7 +23,7 @@ const wholeUnits = (lines: Lines) => lines.every((l) => Number.isInteger(l.quant
 
 router.get("/admin/bundles", requireStaffOrAdmin, ownerOnly, async (req: Request, res: Response): Promise<void> => {
   const { data, error } = await req.admin!
-    .from("bundles").select("id, name, bundle_price, is_active, bundle_lines ( variant_id, quantity )").order("name");
+    .from("bundles").select("id, name, bundle_price, is_active, bundle_lines ( variant_id, quantity, product_variants ( sku ) )").order("name");
   if (error) {
     res.status(500).json({ error: error.message });
     return;

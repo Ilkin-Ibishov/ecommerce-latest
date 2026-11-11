@@ -91,13 +91,28 @@ router.get("/admin/counter/lookup", requireStaffOrAdmin, async (req: Request, re
 
 router.get("/admin/counter/bundles", requireStaffOrAdmin, async (req: Request, res: Response): Promise<void> => {
   const { data, error } = await req.admin!
-    .from("bundles").select("id, name, bundle_price, bundle_lines ( variant_id, quantity )")
+    .from("bundles")
+    .select("id, name, bundle_price, bundle_lines ( variant_id, quantity, product_variants ( sku, price, on_hand, products ( product_translations ( lang_code, title ) ) ) )")
     .eq("is_active", true).order("name");
   if (error) {
     res.status(500).json({ error: error.message });
     return;
   }
-  res.json((data ?? []).map((b) => ({ id: b.id, name: b.name, bundle_price: b.bundle_price, lines: b.bundle_lines })));
+  res.json((data ?? []).map((b) => ({
+    id: b.id,
+    name: b.name,
+    bundle_price: b.bundle_price === null ? null : Number(b.bundle_price),
+    lines: b.bundle_lines.map((l) => {
+      const t = l.product_variants?.products?.product_translations ?? [];
+      return {
+        variant_id: l.variant_id,
+        quantity: l.quantity,
+        title: t.find((x) => x.lang_code === "az")?.title ?? t[0]?.title ?? l.product_variants?.sku ?? "",
+        price: Number(l.product_variants?.price ?? 0),
+        on_hand: Number(l.product_variants?.on_hand ?? 0),
+      };
+    }),
+  })));
 });
 
 export default router;
