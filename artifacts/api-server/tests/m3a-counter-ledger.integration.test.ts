@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
 import { createStockedVariant } from "./helpers/stocked-variant.js";
@@ -151,5 +151,101 @@ describe("M3a counter ledger", () => {
       const { data } = await anon.from(table).select("*").limit(1);
       expect(data ?? []).toEqual([]);
     }
+  });
+
+  describe("posted_after_count", () => {
+    let createdStocktakeIds: string[] = [];
+
+    const createStocktakeWithLine = async (variantId: string, count = 2) => {
+      const stocktake_number = `ST-M3A-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      const { data: st, error: stErr } = await db
+        .from("stocktakes")
+        .insert({ stocktake_number, title: "Count audit", created_by: actor })
+        .select("id")
+        .single();
+      if (stErr || !st) throw new Error(`stocktake insert: ${stErr?.message}`);
+      createdStocktakeIds.push(st.id);
+
+      const { error: lineErr } = await db
+        .from("stocktake_lines")
+        .insert({ stocktake_id: st.id, variant_id: variantId, counter_id: actor, counted_quantity: count });
+      if (lineErr) throw new Error(`stocktake_line insert: ${lineErr.message}`);
+
+      return st.id;
+    };
+
+    afterEach(async () => {
+      for (const id of createdStocktakeIds) {
+        await db.from("stocktakes").update({ status: "cancelled" }).eq("id", id);
+      }
+      createdStocktakeIds = [];
+    });
+
+    it("flags a line as posted_after_count when voided after a count", async () => {
+      const v = await createStockedVariant(db, actor, 3);
+      const s = sale([{ variant_id: v, quantity: 1, price: 10 }]);
+      const { error: postErr } = await post(s);
+      expect(postErr).toBeNull();
+
+      await createStocktakeWithLine(v, 2);
+
+      const { data: voidData, error: voidErr } = await db.rpc("void_counter_sale", {
+        p_id: s.id,
+        p_reason: "counted item",
+        p_session_user: actor,
+      });
+      expect(voidErr).toBeNull();
+      expect(voidData).toMatchObject({
+        lines: [{ posted_after_count: true }],
+      });
+    });
+
+    it("flags a line as posted_after_count when post-pending after a count", async () => {
+      const v = await createStockedVariant(db, actor, 0);
+      const s = sale([{ variant_id: v, quantity: 1, price: 10 }]);
+      const { data: postData } = await post(s);
+      expect(postData).toMatchObject({ status: "needs_owner" });
+
+      await createStocktakeWithLine(v, 2);
+
+      await db.from("stock_movements").insert({
+        variant_id: v,
+        quantity_delta: 1,
+        reason: "manual_adjustment",
+        reference_type: "manual",
+        actor_id: actor,
+      });
+
+      const { data: pendingData, error: pendingErr } = await db.rpc("post_pending_counter_sale", {
+        p_id: s.id,
+        p_session_user: actor,
+      });
+      expect(pendingErr).toBeNull();
+      expect(pendingData).toMatchObject({
+        status: "posted",
+        lines: [{ posted_after_count: true }],
+      });
+    });
+
+    it("does not flag a line when the count was cancelled", async () => {
+      const v = await createStockedVariant(db, actor, 3);
+      const s = sale([{ variant_id: v, quantity: 1, price: 10 }]);
+      const { error: postErr } = await post(s);
+      expect(postErr).toBeNull();
+
+      const stId = await createStocktakeWithLine(v, 2);
+      const { error: cancelErr } = await db.from("stocktakes").update({ status: "cancelled" }).eq("id", stId);
+      expect(cancelErr).toBeNull();
+
+      const { data: voidData, error: voidErr } = await db.rpc("void_counter_sale", {
+        p_id: s.id,
+        p_reason: "cancelled count test",
+        p_session_user: actor,
+      });
+      expect(voidErr).toBeNull();
+      expect(voidData).toMatchObject({
+        lines: [{ posted_after_count: false }],
+      });
+    });
   });
 });

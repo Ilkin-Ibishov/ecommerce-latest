@@ -1,10 +1,11 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, configDefaults } from "vitest/config";
 
 export default defineConfig({
   test: {
     name: "api-integration",
     root: import.meta.dirname,
     include: ["tests/**/*.test.ts"],
+    exclude: [...configDefaults.exclude, "tests/serial/**"],
     setupFiles: ["tests/setup.ts"],
     environment: "node",
     testTimeout: 30_000,

@@ -54,17 +54,11 @@ test project. Migration `20261111120800` fixes the final SELECT. Before it was a
 was run read-only against the test project and returned 13 titled rows. The void test used to pass
 on an empty (failed) report; both report tests now assert that the call itself succeeded.
 
-## Not covered by a test
+## Gaps closed later (branch `m3a/test-gaps`)
 
-- **`allow_negative_stock = true` oversell** (design note Q1, migration `20261111120000`). A test
-  would have to switch the global setting on the shared test project while other test files run in
-  parallel, which would break their `ST014` expectations. Before the owner turns the setting on, run
-  this by hand on the test project: switch it on, sell one more than on-hand at the till, check that
-  the movement has `negative_stock_override = true`, then switch it off.
-- **`posted_after_count`.** It is set by post-pending and void after a stocktake snapshot, but no
-  test creates a stocktake in between. The query is in Q7.
-- **E2E of the counter screen** at phone and desktop width with a keyboard-wedge scanner (spec §17.6).
-  Not done. It needs the app running against the test project.
+- **`allow_negative_stock = true` oversell:** `artifacts/api-server/tests/serial/m3a-negative-stock.serial.test.ts`
+- **`posted_after_count`:** `artifacts/api-server/tests/m3a-counter-ledger.integration.test.ts` (`describe("posted_after_count")`)
+- **E2E of the counter screen:** `artifacts/store/tests/e2e/counter-sale.spec.ts`
 
 ## Debt left on purpose
 
