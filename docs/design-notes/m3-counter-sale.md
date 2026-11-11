@@ -6,7 +6,7 @@ Scope: **M3a only** (spec §2). M3b (offline queue) gets its own addendum before
 answered; §15 Q6 and everything "queued" is deferred there (audit A11).
 §12 is already done (#7, #9), so implementation starts at spec §17 step 3.
 
-This note is about 360 lines. It answers six open questions, repeats spec §14 for every rule it adds,
+This note is about 420 lines. It answers six open questions, repeats spec §14 for every rule it adds,
 and answers a 12-finding audit. The earlier M2 notes were 365 to 1199 lines.
 
 ## 1. The shape in one paragraph
