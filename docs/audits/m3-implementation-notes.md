@@ -54,7 +54,7 @@ test project. Migration `20261111120800` fixes the final SELECT. Before it was a
 was run read-only against the test project and returned 13 titled rows. The void test used to pass
 on an empty (failed) report; both report tests now assert that the call itself succeeded.
 
-## Not covered by a test
+## Gaps closed later (branch `m3a/test-gaps`)
 
 - **`allow_negative_stock = true` oversell:** `artifacts/api-server/tests/serial/m3a-negative-stock.serial.test.ts`
 - **`posted_after_count`:** `artifacts/api-server/tests/m3a-counter-ledger.integration.test.ts` (`describe("posted_after_count")`)

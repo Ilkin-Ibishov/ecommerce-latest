@@ -146,3 +146,25 @@ All invariant checks passed.
    Start at  14:49:21
    Duration  17.49s (transform 12.09s, setup 0ms, collect 36.31s, tests 17.32s, environment 11.30s, prepare 59.00s)
 ```
+
+## Audit (Claude, 2026-11-11)
+
+The diff touches exactly the files the prompt named. Reviewed every changed line.
+
+- **Fixed:** `counter-sale.spec.ts` checked the quantity with `cartLines.first().getByText("2")`.
+  That is a substring match. The fixture title is `Test məhsulu <timestamp>-<random>`, so it almost
+  always contains a "2" as well. Two elements match and Playwright fails in strict mode. The check
+  now targets the quantity span (`span.tabular-nums`) with `toHaveText("2")`. The notes above say
+  "Differences: None" for this item. That was not right.
+- **Checked live (read-only) on the test project:**
+  - `site_settings` has exactly one row, so updating it by `id` hits the same row the trigger reads
+    with `LIMIT 1`;
+  - `allow_negative_stock` is currently `false`;
+  - no draft stocktakes are left;
+  - the E2E admin phone exists and has the role `admin`.
+- **Left as is:**
+  - Each serial run leaves one fixture variant at `on_hand = -1`. Negative on-hand is exactly the
+    state the setting allows, so reports must cope with it anyway.
+  - The serial file repeats the ledger test's `sale`/`post` helpers (about 25 lines). Sharing them
+    is not worth a new helper module for two files.
+- **Not run locally:** integration, serial and E2E. They run in CI only.

@@ -67,7 +67,8 @@ async function runCounterSaleFlow(page: Page, db: SupabaseClient, variantId: str
 
   // Expect one cart line with quantity 2 and total 8.00 AZN
   await expect(cartLines).toHaveCount(1);
-  await expect(cartLines.first().getByText("2")).toBeVisible();
+  // The quantity span, not getByText("2"): the fixture title is a timestamp and holds digits too.
+  await expect(cartLines.first().locator("span.tabular-nums")).toHaveText("2");
   await expect(page.getByText("8.00 AZN")).toBeVisible();
 
   // Payment method selection
