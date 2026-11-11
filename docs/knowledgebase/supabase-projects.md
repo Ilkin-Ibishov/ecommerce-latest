@@ -85,9 +85,52 @@ but `CREATE TRIGGER`, mass `DELETE`, and role/privilege `UPDATE`s reliably need 
 them. Don't keep retrying those three kinds of statement through this tool — hand them to the user
 with the exact SQL instead (as a file via `SendUserFile` if it's long).
 
-## Other projects seen in this account (not this repo)
+## Production: there is none (verified 2026-11-11)
 
-For reference, so a future session doesn't waste time investigating them: `Bolt Integration 170525`,
-`StudyHub LMS`, `E-commerce Prototype`, `E-commerce whitelable`, `E-commerce whitelable - superadmin`,
-`qa-drill`, `tehsil-platformasi`. Despite two of these having "E-commerce" in the name, neither
-matches this repo's schema — don't assume by name.
+`vercel.json` still points the storefront build at Supabase `pnzhfqgrlcmwjzcdduxh` and the API at
+`api-server-production-2fcc.up.railway.app`. Both are gone: the Supabase host does not resolve
+(NXDOMAIN), and Railway answers `404 Application not found`. Anything built from `vercel.json` today
+talks to nothing. Production has to be created, not repaired.
+
+Options checked against the Supabase docs on 2026-11-11 (org `xundotbndahfycorpuvt` is on the **Free**
+plan):
+
+- **Branching (test + prod inside one project)** exists, but only on the **Pro** plan. A persistent
+  branch is a separate database with its own URL and keys, starts with no data, and is billed as
+  extra compute (~$0.0134/h on Micro, about $10/month), not covered by compute credits or the spend
+  cap. The parent project is the one deployments target, and branches are built by replaying
+  `supabase/migrations/` — so the parent must have a clean migration history.
+- **Free plan is not fit for production**: projects pause after 7 days of low activity and backups
+  cannot be downloaded. Two active free projects per org.
+- **Cost is the same either way on Pro**: $25 plan + one Micro project covered by the $10 compute
+  credit; the second environment (project or persistent branch) is about $10/month more.
+
+Decision for this repo: **a new, separate production project**, with `ecommerce-warehouse` kept as
+the test/CI project. Reasons: `ecommerce-warehouse`'s migration history does not match the repo (see
+above), which makes it a poor branching parent; a separate project keeps CI's test data and the
+seeded admin user away from real customers; and branching adds nothing at the size of this product.
+Revisit branching only if per-PR preview databases become useful.
+
+**Postponed (2026-11-11, owner's decision):** no production and no Pro plan until development is
+mature and the product data is in hand. Until then everything runs on the Free `ecommerce-warehouse`.
+Consequences to keep in mind:
+
+- A Free project pauses after 7 days of low activity. Regular CI runs keep it awake; if it does
+  pause, CI fails until someone restores it from the dashboard.
+- A hosted test API (e.g. a new Railway project) is only worth creating when someone must use the
+  app away from a developer's machine — a customer demo, or M3's till on the shop's own device.
+  If one is created, the OTP test bypass (`+994550000001` / `999999`, an admin on this project) must
+  be off there, or anyone with the URL can sign in as admin.
+- Product data imported now goes into `ecommerce-warehouse`, so the import script must be re-runnable
+  against the future production project.
+
+Before production can be created, the schema needs one reproducible source: neither `schema.sql`
+nor `supabase/migrations/` alone rebuilds it (see above). The test project is the only database CI
+has proven end to end, so a schema-only dump of it is the practical baseline.
+
+## Other projects seen in this account
+
+As of 2026-11-11 the Supabase MCP lists only `ecommerce-warehouse`. Earlier sessions saw unrelated
+projects (`Bolt Integration 170525`, `StudyHub LMS`, `E-commerce Prototype`, `E-commerce whitelable`,
+`E-commerce whitelable - superadmin`, `qa-drill`, `tehsil-platformasi`); none matched this repo's
+schema — don't assume by name.
