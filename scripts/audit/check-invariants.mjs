@@ -224,6 +224,10 @@ checks.push(
         'order_items',
         'cart_items',
         'users',
+        'counter_sales',
+        'counter_sale_lines',
+        'bundles',
+        'bundle_lines',
       ]);
       const costColPat = /\b(unit_cost|cost_price|total_cost|additional_costs|cogs|supplier_price)\b/i;
       const hits = [];
