@@ -52,3 +52,18 @@ describe("security-definer-service-role-privileges", () => {
     expect(r.stdout).toMatch(/ok\s+security-definer-service-role-privileges\s+0 total/);
   });
 });
+
+describe("no-client-insert-policy-on-stock-movements", () => {
+  const policy = `CREATE POLICY "Movements: staff insert" ON public.stock_movements FOR INSERT WITH CHECK (true);\n`;
+
+  it("fails while a client INSERT policy is live", () => {
+    const r = run(policy);
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain('Policy "Movements: staff insert" allows client INSERT on stock_movements');
+  });
+
+  it("passes once a later migration drops it", () => {
+    const r = run(policy, `DROP POLICY IF EXISTS "Movements: staff insert" ON public.stock_movements;\n`);
+    expect(r.stdout).toMatch(/ok\s+no-client-insert-policy-on-stock-movements\s+0 total/);
+  });
+});

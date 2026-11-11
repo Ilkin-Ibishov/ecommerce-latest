@@ -52,6 +52,8 @@ async function walk(dir, out = []) {
 const rel = (f) => path.relative(ROOT, f).split(path.sep).join('/');
 const isCode = (f) => /\.(ts|tsx|js|mjs|cjs)$/.test(f);
 const isSql = (f) => /\.sql$/.test(f);
+// Migrations from M1 on (20261104...), whatever their exact timestamp.
+const isPostM1Migration = (r) => (/^supabase\/migrations\/(\d{14})/.exec(r)?.[1] ?? '') >= '20261104000000';
 
 /* ------------------------------------------------------------------ checks */
 
@@ -229,9 +231,7 @@ checks.push(
         if (!isSql(file)) continue;
         const r = rel(file);
         // Only inspect current schema.sql and migrations starting from M2a
-        const isPostM1Migration = /^supabase\/migrations\/20261104/.test(r);
-        const isCurrentSchema = r === 'supabase/schema.sql';
-        if (!isPostM1Migration && !isCurrentSchema) continue;
+        if (!isPostM1Migration(r) && r !== 'supabase/schema.sql') continue;
 
         text.split('\n').forEach((line, i) => {
           if (/^\s*--/.test(line)) return;
@@ -319,7 +319,7 @@ checks.push(
 
         // 1. Check migrations/schema: stocktakes and stocktake_lines tables must not contain snapshot or expected_quantity
         if (isSql(file)) {
-          if (!/^supabase\/migrations\/20261104/.test(r) && r !== 'supabase/schema.sql') continue;
+          if (!isPostM1Migration(r) && r !== 'supabase/schema.sql') continue;
           text.split('\n').forEach((line, i) => {
             if (/^\s*--/.test(line)) return;
             if (/\b(stocktakes|stocktake_lines)\b/i.test(line) && forbiddenPropPat.test(line)) {
@@ -352,7 +352,7 @@ checks.push(
     run: (files) => {
       // Migrations from M1 on, in apply order: a later migration may fix an earlier grant.
       const migs = files
-        .filter(({ file }) => isSql(file) && /^supabase\/migrations\/(\d{14})/.exec(rel(file))?.[1] >= '20261104000000')
+        .filter(({ file }) => isSql(file) && isPostM1Migration(rel(file)))
         .sort((a, b) => rel(a.file).localeCompare(rel(b.file)));
 
       const fnRe = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([\w.]+)\s*\(.*?\)\s*RETURNS\s+(\w+)(.*?)\$(\w*)\$(.*?)\$\4\$([^;]*);/gis;
@@ -405,6 +405,31 @@ checks.push(
         }
       }
       return hits;
+    },
+  },
+  {
+    id: 'no-client-insert-policy-on-stock-movements',
+    why: 'Every ledger write goes through Express or a definer function. An INSERT (or ALL) policy on stock_movements lets a client token forge movements through PostgREST.',
+    run: (files) => {
+      const migs = files
+        .filter(({ file }) => isSql(file) && /^supabase\/migrations\//.test(rel(file)))
+        .sort((a, b) => rel(a.file).localeCompare(rel(b.file)));
+      const createRe = /CREATE\s+POLICY\s+"([^"]+)"\s+ON\s+(?:public\.)?stock_movements\b([^;]*);/gi;
+      const dropRe = /DROP\s+POLICY\s+(?:IF\s+EXISTS\s+)?"([^"]+)"\s+ON\s+(?:public\.)?stock_movements\b/gi;
+      const live = new Map(); // policy name -> file that created it
+      for (const { file, text } of migs) {
+        const events = [
+          ...[...text.matchAll(createRe)].map((m) => ({ at: m.index, create: m })),
+          ...[...text.matchAll(dropRe)].map((m) => ({ at: m.index, drop: m })),
+        ].sort((a, b) => a.at - b.at);
+        for (const e of events) {
+          if (e.drop) { live.delete(e.drop[1]); continue; }
+          const [, name, rest] = e.create;
+          const cmd = /\bFOR\s+(\w+)/i.exec(rest)?.[1].toUpperCase() ?? 'ALL';
+          if (cmd === 'INSERT' || cmd === 'ALL') live.set(name, rel(file));
+        }
+      }
+      return [...live].map(([name, file]) => ({ file, line: 0, text: `Policy "${name}" allows client INSERT on stock_movements` }));
     },
   },
   {
