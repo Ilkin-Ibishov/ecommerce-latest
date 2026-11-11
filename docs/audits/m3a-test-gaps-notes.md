@@ -168,3 +168,24 @@ The diff touches exactly the files the prompt named. Reviewed every changed line
   - The serial file repeats the ledger test's `sale`/`post` helpers (about 25 lines). Sharing them
     is not worth a new helper module for two files.
 - **Not run locally:** integration, serial and E2E. They run in CI only.
+
+## Found by the first CI run (2026-11-11)
+
+The two `posted_after_count` tests that expect `true` got `false`. The tests are right; the test
+project was not.
+
+- No snapshot row was written, because `trg_capture_stocktake_line_snapshot` does not exist there.
+- A read-only comparison of every function the migrations define against `pg_proc` found exactly
+  two missing: that trigger function and `post_stocktake`.
+- The tables and columns from `20261104140000`, `20261104150000` and `20261104160000` are present.
+  Their functions and trigger are not.
+- So stocktake posting has never worked on the test project. No integration test calls
+  `post_stocktake`, which is why nothing caught it before.
+
+**Repair:** re-run those three migrations, in order and in one transaction, on the test project.
+- They are idempotent: `CREATE OR REPLACE`, `IF [NOT] EXISTS`, and the same `(uuid, uuid) RETURNS
+  void` signature throughout.
+- No code change is needed.
+
+**Still unverified:** the `post_stocktake` body has never run against the live schema. A
+`post_stocktake` integration test would show whether it hits schema drift, as the margin report did.
