@@ -1,11 +1,69 @@
 # Project status — handoff
 
-Last updated: 2026-11-10. Written as the entry point for a new session. Everything referenced here
+Last updated: 2026-11-11. Written as the entry point for a new session. Everything referenced here
 lives in this repository; nothing important is only in a chat transcript.
 
 ## Start here — first thing to do in a new session
 
-**CI is fully green for the first time ever.**
+**Nothing is in flight.**
+- No PR is open.
+- No CI run or AGY run is pending.
+- `main` is at `df05640` (PR #11), and CI is green on it.
+
+The next step depends on input from outside:
+- **If the customer has sent the product data:** build the import. See Open item 13.
+- **If the spec §16 answers have arrived:** decide on M3b. See "Next".
+- **Otherwise:** start with Open item 14, the `post_stocktake` integration test. It is the cheapest
+  way to find out whether stocktake posting works on a real database.
+
+Before trusting any database function on the test project, run this drift check. It lists every
+function the migrations define that does not exist live:
+
+```sql
+-- names: grep -ohiE "create (or replace )?function (public\.)?[a-z_0-9]+" supabase/migrations/*.sql
+select f from unnest(string_to_array('<comma-separated names>', ',')) f
+where not exists (select 1 from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+                  where n.nspname = 'public' and p.proname = f);
+```
+
+On 2026-11-11 it returned nothing, after the repair described below.
+
+### What changed on 2026-11-11
+
+All of this is merged on `main`:
+
+- **PR #5:** `antigravity-development` merged. `AGENTS.md` triage fix.
+- **PR #6:** the M3 spec.
+- **PR #7:** definer-function grants revoked from `anon` and `authenticated`. The grant invariant was
+  rewritten so it actually matches functions.
+- **PR #8:** `docs/knowledgebase/supabase-projects.md` records that no production project exists.
+  Production and Supabase Pro are postponed until development is mature and the product data is in.
+- **PR #9:** M3 prerequisites:
+  - `reservation` added as a reference type;
+  - online sales recompute cost;
+  - staff can no longer write the ledger directly.
+- **PR #10, M3a counter sale:**
+  - the till, sale list, receipt and bundle editor;
+  - the shared pricing package `lib/counter-pricing`;
+  - nine migrations `20261111120000`…`120800`.
+  - Details: `docs/audits/m3-implementation-notes.md`.
+  - Its first CI run found that `get_margin_report` had been broken since M2a, because the schema
+    keeps titles and categories elsewhere. Migration `20261111120800` fixes it.
+- **PR #11:** tests for the three M3a gaps:
+  - oversell with `allow_negative_stock`;
+  - `posted_after_count`;
+  - E2E of the counter screen at 1280 and 375 px.
+  - AGY wrote them and Claude audited them. See `docs/audits/m3a-test-gaps-notes.md`.
+  - The oversell test runs in its own vitest config (`api-serial`) and its own CI step, because the
+    setting is one global row.
+- **Test project repaired by hand (2026-11-11):** `post_stocktake` and
+  `trg_capture_stocktake_line_snapshot` had never been applied, although the tables and columns
+  from the same M2b migrations had. They were re-applied from `20261104140000` §1 and
+  `20261104160000`, and verified live.
+- **Fixture products:** they now sort last (`sort_order = 1000000`), so storefront E2E never opens
+  one first. Existing fixtures were updated live.
+
+### CI first fully green (2026-11-10)
 [Run 42864949947](https://github.com/Ilkin-Ibishov/ecommerce-latest/actions/runs/42864949947),
 2026-11-10, commit `611d40e` on `claude/davam-840a9f` (pushed): `unit` (661 tests, 57 files) and
 `integration-e2e` — component (54), API integration (1136 passed / 10 skipped, 103 files), and
@@ -79,8 +137,9 @@ decision (sub-bullet of item 5).
 
 ## State
 
-**M1, M2a, M2b and M2c are all complete and merged on `main`, together with the CI work
-(item 5).** `main` was fast-forwarded to `claude/davam-840a9f` (`c413d11`) and pushed to `origin`
+**M1, M2a, M2b, M2c and M3a are all complete and merged on `main`** (M3a on 2026-11-11, PR #10 and
+#11). M3b (offline queue) is not started and may not be needed (see "Next"). Before that, the CI
+work (item 5) landed with M2c: `main` was fast-forwarded to `claude/davam-840a9f` (`c413d11`) and pushed to `origin`
 on 2026-11-10.
 
 **Branches (2026-11-10):** two side branches were not yet in `main` — `antigravity-development`
@@ -129,19 +188,22 @@ alongside barcode entry) into that design note.
 
 **M3 spec written (2026-11-11):** `docs/tasks/warehouse-m3-counter-sale.md`, audited by a separate
 Opus pass in `docs/audits/m3-spec-audit.md` (verdict on the first draft: *needs rework*, 15 findings;
-14 fixed, 1 rejected in part — see the Resolution table there). Branch `spec/m3-counter-sale`.
-Next: the customer answers §16 of the spec, and the implementer writes the design note
-(`docs/design-notes/m3-counter-sale.md`) and stops for review. M3 is split into M3a (online counter)
-and M3b (offline queue); M3a merges first.
+14 fixed, 1 rejected in part — see the Resolution table there). Merged in PR #6. M3 is split into
+M3a (online counter, done) and M3b (offline queue, gated on spec §16).
 
-**M3a built (2026-11-11), branch `m3a/counter-sale`, awaiting CI and review.** Design note
-approved after its own Opus audit (`docs/audits/m3a-design-note-audit.md`, 12 findings, all
-addressed). Eight migrations applied by hand to the test project; till, sale list, receipt and
-bundle editor built; typecheck, 686 unit tests and strict invariants pass locally. Integration/E2E
-run only in CI. What is and is not verified: `docs/audits/m3-implementation-notes.md`. Next after
-merge: the customer's answers (spec §16), especially §16.5, decide whether M3b is built at all.
+**M3a merged (2026-11-11), PR #10 and #11, with CI green.**
+- The design note was approved after its own Opus audit (`docs/audits/m3a-design-note-audit.md`,
+  12 findings, all addressed).
+- All nine migrations are applied on the test project.
+- Every gap listed in `docs/audits/m3-implementation-notes.md` now has a test.
 
-**Security — found by the M3 spec work, not yet fixed (spec §12, first commits of M3):**
+The next decision is the customer's: their answers to spec §16, especially §16.5, decide whether
+M3b (offline queue) is built at all. The customer questions were sent to the user to forward. Do not
+start M3b before those answers arrive.
+
+**Security, found by the M3 spec work: FIXED (PR #7 and #9, 2026-11-11).** The grants were revoked
+from `anon` and `authenticated`. The invariant now matches functions and tracks grants across
+migrations, and `reservation` is allowed as a reference type. Original finding:
 `decrement_order_stock` and `fulfil_reservation` were very likely callable through PostgREST by
 `anon` and every shopper (M2c revoked only `FROM public`; Supabase grants `anon`/`authenticated`
 directly). Confirm read-only with `has_function_privilege('anon',
@@ -326,6 +388,22 @@ real database (`reference_type = 'reservation'` violates the CHECK).
     and **is applied on the test project** (`jcvsnoiacrknzejouxah` — table, RLS, both policies and
     `trg_banners_updated_at` verified live 2026-11-10). Still open: it is not tenant-scoped, unlike
     the tables around it (AGENTS.md conventions) — decide before any production deploy.
+13. **Product data import.** The customer will send the product data.
+    - Write a re-runnable import script into the test project (`jcvsnoiacrknzejouxah`).
+    - Stock must enter through an opening stocktake (`post_stocktake` with `is_opening_count`),
+      never as direct `on_hand` writes.
+    - Do item 14 first, so the opening count path is known to work.
+14. **`post_stocktake` has never run against a real database.** It was missing from the test
+    project until 2026-11-11, and no integration test calls it. Write one: a draft stocktake, lines,
+    post, then the movements and the cost rows. It may hit schema drift, as the margin report did.
+15. **Reservation creation can over-reserve** (M2c, design note finding 8). Outside M3a, not yet
+    fixed.
+16. **`requireStaffOrAdmin` is copied in six M2 route files.** Only M3 routes use the shared
+    `middlewares/requireStaffOrAdmin.ts`. This is small debt.
+17. **Production is postponed on purpose** (see `docs/knowledgebase/supabase-projects.md`). There
+    is no production Supabase project. Supabase Pro (for branching) will be bought once
+    development is mature and the product data is in. If a separate test environment is needed
+    before then, create a new Railway project.
 12. **RESOLVED (2026-11-10).** `AGENTS.md`'s new triage step (from `antigravity-development`)
     contradicted the unconditional design-note gate. Resolved in `AGENTS.md`: phase work from a
     spec, or anything architectural, always goes through the design-note gate; only simple tasks
@@ -340,7 +418,32 @@ Agents run headless through `scripts\agent\run-agent.cmd <prompt> [model] [effor
 log under `.agent-runs/` and a completion marker to `.agent-runs/LAST-RUN.done` (`exit|prompt|log`).
 
 `scripts/audit/check-invariants.mjs` encodes architectural invariants as executable checks and runs
-in CI. Every audit finding that can be expressed mechanically should become one. There are 14.
+in CI. Every audit finding that can be expressed mechanically should become one. There are 15.
+
+### Operational gotchas found on 2026-11-11
+
+- **The harness refuses database writes and DDL,** even after the user has approved them in chat.
+  This covers Supabase MCP `execute_sql` and `apply_migration` on the test project: it was declined
+  twice in a row. Read-only `execute_sql` works.
+  - Working pattern: put the SQL in a scratch file, the user runs it in the SQL Editor, then verify
+    it read-only.
+  - Never retry a declined write.
+- **The test project can be partially migrated.** Tables and columns from a migration can be
+  present while its functions and triggers are not. M2a, M2b and the margin report all showed
+  this. Run the drift check at the top of this file before blaming code.
+- **GitHub auto-merge is disabled for this repository.** `ccd_pr set_auto_merge` fails. To merge
+  when CI is green, wait with `gh run watch <id> --exit-status` in the background, check
+  `gh pr checks`, then merge.
+- **Global settings in tests:** `site_settings` is one row.
+  - Any test that flips it goes under `artifacts/api-server/tests/serial/`, which `api-integration`
+    excludes. It runs in the CI step "Run serial integration tests" via
+    `vitest.config.serial.ts`.
+  - The serial config is deliberately not in `vitest.workspace.ts`: `pnpm test` would run it in
+    parallel with everything else.
+- **Fixtures are permanent** (the ledger is append-only). `tests/helpers/stocked-variant.ts` gives
+  every fixture an az title and `sort_order = 1000000`. Keep that in any new fixture helper.
+- **Playwright `getByText("2")` is a substring match.** On rows with timestamped fixture titles it
+  matches several elements and fails in strict mode. Target the element instead.
 
 ### Model quota — read before planning an audit
 
