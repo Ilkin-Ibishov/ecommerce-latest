@@ -229,6 +229,12 @@ nowhere else.
 
 ## 12. Carried forward — land these first, each its own migration and commit
 
+> **Status 2026-11-11: landed** in #7 (item 2, verified live) and #9 (items 1, 3, 4, 5, 6), applied
+> to the test project and green in CI, including an end-to-end `fulfil_reservation` integration test.
+> Two parts move into M3's own migrations because they name things M3 creates: `counter_sale` in
+> `stock_movements_reference_type_check` (item 1), and the four new tables in `STAFF_TABLES`
+> (item 3). §17 step 2 is therefore done; the design note starts from step 3.
+
 Found while writing and auditing this spec. None was found by running SQL; `fulfil_reservation` has no
 integration test. Before the migration for item 2, a human confirms read-only on the test project with
 `has_function_privilege('anon', 'public.decrement_order_stock(uuid,jsonb,uuid)', 'EXECUTE')`.
