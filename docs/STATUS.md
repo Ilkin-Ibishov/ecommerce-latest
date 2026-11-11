@@ -134,6 +134,13 @@ Next: the customer answers §16 of the spec, and the implementer writes the desi
 (`docs/design-notes/m3-counter-sale.md`) and stops for review. M3 is split into M3a (online counter)
 and M3b (offline queue); M3a merges first.
 
+**M3a built (2026-11-11), branch `m3a/counter-sale`, awaiting CI and review.** Design note
+approved after its own Opus audit (`docs/audits/m3a-design-note-audit.md`, 12 findings, all
+addressed). Eight migrations applied by hand to the test project; till, sale list, receipt and
+bundle editor built; typecheck, 686 unit tests and strict invariants pass locally. Integration/E2E
+run only in CI. What is and is not verified: `docs/audits/m3-implementation-notes.md`. Next after
+merge: the customer's answers (spec §16), especially §16.5, decide whether M3b is built at all.
+
 **Security — found by the M3 spec work, not yet fixed (spec §12, first commits of M3):**
 `decrement_order_stock` and `fulfil_reservation` were very likely callable through PostgREST by
 `anon` and every shopper (M2c revoked only `FROM public`; Supabase grants `anon`/`authenticated`
