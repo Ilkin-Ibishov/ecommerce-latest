@@ -42,6 +42,7 @@ import type {
   GoodsReceiptReverseInput,
   HealthStatus,
   ListAgedReservationsParams,
+  ListBundles200Item,
   ListCounterBundles200,
   ListCounterFlagged200,
   ListCounterSales200,
@@ -3437,6 +3438,83 @@ export function useListCounterFlagged<TData = Awaited<ReturnType<typeof listCoun
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getListCounterFlaggedQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListBundlesUrl = () => {
+
+
+
+
+  return `/api/admin/bundles`
+}
+
+/**
+ * @summary All bundles including inactive (owner only)
+ */
+export const listBundles = async ( options?: RequestInit): Promise<ListBundles200Item[]> => {
+
+  return customFetch<ListBundles200Item[]>(getListBundlesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBundlesQueryKey = () => {
+    return [
+    `/api/admin/bundles`
+    ] as const;
+    }
+
+
+export const getListBundlesQueryOptions = <TData = Awaited<ReturnType<typeof listBundles>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBundles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBundlesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBundles>>> = ({ signal }) => listBundles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBundles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBundlesQueryResult = NonNullable<Awaited<ReturnType<typeof listBundles>>>
+export type ListBundlesQueryError = ErrorType<void>
+
+
+/**
+ * @summary All bundles including inactive (owner only)
+ */
+
+export function useListBundles<TData = Awaited<ReturnType<typeof listBundles>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBundles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBundlesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

@@ -18,6 +18,9 @@ import margins from "./margins";
 import stocktakes from "./stocktakes";
 import stocktakeLines from "./stocktake-lines";
 import reservations from "./reservations";
+import counterLookup from "./counter-lookup";
+import counterSales from "./counter-sales";
+import bundles from "./bundles";
 
 const router: IRouter = Router();
 
@@ -50,5 +53,8 @@ router.use(margins);
 router.use(stocktakes);
 router.use(stocktakeLines);
 router.use(reservations);
+router.use(counterLookup);
+router.use(counterSales);
+router.use(bundles);
 
 export default router;

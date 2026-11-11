@@ -32,6 +32,7 @@ export * from './goodsReceiptReverseInput';
 export * from './goodsReceiptStatus';
 export * from './healthStatus';
 export * from './listAgedReservationsParams';
+export * from './listBundles200Item';
 export * from './listCounterBundles200';
 export * from './listCounterFlagged200';
 export * from './listCounterSales200';

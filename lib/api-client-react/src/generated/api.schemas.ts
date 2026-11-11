@@ -532,6 +532,8 @@ export type PostPendingCounterSale200 = { [key: string]: unknown };
 
 export type ListCounterFlagged200 = { [key: string]: unknown };
 
+export type ListBundles200Item = { [key: string]: unknown };
+
 export type CreateBundle201 = { [key: string]: unknown };
 
 export type UpdateBundle200 = { [key: string]: unknown };

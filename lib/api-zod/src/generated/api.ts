@@ -1096,6 +1096,13 @@ export const ListCounterFlaggedResponse = zod.record(zod.string(), zod.unknown()
 
 
 /**
+ * @summary All bundles including inactive (owner only)
+ */
+export const ListBundlesResponseItem = zod.record(zod.string(), zod.unknown())
+export const ListBundlesResponse = zod.array(ListBundlesResponseItem)
+
+
+/**
  * @summary Create a bundle (owner only)
  */
 export const createBundleBodyNameMax = 200;
