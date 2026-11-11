@@ -22,10 +22,16 @@ import type {
 import type {
   AddStocktakeLineRequest,
   BarcodeScanResult,
+  BundleRequest,
+  CounterLookup200,
+  CounterLookupParams,
+  CreateBundle201,
   CreateReservationRequest,
   CreateStocktakeRequest,
+  DeleteBundle200,
   ErrorResponse,
   FulfilReservationRequest,
+  GetCounterSale200,
   GetMarginReportParams,
   GoodsReceipt,
   GoodsReceiptInput,
@@ -36,10 +42,17 @@ import type {
   GoodsReceiptReverseInput,
   HealthStatus,
   ListAgedReservationsParams,
+  ListBundles200Item,
+  ListCounterBundles200,
+  ListCounterFlagged200,
+  ListCounterSales200,
   ListGoodsReceiptsParams,
   ListReservationsParams,
   ListStocktakesParams,
   MarginReportResponse,
+  PostCounterSale201,
+  PostCounterSaleRequest,
+  PostPendingCounterSale200,
   RecordReservationPaymentRequest,
   ReleaseReservationRequest,
   Reservation,
@@ -54,9 +67,12 @@ import type {
   Supplier,
   SupplierInput,
   SupplierList,
+  UpdateBundle200,
   UpdateReservationPriceRequest,
   UpdateStocktakeLineRequest,
-  UpdateStocktakeRequest
+  UpdateStocktakeRequest,
+  VoidCounterSale200,
+  VoidCounterSaleRequest
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -2827,5 +2843,900 @@ export const useUpdateReservationPrice = <TError = ErrorType<ErrorResponse | voi
         TContext
       > => {
       return useMutation(getUpdateReservationPriceMutationOptions(options));
+    }
+
+export const getCounterLookupUrl = (params: CounterLookupParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/admin/counter/lookup?${stringifiedParams}` : `/api/admin/counter/lookup`
+}
+
+/**
+ * @summary Find variants by exact barcode, else by name or SKU (staff)
+ */
+export const counterLookup = async (params: CounterLookupParams, options?: RequestInit): Promise<CounterLookup200> => {
+
+  return customFetch<CounterLookup200>(getCounterLookupUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getCounterLookupQueryKey = (params?: CounterLookupParams,) => {
+    return [
+    `/api/admin/counter/lookup`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getCounterLookupQueryOptions = <TData = Awaited<ReturnType<typeof counterLookup>>, TError = ErrorType<ErrorResponse | void>>(params: CounterLookupParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof counterLookup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getCounterLookupQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof counterLookup>>> = ({ signal }) => counterLookup(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof counterLookup>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type CounterLookupQueryResult = NonNullable<Awaited<ReturnType<typeof counterLookup>>>
+export type CounterLookupQueryError = ErrorType<ErrorResponse | void>
+
+
+/**
+ * @summary Find variants by exact barcode, else by name or SKU (staff)
+ */
+
+export function useCounterLookup<TData = Awaited<ReturnType<typeof counterLookup>>, TError = ErrorType<ErrorResponse | void>>(
+ params: CounterLookupParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof counterLookup>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getCounterLookupQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListCounterBundlesUrl = () => {
+
+
+
+
+  return `/api/admin/counter/bundles`
+}
+
+/**
+ * @summary Active bundles with their lines (staff)
+ */
+export const listCounterBundles = async ( options?: RequestInit): Promise<ListCounterBundles200> => {
+
+  return customFetch<ListCounterBundles200>(getListCounterBundlesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCounterBundlesQueryKey = () => {
+    return [
+    `/api/admin/counter/bundles`
+    ] as const;
+    }
+
+
+export const getListCounterBundlesQueryOptions = <TData = Awaited<ReturnType<typeof listCounterBundles>>, TError = ErrorType<ErrorResponse | void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCounterBundles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCounterBundlesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCounterBundles>>> = ({ signal }) => listCounterBundles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCounterBundles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCounterBundlesQueryResult = NonNullable<Awaited<ReturnType<typeof listCounterBundles>>>
+export type ListCounterBundlesQueryError = ErrorType<ErrorResponse | void>
+
+
+/**
+ * @summary Active bundles with their lines (staff)
+ */
+
+export function useListCounterBundles<TData = Awaited<ReturnType<typeof listCounterBundles>>, TError = ErrorType<ErrorResponse | void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCounterBundles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCounterBundlesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListCounterSalesUrl = () => {
+
+
+
+
+  return `/api/admin/counter/sales`
+}
+
+/**
+ * @summary List counter sales; flags only for the owner
+ */
+export const listCounterSales = async ( options?: RequestInit): Promise<ListCounterSales200> => {
+
+  return customFetch<ListCounterSales200>(getListCounterSalesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCounterSalesQueryKey = () => {
+    return [
+    `/api/admin/counter/sales`
+    ] as const;
+    }
+
+
+export const getListCounterSalesQueryOptions = <TData = Awaited<ReturnType<typeof listCounterSales>>, TError = ErrorType<ErrorResponse | void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCounterSales>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCounterSalesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCounterSales>>> = ({ signal }) => listCounterSales({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCounterSales>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCounterSalesQueryResult = NonNullable<Awaited<ReturnType<typeof listCounterSales>>>
+export type ListCounterSalesQueryError = ErrorType<ErrorResponse | void>
+
+
+/**
+ * @summary List counter sales; flags only for the owner
+ */
+
+export function useListCounterSales<TData = Awaited<ReturnType<typeof listCounterSales>>, TError = ErrorType<ErrorResponse | void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCounterSales>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCounterSalesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getPostCounterSaleUrl = () => {
+
+
+
+
+  return `/api/admin/counter/sales`
+}
+
+/**
+ * @summary Post a counter sale (idempotent by id)
+ */
+export const postCounterSale = async (postCounterSaleRequest: PostCounterSaleRequest, options?: RequestInit): Promise<PostCounterSale201> => {
+
+  return customFetch<PostCounterSale201>(getPostCounterSaleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      postCounterSaleRequest,)
+  }
+);}
+
+
+
+
+export const getPostCounterSaleMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postCounterSale>>, TError,{data: BodyType<PostCounterSaleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postCounterSale>>, TError,{data: BodyType<PostCounterSaleRequest>}, TContext> => {
+
+const mutationKey = ['postCounterSale'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postCounterSale>>, {data: BodyType<PostCounterSaleRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  postCounterSale(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostCounterSaleMutationResult = NonNullable<Awaited<ReturnType<typeof postCounterSale>>>
+    export type PostCounterSaleMutationBody = BodyType<PostCounterSaleRequest>
+    export type PostCounterSaleMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Post a counter sale (idempotent by id)
+ */
+export const usePostCounterSale = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postCounterSale>>, TError,{data: BodyType<PostCounterSaleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postCounterSale>>,
+        TError,
+        {data: BodyType<PostCounterSaleRequest>},
+        TContext
+      > => {
+      return useMutation(getPostCounterSaleMutationOptions(options));
+    }
+
+export const getGetCounterSaleUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/counter/sales/${id}`
+}
+
+/**
+ * @summary Get one counter sale with lines
+ */
+export const getCounterSale = async (id: string, options?: RequestInit): Promise<GetCounterSale200> => {
+
+  return customFetch<GetCounterSale200>(getGetCounterSaleUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetCounterSaleQueryKey = (id: string,) => {
+    return [
+    `/api/admin/counter/sales/${id}`
+    ] as const;
+    }
+
+
+export const getGetCounterSaleQueryOptions = <TData = Awaited<ReturnType<typeof getCounterSale>>, TError = ErrorType<ErrorResponse | void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCounterSale>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetCounterSaleQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getCounterSale>>> = ({ signal }) => getCounterSale(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getCounterSale>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetCounterSaleQueryResult = NonNullable<Awaited<ReturnType<typeof getCounterSale>>>
+export type GetCounterSaleQueryError = ErrorType<ErrorResponse | void>
+
+
+/**
+ * @summary Get one counter sale with lines
+ */
+
+export function useGetCounterSale<TData = Awaited<ReturnType<typeof getCounterSale>>, TError = ErrorType<ErrorResponse | void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getCounterSale>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetCounterSaleQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getVoidCounterSaleUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/counter/sales/${id}/void`
+}
+
+/**
+ * @summary Void a counter sale (owner only)
+ */
+export const voidCounterSale = async (id: string,
+    voidCounterSaleRequest: VoidCounterSaleRequest, options?: RequestInit): Promise<VoidCounterSale200> => {
+
+  return customFetch<VoidCounterSale200>(getVoidCounterSaleUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      voidCounterSaleRequest,)
+  }
+);}
+
+
+
+
+export const getVoidCounterSaleMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voidCounterSale>>, TError,{id: string;data: BodyType<VoidCounterSaleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof voidCounterSale>>, TError,{id: string;data: BodyType<VoidCounterSaleRequest>}, TContext> => {
+
+const mutationKey = ['voidCounterSale'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof voidCounterSale>>, {id: string;data: BodyType<VoidCounterSaleRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  voidCounterSale(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type VoidCounterSaleMutationResult = NonNullable<Awaited<ReturnType<typeof voidCounterSale>>>
+    export type VoidCounterSaleMutationBody = BodyType<VoidCounterSaleRequest>
+    export type VoidCounterSaleMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Void a counter sale (owner only)
+ */
+export const useVoidCounterSale = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof voidCounterSale>>, TError,{id: string;data: BodyType<VoidCounterSaleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof voidCounterSale>>,
+        TError,
+        {id: string;data: BodyType<VoidCounterSaleRequest>},
+        TContext
+      > => {
+      return useMutation(getVoidCounterSaleMutationOptions(options));
+    }
+
+export const getPostPendingCounterSaleUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/counter/sales/${id}/post-pending`
+}
+
+/**
+ * @summary Post a needs_owner sale after fixing stock (owner only)
+ */
+export const postPendingCounterSale = async (id: string, options?: RequestInit): Promise<PostPendingCounterSale200> => {
+
+  return customFetch<PostPendingCounterSale200>(getPostPendingCounterSaleUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+export const getPostPendingCounterSaleMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPendingCounterSale>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof postPendingCounterSale>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['postPendingCounterSale'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof postPendingCounterSale>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  postPendingCounterSale(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PostPendingCounterSaleMutationResult = NonNullable<Awaited<ReturnType<typeof postPendingCounterSale>>>
+
+    export type PostPendingCounterSaleMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Post a needs_owner sale after fixing stock (owner only)
+ */
+export const usePostPendingCounterSale = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof postPendingCounterSale>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof postPendingCounterSale>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getPostPendingCounterSaleMutationOptions(options));
+    }
+
+export const getListCounterFlaggedUrl = () => {
+
+
+
+
+  return `/api/admin/counter/flagged`
+}
+
+/**
+ * @summary Flagged lines and needs_owner sales (owner only)
+ */
+export const listCounterFlagged = async ( options?: RequestInit): Promise<ListCounterFlagged200> => {
+
+  return customFetch<ListCounterFlagged200>(getListCounterFlaggedUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListCounterFlaggedQueryKey = () => {
+    return [
+    `/api/admin/counter/flagged`
+    ] as const;
+    }
+
+
+export const getListCounterFlaggedQueryOptions = <TData = Awaited<ReturnType<typeof listCounterFlagged>>, TError = ErrorType<ErrorResponse | void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCounterFlagged>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListCounterFlaggedQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listCounterFlagged>>> = ({ signal }) => listCounterFlagged({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listCounterFlagged>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListCounterFlaggedQueryResult = NonNullable<Awaited<ReturnType<typeof listCounterFlagged>>>
+export type ListCounterFlaggedQueryError = ErrorType<ErrorResponse | void>
+
+
+/**
+ * @summary Flagged lines and needs_owner sales (owner only)
+ */
+
+export function useListCounterFlagged<TData = Awaited<ReturnType<typeof listCounterFlagged>>, TError = ErrorType<ErrorResponse | void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listCounterFlagged>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListCounterFlaggedQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getListBundlesUrl = () => {
+
+
+
+
+  return `/api/admin/bundles`
+}
+
+/**
+ * @summary All bundles including inactive (owner only)
+ */
+export const listBundles = async ( options?: RequestInit): Promise<ListBundles200Item[]> => {
+
+  return customFetch<ListBundles200Item[]>(getListBundlesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBundlesQueryKey = () => {
+    return [
+    `/api/admin/bundles`
+    ] as const;
+    }
+
+
+export const getListBundlesQueryOptions = <TData = Awaited<ReturnType<typeof listBundles>>, TError = ErrorType<void>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBundles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBundlesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBundles>>> = ({ signal }) => listBundles({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBundles>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBundlesQueryResult = NonNullable<Awaited<ReturnType<typeof listBundles>>>
+export type ListBundlesQueryError = ErrorType<void>
+
+
+/**
+ * @summary All bundles including inactive (owner only)
+ */
+
+export function useListBundles<TData = Awaited<ReturnType<typeof listBundles>>, TError = ErrorType<void>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBundles>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBundlesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getCreateBundleUrl = () => {
+
+
+
+
+  return `/api/admin/bundles`
+}
+
+/**
+ * @summary Create a bundle (owner only)
+ */
+export const createBundle = async (bundleRequest: BundleRequest, options?: RequestInit): Promise<CreateBundle201> => {
+
+  return customFetch<CreateBundle201>(getCreateBundleUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bundleRequest,)
+  }
+);}
+
+
+
+
+export const getCreateBundleMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBundle>>, TError,{data: BodyType<BundleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBundle>>, TError,{data: BodyType<BundleRequest>}, TContext> => {
+
+const mutationKey = ['createBundle'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBundle>>, {data: BodyType<BundleRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBundle(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBundleMutationResult = NonNullable<Awaited<ReturnType<typeof createBundle>>>
+    export type CreateBundleMutationBody = BodyType<BundleRequest>
+    export type CreateBundleMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Create a bundle (owner only)
+ */
+export const useCreateBundle = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBundle>>, TError,{data: BodyType<BundleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBundle>>,
+        TError,
+        {data: BodyType<BundleRequest>},
+        TContext
+      > => {
+      return useMutation(getCreateBundleMutationOptions(options));
+    }
+
+export const getUpdateBundleUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/bundles/${id}`
+}
+
+/**
+ * @summary Replace a bundle's fields and lines (owner only)
+ */
+export const updateBundle = async (id: string,
+    bundleRequest: BundleRequest, options?: RequestInit): Promise<UpdateBundle200> => {
+
+  return customFetch<UpdateBundle200>(getUpdateBundleUrl(id),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      bundleRequest,)
+  }
+);}
+
+
+
+
+export const getUpdateBundleMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBundle>>, TError,{id: string;data: BodyType<BundleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBundle>>, TError,{id: string;data: BodyType<BundleRequest>}, TContext> => {
+
+const mutationKey = ['updateBundle'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBundle>>, {id: string;data: BodyType<BundleRequest>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  updateBundle(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBundleMutationResult = NonNullable<Awaited<ReturnType<typeof updateBundle>>>
+    export type UpdateBundleMutationBody = BodyType<BundleRequest>
+    export type UpdateBundleMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Replace a bundle's fields and lines (owner only)
+ */
+export const useUpdateBundle = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBundle>>, TError,{id: string;data: BodyType<BundleRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBundle>>,
+        TError,
+        {id: string;data: BodyType<BundleRequest>},
+        TContext
+      > => {
+      return useMutation(getUpdateBundleMutationOptions(options));
+    }
+
+export const getDeleteBundleUrl = (id: string,) => {
+
+
+
+
+  return `/api/admin/bundles/${id}`
+}
+
+/**
+ * @summary Deactivate a bundle (owner only)
+ */
+export const deleteBundle = async (id: string, options?: RequestInit): Promise<DeleteBundle200> => {
+
+  return customFetch<DeleteBundle200>(getDeleteBundleUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+export const getDeleteBundleMutationOptions = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBundle>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteBundle>>, TError,{id: string}, TContext> => {
+
+const mutationKey = ['deleteBundle'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBundle>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deleteBundle(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteBundleMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBundle>>>
+
+    export type DeleteBundleMutationError = ErrorType<ErrorResponse | void>
+
+    /**
+ * @summary Deactivate a bundle (owner only)
+ */
+export const useDeleteBundle = <TError = ErrorType<ErrorResponse | void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBundle>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteBundle>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+      return useMutation(getDeleteBundleMutationOptions(options));
     }
 

@@ -147,6 +147,21 @@ const EXPECTED_ROUTES = [
   "POST /admin/reservations/:id/fulfil",
   "POST /admin/reservations/:id/release",
   "PATCH /admin/reservations/:id/price",
+  // counter-lookup.ts (M3a)
+  "GET /admin/counter/lookup",
+  "GET /admin/counter/bundles",
+  // counter-sales.ts (M3a)
+  "POST /admin/counter/sales",
+  "GET /admin/counter/sales",
+  "GET /admin/counter/sales/:id",
+  "POST /admin/counter/sales/:id/void",
+  "POST /admin/counter/sales/:id/post-pending",
+  "GET /admin/counter/flagged",
+  // bundles.ts (M3a)
+  "GET /admin/bundles",
+  "POST /admin/bundles",
+  "PUT /admin/bundles/:id",
+  "DELETE /admin/bundles/:id",
 ] as const;
 
 describe("admin router registration parity (R9.4, design §13)", () => {

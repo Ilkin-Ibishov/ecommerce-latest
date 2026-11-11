@@ -5,6 +5,74 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+export type PostCounterSaleRequestPaymentMethod = typeof PostCounterSaleRequestPaymentMethod[keyof typeof PostCounterSaleRequestPaymentMethod];
+
+
+export const PostCounterSaleRequestPaymentMethod = {
+  cash: 'cash',
+  card: 'card',
+  other: 'other',
+} as const;
+
+export type PostCounterSaleRequestLinesItem = {
+  variant_id: string;
+  /**
+     * @minimum 1
+     * @maximum 10000
+     */
+  quantity: number;
+  /** @minimum 0 */
+  charged_unit_price: number;
+  bundle_id?: string | null;
+};
+
+export interface PostCounterSaleRequest {
+  id: string;
+  sold_at: string;
+  payment_method: PostCounterSaleRequestPaymentMethod;
+  /** @maxLength 500 */
+  note?: string;
+  /** @minimum 0 */
+  owner_discount?: number;
+  /** @minimum 0 */
+  displayed_total: number;
+  /**
+     * @minItems 1
+     * @maxItems 200
+     */
+  lines: PostCounterSaleRequestLinesItem[];
+}
+
+export interface VoidCounterSaleRequest {
+  /**
+     * @minLength 1
+     * @maxLength 500
+     */
+  reason: string;
+}
+
+export type BundleRequestLinesItem = {
+  variant_id: string;
+  /** @minimum 1 */
+  quantity: number;
+};
+
+export interface BundleRequest {
+  /**
+     * @minLength 1
+     * @maxLength 200
+     */
+  name: string;
+  /** @minimum 0 */
+  bundle_price?: number | null;
+  is_active?: boolean;
+  /**
+     * @minItems 1
+     * @maxItems 50
+     */
+  lines: BundleRequestLinesItem[];
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -439,4 +507,36 @@ variant_id?: string;
 export type ListAgedReservationsParams = {
 days?: number;
 };
+
+export type CounterLookupParams = {
+/**
+ * @minLength 1
+ * @maxLength 100
+ */
+q: string;
+};
+
+export type CounterLookup200 = { [key: string]: unknown };
+
+export type ListCounterBundles200 = { [key: string]: unknown };
+
+export type ListCounterSales200 = { [key: string]: unknown };
+
+export type PostCounterSale201 = { [key: string]: unknown };
+
+export type GetCounterSale200 = { [key: string]: unknown };
+
+export type VoidCounterSale200 = { [key: string]: unknown };
+
+export type PostPendingCounterSale200 = { [key: string]: unknown };
+
+export type ListCounterFlagged200 = { [key: string]: unknown };
+
+export type ListBundles200Item = { [key: string]: unknown };
+
+export type CreateBundle201 = { [key: string]: unknown };
+
+export type UpdateBundle200 = { [key: string]: unknown };
+
+export type DeleteBundle200 = { [key: string]: unknown };
 

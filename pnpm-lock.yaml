@@ -196,6 +196,9 @@ importers:
       '@workspace/api-zod':
         specifier: workspace:*
         version: link:../../lib/api-zod
+      '@workspace/counter-pricing':
+        specifier: workspace:*
+        version: link:../../lib/counter-pricing
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
@@ -482,6 +485,9 @@ importers:
       '@supabase/supabase-js':
         specifier: ^2.105.4
         version: 2.105.4
+      '@workspace/counter-pricing':
+        specifier: workspace:*
+        version: link:../../lib/counter-pricing
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
@@ -741,6 +747,8 @@ importers:
       zod:
         specifier: 'catalog:'
         version: 3.25.76
+
+  lib/counter-pricing: {}
 
   lib/db:
     dependencies:

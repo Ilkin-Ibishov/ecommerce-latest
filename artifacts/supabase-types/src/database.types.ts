@@ -1771,6 +1771,274 @@ export type Database = {
           },
         ];
       };
+      // M3a (20261111120200/120300), generated from the live test project 2026-11-11
+      bundles: {
+        Row: {
+          bundle_price: number | null
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean
+          name: string
+          updated_at: string
+        }
+        Insert: {
+          bundle_price?: number | null
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean
+          name: string
+          updated_at?: string
+        }
+        Update: {
+          bundle_price?: number | null
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundles_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bundle_lines: {
+        Row: {
+          bundle_id: string
+          quantity: number
+          variant_id: string
+        }
+        Insert: {
+          bundle_id: string
+          quantity: number
+          variant_id: string
+        }
+        Update: {
+          bundle_id?: string
+          quantity?: number
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bundle_lines_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "bundles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bundle_lines_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variant_availability"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "bundle_lines_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variant_public_availability"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "bundle_lines_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      counter_sales: {
+        Row: {
+          bundle_discount: number
+          cashier_id: string
+          created_at: string
+          displayed_total: number
+          id: string
+          needs_owner_reason: string | null
+          note: string | null
+          owner_discount: number
+          payload_hash: string
+          payment_method: string
+          posted_by: string
+          posting_date: string
+          resolved_at: string | null
+          resolved_by: string | null
+          sale_number: number
+          sold_at: string
+          status: string
+          total_amount: number
+          total_mismatch: boolean
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          bundle_discount?: number
+          cashier_id: string
+          created_at?: string
+          displayed_total: number
+          id: string
+          needs_owner_reason?: string | null
+          note?: string | null
+          owner_discount?: number
+          payload_hash: string
+          payment_method: string
+          posted_by: string
+          posting_date: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sale_number?: number
+          sold_at: string
+          status: string
+          total_amount: number
+          total_mismatch?: boolean
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          bundle_discount?: number
+          cashier_id?: string
+          created_at?: string
+          displayed_total?: number
+          id?: string
+          needs_owner_reason?: string | null
+          note?: string | null
+          owner_discount?: number
+          payload_hash?: string
+          payment_method?: string
+          posted_by?: string
+          posting_date?: string
+          resolved_at?: string | null
+          resolved_by?: string | null
+          sale_number?: number
+          sold_at?: string
+          status?: string
+          total_amount?: number
+          total_mismatch?: boolean
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "counter_sales_cashier_id_fkey"
+            columns: ["cashier_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "counter_sales_posted_by_fkey"
+            columns: ["posted_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "counter_sales_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "counter_sales_voided_by_fkey"
+            columns: ["voided_by"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      counter_sale_lines: {
+        Row: {
+          bundle_id: string | null
+          charged_unit_price: number
+          line_no: number
+          list_unit_price: number
+          net_line_total: number
+          posted_after_count: boolean
+          price_mismatch: boolean
+          quantity: number
+          reservation_override: boolean
+          sale_id: string
+          variant_id: string
+        }
+        Insert: {
+          bundle_id?: string | null
+          charged_unit_price: number
+          line_no: number
+          list_unit_price: number
+          net_line_total: number
+          posted_after_count?: boolean
+          price_mismatch?: boolean
+          quantity: number
+          reservation_override?: boolean
+          sale_id: string
+          variant_id: string
+        }
+        Update: {
+          bundle_id?: string | null
+          charged_unit_price?: number
+          line_no?: number
+          list_unit_price?: number
+          net_line_total?: number
+          posted_after_count?: boolean
+          price_mismatch?: boolean
+          quantity?: number
+          reservation_override?: boolean
+          sale_id?: string
+          variant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "counter_sale_lines_bundle_id_fkey"
+            columns: ["bundle_id"]
+            isOneToOne: false
+            referencedRelation: "bundles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "counter_sale_lines_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "counter_sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "counter_sale_lines_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variant_availability"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "counter_sale_lines_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variant_public_availability"
+            referencedColumns: ["variant_id"]
+          },
+          {
+            foreignKeyName: "counter_sale_lines_variant_id_fkey"
+            columns: ["variant_id"]
+            isOneToOne: false
+            referencedRelation: "product_variants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     };
     Views: {
       product_variant_public_availability: {
@@ -1822,6 +2090,20 @@ export type Database = {
       };
     };
     Functions: {
+      // M3a (20261111120400-120600), generated from the live test project 2026-11-11
+      counter_sale_json: { Args: { p_id: string }; Returns: Json }
+      post_counter_sale: {
+        Args: { p_payload_hash: string; p_sale: Json; p_session_user: string }
+        Returns: Json
+      }
+      post_pending_counter_sale: {
+        Args: { p_id: string; p_session_user: string }
+        Returns: Json
+      }
+      void_counter_sale: {
+        Args: { p_id: string; p_reason: string; p_session_user: string }
+        Returns: Json
+      }
       fulfil_reservation: {
         Args: {
           p_actor_id: string;
