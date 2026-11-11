@@ -17,6 +17,7 @@ declare global {
     interface Request {
       user?: { id: string; [k: string]: unknown };
       admin?: SupabaseClient<Database>; // service-role client, attached by requireAdmin
+      userRole?: "admin" | "staff"; // attached by requireStaffOrAdmin
       authUser?: { id: string }; // attached by requireUser
       validatedBody?: unknown; // attached by validate()
       superAdmin?: { userId: string; sessionId: string }; // attached by requireSuperAdmin
