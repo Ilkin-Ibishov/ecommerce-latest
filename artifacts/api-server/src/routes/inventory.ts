@@ -402,7 +402,10 @@ router.post("/admin/stock/adjust", requireStaffOrAdmin, async (req: Request, res
   }
 
   const VALID_REASONS = [
-    "goods_receipt", "online_sale", "counter_sale", "customer_return",
+    // Sales are not accepted here: online sales go through decrement_order_stock,
+    // deposit pick-ups through fulfil_reservation, and the till (M3) through its own
+    // priced document. A bare adjustment would record a sale with no price.
+    "goods_receipt", "customer_return",
     "return_to_supplier", "damage_write_off", "stocktake_correction",
     "manual_adjustment", "opening_balance",
   ];
