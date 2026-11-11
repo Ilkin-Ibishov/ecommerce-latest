@@ -18,8 +18,11 @@ import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const BASELINE = path.join(ROOT, 'scripts', 'audit', 'baseline.json');
+const SCRIPT_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+// --root <dir> scans another tree (used by the fixture test); the baseline stays this repo's.
+const rootArg = process.argv.indexOf('--root');
+const ROOT = rootArg > -1 ? path.resolve(process.argv[rootArg + 1]) : SCRIPT_ROOT;
+const BASELINE = path.join(SCRIPT_ROOT, 'scripts', 'audit', 'baseline.json');
 
 const SKIP_DIRS = new Set([
   'node_modules', '.git', 'dist', 'build', '.next', 'coverage',
@@ -347,38 +350,58 @@ checks.push(
     id: 'security-definer-service-role-privileges',
     why: 'Service-role SECURITY DEFINER functions have no auth.uid() context so must not contain auth.uid/is_admin guards, and must enforce explicit REVOKE/GRANT privileges.',
     run: (files) => {
+      // Migrations from M1 on, in apply order: a later migration may fix an earlier grant.
+      const migs = files
+        .filter(({ file }) => isSql(file) && /^supabase\/migrations\/(\d{14})/.exec(rel(file))?.[1] >= '20261104000000')
+        .sort((a, b) => rel(a.file).localeCompare(rel(b.file)));
+
+      const fnRe = /CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+([\w.]+)\s*\(.*?\)\s*RETURNS\s+(\w+)(.*?)\$(\w*)\$(.*?)\$\4\$([^;]*);/gis;
+      const grantRe = /\b(GRANT|REVOKE)\s+EXECUTE\s+ON\s+FUNCTION\s+([\w.]+)\s*\(.*?\)\s+(?:TO|FROM)\s+([^;]+);/gis;
+
+      const definers = new Map(); // name -> file of last definition
+      // Supabase's default privileges grant EXECUTE on new public functions to anon and
+      // authenticated directly, so REVOKE ... FROM public alone removes nothing.
+      const roles = new Map(); // name -> Set of roles holding EXECUTE
       const hits = [];
-      for (const { file, text } of files) {
-        if (!isSql(file)) continue;
+
+      for (const { file, text } of migs) {
         const r = rel(file);
-        if (!/^supabase\/migrations\/20261104/.test(r)) continue;
+        // Statements in file order, so a REVOKE after a CREATE in the same file applies.
+        const events = [];
+        for (const m of text.matchAll(fnRe)) events.push({ at: m.index, fn: m });
+        for (const m of text.matchAll(grantRe)) events.push({ at: m.index, grant: m });
+        events.sort((a, b) => a.at - b.at);
 
-        const fnPattern = /CREATE\s+OR\s+REPLACE\s+FUNCTION\s+([\w.]+)\s*\(([^)]*)\)[\s\S]*?LANGUAGE\s+plpgsql\s+SECURITY\s+DEFINER[\s\S]*?\$\$(.*?)\$\$;/gi;
-        let match;
-        while ((match = fnPattern.exec(text)) !== null) {
-          const fnName = match[1].split('.').pop();
-          const fnBody = match[3];
-
-          // 1. Guard against auth.uid() or is_admin() in body
-          if (/\b(auth\.uid\(\)|is_admin\(\))\b/i.test(fnBody)) {
-            hits.push({
-              file: r,
-              line: 0,
-              text: `SECURITY DEFINER function "${fnName}" contains auth.uid() or is_admin() which fails when called via service role client`,
-            });
+        for (const e of events) {
+          if (e.fn) {
+            const [, qname, returns, pre, , body, post] = e.fn;
+            const name = qname.split('.').pop();
+            if (!/SECURITY\s+DEFINER/i.test(pre + post) || /^trigger$/i.test(returns)) continue;
+            definers.set(name, r);
+            if (!roles.has(name)) roles.set(name, new Set(['public', 'anon', 'authenticated']));
+            if (/\b(auth\.uid\(\)|is_admin\(\))/i.test(body)) {
+              hits.push({ file: r, line: 0, text: `SECURITY DEFINER function "${name}" contains auth.uid() or is_admin() which fails when called via service role client` });
+            }
+          } else {
+            const [, verb, qname, list] = e.grant;
+            const set = roles.get(qname.split('.').pop());
+            if (!set) continue;
+            for (const role of list.split(',').map((s) => s.trim().toLowerCase())) {
+              verb.toUpperCase() === 'GRANT' ? set.add(role) : set.delete(role);
+            }
           }
+        }
+      }
 
-          // 2. Guard against missing REVOKE/GRANT
-          const revokeRe = new RegExp(`REVOKE\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+[\\w.]*${fnName}\\b[\\s\\S]*?FROM\\s+[^;]*public`, 'i');
-          const grantRe = new RegExp(`GRANT\\s+EXECUTE\\s+ON\\s+FUNCTION\\s+[\\w.]*${fnName}\\b[\\s\\S]*?TO\\s+[^;]*service_role`, 'i');
-
-          if (!revokeRe.test(text) || !grantRe.test(text)) {
-            hits.push({
-              file: r,
-              line: 0,
-              text: `SECURITY DEFINER function "${fnName}" missing explicit REVOKE ... FROM public or GRANT ... TO service_role`,
-            });
-          }
+      for (const [name, file] of definers) {
+        const set = roles.get(name);
+        const open = ['public', 'anon', 'authenticated'].filter((role) => set.has(role));
+        if (open.length || !set.has('service_role')) {
+          hits.push({
+            file,
+            line: 0,
+            text: `SECURITY DEFINER function "${name}" ends with EXECUTE for ${open.join(', ') || 'no client role'}${set.has('service_role') ? '' : ', missing service_role'}; revoke FROM public, anon, authenticated and grant TO service_role`,
+          });
         }
       }
       return hits;
