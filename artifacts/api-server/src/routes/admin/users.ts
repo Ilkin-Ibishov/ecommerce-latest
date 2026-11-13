@@ -66,10 +66,11 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
     return res.status(400).json({ error: "Role must be staff or admin" });
   }
 
+  const authPhone = normalizedPhone.replace(/^\+/, "");
   const { data: existingUser, error: findErr } = await (ctx.admin as any)
     .from("users")
     .select("id, role, full_name")
-    .eq("phone", normalizedPhone)
+    .or(`phone.eq.${normalizedPhone},phone.eq.${authPhone}`)
     .maybeSingle();
 
   if (findErr) return res.status(500).json({ error: findErr.message });
@@ -79,7 +80,10 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
       return res.status(400).json({ error: "User already exists with staff or admin role" });
     }
 
-    const updatePayload: { role: string; full_name?: string } = { role };
+    const updatePayload: { role: string; full_name?: string; phone?: string } = {
+      role,
+      phone: normalizedPhone,
+    };
     if (typeof full_name === "string" && full_name.trim()) {
       updatePayload.full_name = full_name.trim();
     }
@@ -109,7 +113,6 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
   });
 
   if (createErr) {
-    const authPhone = normalizedPhone.replace(/^\+/, "");
     const listResult = await (ctx.admin as any).auth?.admin?.listUsers?.({ perPage: 1000 });
     const found = listResult?.data?.users?.find(
       (u: any) => u.phone === authPhone || u.phone === normalizedPhone,
@@ -127,8 +130,10 @@ router.post("/admin/users", requireAdmin, async (req, res) => {
     role,
   };
 
-  const { error: insertErr } = await (ctx.admin as any).from("users").insert(newUserData);
-  if (insertErr) return res.status(500).json({ error: insertErr.message });
+  const { error: upsertErr } = await (ctx.admin as any)
+    .from("users")
+    .upsert(newUserData, { onConflict: "id" });
+  if (upsertErr) return res.status(500).json({ error: upsertErr.message });
 
   writeAudit({
     admin: ctx.admin, req, actorId: ctx.user.id,
