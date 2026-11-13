@@ -195,24 +195,37 @@ certificate is not a product — it is a liability until redeemed, and bolting i
 touches the ledger, the receipt and the day-end reconciliation at once. Far better to know
 now and say "not in M3" deliberately than to discover it during M4.
 
-**If the answer is yes to the first:** the M4 shape is a variant with `track_stock = false` —
-it sells, appears on the receipt and earns revenue, but writes no stock movement. Note the
-cost honestly: this is a branch in the ledger path, which is the most dangerous place in
-this codebase to add one, and the ADR warns against exactly this kind of flag
-(`has_variants`). It needs an invariant asserting that no `track_stock = false` variant ever
-appears in `stock_movements`, written in the same commit.
+**If the answer is yes to the first:** the shape is a variant with `track_stock = false` — it
+sells, appears on the receipt and earns revenue, but writes no stock movement.
+
+**The column already exists** and is cheaper than it looks: `product_variants.track_stock`
+(boolean, NOT NULL, default true) was added in `20261103210000_m1_schema_additions.sql`,
+documented there as "false for services/made-to-order", and the inventory routes already read
+and write it.
+
+**But it is declared and not enforced.** `track_stock` appears nowhere in
+`20261102100000_m1_variants_ledger.sql` or `20261111120400_m3_post_counter_sale.sql`, so a
+`track_stock = false` variant today still goes through the ledger and still has its on-hand
+decremented — silently, with no error. That is a latent defect independent of §16.11: the
+flag can be set from the admin UI right now and does nothing.
+
+So the work is not "add a branch to the ledger path" — it is "make an existing flag mean
+what it says", which is smaller and must happen whether or not services are sold. It needs
+an invariant asserting no `track_stock = false` variant ever appears in `stock_movements`,
+written in the same commit, and a decision on what the counter does when one is scanned.
 
 **If the answer is yes to the second:** it is its own phase, not an M4 line item.
 
-## §16.1 — Accountant — **ASK, unchanged, and still the only one that cannot be defaulted**
+## §16.1 — Accountant — **ANSWERED (2026-11-13): confirming in writing**
 
-Everything above can ship on a default and be corrected cheaply. This one cannot: a receipt
-that is legally insufficient is discovered after go-live, by someone other than us.
+A plain, non-fiscal printed receipt is enough; the accountant is confirming in writing. §11
+stands as specified and M3's fiscal gate is closed for the build.
 
-Sharpen the ask to what changes the build: must the receipt carry a VÖEN, a shop address or
-any other named field, and is a non-fiscal printed receipt acceptable for a retail shop in
-Azerbaijan? §11 says any required fields are added to the receipt and nowhere else, so a
-written answer converts directly into one change.
+**One part still outstanding:** whether the receipt must carry named fields — VÖEN, shop
+address, anything else. §11 says required fields are added to the receipt and nowhere else,
+so a field list converts into exactly one change and blocks nothing before go-live. File the
+written answer under `docs/knowledgebase/` when it arrives; it is the kind of fact that is
+expensive to re-establish and must not live only in a chat.
 
 ---
 
@@ -225,9 +238,16 @@ written answer converts directly into one change.
 | `payment_method` column on `counter_sales` | **`counter_sale_payments` child table**, one row written |
 | Deposit pick-up records no payment | **Records one**, pending an M2c check |
 | §16.11 defaulted to "no" | **Re-ask**, split into services and gift certificates |
+| §16.1 gating M3 | **Closed** — plain receipt confirmed; only the field list is outstanding |
 
-Open for the customer: §16.1 (accountant, in writing) and §16.11 as reworded. Everything
+Open for the customer: §16.11 as reworded, and the receipt's required field list. Everything
 else ships on the decisions above.
+
+**Two latent defects found while answering these.** Neither is caused by §16; both were
+found by checking the code rather than trusting the spec, and both belong to the next phase:
+1. `product_variants.track_stock` exists and is never read by the ledger or counter path.
+2. `notifications.ts` declares a `low_stock` type that no branch handles, so such a
+   notification would be written and immediately marked `failed` with "unhandled type".
 
 ### Sources consulted
 Role-based POS permissions and discount caps: eposly.io, vitepos.com, koronapos.com,
