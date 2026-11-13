@@ -646,6 +646,57 @@ checks.push(
       return hits;
     },
   },
+  {
+    id: 'no-client-writes-on-counter-sale-payments',
+    why: 'counter_sale_payments is an append-only settlement ledger written only by service_role definer functions. No client token (anon or authenticated) may be granted INSERT, UPDATE, or DELETE privileges or policies.',
+    run: (files) => {
+      const migs = files
+        .filter(({ file }) => isSql(file) && /^supabase\/migrations\//.test(rel(file)))
+        .sort((a, b) => rel(a.file).localeCompare(rel(b.file)));
+
+      const hits = [];
+      const grantRe = /\bGRANT\s+([^;]+?)\s+ON\s+(?:TABLE\s+)?(?:public\.)?counter_sale_payments\b\s+TO\s+([^;]+);/gi;
+      const policyRe = /CREATE\s+POLICY\s+"([^"]+)"\s+ON\s+(?:public\.)?counter_sale_payments\b([^;]*);/gi;
+
+      for (const { file, text } of migs) {
+        const r = rel(file);
+        const clean = text.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+        // 1. Table privilege grants
+        for (const m of clean.matchAll(grantRe)) {
+          const privs = m[1].toUpperCase();
+          const targetRoles = m[2].toLowerCase();
+          const targetsClient = /\b(anon|authenticated|public)\b/.test(targetRoles);
+          const hasWritePriv = /\b(ALL|INSERT|UPDATE|DELETE)\b/.test(privs);
+          if (targetsClient && hasWritePriv) {
+            hits.push({
+              file: r,
+              line: 0,
+              text: `Migration grants ${privs.trim()} on counter_sale_payments to client role: ${m[2].trim()}`,
+            });
+          }
+        }
+
+        // 2. RLS policies
+        for (const m of clean.matchAll(policyRe)) {
+          const policyName = m[1];
+          const policyBody = m[2];
+          const cmd = /\bFOR\s+(\w+)/i.exec(policyBody)?.[1]?.toUpperCase() ?? 'ALL';
+          const toClause = /\bTO\s+([^;]+?)(?:\s+USING|\s+WITH\s+CHECK|$)/i.exec(policyBody)?.[1]?.toLowerCase() ?? 'public';
+          const targetsClient = /\b(anon|authenticated|public)\b/.test(toClause);
+          const isWrite = ['INSERT', 'UPDATE', 'DELETE', 'ALL'].includes(cmd);
+          if (targetsClient && isWrite) {
+            hits.push({
+              file: r,
+              line: 0,
+              text: `Policy "${policyName}" allows client ${cmd} on counter_sale_payments to ${toClause.trim()}`,
+            });
+          }
+        }
+      }
+      return hits;
+    },
+  },
 );
 
 /* ------------------------------------------------------------------- main */
