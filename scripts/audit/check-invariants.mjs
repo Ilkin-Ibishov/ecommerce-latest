@@ -739,6 +739,35 @@ checks.push(
       return [];
     },
   },
+  {
+    id: 'no-non-tracked-variant-movements',
+    why: 'Non-tracked variants (services, custom gift wrap) must never record movements in the ledger.',
+    run: (files) => {
+      const hits = [];
+      for (const { file, text } of files) {
+        if (!isSql(file)) continue;
+        const r = rel(file);
+        const isM4OrLater = (/^supabase\/migrations\/(\d{14})/.exec(r)?.[1] ?? '') >= '20261113220000';
+        if (!isM4OrLater) continue;
+        if (text.includes('FUNCTION trg_apply_stock_movement') && (!text.includes('track_stock') || !text.includes('ST030'))) {
+          hits.push({ file: r, line: 0, text: 'trg_apply_stock_movement must check track_stock and raise ST030' });
+        }
+        if (text.includes('FUNCTION public.post_counter_sale(') && !text.includes('track_stock = true')) {
+          hits.push({ file: r, line: 0, text: 'post_counter_sale must filter track_stock = true for movements' });
+        }
+        if (text.includes('FUNCTION public.post_pending_counter_sale(') && !text.includes('track_stock = true')) {
+          hits.push({ file: r, line: 0, text: 'post_pending_counter_sale must filter track_stock = true for movements' });
+        }
+        if (text.includes('FUNCTION public.decrement_order_stock(') && !text.includes('track_stock')) {
+          hits.push({ file: r, line: 0, text: 'decrement_order_stock must check track_stock' });
+        }
+        if (text.includes('FUNCTION public.fulfil_reservation(') && !text.includes('track_stock')) {
+          hits.push({ file: r, line: 0, text: 'fulfil_reservation must check track_stock' });
+        }
+      }
+      return hits;
+    },
+  },
 );
 
 /* ------------------------------------------------------------------- main */
