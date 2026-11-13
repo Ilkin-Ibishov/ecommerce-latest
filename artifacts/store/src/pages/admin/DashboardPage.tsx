@@ -13,6 +13,8 @@ import {
 import { getDateRange, type DatePreset, type DateRange } from "@/lib/dashboard-date-range";
 import { KpiCard, computeDelta } from "@/components/admin/dashboard/KpiCard";
 import { Skeleton, RevenueTooltip } from "@/components/admin/dashboard/DashboardWidgets";
+import { adminFetch } from "@/lib/admin-fetch";
+import { apiUrl } from "@/lib/api";
 
 const STATUS_COLORS: Record<string, string> = {
   pending: "bg-yellow-500/20 text-yellow-400",
@@ -68,6 +70,12 @@ export default function DashboardPage() {
   const [recentOrders, setRecentOrders] = useState<any[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
   const [revenueByCategory, setRevenueByCategory] = useState<RevenueByCat[]>([]);
+  const [signals, setSignals] = useState<{
+    low_stock_count: number;
+    out_of_stock_count: number;
+    dead_stock_count: number;
+    reorder_suggestions_count: number | null;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -260,6 +268,17 @@ export default function DashboardPage() {
     });
     setLowStockProducts(lowStockData);
 
+    // ── Stock Signals Summary ──
+    try {
+      const sigRes = await adminFetch(apiUrl("/admin/inventory/signals/summary"));
+      if (sigRes.ok) {
+        const sigData = await sigRes.json();
+        setSignals(sigData);
+      }
+    } catch {
+      // Signals are non-blocking for core dashboard
+    }
+
     setLoading(false);
   }, [dateRange]);
 
@@ -324,6 +343,56 @@ export default function DashboardPage() {
           <KpiCard label={t("Admin.Dashboard.couponsUsed")} value={kpis.couponUsageCurrent} sub={t("Admin.Dashboard.inSelectedPeriod")} accent="text-pink-400" pct={null} />
         </div>
       )}
+
+      {/* ── Stock Signals Summary ── */}
+      <div className="space-y-3">
+        <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+          {t("Admin.Dashboard.stockSignals")}
+        </h2>
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="bg-card border border-border rounded-xl p-5 space-y-3">
+                <Skeleton className="h-3 w-28" />
+                <Skeleton className="h-7 w-16" />
+                <Skeleton className="h-3 w-32" />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <Link href="/admin/inventory?filter=low_stock" className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl">
+              <div className="bg-card border border-border hover:border-amber-500/50 transition rounded-xl p-5 flex flex-col gap-1.5 cursor-pointer">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("Admin.Dashboard.signalLowStock")}</p>
+                <p className="text-2xl font-bold text-amber-500">{signals ? signals.low_stock_count : lowStockProducts.length}</p>
+                <p className="text-xs text-muted-foreground">
+                  {signals ? `${signals.out_of_stock_count} ${t("Admin.Dashboard.outOfStock")}` : t("Admin.Dashboard.signalLowStockSub")}
+                </p>
+              </div>
+            </Link>
+            <Link href="/admin/inventory?filter=not_selling" className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl">
+              <div className="bg-card border border-border hover:border-red-500/50 transition rounded-xl p-5 flex flex-col gap-1.5 cursor-pointer">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("Admin.Dashboard.signalNotSelling")}</p>
+                <p className="text-2xl font-bold text-red-400">{signals?.dead_stock_count ?? 0}</p>
+                <p className="text-xs text-muted-foreground">{t("Admin.Dashboard.signalNotSellingSub")}</p>
+              </div>
+            </Link>
+            <Link href="/admin/inventory/reorder" className="block focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-xl">
+              <div className="bg-card border border-border hover:border-primary/50 transition rounded-xl p-5 flex flex-col gap-1.5 cursor-pointer">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide">{t("Admin.Dashboard.signalReorder")}</p>
+                <p className="text-2xl font-bold text-primary">
+                  {signals?.reorder_suggestions_count !== null && signals?.reorder_suggestions_count !== undefined
+                    ? signals.reorder_suggestions_count
+                    : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {signals?.reorder_suggestions_count === null ? t("Admin.Dashboard.ownerOnly") : t("Admin.Dashboard.signalReorderSub")}
+                </p>
+              </div>
+            </Link>
+          </div>
+        )}
+      </div>
 
       {/* ── Low Stock Alert ── */}
       {!loading && lowStockProducts.length > 0 && (

@@ -31,6 +31,7 @@ const AdminSetupPage = lazy(() => import("@/pages/admin/AdminSetupPage"));
 const DashboardPage = lazy(() => import("@/pages/admin/DashboardPage"));
 const AdminProductsPage = lazy(() => import("@/pages/admin/ProductsPage"));
 const AdminInventoryPage = lazy(() => import("@/pages/admin/InventoryPage"));
+const AdminReorderPage = lazy(() => import("@/pages/admin/ReorderPage"));
 const AdminSuppliersPage = lazy(() => import("@/pages/admin/SuppliersPage"));
 const AdminReceiptsPage = lazy(() => import("@/pages/admin/ReceiptsPage"));
 const AdminReceiptDetailPage = lazy(() => import("@/pages/admin/ReceiptDetailPage"));
@@ -132,6 +133,7 @@ function AdminRoutes() {
             <Route path="/admin/products/new">{() => <ProductFormPage />}</Route>
             <Route path="/admin/products/:id/edit">{(params) => <ProductFormPage productId={params.id} />}</Route>
             <Route path="/admin/products" component={AdminProductsPage} />
+            <Route path="/admin/inventory/reorder" component={AdminReorderPage} />
             <Route path="/admin/inventory" component={AdminInventoryPage} />
             <Route path="/admin/reservations" component={AdminReservationsPage} />
             <Route path="/admin/counter" component={AdminCounterPage} />
