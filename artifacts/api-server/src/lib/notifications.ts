@@ -9,13 +9,18 @@ type NotifType =
   | "status_changed"
   | "low_stock";
 
+type NotifChannel = "whatsapp" | "in_app";
+
 export async function queueNotification(params: {
   userId?: string;
   type: NotifType;
-  recipient: string;
+  channel?: NotifChannel;
+  recipient?: string;
   payload: Record<string, any>;
 }): Promise<void> {
-  const { userId, type, recipient, payload } = params;
+  const { userId, type, payload } = params;
+  const channel = params.channel ?? (type === "low_stock" ? "in_app" : "whatsapp");
+  const recipient = params.recipient || (channel === "in_app" ? "admin" : "");
   const admin = getAdminSupabase();
 
   let notifId: string | null = null;
@@ -25,7 +30,7 @@ export async function queueNotification(params: {
       .insert({
         user_id: userId ?? null,
         type,
-        channel: "whatsapp",
+        channel,
         recipient,
         payload,
         status: "pending",
@@ -49,6 +54,9 @@ export async function queueNotification(params: {
       );
     } else if (type === "status_changed") {
       result = await sendWhatsAppStatusUpdate(recipient, payload.order_id, payload.status ?? "");
+    } else if (type === "low_stock") {
+      // In-app digest notification (Phase M4 spec §6.4)
+      result = { ok: true };
     }
 
     if (notifId) {
