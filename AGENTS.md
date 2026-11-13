@@ -55,6 +55,9 @@ design note and explain the trade-off — do not silently deviate during impleme
 - Prefer the simple query. This product serves shops with hundreds of SKUs and tens of sales a day;
   do not add caching, denormalisation or background jobs for volume that does not exist.
 - Commit messages: `<type>(<scope>): <what changed>`. Small, reviewable commits.
+- Frontend work (HTML, CSS, client-side JS): run `modern-web-guidance` `search` **before** writing
+  the code and `retrieve` the matching guide; prefer the platform feature over a hand-rolled
+  pattern or a new dependency. Detail in `.agents/rules/frontend.md`. Not for API, SQL or tooling.
 
 ## Audit interface
 Your work is reviewed from git, not from chat. Anything that matters must end up in a file:
