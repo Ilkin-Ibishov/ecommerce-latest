@@ -98,6 +98,7 @@ const EXPECTED_ROUTES = [
   "POST /admin/notifications/:id/retry",
   // users.ts
   "GET /admin/users",
+  "POST /admin/users",
   "PATCH /admin/users/:id/role",
   // settings.ts
   "GET /admin/settings",
@@ -162,6 +163,12 @@ const EXPECTED_ROUTES = [
   "POST /admin/bundles",
   "PUT /admin/bundles/:id",
   "DELETE /admin/bundles/:id",
+  // inventory-signals.ts (M4)
+  "GET /admin/inventory/signals/summary",
+  "GET /admin/inventory/signals/low-stock",
+  "GET /admin/inventory/signals/dead-stock",
+  "GET /admin/inventory/signals/reorder",
+  "POST /admin/inventory/signals/evaluate-digest",
 ] as const;
 
 describe("admin router registration parity (R9.4, design §13)", () => {
