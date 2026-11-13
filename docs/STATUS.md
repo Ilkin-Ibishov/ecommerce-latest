@@ -1,9 +1,51 @@
 # Project status — handoff
 
-Last updated: 2026-11-10. Written as the entry point for a new session. Everything referenced here
+Last updated: 2026-11-13. Written as the entry point for a new session. Everything referenced here
 lives in this repository; nothing important is only in a chat transcript.
 
-## Start here — first thing to do in a new session
+## Start here — first thing to do in a new session (2026-11-13)
+
+**M3a is merged, M3b is dropped, and M4 is specified and ready to build.** Nothing is
+half-finished in the tree. Read in this order:
+
+1. `docs/tasks/warehouse-roadmap.md` — **new.** What remains after M3a, in what order, and
+   what is deferred with the condition for reopening each item. It supersedes the milestone
+   table in the architecture ADR §7, which predates every phase that shipped.
+2. `docs/tasks/warehouse-m3-section-16-decisions.md` — **new.** The customer's answers to the
+   M3 spec's open questions, plus architect decisions on the rest, researched against how
+   commercial POS systems solve the same problems. Two of them change the M3a schema.
+3. `docs/tasks/warehouse-m4-stock-signals.md` — **new.** The full M4 spec: low stock, dead
+   stock, reorder suggestions, and the `track_stock` defect fix.
+
+### What the 2026-11-13 session changed
+
+- **M3b (offline queue) is dropped.** The customer answered §16.5: the shop's connection does
+  not drop. §9 of the M3 spec is not built. `post_counter_sale`'s `queued` parameter stays in
+  the signature — removing it is a migration for no gain, and it is the seam M3b would
+  re-enter through. Verify once with the second shop before treating it as settled for both.
+- **Real assembly is not needed.** §16.6: pre-assembled boxes sit on the shelf for a day or
+  two, so §10's minimal bundle holds. M4 is free for stock signals.
+- **The accountant gate is closed.** A plain non-fiscal receipt is enough, confirmed in
+  writing. Still outstanding: whether the receipt must carry named fields (VÖEN, address).
+  That converts into one change to M3 spec §11 and blocks nothing. File the written answer
+  under `docs/knowledgebase/` when it arrives.
+- **Two latent defects found by reading the code rather than trusting the docs.** Both are in
+  the M4 spec, §9 and §6.4:
+  1. `product_variants.track_stock` has existed since `20261103210000_m1_schema_additions.sql`,
+     documented for services and made-to-order, and is read by **nothing** in the ledger or
+     counter-sale path. Marking a variant as a service today still decrements it, silently.
+  2. `notifications.ts` declares a `low_stock` type that no dispatch branch handles, so such a
+     notification is written and immediately marked `failed` with "unhandled type".
+- **`modern-web-guidance` is installed** (GoogleChrome's agent skill, via `agy plugin install`)
+  and the builder is now required to consult it before frontend work — short rule in
+  `AGENTS.md`, detail in `.agents/rules/frontend.md`. A previously installed
+  `modern-web-guidance-plugin` v1.0.4 was an empty shell with no skills directory and was
+  removed. One open `legacy-scan` finding is recorded in the frontend rule: four
+  Enter-to-submit handlers lack an `event.isComposing` guard. Low priority, IME input only.
+- **The stale security paragraph in "Next" was wrong and is corrected below.** Spec §12 *is*
+  fixed.
+
+### Previously: CI went green for the first time (2026-11-10)
 
 **CI is fully green for the first time ever.**
 [Run 42864949947](https://github.com/Ilkin-Ibishov/ecommerce-latest/actions/runs/42864949947),
@@ -79,9 +121,23 @@ decision (sub-bullet of item 5).
 
 ## State
 
-**M1, M2a, M2b and M2c are all complete and merged on `main`, together with the CI work
-(item 5).** `main` was fast-forwarded to `claude/davam-840a9f` (`c413d11`) and pushed to `origin`
-on 2026-11-10.
+**M1, M2a, M2b, M2c and M3a are all complete and merged on `main`, together with the CI work
+(item 5).** `main` reached `df05640` (PR #11, `m3a/test-gaps`) and is pushed to `origin`.
+M3b is dropped, not pending.
+
+**Branches awaiting merge (2026-11-13).** One integration branch carries all of this
+session's work, so there is one merge to do, not four:
+
+| Branch | Contents |
+|---|---|
+| `docs/handoff-2026-11-13` | **merge this one.** Merges the three below plus this STATUS update |
+| `chore/modern-web-guidance` | `AGENTS.md` + `.agents/rules/frontend.md` rule (`93d0770`) |
+| `docs/m3-section-16-decisions` | §16 answers and decisions (`83b6389`, `20a5f61`) |
+| `docs/m4-spec` | Warehouse roadmap and the M4 spec (`9f4f319`) |
+
+Also note: `antigravity-development` is a pure ancestor of `main`, 89 commits behind, with no
+unique commits. It is safe to delete. A session that checks it out by habit will be editing
+a dead branch — this happened once already in the 2026-11-13 session.
 
 **Branches (2026-11-10):** two side branches were not yet in `main` — `antigravity-development`
 (2 commits, built with the Antigravity agent: modular agent context in `.agents/skills/`,
@@ -114,18 +170,50 @@ Verified on 2026-11-05 at the merge point:
   order decrement, pay-and-collect fulfilment, `effective_status` computed once, three-number
   availability view, public availability view for `anon`.
 
-Per-phase detail lives in `docs/audits/m2*-implementation-notes.md` and the design notes.
+- **M3a** — counter sale: one lookup box taking a barcode or free text, variant picker for
+  shared barcodes, till with pick-up panel, sale list, plain printed receipt, owner-only
+  bundle editor (`bundles` + `bundle_lines`, no stock and no assembly).
+
+Per-phase detail lives in `docs/audits/m2*-implementation-notes.md`,
+`docs/audits/m3-implementation-notes.md`, `docs/audits/m3a-test-gaps-notes.md` and the design
+notes.
 
 ## Next
 
-**M3** — counter sale, barcode flow, offline queue, and a minimal bill of materials.
+**M4 — stock signals.** Full spec: `docs/tasks/warehouse-m4-stock-signals.md`. Order within
+the phase, each its own migration and commit:
 
-**M3's fiscal-device gate is cleared (2026-11-07): a plain (non-certified) receipt is enough** —
-answered secondhand via the customer, not yet in writing from the accountant. The counter-sale
-design can proceed on that basis; get the accountant's answer in writing before relying on it for
-anything legally load-bearing. With item 5 (CI) also done, **nothing engineering-side blocks
-starting M3** — the next step is the M3 spec and design note. Carry item 8's decision (text search
-alongside barcode entry) into that design note.
+1. `track_stock` enforcement (the defect above — lands first, everything else depends on
+   knowing which variants are stock-bearing)
+2. Low stock, including the missing `low_stock` notification dispatch branch
+3. Dead stock, with owner-only value columns
+4. Reorder suggestions from ledger-derived velocity
+
+The phase's defining invariant: **a signal is derived, never stored.** No `is_low_stock`,
+`days_of_cover` or `suggested_quantity` column on `product_variants` — same reasoning as the
+ADR's refusal to store bundle availability. Nothing in M4 places an order or contacts a
+supplier; it produces suggestions with the evidence beside them.
+
+M4 needs no customer answer to start. Its four optional questions (§14 of its spec) each have
+a default that ships.
+
+**Before M4, one chore:** `counter_sale_payments`. The §16 decisions replaced the planned
+`payment_method` column on `counter_sales` with a child table (sale_id, method, amount) that
+the till writes exactly one row into. Split tender then becomes a screen change rather than a
+migration plus a rewrite of every report, day-end reconciliation and refund path. Doing it
+before M4 keeps it off a growing table. A deposit pick-up writes a row too — otherwise money
+through the drawer is invisible to the day-end count. Confirm against M2c's fulfilment path.
+
+**After M4: M5** — Code 128 label printing from the variant list, for the second shop that
+has no barcode device. `variant_barcodes` already exists, so this is a print view and a
+generator, not a data model. Deliberately not specified yet: the second shop has not signed,
+and its first week would change half the spec. Writing it now would repeat the M3b mistake.
+
+### M3 history, for context — all of this is now closed
+
+**The fiscal-device gate is closed (2026-11-13).** A plain, non-certified receipt is enough;
+the accountant is confirming in writing. Only the receipt's required field list remains, and
+§11 of the M3 spec says required fields are added to the receipt and nowhere else.
 
 **M3 spec written (2026-11-11):** `docs/tasks/warehouse-m3-counter-sale.md`, audited by a separate
 Opus pass in `docs/audits/m3-spec-audit.md` (verdict on the first draft: *needs rework*, 15 findings;
@@ -141,25 +229,49 @@ bundle editor built; typecheck, 686 unit tests and strict invariants pass locall
 run only in CI. What is and is not verified: `docs/audits/m3-implementation-notes.md`. Next after
 merge: the customer's answers (spec §16), especially §16.5, decide whether M3b is built at all.
 
-**Security — found by the M3 spec work, not yet fixed (spec §12, first commits of M3):**
-`decrement_order_stock` and `fulfil_reservation` were very likely callable through PostgREST by
-`anon` and every shopper (M2c revoked only `FROM public`; Supabase grants `anon`/`authenticated`
-directly). Confirm read-only with `has_function_privilege('anon',
-'public.decrement_order_stock(uuid,jsonb,uuid)','EXECUTE')` on the test project and **before any
-production deploy**. The invariant meant to catch it (`security-definer-service-role-privileges`)
-matches no function at all (missing regex `s` flag). `fulfil_reservation` also cannot succeed on a
-real database (`reference_type = 'reservation'` violates the CHECK).
+**Security — found by the M3 spec work, FIXED. Verified 2026-11-13 by reading the
+migrations; the earlier "not yet fixed" wording in this file was stale and misleading.**
+
+`decrement_order_stock` and `fulfil_reservation` were callable through PostgREST by `anon` and
+every shopper, because M2c revoked only `FROM public` while Supabase grants `anon` and
+`authenticated` directly. All three parts are now closed:
+
+| Part | Where |
+|---|---|
+| `REVOKE EXECUTE ... FROM public, anon, authenticated` on both functions | `20261111100000_m2c_revoke_client_execute_on_definer_functions.sql` |
+| `fulfil_reservation` could not succeed at all (`reference_type = 'reservation'` violated the CHECK) | `20261111110000_stock_movements_reference_type_reservation.sql` |
+| The invariant matched no function (missing regex `s` flag) | `scripts/audit/check-invariants.mjs` — the pattern now carries `gis` |
+
+Every M3 function added afterwards carries its own revoke in the same migration
+(`counter_sale_json`, `post_counter_sale`, `post_pending_counter_sale`, `void_counter_sale`,
+`get_margin_report`). Still worth confirming on the live project before any production deploy
+with `has_function_privilege('anon', 'public.decrement_order_stock(uuid,jsonb,uuid)', 'EXECUTE')`
+— the migrations are right, but no one has asserted the grant state against a real database.
 
 ## Open
 
-**Business — blocking go-live, not engineering. None of these moved between 29 Oct and 5 Nov:**
+**Business — blocking go-live, not engineering. Items 1 and 2 have not moved since 29 Oct —
+that is now sixteen days across four sessions, while five engineering phases shipped.**
 
 1. The 500 products' names, prices and photos. Nobody is assigned; the website cannot launch empty.
-   Engineering completing M3 and M4 still leaves a finished, empty system.
-2. Design-partner agreement and the monthly price.
-3. ~~The accountant's written answer on fiscal receipt requirements. Gates M3.~~ Answered
-   2026-11-07 (secondhand, via customer): a plain receipt is enough, no certified fiscal device
-   required. Still worth getting in writing from the accountant directly before go-live.
+   Engineering completing M4 and M5 still leaves a finished, empty system.
+2. Design-partner agreement and the monthly price. Still nothing signed and no price set. Each
+   further phase raises the sunk cost without raising the chance of revenue, and negotiating a
+   price from a finished product is harder than from an unfinished one, because the other side
+   can see it was built anyway.
+3. ~~The accountant's written answer on fiscal receipt requirements. Gates M3.~~ **Closed
+   2026-11-13:** a plain non-fiscal receipt is enough, confirmed in writing. Outstanding only:
+   whether the receipt must carry named fields (VÖEN, address) — one change to M3 spec §11,
+   blocks nothing. File the written answer under `docs/knowledgebase/`.
+13. **New (2026-11-13).** Two questions still with the customer, both from the M3 §16 rework in
+    `docs/tasks/warehouse-m3-section-16-decisions.md`:
+    - Do you charge for gift wrapping, a gift card/message, engraving or delivery?
+    - **Do you sell gift certificates or store credit?** This is the one that matters and the
+      original §16.11 wording hid it: a certificate is a liability until redeemed, not a
+      product, and retrofitting it touches the ledger, the receipt and the day-end
+      reconciliation at once. If yes, it is its own phase.
+14. **New (2026-11-13).** The second shop (no barcode device) has not been asked about internet
+    reliability. §16.5 was answered for one shop only, and M3b was dropped on that answer.
 
 **Technical:**
 
@@ -330,6 +442,25 @@ real database (`reference_type = 'reservation'` violates the CHECK).
     contradicted the unconditional design-note gate. Resolved in `AGENTS.md`: phase work from a
     spec, or anything architectural, always goes through the design-note gate; only simple tasks
     without a spec (bug, test or docs fixes) are resolved directly.
+15. **New (2026-11-13), scheduled as M4's first commit.** `product_variants.track_stock` (boolean,
+    NOT NULL, default true) exists from `20261103210000_m1_schema_additions.sql`, is documented
+    there as "false for services/made-to-order", and the inventory routes read and write it — but
+    **no ledger or counter-sale code reads it**. A variant marked as a service is still decremented,
+    silently, with no error. Spec: `docs/tasks/warehouse-m4-stock-signals.md` §9. The design note
+    must first establish whether any variant has `track_stock = false` on the test project, because
+    the migration's handling of already-written movements depends on it.
+16. **New (2026-11-13), scheduled as part of M4's low-stock work.**
+    `artifacts/api-server/src/lib/notifications.ts` declares a `low_stock` type (line 10) that no
+    dispatch branch handles — the chain covers `order_confirmed` and `status_changed` only, so such
+    a notification is written and immediately marked `failed` with "unhandled type". Either handle
+    it or stop declaring it; a type that always fails is worse than none. Spec §6.4, which also
+    sets the rules that matter more than the channel: one daily digest rather than one message per
+    variant, and no re-notification while a variant stays low.
+17. **New (2026-11-13), low priority.** Four Enter-to-submit handlers lack an `event.isComposing`
+    guard, which breaks IME input in CJK languages only: `admin/ImageSearchTab.tsx:71`,
+    `admin/PriceCell.tsx:37`, `admin/StockCell.tsx:78`,
+    `storefront/profile/InlineEditor.tsx:54`. Found by `modern-web-guidance legacy-scan`. Recorded
+    in `.agents/rules/frontend.md`; fix when next touching those files, not as separate work.
 
 ## How work runs here
 
