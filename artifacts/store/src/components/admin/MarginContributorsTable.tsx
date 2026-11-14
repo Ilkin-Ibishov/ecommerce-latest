@@ -46,10 +46,10 @@ export function MarginContributorsTable({ title, contributors, isTop }: MarginCo
               </tr>
             </thead>
             <tbody className="divide-y divide-border font-mono">
-              {contributors.map((c) => {
+              {contributors.map((c, index) => {
                 const pos = c.margin >= 0;
                 return (
-                  <tr key={c.variant_id} className="hover:bg-muted/20 transition">
+                  <tr key={`${c.variant_id || c.sku || index}-${index}`} className="hover:bg-muted/20 transition">
                     <td className="px-3 py-2 font-sans font-medium text-foreground max-w-[180px] truncate">
                       {c.title}
                     </td>

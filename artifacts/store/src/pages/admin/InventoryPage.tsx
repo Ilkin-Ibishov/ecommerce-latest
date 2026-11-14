@@ -132,9 +132,9 @@ export default function AdminInventoryPage() {
       }
     }
 
-    const { data: availRows } = await (supabase as any)
-      .from("product_variant_availability")
-      .select("product_id, on_hand, reserved_quantity, available_quantity, deficit_quantity");
+    const res = await adminFetch(apiUrl("/admin/inventory/availability"));
+    const json = res.ok ? await res.json() : { availability: [] };
+    const availRows = json.availability;
 
     const availMap = new Map<string, { on_hand: number; reserved_quantity: number; available_quantity: number; deficit_quantity: number }>();
     for (const row of availRows ?? []) {
