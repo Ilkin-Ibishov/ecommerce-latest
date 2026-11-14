@@ -62,6 +62,77 @@ describe("counter_sale_payments integration (spec §6)", () => {
     });
   });
 
+  it("a hand-inserted two-leg split that sums correctly commits", async () => {
+    const v = await createStockedVariant(db, actor, 5);
+    const s = sale([{ variant_id: v, quantity: 1, price: 20 }], randomUUID(), "cash");
+    const posted = await post(s);
+    expect(posted.error).toBeNull();
+
+    // Insert a second leg with amount = 0 and a different method (sum unchanged)
+    const secondLeg = await db.from("counter_sale_payments").insert({
+      sale_id: s.id,
+      method: "card",
+      amount: 0,
+    });
+    expect(secondLeg.error).toBeNull();
+
+    const { data: payments } = await db.from("counter_sale_payments").select("*").eq("sale_id", s.id);
+    expect(payments).toHaveLength(2);
+    const sum = payments!.reduce((acc, p) => acc + Number(p.amount), 0);
+    expect(sum).toBe(20);
+  });
+
+  it("a split that does not sum is refused at commit with ST027", async () => {
+    const v = await createStockedVariant(db, actor, 5);
+    const s = sale([{ variant_id: v, quantity: 1, price: 20 }], randomUUID(), "cash");
+    const posted = await post(s);
+    expect(posted.error).toBeNull();
+
+    // Insert a second leg with amount > 0, breaking the sum constraint
+    const badLeg = await db.from("counter_sale_payments").insert({
+      sale_id: s.id,
+      method: "card",
+      amount: 5,
+    });
+    expect(badLeg.error).not.toBeNull();
+    expect(badLeg.error?.code).toBe("ST027");
+
+    const { data: payments } = await db.from("counter_sale_payments").select("*").eq("sale_id", s.id);
+    expect(payments).toHaveLength(1);
+    expect(payments![0].amount).toBe(20);
+  });
+
+  it("backfill produces one row per existing sale with matching sum", async () => {
+    // Audit M1: no counter_sales row without a payment row, and no sale whose payments differ from its total (two count queries, both zero)
+    type SaleWithPayments = {
+      id: string;
+      total_amount: number;
+      counter_sale_payments: Array<{ sale_id: string; amount: number }>;
+    };
+
+    const { data: rawSales, error } = await db
+      .from("counter_sales")
+      .select("id, total_amount, counter_sale_payments(sale_id, amount)");
+    expect(error).toBeNull();
+    expect(rawSales).not.toBeNull();
+
+    const sales = (rawSales ?? []) as unknown as SaleWithPayments[];
+
+    const missingPayments = sales.filter(
+      (s) => !s.counter_sale_payments || s.counter_sale_payments.length === 0
+    );
+    expect(missingPayments.length).toBe(0);
+
+    const mismatchedSum = sales.filter((s) => {
+      const sum = (s.counter_sale_payments ?? []).reduce(
+        (acc, p) => acc + Number(p.amount),
+        0
+      );
+      return Math.round(sum * 100) !== Math.round(Number(s.total_amount) * 100);
+    });
+    expect(mismatchedSum.length).toBe(0);
+  });
+
   it("replaying post_counter_sale with the same id and hash writes no second row", async () => {
     const v = await createStockedVariant(db, actor, 5);
     const s = sale([{ variant_id: v, quantity: 1, price: 20 }]);
