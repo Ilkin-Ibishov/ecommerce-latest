@@ -16,7 +16,7 @@ ON CONFLICT (code) DO NOTHING;
 
 ALTER TABLE public.payment_methods ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "PaymentMethods: staff/admin read" ON public.payment_methods
+CREATE POLICY "PaymentMethods: authenticated read" ON public.payment_methods
   FOR SELECT TO authenticated USING (true);
 
 REVOKE ALL ON public.payment_methods FROM public, anon, authenticated;

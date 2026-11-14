@@ -11,9 +11,6 @@ CREATE TABLE IF NOT EXISTS public.counter_sale_payments (
   PRIMARY KEY (sale_id, method)
 );
 
-CREATE INDEX IF NOT EXISTS idx_counter_sale_payments_method
-  ON public.counter_sale_payments (method);
-
 ALTER TABLE public.counter_sale_payments ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "CounterSalePayments: admin read" ON public.counter_sale_payments
