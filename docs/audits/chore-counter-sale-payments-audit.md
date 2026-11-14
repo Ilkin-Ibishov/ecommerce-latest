@@ -225,3 +225,11 @@ it; nothing was deleted. The other three `qa-m4-*` products are in stock and wer
 This is a patch, not a fix. The storefront list orders by `sort_order` only and almost every product
 has 0, so which product is "first" is whatever Postgres returns. `cart-flow.spec.ts` must choose an
 in-stock product itself; simple task for the builder.
+
+## CI — run 43599425849 at `b2e96d5`, 2026-11-14: green
+
+`unit` and `integration-e2e` both pass, E2E included. **Verdict: approved to merge.** The commit that
+adds this section is docs-only and comes after the green run.
+
+Carried forward, not blocking: regenerate `database.types.ts`; make `cart-flow.spec.ts` choose an
+in-stock product; B3 (M4 rebases onto this and carries the payment insert).
