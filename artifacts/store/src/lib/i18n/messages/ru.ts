@@ -463,6 +463,7 @@ const ru = {
         counter: "Касса",
         bundles: "Наборы",
         reorder: "Повторный заказ",
+        reservations: "Бронирования",
       },
       Layout: {
         adminPanel: "Панель администратора",
@@ -916,6 +917,9 @@ const ru = {
       },
       Users: {
         title: "Клиенты",
+        filterAll: "Все",
+        filterStaff: "Только сотрудники",
+        filterCustomers: "Клиенты",
         searchPlaceholder: "Поиск по имени или телефону…",
         resultCount: "{count} результатов для \"{query}\"",
         registeredCount: "{count} зарегистрировано",

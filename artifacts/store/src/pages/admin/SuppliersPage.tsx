@@ -18,7 +18,8 @@ export default function SuppliersPage() {
     try {
       setLoading(true);
       const data = await adminJson(apiUrl("/admin/suppliers"));
-      setSuppliers(data.suppliers ?? []);
+      const list = Array.isArray(data) ? data : (data.suppliers ?? []);
+      setSuppliers(list);
     } catch {
       setSuppliers([]);
     } finally {

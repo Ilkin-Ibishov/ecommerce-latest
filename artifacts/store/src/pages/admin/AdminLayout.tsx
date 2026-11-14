@@ -3,7 +3,7 @@ import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Package, Boxes, BookmarkCheck, ClipboardCheck, ShoppingCart, Users, Tag, FolderOpen,
   MessageSquare, FileText, LogOut, ShieldCheck, Image, Menu, X, Settings2,
-  BookOpen, Award, ScanLine, PackagePlus,
+  BookOpen, Award, ScanLine, PackagePlus, Building2, Truck, TrendingUp,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
@@ -31,6 +31,9 @@ const navItems = [
   { href: "/admin/reservations", labelKey: "Admin.Nav.reservations", icon: BookmarkCheck },
   { href: "/admin/bundles", labelKey: "Admin.Nav.bundles", icon: PackagePlus, adminOnly: true },
   { href: "/admin/stocktakes", labelKey: "Admin.Nav.stocktakes", icon: ClipboardCheck },
+  { href: "/admin/receipts", labelKey: "Admin.Nav.receipts", icon: Truck },
+  { href: "/admin/suppliers", labelKey: "Admin.Nav.suppliers", icon: Building2 },
+  { href: "/admin/reports/margins", labelKey: "Admin.Nav.margins", icon: TrendingUp, adminOnly: true },
   { href: "/admin/orders", labelKey: "Admin.Nav.orders", icon: ShoppingCart },
   { href: "/admin/users", labelKey: "Admin.Nav.customers", icon: Users },
   { href: "/admin/coupons", labelKey: "Admin.Nav.coupons", icon: Tag },

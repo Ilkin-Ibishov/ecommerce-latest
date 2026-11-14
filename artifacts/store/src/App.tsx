@@ -147,6 +147,7 @@ function AdminRoutes() {
             <Route path="/admin/receipts/:id">{(params) => <AdminReceiptDetailPage id={params.id} />}</Route>
             <Route path="/admin/receipts" component={AdminReceiptsPage} />
             <Route path="/admin/suppliers" component={AdminSuppliersPage} />
+            <Route path="/admin/reports/margins" component={AdminMarginReportPage} />
             <Route path="/admin/margins" component={AdminMarginReportPage} />
             <Route path="/admin/orders/:id">{(params) => <OrderDetailPage id={params.id} />}</Route>
             <Route path="/admin/orders" component={AdminOrdersPage} />

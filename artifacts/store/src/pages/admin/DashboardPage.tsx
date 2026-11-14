@@ -305,7 +305,7 @@ export default function DashboardPage() {
             </button>
           ))}
           <span className="text-xs text-muted-foreground ml-1 hidden sm:inline">
-            {dateRange.label}
+            {preset === "thisMonth" ? t("Admin.Dashboard.presetThisMonth") : dateRange.label}
           </span>
         </div>
       </div>
