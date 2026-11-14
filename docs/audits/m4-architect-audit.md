@@ -181,3 +181,29 @@ migrations apply (B2). Passing unit tests here say little about the SQL: none of
 3. Builder revises `docs/design-notes/m4-stock-signals.md` for M2 and M3 and **stops**.
 4. After review: fix round on the split M4 branch (B2, B3, M1, M4, minors), migrations applied to the
    test project by hand, CI, then the one cross-family adversarial audit.
+
+## Split — 2026-11-14, branch `m4/stock-signals-core`
+
+Cut from `main` at `673e3ab` (chore `counter_sale_payments` merged). Cherry-picked, in order:
+`49eafe6 3eef19a 2082e8f 3671707 0aefc55 7335179 eecb1cc 506bbcf`, then this document. Nothing else
+from `m4/stock-signals` is here; that branch is untouched and still holds the non-M4 work of §5.
+
+- One conflict, `scripts/audit/check-invariants.mjs`: both sides added checks. Resolved by keeping
+  the chore's two and M4's one. No other file conflicted.
+- `b632b5b` was not picked, so the TypeScript fallback libs do not exist on this branch and the
+  signals route has no `catch`. **M1 is closed by the split.** The M4 QA scripts and screenshots
+  (`c1d569b`, m6, m7) are not here either.
+- 21 files, +3129/−590 against `main`.
+
+Tiers run at the split: `typecheck` exit 0; `test:unit` 715 tests, 64 files, pass;
+`audit:invariants` **fails, as intended**: `no-non-tracked-variant-movements` on
+`20261113230400_post_counter_sale_payments.sql`. That is B3's tripwire: the chore's function sorts
+last and has no `track_stock`. The fix is the builder's: a new migration after `…230400` whose
+`post_counter_sale` carries both the payment insert and the `track_stock` filter, and M4's
+`20261113220010` no longer redefining it.
+
+Still open on this branch: B2, B3, M2, M3, M4 (`as any`), m1–m5. B1 is not on this branch; it lives
+with the staff-provisioning commits on `m4/stock-signals` and must be fixed before those merge
+anywhere. No M4 migration has run on Postgres.
+
+Next is §8 step 3: the builder revises the design note for M2 and M3 and stops.
