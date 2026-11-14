@@ -43,6 +43,19 @@ Why here: it is the first phase whose output is a decision rather than a record;
 already exists (`low_stock_threshold` per variant and a global default both shipped in M1);
 and it is the most demonstrable feature in the product. It needs no customer answer to start.
 
+## M4b — Notifications: the admin's inbox
+
+**A bell and one page in the admin: what needs the owner now, and what happened while they
+were not looking.**
+
+Full spec: `docs/tasks/m4b-store-notifications.md`.
+
+Why here: M4 computes the signals and nothing puts them in front of the owner. Added
+2026-11-15 at the owner's request, after M4 dropped its own low-stock message because nobody
+would have read it. It stores almost nothing — a notification is a view of a record that
+already exists — so it is small, and it touches no money or stock function. In-app only;
+messages to the owner's phone are deferred in the spec with the condition for reopening.
+
 ## M5 — Labels and the second shop
 
 **Code 128 label printing from the variant list, plus whatever onboarding the second tenant
