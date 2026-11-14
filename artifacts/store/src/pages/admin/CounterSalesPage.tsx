@@ -62,14 +62,14 @@ export default function CounterSalesPage() {
   };
 
   const row = (s: Sale) => (
-    <tr key={s.id} className="border-b border-border">
-      <td className="py-2"><Link href={`/admin/counter/receipt/${s.id}`} className="underline">#{s.sale_number}</Link></td>
-      <td>{new Date(s.posting_date).toLocaleString("az-AZ")}</td>
-      <td>{s.cashier?.full_name ?? ""}</td>
-      <td className="text-right tabular-nums">{Number(s.total_amount).toFixed(2)}</td>
-      <td>{STATUS[s.status]}{s.total_mismatch && " · ekran məbləği fərqli"}</td>
+    <tr key={s.id} className="border-b border-border hover:bg-muted/40 transition-colors">
+      <td className="px-3 py-2.5"><Link href={`/admin/counter/receipt/${s.id}`} className="font-medium underline">#{s.sale_number}</Link></td>
+      <td className="px-3 py-2.5 text-muted-foreground">{new Date(s.posting_date).toLocaleString("az-AZ")}</td>
+      <td className="px-3 py-2.5">{s.cashier?.full_name ?? "—"}</td>
+      <td className="px-4 py-2.5 text-right font-medium tabular-nums">{Number(s.total_amount).toFixed(2)} AZN</td>
+      <td className="px-4 py-2.5">{STATUS[s.status]}{s.total_mismatch && " · ekran məbləği fərqli"}</td>
       {isOwner && (
-        <td className="space-x-2 text-right">
+        <td className="px-3 py-2.5 space-x-2 text-right">
           {s.status === "needs_owner" && <button type="button" onClick={() => void act(`/admin/counter/sales/${s.id}/post-pending`)} className="text-primary underline">Stokdan çıx</button>}
           {s.status !== "voided" && <button type="button" onClick={() => voidSale(s)} className="text-destructive underline">Ləğv et</button>}
         </td>
@@ -94,12 +94,21 @@ export default function CounterSalesPage() {
         </div>
       )}
       {message && <p role="alert" className="text-sm text-destructive">{message}</p>}
-      <table className="w-full text-sm">
-        <thead className="text-left text-muted-foreground">
-          <tr><th className="py-2">№</th><th>Tarix</th><th>Kassir</th><th className="text-right">Məbləğ</th><th>Status</th>{isOwner && <th />}</tr>
-        </thead>
-        <tbody>{(tab === "all" ? sales : flagged.sales).map(row)}</tbody>
-      </table>
+      <div className="overflow-x-auto rounded-lg border border-border">
+        <table className="w-full text-sm">
+          <thead className="border-b border-border bg-muted/30 text-left text-muted-foreground">
+            <tr>
+              <th className="px-3 py-2.5 font-medium">№</th>
+              <th className="px-3 py-2.5 font-medium">Tarix</th>
+              <th className="px-3 py-2.5 font-medium">Kassir</th>
+              <th className="px-4 py-2.5 text-right font-medium">Məbləğ</th>
+              <th className="px-4 py-2.5 font-medium">Status</th>
+              {isOwner && <th className="px-3 py-2.5 text-right font-medium">Əməliyyatlar</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">{(tab === "all" ? sales : flagged.sales).map(row)}</tbody>
+        </table>
+      </div>
       {tab === "flagged" && flagged.lines.length > 0 && (
         <section>
           <h2 className="mb-2 font-semibold">İşarələnmiş sətirlər</h2>
