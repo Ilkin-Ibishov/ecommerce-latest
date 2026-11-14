@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useSearch } from "wouter";
+import { Link, useLocation, useSearch } from "wouter";
 import { Filter, ArrowUpDown, ChevronDown, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { ProductGrid } from "@/components/storefront/ProductGrid";
@@ -15,6 +15,7 @@ const SORT_OPTIONS = [
 ];
 
 export default function ProductsPage({ locale }: { locale: string }) {
+  const [, setLocation] = useLocation();
   const search = useSearch();
   const { t } = useI18n();
   const params = new URLSearchParams(search);
@@ -38,6 +39,11 @@ export default function ProductsPage({ locale }: { locale: string }) {
   const [filterOpen, setFilterOpen] = useState(false);
   const [priceMin, setPriceMin] = useState(priceMinParam);
   const [priceMax, setPriceMax] = useState(priceMaxParam);
+
+  useEffect(() => {
+    setPriceMin(priceMinParam);
+    setPriceMax(priceMaxParam);
+  }, [priceMinParam, priceMaxParam]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -141,7 +147,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
     if (priceMin) p.set("pmin", priceMin); else p.delete("pmin");
     if (priceMax) p.set("pmax", priceMax); else p.delete("pmax");
     p.delete("page");
-    window.location.href = `/${locale}/products${p.toString() ? `?${p.toString()}` : ""}`;
+    setLocation(`/${locale}/products${p.toString() ? `?${p.toString()}` : ""}`);
   };
 
   const currentSort = SORT_OPTIONS.find((o) => o.value === sortParam) ?? SORT_OPTIONS[0];
@@ -214,7 +220,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
           <button
             onClick={() => {
               setPriceMin(""); setPriceMax("");
-              window.location.href = buildUrl({ pmin: null, pmax: null });
+              setLocation(buildUrl({ pmin: null, pmax: null }));
             }}
             className="mt-1 w-full py-1 text-xs text-muted-foreground hover:text-foreground transition flex items-center justify-center gap-1"
           >
@@ -352,7 +358,10 @@ export default function ProductsPage({ locale }: { locale: string }) {
               )}
               {(priceMinParam || priceMaxParam) && (
                 <button
-                  onClick={() => window.location.href = buildUrl({ pmin: null, pmax: null })}
+                  onClick={() => {
+                    setPriceMin(""); setPriceMax("");
+                    setLocation(buildUrl({ pmin: null, pmax: null }));
+                  }}
                   className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-medium hover:bg-primary/20 transition">
                   {priceMinParam && priceMaxParam ? `${priceMinParam}–${priceMaxParam} AZN` :
                    priceMinParam ? `${priceMinParam}+ AZN` : `≤${priceMaxParam} AZN`}
