@@ -79,29 +79,3 @@ CREATE CONSTRAINT TRIGGER trg_counter_sale_payments_sum
 AFTER INSERT OR UPDATE OR DELETE ON public.counter_sale_payments
 DEFERRABLE INITIALLY DEFERRED
 FOR EACH ROW EXECUTE FUNCTION public.chk_counter_sale_payments_sum();
-
--- 3. Deferred check on counter_sales insert: ensures at least one payment row exists
-CREATE OR REPLACE FUNCTION public.chk_counter_sales_has_payments()
-RETURNS trigger LANGUAGE plpgsql AS $$
-DECLARE
-  v_actual numeric(12,2);
-  v_count integer;
-BEGIN
-  SELECT COALESCE(sum(amount), 0), count(*) INTO v_actual, v_count
-  FROM public.counter_sale_payments
-  WHERE sale_id = NEW.id;
-
-  IF v_count = 0 OR v_actual <> NEW.total_amount THEN
-    RAISE EXCEPTION 'Counter sale % requires payment rows summing to total % (found % rows summing to %)',
-      NEW.id, NEW.total_amount, v_count, v_actual USING ERRCODE = 'ST027';
-  END IF;
-
-  RETURN NULL;
-END;
-$$;
-
-DROP TRIGGER IF EXISTS trg_counter_sales_has_payments ON public.counter_sales;
-CREATE CONSTRAINT TRIGGER trg_counter_sales_has_payments
-AFTER INSERT ON public.counter_sales
-DEFERRABLE INITIALLY DEFERRED
-FOR EACH ROW EXECUTE FUNCTION public.chk_counter_sales_has_payments();
