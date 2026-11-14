@@ -26,6 +26,9 @@ with one, say so in your notes and still implement it.
 Do not touch `post_counter_sale`'s body beyond what item 2 requires. Do not add `track_stock` here;
 that belongs to M4, which rebases onto this branch afterwards (audit B3).
 
+If an audit finding turns out to be wrong when you read the code, stop on that item and say so in your
+notes. Do not guess a different fix. Do not touch any Supabase project, by MCP or otherwise.
+
 Do not skip or delete any test other than the string-matching ones named in item 6. No `@ts-ignore`,
 no `as any`.
 
