@@ -140,3 +140,33 @@ the migrations are applied to the test project and B1 is fixed.
 One fix round by the builder: `prompts/chore-counter-sale-payments-fix.md`. Then a human applies the
 four migrations to the test project (the harness declines `CREATE TRIGGER`), CI runs, and only then
 does this merge.
+
+## Fix round — verified 2026-11-14 at `d363db6`
+
+Builder run on `prompts/chore-counter-sale-payments-fix.md` (Gemini), seven commits. Checked against
+the diff, not against the builder's notes.
+
+| Finding | Status | How checked |
+|---|---|---|
+| B1 | fixed | void test posts with `other`; every `post` asserts `error` |
+| B2 | fixed | has-payments function and trigger now in `…230400`, after the function |
+| B3 | open, by design | belongs to M4's rebase; the new invariant `post-counter-sale-writes-payments` guards it |
+| M1 | fixed | three tests added as specified |
+| M2 | fixed | the four bypass statements re-run as fixtures: all exit 1 |
+| M3 | fixed | backfill uses `WHERE NOT EXISTS` on the sale |
+| m1–m4 | fixed | policy renamed, trigger covers `UPDATE OF total_amount`, string tests deleted, index dropped |
+
+Tiers run by the architect at `d363db6`: `typecheck` exit 0; `test:unit` 696 tests, 62 files, pass;
+`audit:invariants` 17 checks, pass. No `as any`, `@ts-ignore` or `.skip(` added. Files changed match
+the prompt; `post_counter_sale`'s body is untouched.
+
+**Verdict after the round: approved to apply, not yet to merge.** Still unverified: the four
+migrations have never run on Postgres, and the integration tests have never run at all.
+
+Applying, for the human who does it:
+
+- Apply the four in order, in one sitting. A sale posted after `…230300` and before `…230400` gets no
+  payment row and nothing refuses it. If that gap cannot be avoided, re-run `…230300` after `…230400`;
+  it is re-runnable for exactly this.
+- `database.types.ts` was not regenerated; do it after the migrations are applied.
+- Then dispatch CI. Merge on green.
