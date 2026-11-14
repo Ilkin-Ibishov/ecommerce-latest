@@ -65,9 +65,11 @@ describe("counter_sale_payments integration (spec §6)", () => {
   it("replaying post_counter_sale with the same id and hash writes no second row", async () => {
     const v = await createStockedVariant(db, actor, 5);
     const s = sale([{ variant_id: v, quantity: 1, price: 20 }]);
-    await post(s);
+    const first = await post(s);
+    expect(first.error).toBeNull();
 
     const replayed = await post(s);
+    expect(replayed.error).toBeNull();
     expect(replayed.data).toMatchObject({ replayed: true });
 
     const { data: payments } = await db.from("counter_sale_payments").select("*").eq("sale_id", s.id);
@@ -76,8 +78,9 @@ describe("counter_sale_payments integration (spec §6)", () => {
 
   it("a voided sale keeps its payment rows", async () => {
     const v = await createStockedVariant(db, actor, 5);
-    const s = sale([{ variant_id: v, quantity: 1, price: 12 }], randomUUID(), "bank_transfer");
-    await post(s);
+    const s = sale([{ variant_id: v, quantity: 1, price: 12 }], randomUUID(), "other");
+    const posted = await post(s);
+    expect(posted.error).toBeNull();
 
     const voided = await db.rpc("void_counter_sale", { p_id: s.id, p_reason: "Customer change", p_session_user: actor });
     expect(voided.error).toBeNull();
@@ -85,13 +88,14 @@ describe("counter_sale_payments integration (spec §6)", () => {
     const { data: payments } = await db.from("counter_sale_payments").select("*").eq("sale_id", s.id);
     expect(payments).toHaveLength(1);
     expect(payments![0].amount).toBe(12);
-    expect(payments![0].method).toBe("bank_transfer");
+    expect(payments![0].method).toBe("other");
   });
 
   it("an UPDATE or DELETE on a payment row is refused by trigger (2BP01)", async () => {
     const v = await createStockedVariant(db, actor, 5);
     const s = sale([{ variant_id: v, quantity: 1, price: 10 }]);
-    await post(s);
+    const posted = await post(s);
+    expect(posted.error).toBeNull();
 
     const updateAttempt = await db
       .from("counter_sale_payments")
