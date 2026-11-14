@@ -1,0 +1,44 @@
+{
+  "timestamp": "2026-11-14T05:49:47.340Z",
+  "totalFindings": 1,
+  "findings": [
+    {
+      "id": "BUG-CSV-01",
+      "severity": "P2 (Lokalizasiya & Məlumat)",
+      "title": "CSV İxracında UTF-8 BOM Çatışmazlığı (Excel-də Azərbaycan Hərflərinin Pozulması)",
+      "details": "İxrac edilən CSV faylı UTF-8 BOM olmadan yazıldığı üçün Microsoft Excel proqramında açıldıqda ə, ı, ğ, ç, ş, ö hərfləri qarışıq simvollara çevrilir.",
+      "evidence": "inventory-export.csv"
+    }
+  ],
+  "consoleErrorsSample": [
+    {
+      "text": "Failed to load resource: the server responded with a status of 404 (Not Found)",
+      "url": "http://localhost:3000/admin/receipts/00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "text": "Failed to load resource: the server responded with a status of 403 ()",
+      "url": "http://localhost:3000/admin/inventory"
+    },
+    {
+      "text": "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+      "url": "http://localhost:3000/admin/inventory"
+    }
+  ],
+  "networkErrorsSample": [
+    {
+      "url": "http://localhost:3000/api/admin/receipts/00000000-0000-0000-0000-000000000000",
+      "status": 404,
+      "page": "http://localhost:3000/admin/receipts/00000000-0000-0000-0000-000000000000"
+    },
+    {
+      "url": "https://jcvsnoiacrknzejouxah.supabase.co/rest/v1/product_variant_availability?select=product_id%2Con_hand%2Creserved_quantity%2Cavailable_quantity%2Cdeficit_quantity",
+      "status": 403,
+      "page": "http://localhost:3000/admin/inventory"
+    },
+    {
+      "url": "http://localhost:3000/api/admin/inventory/signals/low-stock",
+      "status": 500,
+      "page": "http://localhost:3000/admin/inventory"
+    }
+  ]
+}
