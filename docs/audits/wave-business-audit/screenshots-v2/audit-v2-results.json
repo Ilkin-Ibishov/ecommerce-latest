@@ -1,0 +1,64 @@
+{
+  "timestamp": "2026-11-14T05:38:58.676Z",
+  "personas": {
+    "cashier": {
+      "directQuantityInput": false,
+      "changeCalculatorPresent": false,
+      "confirmationModalWorks": false,
+      "receiptModalInPage": false
+    },
+    "warehouse": {
+      "receiptLineItemsInModal": false,
+      "stocktakesForbidden": false,
+      "reorderStatus": 200,
+      "reservationsForbidden": false,
+      "rawReservationKeyPresent": false
+    },
+    "manager": {
+      "activeDateFilterIsAz": true,
+      "marginReportPageAccessible": true,
+      "staffFilterTabsPresent": false,
+      "turkishPlaceholderFixed": true
+    },
+    "customer": {
+      "bogusDealFiltered": false,
+      "duplicateBreadcrumbs": false,
+      "sizeGuideWorks": false,
+      "drawerAutoClosedOnCheckout": false,
+      "deliveryFeeCalculatedProperly": false,
+      "draftPersistedAcrossLocale": false
+    },
+    "uxExpert": {
+      "viewportTested": "390x844",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "horizontalScrollDetected": false,
+      "isResponsive": true
+    }
+  },
+  "networkErrors": [
+    {
+      "url": "https://jcvsnoiacrknzejouxah.supabase.co/rest/v1/product_variant_availability?select=product_id%2Con_hand%2Creserved_quantity%2Cavailable_quantity%2Cdeficit_quantity",
+      "status": 403
+    },
+    {
+      "url": "http://localhost:3000/api/admin/inventory/signals/low-stock",
+      "status": 500
+    },
+    {
+      "url": "https://jcvsnoiacrknzejouxah.supabase.co/rest/v1/coupon_usages?select=id&used_at=gte.2026-10-31T20%3A00%3A00.000Z&used_at=lte.2026-11-14T19%3A59%3A59.000Z",
+      "status": 400
+    },
+    {
+      "url": "http://localhost:3000/api/admin/inventory/signals/summary",
+      "status": 500
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 403 ()",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Failed to load resource: the server responded with a status of 400 ()",
+    "Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+    "Each child in a list should have a unique \"key\" prop.%s%s See https://react.dev/link/warning-keys for more information. \n\nCheck the render method of `MarginContributorsTable`. "
+  ]
+}
