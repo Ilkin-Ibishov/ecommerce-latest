@@ -75,7 +75,7 @@ router.get(
     // --- Compute aggregates from the Store's own DB ---
     const db = getAdminSupabase();
 
-    // order_count: count of orders where created_at is between from and to (inclusive)
+    // order_count: count of orders + completed counter sales where created_at is between from and to (inclusive)
     const { count: orderCount, error: orderCountError } = await db
       .from("orders")
       .select("*", { count: "exact", head: true })
@@ -88,7 +88,18 @@ router.get(
       return;
     }
 
-    // revenue_total: sum of orders.total_azn for same range
+    const { count: counterCount, error: counterCountError } = await (db as any)
+      .from("counter_sales")
+      .select("*", { count: "exact", head: true })
+      .eq("status", "posted")
+      .gte("created_at", from)
+      .lte("created_at", to);
+
+    if (counterCountError) {
+      req.log.warn({ err: counterCountError }, "Warning: Failed to count counter_sales");
+    }
+
+    // revenue_total: sum of orders.total_azn + counter_sales.total_amount for same range
     const { data: revenueRows, error: revenueError } = await db
       .from("orders")
       .select("total_azn")
@@ -101,11 +112,28 @@ router.get(
       return;
     }
 
-    const revenueSum = (revenueRows ?? []).reduce(
+    const { data: counterRevenueRows, error: counterRevenueError } = await (db as any)
+      .from("counter_sales")
+      .select("total_amount")
+      .eq("status", "posted")
+      .gte("created_at", from)
+      .lte("created_at", to);
+
+    if (counterRevenueError) {
+      req.log.warn({ err: counterRevenueError }, "Warning: Failed to fetch counter_sales totals");
+    }
+
+    const onlineRevenueSum = (revenueRows ?? []).reduce(
       (acc, row) => acc + (Number(row.total_azn) || 0),
       0,
     );
-    const revenueTotal = revenueSum.toFixed(2);
+    const counterRevenueSum = (counterRevenueRows ?? []).reduce(
+      (acc: number, row: any) => acc + (Number(row.total_amount) || 0),
+      0,
+    );
+    const totalRevenueSum = onlineRevenueSum + counterRevenueSum;
+    const totalOrderCount = (orderCount ?? 0) + (counterCount ?? 0);
+    const revenueTotal = totalRevenueSum.toFixed(2);
 
     // traffic_count: null (optional, not implemented yet)
     const trafficCount: number | null = null;
@@ -134,7 +162,7 @@ router.get(
 
     // --- Return ONLY aggregate fields — no raw records ---
     res.json({
-      order_count: orderCount ?? 0,
+      order_count: totalOrderCount,
       revenue_total: revenueTotal,
       traffic_count: trafficCount,
       quota_usage: {

@@ -1,31 +1,8 @@
 import { Router, type Request, type Response } from "express";
 import { getAdminSupabase, getSupabase } from "../../lib/supabase";
+import { requireStaffOrAdmin } from "../../middlewares/requireStaffOrAdmin";
 
 const router = Router();
-
-async function requireStaffOrAdmin(req: Request, res: Response, next: () => void): Promise<void> {
-  const token = req.headers.authorization?.replace("Bearer ", "");
-  if (!token) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const supabase = getSupabase(token);
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    res.status(401).json({ error: "Invalid token" });
-    return;
-  }
-  const admin = getAdminSupabase();
-  const { data: profile } = await (admin as any).from("users").select("role").eq("id", user.id).single();
-  if (profile?.role !== "admin" && profile?.role !== "staff") {
-    res.status(403).json({ error: "Forbidden: staff or admin required" });
-    return;
-  }
-  (req as any).user = user;
-  (req as any).userRole = profile.role;
-  (req as any).admin = admin;
-  next();
-}
 
 // ─── Add Line to Draft Receipt ───────────────────────────────────────────────
 router.post("/admin/receipts/:id/lines", requireStaffOrAdmin, async (req: Request, res: Response) => {

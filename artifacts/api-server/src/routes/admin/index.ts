@@ -22,6 +22,7 @@ import counterLookup from "./counter-lookup";
 import counterSales from "./counter-sales";
 import bundles from "./bundles";
 import inventorySignals from "./inventory-signals";
+import dashboard from "./dashboard";
 
 const router: IRouter = Router();
 
@@ -58,5 +59,6 @@ router.use(counterLookup);
 router.use(counterSales);
 router.use(bundles);
 router.use(inventorySignals);
+router.use(dashboard);
 
 export default router;

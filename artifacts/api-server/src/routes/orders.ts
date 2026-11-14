@@ -122,7 +122,29 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
     quantity: item.quantity,
   }));
 
-  const { error: stockError } = await decrementOrderStock(admin, orderId, orderLines, user.id);
+  let { error: stockError } = await decrementOrderStock(admin, orderId, orderLines, user.id);
+  if (stockError && ((stockError as any)?.code === "42883" || String((stockError as any)?.message).includes("does not exist"))) {
+    // Fallback: per-item atomic decrement with ledger check if multi-line RPC is absent
+    const decremented: { variant_id: string; quantity: number }[] = [];
+    let lineErr: any = null;
+    for (const line of orderLines) {
+      const { error: dErr } = await decrementStockSafe(admin, line.variant_id, line.quantity);
+      if (dErr) {
+        lineErr = dErr;
+        break;
+      }
+      decremented.push(line);
+    }
+    if (lineErr) {
+      for (const line of decremented) {
+        await incrementStock(admin, line.variant_id, line.quantity).catch(() => {});
+      }
+      stockError = lineErr;
+    } else {
+      stockError = null;
+    }
+  }
+
   if (stockError) {
     const message = (stockError as any)?.message ?? "Out of stock";
     res.status(409).json({ error: "Out of stock", message });
