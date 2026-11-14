@@ -207,3 +207,30 @@ with the staff-provisioning commits on `m4/stock-signals` and must be fixed befo
 anywhere. No M4 migration has run on Postgres.
 
 Next is §8 step 3: the builder revises the design note for M2 and M3 and stops.
+
+## Split of the non-M4 work — 2026-11-15
+
+Done by sub-agents in their own worktrees; each result checked against git, not against the report.
+All branches are cut from `main` at `673e3ab`. None is pushed, none is audited beyond what is said here.
+
+| Branch | Holds | Local tiers | State |
+|---|---|---|---|
+| `fix/e2e-cart-flow-in-stock` | `67dfb26`: `cart-flow.spec.ts` opens the seeded `test-product-1` instead of the first listed product | typecheck, unit, invariants pass | E2E not run; needs one CI run |
+| `feat/staff-provisioning` | `27b6646 7ea7cd7 6c3919d`, a middleware unit test, invariant `no-auth-metadata-role-reads` with fixtures | pass (711 tests, 65 files) | not mergeable, see below |
+| `fix/counter-sale-confirmation` | `2a92d46`, patch-identical | pass (696 tests) | unaudited |
+| `fix/storefront-mobile-spa` | `4dbba30 6487713`, patch-identical | pass (696 tests) | unaudited |
+
+- **`fc71328` is not on any branch and will not be cherry-picked.** It is a 15-file mixed commit: it
+  edits M4's `inventory-signals.ts`, adds a dashboard route, touches eleven other routes, adds an
+  `as any`, and is the commit that introduces B1. So B1 exists only on `m4/stock-signals`, which does
+  not merge. `feat/staff-provisioning` reads `profile?.role` only, and the new invariant keeps it so.
+  The invariant is a line regex; a destructured read (`const { role } = user.user_metadata`) passes it.
+- **`feat/staff-provisioning` is missing the sole-admin guard**, which was in `fc71328`. On the branch
+  an admin cannot demote themselves (`routes/admin/users.ts:152`), but with two admins either can
+  demote the other. It also carries six `as any` from the cherry-picked commits. It needs its own
+  spec and audit (§5) before it goes anywhere.
+- **`ca38231 5ee69e9 fa0abed` (admin inventory and receipt fixes) could not be split onto `main`.**
+  `ca38231` conflicts in the three i18n dictionaries, `DashboardPage.tsx` and `UsersPage.tsx`: it sits
+  on top of both staff provisioning and the M4 UI. It is rebuilt after those two land, not before.
+- The persona audit reports, screenshots and QA scripts (`43f6410 bd5fae7 ea870bf c1d569b`) are still
+  only on `m4/stock-signals`.
