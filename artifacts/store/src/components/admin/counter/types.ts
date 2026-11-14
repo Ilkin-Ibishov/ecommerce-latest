@@ -18,7 +18,8 @@ export interface CounterBundle {
   id: string;
   name: string;
   bundle_price: number | null;
-  lines: { variant_id: string; quantity: number; title: string; price: number; on_hand: number }[];
+  available?: number | null;
+  lines: { variant_id: string; quantity: number; title: string; price: number; on_hand: number; track_stock?: boolean; available?: number | null }[];
 }
 
 export interface CartLine {

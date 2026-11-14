@@ -94,27 +94,51 @@ router.get("/admin/counter/lookup", requireStaffOrAdmin, async (req: Request, re
 router.get("/admin/counter/bundles", requireStaffOrAdmin, async (req: Request, res: Response): Promise<void> => {
   const { data, error } = await req.admin!
     .from("bundles")
-    .select("id, name, bundle_price, bundle_lines ( variant_id, quantity, product_variants ( sku, price, on_hand, products ( product_translations ( lang_code, title ) ) ) )")
+    .select("id, name, bundle_price, bundle_lines ( variant_id, quantity, product_variants ( sku, price, on_hand, track_stock, products ( product_translations ( lang_code, title ) ) ) )")
     .eq("is_active", true).order("name");
   if (error) {
     res.status(500).json({ error: error.message });
     return;
   }
-  res.json((data ?? []).map((b) => ({
-    id: b.id,
-    name: b.name,
-    bundle_price: b.bundle_price === null ? null : Number(b.bundle_price),
-    lines: b.bundle_lines.map((l) => {
-      const t = l.product_variants?.products?.product_translations ?? [];
+
+  const allVariantIds = (data ?? []).flatMap((b: any) => (b.bundle_lines ?? []).map((l: any) => l.variant_id));
+  const { data: availRows } = allVariantIds.length > 0
+    ? await req.admin!.from("product_variant_availability").select("variant_id, available_quantity").in("variant_id", allVariantIds)
+    : { data: [] };
+  const availMap = new Map<string, number | null>(
+    (availRows ?? []).map((a: any) => [a.variant_id, a.available_quantity === null ? null : Number(a.available_quantity)])
+  );
+
+  res.json((data ?? []).map((b: any) => {
+    let minTracked: number | null = null;
+    const lines = (b.bundle_lines ?? []).map((l: any) => {
+      const pv = l.product_variants;
+      const t = pv?.products?.product_translations ?? [];
+      const trackStock = pv?.track_stock !== false;
+      const compAvail = availMap.has(l.variant_id) ? availMap.get(l.variant_id)! : (trackStock ? Number(pv?.on_hand ?? 0) : null);
+      if (trackStock && compAvail !== null) {
+        const canMake = Math.floor(compAvail / (l.quantity || 1));
+        minTracked = minTracked === null ? canMake : Math.min(minTracked, canMake);
+      }
       return {
         variant_id: l.variant_id,
         quantity: l.quantity,
-        title: t.find((x) => x.lang_code === "az")?.title ?? t[0]?.title ?? l.product_variants?.sku ?? "",
-        price: Number(l.product_variants?.price ?? 0),
-        on_hand: Number(l.product_variants?.on_hand ?? 0),
+        title: t.find((x: any) => x.lang_code === "az")?.title ?? t[0]?.title ?? pv?.sku ?? "",
+        price: Number(pv?.price ?? 0),
+        on_hand: Number(pv?.on_hand ?? 0),
+        track_stock: trackStock,
+        available: compAvail,
       };
-    }),
-  })));
+    });
+
+    return {
+      id: b.id,
+      name: b.name,
+      bundle_price: b.bundle_price === null ? null : Number(b.bundle_price),
+      available: minTracked,
+      lines,
+    };
+  }));
 });
 
 export default router;

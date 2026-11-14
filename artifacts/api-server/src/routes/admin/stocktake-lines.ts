@@ -45,9 +45,14 @@ router.post("/admin/stocktakes/:id/lines", requireStaffOrAdmin, async (req: Requ
 
   const { data: variant } = await (admin as any)
     .from("product_variants")
-    .select("sku, products(title)")
+    .select("sku, track_stock, products(title)")
     .eq("id", variant_id)
     .single();
+
+  if (!variant) return res.status(400).json({ error: "Variant not found" });
+  if (variant.track_stock === false) {
+    return res.status(400).json({ error: "Cannot count non-tracked variant on a stocktake" });
+  }
 
   const { data: line, error } = await (admin as any)
     .from("stocktake_lines")

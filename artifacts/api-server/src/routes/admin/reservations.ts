@@ -155,7 +155,7 @@ router.post("/admin/reservations", requireStaffOrAdmin, async (req: Request, res
   // Check available stock from product_variant_availability view
   const { data: availData, error: availErr } = await (admin as any)
     .from("product_variant_availability")
-    .select("available_quantity, on_hand, reserved_quantity")
+    .select("available_quantity, on_hand, reserved_quantity, track_stock")
     .eq("variant_id", variant_id)
     .single();
 
@@ -163,7 +163,7 @@ router.post("/admin/reservations", requireStaffOrAdmin, async (req: Request, res
     return res.status(400).json({ error: "Variant not found or unable to check availability" });
   }
 
-  if (availData.available_quantity === null) {
+  if (availData.track_stock === false || availData.available_quantity === null) {
     return res.status(400).json({ error: "Cannot create reservation for non-tracked variant" });
   }
 
