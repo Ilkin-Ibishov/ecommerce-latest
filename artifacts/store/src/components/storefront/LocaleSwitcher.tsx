@@ -8,7 +8,8 @@ export function LocaleSwitcher({ currentLocale }: { currentLocale: string }) {
     const parts = location.split("/").filter(Boolean);
     if (locales.includes(parts[0])) parts[0] = newLocale;
     else parts.unshift(newLocale);
-    window.location.href = `/${parts.join("/")}`;
+    const search = window.location.search || "";
+    window.location.href = `/${parts.join("/")}${search}`;
   };
 
   return (
