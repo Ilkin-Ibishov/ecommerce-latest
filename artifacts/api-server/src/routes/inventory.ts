@@ -6,6 +6,20 @@ import { writeAudit } from "../lib/audit";
 
 const router = Router();
 
+// ─── Inventory Availability (Staff & Admin) ───────────────────
+router.get("/admin/inventory/availability", requireStaffOrAdmin, async (req: Request, res: Response) => {
+  const admin = (req as any).admin ?? getAdminSupabase();
+  const { data, error } = await (admin as any)
+    .from("product_variant_availability")
+    .select("product_id, on_hand, reserved_quantity, available_quantity, deficit_quantity");
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+
+  return res.json({ availability: data ?? [] });
+});
+
 // ─── 1. Barcode Scan Lookup (F2 Auth & F3 Multi-Variant List) ─
 router.get("/inventory/scan/:barcode", requireStaffOrAdmin, async (req: Request, res: Response) => {
   const admin = (req as any).admin;
