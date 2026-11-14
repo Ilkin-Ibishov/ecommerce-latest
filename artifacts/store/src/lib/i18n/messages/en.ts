@@ -1106,6 +1106,8 @@ const en = {
         title: "Reorder Suggestions",
         subtitle: "Order requirements calculated from sales velocity and target days of cover.",
         backToInventory: "← Back to Inventory",
+        targetDaysLabel: "Target Cover (days)",
+        windowDaysLabel: "Sales Window (days)",
         supplier: "Supplier",
         unassignedSupplier: "Unassigned Supplier",
         contact: "Contact:",

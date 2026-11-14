@@ -3,40 +3,60 @@ import { getAdminSupabase } from "../../lib/supabase";
 import { requireStaffOrAdmin } from "../../middlewares/requireStaffOrAdmin";
 import { requireAdmin } from "../../middlewares/requireAdmin";
 import { queueNotification } from "../../lib/notifications";
+import {
+  fetchLowStockFallback,
+  fetchDeadStockFallback,
+} from "../../lib/inventory-signals-low-dead";
+import { fetchReorderFallback } from "../../lib/inventory-signals-reorder";
 
 const router = Router();
+
+async function getLowStock(admin: any, search?: string | null, status?: string | null) {
+  try {
+    const { data, error } = await (admin as any).rpc("get_low_stock_signals", {
+      p_search: search ?? null,
+      p_status: status ?? null,
+    });
+    if (!error && Array.isArray(data)) return data;
+  } catch {}
+  return fetchLowStockFallback(admin, search, status);
+}
+
+async function getDeadStock(admin: any, days: number = 90) {
+  try {
+    const { data, error } = await (admin as any).rpc("get_dead_stock_signals", { p_days: days });
+    if (!error && Array.isArray(data)) return data;
+  } catch {}
+  return fetchDeadStockFallback(admin, days);
+}
+
+async function getReorder(admin: any, windowDays: number, targetDays: number, minSales: number) {
+  try {
+    const { data, error } = await (admin as any).rpc("get_reorder_suggestions", {
+      p_window_days: windowDays,
+      p_target_days: targetDays,
+      p_min_sales: minSales,
+    });
+    if (!error && Array.isArray(data)) return data;
+  } catch {}
+  return fetchReorderFallback(admin, windowDays, targetDays, minSales);
+}
 
 // GET /admin/inventory/signals/summary — Dashboard counts
 router.get("/admin/inventory/signals/summary", requireStaffOrAdmin, async (req: Request, res: Response): Promise<void> => {
   const admin = getAdminSupabase();
   const isAdmin = req.userRole === "admin";
 
-  const [lowRes, deadRes, reorderRes] = await Promise.all([
-    (admin as any).rpc("get_low_stock_signals", { p_search: null, p_status: null }),
-    (admin as any).rpc("get_dead_stock_signals", { p_days: 90 }),
-    isAdmin
-      ? (admin as any).rpc("get_reorder_suggestions", { p_window_days: 28, p_target_days: 60, p_min_sales: 3 }).catch((err: any) => ({ data: [], error: err }))
-      : Promise.resolve({ data: [] }),
+  const [lowData, deadData, reorderData] = await Promise.all([
+    getLowStock(admin, null, null),
+    getDeadStock(admin, 90),
+    isAdmin ? getReorder(admin, 28, 60, 3) : Promise.resolve([]),
   ]);
 
-  if (lowRes.error) {
-    res.status(500).json({ error: lowRes.error.message });
-    return;
-  }
-  if (deadRes.error) {
-    res.status(500).json({ error: deadRes.error.message });
-    return;
-  }
-  if (reorderRes?.error) {
-    console.warn("get_reorder_suggestions RPC warning/error in summary:", reorderRes.error.message || reorderRes.error);
-  }
-
-  const reorderData = reorderRes?.error ? [] : (reorderRes?.data ?? []);
-
   res.json({
-    low_stock_count: (lowRes.data ?? []).length,
-    out_of_stock_count: (lowRes.data ?? []).filter((r: any) => r.status === "out").length,
-    dead_stock_count: (deadRes.data ?? []).length,
+    low_stock_count: lowData.length,
+    out_of_stock_count: lowData.filter((r: any) => r.status === "out").length,
+    dead_stock_count: deadData.length,
     reorder_suggestions_count: isAdmin ? reorderData.filter((r: any) => r.has_enough_data).length : null,
   });
 });
@@ -47,13 +67,8 @@ router.get("/admin/inventory/signals/low-stock", requireStaffOrAdmin, async (req
   const search = typeof req.query.search === "string" ? req.query.search : null;
   const status = typeof req.query.status === "string" && ["out", "low"].includes(req.query.status) ? req.query.status : null;
 
-  const { data, error } = await (admin as any).rpc("get_low_stock_signals", { p_search: search, p_status: status });
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
-
-  res.json({ variants: data ?? [], count: (data ?? []).length });
+  const data = await getLowStock(admin, search, status);
+  res.json({ variants: data, count: data.length });
 });
 
 // GET /admin/inventory/signals/dead-stock — Dead stock list (cost stripped for staff)
@@ -62,15 +77,10 @@ router.get("/admin/inventory/signals/dead-stock", requireStaffOrAdmin, async (re
   const days = Math.max(1, parseInt(String(req.query.days || "90"), 10) || 90);
   const isAdmin = req.userRole === "admin";
 
-  const { data, error } = await (admin as any).rpc("get_dead_stock_signals", { p_days: days });
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
+  const rawRows = await getDeadStock(admin, days);
 
-  const rawRows: any[] = data ?? [];
   if (isAdmin) {
-    const totalCapital = rawRows.reduce((sum, r) => sum + Number(r.capital_tied_up || 0), 0);
+    const totalCapital = rawRows.reduce((sum: number, r: any) => sum + Number(r.capital_tied_up || 0), 0);
     res.json({
       variants: rawRows,
       count: rawRows.length,
@@ -80,48 +90,26 @@ router.get("/admin/inventory/signals/dead-stock", requireStaffOrAdmin, async (re
   }
 
   // Staff role: strictly strip unit_cost and capital_tied_up (M2a RLS boundary)
-  const staffRows = rawRows.map(({ unit_cost, capital_tied_up, ...rest }) => rest);
+  const staffRows = rawRows.map(({ unit_cost, capital_tied_up, ...rest }: any) => rest);
   res.json({ variants: staffRows, count: staffRows.length });
 });
 
 // GET /admin/inventory/signals/reorder — Reorder suggestions (owner-only)
 router.get("/admin/inventory/signals/reorder", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   const admin = getAdminSupabase();
-  const windowDays = Math.max(1, parseInt(String(req.query.windowDays || "28"), 10) || 28);
-  const targetDays = Math.max(1, parseInt(String(req.query.targetDays || "60"), 10) || 60);
-  const minSales = Math.max(1, parseInt(String(req.query.minSales || "3"), 10) || 3);
+  const windowDays = Math.max(1, parseInt(String(req.query.windowDays || req.query.window_days || "28"), 10) || 28);
+  const targetDays = Math.max(1, parseInt(String(req.query.targetDays || req.query.target_days || "60"), 10) || 60);
+  const minSales = Math.max(1, parseInt(String(req.query.minSales || req.query.min_sales || "3"), 10) || 3);
 
-  try {
-    const { data, error } = await (admin as any).rpc("get_reorder_suggestions", {
-      p_window_days: windowDays,
-      p_target_days: targetDays,
-      p_min_sales: minSales,
-    });
-    if (error) {
-      console.warn("get_reorder_suggestions RPC warning/error:", error.message || error);
-      res.json({ suggestions: [], count: 0 });
-      return;
-    }
-
-    res.json({ suggestions: data ?? [], count: (data ?? []).length });
-  } catch (err: any) {
-    console.warn("get_reorder_suggestions RPC threw:", err?.message || err);
-    res.json({ suggestions: [], count: 0 });
-  }
+  const data = await getReorder(admin, windowDays, targetDays, minSales);
+  res.json({ suggestions: data, count: data.length });
 });
 
 // POST /admin/inventory/signals/evaluate-digest — Trigger low-stock digest evaluation
 router.post("/admin/inventory/signals/evaluate-digest", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
   const admin = getAdminSupabase();
 
-  const { data: lowVariants, error: fetchErr } = await (admin as any).rpc("get_low_stock_signals", {
-    p_search: null,
-    p_status: null,
-  });
-  if (fetchErr) {
-    res.status(500).json({ error: fetchErr.message });
-    return;
-  }
+  const lowVariants = await getLowStock(admin, null, null);
 
   const activeLow: any[] = lowVariants ?? [];
   const lowIds = new Set(activeLow.map((v) => v.variant_id));

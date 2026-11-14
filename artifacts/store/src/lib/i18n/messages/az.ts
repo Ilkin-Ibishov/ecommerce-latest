@@ -1106,6 +1106,8 @@ const az = {
         title: "Təkrar Sifariş Təklifləri",
         subtitle: "Satış sürəti və hədəf ehtiyat günləri əsasında hesablanan sifarişlər.",
         backToInventory: "← Anbara qayıt",
+        targetDaysLabel: "Hədəf təminat (gün)",
+        windowDaysLabel: "Satış pəncərəsi (gün)",
         supplier: "Təchizatçı",
         unassignedSupplier: "Təyin edilməmiş təchizatçı",
         contact: "Əlaqə:",

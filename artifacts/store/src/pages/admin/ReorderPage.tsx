@@ -16,11 +16,7 @@ interface ReorderItem {
   suggested_qty: number | null; has_enough_data: boolean;
 }
 
-interface SupplierGroup {
-  name: string;
-  contact: string | null;
-  items: ReorderItem[];
-}
+interface SupplierGroup { name: string; contact: string | null; items: ReorderItem[]; }
 
 export default function ReorderPage() {
   const { t } = useI18n();
@@ -28,12 +24,14 @@ export default function ReorderPage() {
   const [items, setItems] = useState<ReorderItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [targetDays, setTargetDays] = useState<number>(60);
+  const [windowDays, setWindowDays] = useState<number>(28);
 
   const loadData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await adminJson(apiUrl("/admin/inventory/signals/reorder"));
+      const data = await adminJson(apiUrl(`/admin/inventory/signals/reorder?target_days=${targetDays}&window_days=${windowDays}`));
       setItems(data.suggestions ?? []);
     } catch (err: any) {
       setError(err?.message || "Failed to load");
@@ -44,7 +42,7 @@ export default function ReorderPage() {
 
   useEffect(() => {
     if (!roleLoading && isAdmin) loadData();
-  }, [roleLoading, isAdmin]);
+  }, [roleLoading, isAdmin, targetDays, windowDays]);
 
   const groups = useMemo(() => {
     const map = new Map<string, SupplierGroup>();
@@ -76,10 +74,25 @@ export default function ReorderPage() {
           <h1 className="text-2xl font-bold">{t("Admin.Reorder.title")}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">{t("Admin.Reorder.subtitle")}</p>
         </div>
-        <button type="button" onClick={loadData} disabled={loading} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input bg-card hover:bg-muted text-xs font-semibold transition">
-          <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-          {t("Common.retry")}
-        </button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <div className="flex items-center gap-1.5 bg-card border border-input px-3 py-1.5 rounded-lg text-xs">
+            <label htmlFor="reorder-target-days" className="text-muted-foreground font-medium">{t("Admin.Reorder.targetDaysLabel")}:</label>
+            <input id="reorder-target-days" type="number" min={1} max={365} value={targetDays} onChange={(e) => setTargetDays(Math.max(1, parseInt(e.target.value, 10) || 60))} className="w-16 px-1.5 py-0.5 rounded border border-input bg-background font-semibold text-center" />
+          </div>
+          <div className="flex items-center gap-1.5 bg-card border border-input px-3 py-1.5 rounded-lg text-xs">
+            <label htmlFor="reorder-window-days" className="text-muted-foreground font-medium">{t("Admin.Reorder.windowDaysLabel")}:</label>
+            <select id="reorder-window-days" value={windowDays} onChange={(e) => setWindowDays(Math.max(1, parseInt(e.target.value, 10) || 28))} className="px-1.5 py-0.5 rounded border border-input bg-background font-semibold">
+              <option value={14}>14</option>
+              <option value={28}>28</option>
+              <option value={60}>60</option>
+              <option value={90}>90</option>
+            </select>
+          </div>
+          <button type="button" onClick={loadData} disabled={loading} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input bg-card hover:bg-muted text-xs font-semibold transition">
+            <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+            {t("Common.retry")}
+          </button>
+        </div>
       </div>
 
       {error && (
