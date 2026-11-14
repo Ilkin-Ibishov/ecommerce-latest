@@ -2,7 +2,6 @@ import { Router, type Request, type Response } from "express";
 import { getAdminSupabase } from "../../lib/supabase";
 import { requireStaffOrAdmin } from "../../middlewares/requireStaffOrAdmin";
 import { requireAdmin } from "../../middlewares/requireAdmin";
-import { queueNotification } from "../../lib/notifications";
 
 const router = Router();
 
@@ -99,70 +98,6 @@ router.get("/admin/inventory/signals/reorder", requireAdmin, async (req: Request
   }
 
   res.json({ suggestions: data ?? [], count: (data ?? []).length });
-});
-
-// POST /admin/inventory/signals/evaluate-digest — Trigger low-stock digest evaluation
-router.post("/admin/inventory/signals/evaluate-digest", requireAdmin, async (_req: Request, res: Response): Promise<void> => {
-  const admin = getAdminSupabase();
-
-  const { data: lowVariants, error: fetchErr } = await (admin as any).rpc("get_low_stock_signals", {
-    p_search: null,
-    p_status: null,
-  });
-  if (fetchErr) {
-    res.status(500).json({ error: fetchErr.message });
-    return;
-  }
-
-  const activeLow: any[] = lowVariants ?? [];
-  const lowIds = new Set(activeLow.map((v) => v.variant_id));
-
-  // 1. Clear suppression for recovered variants (available > threshold)
-  const { data: existingEvents } = await (admin as any).from("low_stock_notification_events").select("variant_id");
-  const existingIds: string[] = (existingEvents ?? []).map((e: any) => e.variant_id);
-  const recoveredIds = existingIds.filter((id: string) => !lowIds.has(id));
-  if (recoveredIds.length > 0) {
-    await (admin as any).from("low_stock_notification_events").delete().in("variant_id", recoveredIds);
-  }
-
-  // 2. Identify newly low variants not yet suppressed
-  const existingIdSet = new Set(existingIds.filter((id: string) => lowIds.has(id)));
-  const newlyLow = activeLow.filter((v) => !existingIdSet.has(v.variant_id));
-
-  if (newlyLow.length === 0) {
-    res.json({ evaluated: true, notified_count: 0, newly_low_count: 0 });
-    return;
-  }
-
-  // 3. Record suppression events
-  const now = new Date().toISOString();
-  await (admin as any).from("low_stock_notification_events").insert(
-    newlyLow.map((v) => ({
-      variant_id: v.variant_id,
-      notified_at: now,
-      last_notified_available: v.available_quantity,
-      threshold_at_notification: v.threshold,
-    }))
-  );
-
-  // 4. Dispatch single consolidated digest
-  await queueNotification({
-    type: "low_stock",
-    channel: "in_app",
-    recipient: "admin",
-    payload: {
-      count: newlyLow.length,
-      items: newlyLow.map((v) => ({
-        variant_id: v.variant_id,
-        sku: v.variant_sku,
-        title: v.product_title,
-        available: v.available_quantity,
-        threshold: v.threshold,
-      })),
-    },
-  });
-
-  res.json({ evaluated: true, notified_count: newlyLow.length });
 });
 
 export default router;

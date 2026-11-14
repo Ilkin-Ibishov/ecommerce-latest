@@ -113,45 +113,6 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
     }
   });
 
-  it("4. low stock digest queues one digest row in public.notifications and suppresses duplicate notifications until recovery", async () => {
-    await setRole("admin");
-    const lowVarId = await createVariant(db, { onHand: 2, actor: actorId });
-    await (db as any).from("product_variants").update({ low_stock_threshold: 10 }).eq("id", lowVarId);
-    await (db as any).from("low_stock_notification_events").delete().eq("variant_id", lowVarId);
-
-    const res1 = await call("POST", "/admin/inventory/signals/evaluate-digest");
-    expect(res1.status).toBe(200);
-    expect((await res1.json()).evaluated).toBe(true);
-
-    const { data: event1 } = await (db as any).from("low_stock_notification_events").select("variant_id").eq("variant_id", lowVarId).single();
-    expect(event1).not.toBeNull();
-
-    const { data: notifs1 } = await (db as any).from("notifications").select("id, payload, channel").eq("type", "low_stock");
-    const matched1 = (notifs1 ?? []).filter((n: any) => (n.payload?.items ?? []).some((i: any) => i.variant_id === lowVarId));
-    expect(matched1).toHaveLength(1);
-    expect(matched1[0].channel).toBe("in_app");
-
-    await call("POST", "/admin/inventory/signals/evaluate-digest");
-    const { data: notifs2 } = await (db as any).from("notifications").select("id, payload").eq("type", "low_stock");
-    const matched2 = (notifs2 ?? []).filter((n: any) => (n.payload?.items ?? []).some((i: any) => i.variant_id === lowVarId));
-    expect(matched2).toHaveLength(1);
-
-    await (db as any).from("stock_movements").insert({
-      variant_id: lowVarId, quantity_delta: 20, reason: "manual_adjustment", reference_type: "manual", actor_id: actorId,
-    });
-    await call("POST", "/admin/inventory/signals/evaluate-digest");
-    const { data: eventCleared } = await (db as any).from("low_stock_notification_events").select("variant_id").eq("variant_id", lowVarId);
-    expect(eventCleared ?? []).toHaveLength(0);
-
-    await (db as any).from("stock_movements").insert({
-      variant_id: lowVarId, quantity_delta: -20, reason: "manual_adjustment", reference_type: "manual", actor_id: actorId,
-    });
-    await call("POST", "/admin/inventory/signals/evaluate-digest");
-    const { data: notifs3 } = await (db as any).from("notifications").select("id, payload").eq("type", "low_stock");
-    const matched3 = (notifs3 ?? []).filter((n: any) => (n.payload?.items ?? []).some((i: any) => i.variant_id === lowVarId));
-    expect(matched3).toHaveLength(2);
-  });
-
   it("5. reorder suggestions returns honest formula evidence and preserves candidates with sales_count < 3 with has_enough_data=false", async () => {
     await setRole("admin");
     const vFew = await createVariant(db, { onHand: 3, actor: actorId });
