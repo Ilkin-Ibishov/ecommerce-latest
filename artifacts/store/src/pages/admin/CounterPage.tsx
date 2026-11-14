@@ -8,6 +8,9 @@ import { LookupBox } from "@/components/admin/counter/LookupBox";
 import { VariantPicker } from "@/components/admin/counter/VariantPicker";
 import { CartLines } from "@/components/admin/counter/CartLines";
 import { PickupPanel } from "@/components/admin/counter/PickupPanel";
+import { CounterCheckoutPanel } from "@/components/admin/counter/CounterCheckoutPanel";
+import { PaymentConfirmationModal } from "@/components/admin/counter/PaymentConfirmationModal";
+import { ReceiptModal } from "@/components/admin/counter/ReceiptModal";
 import { optionLabel, type CartLine, type CounterBundle, type LookupItem } from "@/components/admin/counter/types";
 
 type Outcome = { kind: "posted" | "needs_owner" | "error"; text: string; saleId?: string };
@@ -20,10 +23,13 @@ export default function CounterPage() {
   const [picker, setPicker] = useState<LookupItem[] | null>(null);
   const [payment, setPayment] = useState<"cash" | "card" | "other">("cash");
   const [ownerDiscount, setOwnerDiscount] = useState("");
+  const [tenderedAmount, setTenderedAmount] = useState("");
   const [isOwner, setIsOwner] = useState(false);
   const [saleId, setSaleId] = useState(() => crypto.randomUUID());
   const [pending, setPending] = useState(false); // Complete sent, outcome unknown
   const [outcome, setOutcome] = useState<Outcome | null>(null);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [completedReceipt, setCompletedReceipt] = useState<{ id: string; tendered?: number | null; change?: number | null } | null>(null);
 
   useEffect(() => {
     adminFetch(apiUrl("/admin/counter/bundles")).then((r) => (r.ok ? r.json() : [])).then(setBundles).catch(() => {});
@@ -74,23 +80,43 @@ export default function CounterPage() {
       });
       const data = await res.json();
       if (!res.ok) {
-        // A rejected request will not succeed on resend: unfreeze so the cashier can fix it.
         setPending(false);
+        setShowConfirm(false);
         setOutcome({ kind: "error", text: data.error ?? "Xəta" });
         return;
       }
+      const tNum = parseFloat(tenderedAmount);
+      const finalTendered = payment === "cash" && !isNaN(tNum) ? tNum : null;
+      const finalChange = finalTendered !== null ? Math.max(0, finalTendered - priced.total_amount) : null;
+
+      setShowConfirm(false);
       setOutcome(data.status === "needs_owner"
         ? { kind: "needs_owner", text: `Satış #${data.sale_number} qeyd olundu. Stok sistemdə azdır: sahibkar yoxlamalıdır.`, saleId: data.id }
         : { kind: "posted", text: `Satış #${data.sale_number} tamamlandı.`, saleId: data.id });
+      setCompletedReceipt({ id: data.id, tendered: finalTendered, change: finalChange });
       setLines([]);
       setOwnerDiscount("");
+      setTenderedAmount("");
       setSaleId(crypto.randomUUID());
       setPending(false);
     } catch {
-      // Unknown outcome (network). Keep the cart frozen; Retry resends the same id.
+      setPending(false);
+      setShowConfirm(false);
       setOutcome({ kind: "error", text: "Bağlantı xətası. Nəticə məlum deyil: yenidən göndərin." });
     }
   };
+
+  const handleOpenConfirm = () => {
+    if (pending && outcome?.kind === "error") {
+      void complete();
+      return;
+    }
+    setShowConfirm(true);
+  };
+
+  const tenderedNum = parseFloat(tenderedAmount);
+  const hasValidCashTender = payment !== "cash" || (!isNaN(tenderedNum) && tenderedNum >= priced.total_amount);
+  const changeAmount = !isNaN(tenderedNum) && tenderedNum >= priced.total_amount ? tenderedNum - priced.total_amount : 0;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
@@ -99,7 +125,7 @@ export default function CounterPage() {
           <h1 className="text-2xl font-bold">Kassa</h1>
           <Link href="/admin/counter/sales" className="text-sm text-primary underline">Satışlar</Link>
         </div>
-        <LookupBox disabled={pending || !!picker} onResults={(items) => (items.length === 1 ? addItem(items[0]) : setPicker(items))} />
+        <LookupBox disabled={pending || !!picker} resetSignal={saleId} onResults={(items) => (items.length === 1 ? addItem(items[0]) : setPicker(items))} />
         {bundles.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {bundles.map((b) => (
@@ -110,45 +136,52 @@ export default function CounterPage() {
             ))}
           </div>
         )}
-        <CartLines lines={lines} nets={priced.lines.map((l) => l.net_line_total)} locked={pending}
+        <CartLines lines={lines} nets={priced.lines.map((l: { net_line_total: number }) => l.net_line_total)} locked={pending}
           onQuantity={(key, q) => setLines((cur) => cur.map((l) => (l.key === key ? { ...l, quantity: q } : l)))}
           onRemove={(key) => setLines((cur) => cur.filter((l) => l.key !== key))} />
       </div>
 
       <aside className="space-y-4">
-        <section className="space-y-3 rounded-xl border border-border p-4">
-          {priced.bundle_discount > 0 && <p className="flex justify-between text-sm"><span>Dəst endirimi</span><span>−{priced.bundle_discount.toFixed(2)}</span></p>}
-          {isOwner && (
-            <label className="flex items-center justify-between gap-2 text-sm">
-              Endirim (AZN)
-              <input type="number" min="0" step="0.01" value={ownerDiscount} disabled={pending}
-                onChange={(e) => setOwnerDiscount(e.target.value)} className="w-24 rounded border border-border bg-background px-2 py-1 text-right" />
-            </label>
-          )}
-          <p className="flex justify-between text-2xl font-bold"><span>Cəmi</span><span>{priced.total_amount.toFixed(2)} AZN</span></p>
-          <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Ödəniş üsulu">
-            {(["cash", "card", "other"] as const).map((m) => (
-              <button key={m} type="button" role="radio" aria-checked={payment === m} disabled={pending} onClick={() => setPayment(m)}
-                className={`rounded-lg border px-2 py-2 text-sm ${payment === m ? "border-primary bg-primary/10 font-semibold" : "border-border"}`}>
-                {m === "cash" ? "Nağd" : m === "card" ? "Kart" : "Digər"}
-              </button>
-            ))}
-          </div>
-          <button type="button" onClick={() => void complete()} disabled={lines.length === 0 || (pending && outcome?.kind !== "error")}
-            className="w-full rounded-lg bg-primary py-3 text-lg font-semibold text-primary-foreground disabled:opacity-50">
-            {pending && outcome?.kind === "error" ? "Yenidən göndər" : "Tamamla"}
-          </button>
-          {outcome && (
-            <p role="status" className={`text-sm ${outcome.kind === "posted" ? "text-green-700" : outcome.kind === "needs_owner" ? "text-amber-700" : "text-destructive"}`}>
-              {outcome.text}{" "}
-              {outcome.saleId && <Link href={`/admin/counter/receipt/${outcome.saleId}`} className="underline">Qəbz</Link>}
-            </p>
-          )}
-        </section>
+        <CounterCheckoutPanel
+          priced={priced}
+          isOwner={isOwner}
+          ownerDiscount={ownerDiscount}
+          onOwnerDiscountChange={setOwnerDiscount}
+          payment={payment}
+          onPaymentChange={setPayment}
+          tenderedAmount={tenderedAmount}
+          onTenderedAmountChange={setTenderedAmount}
+          hasValidCashTender={hasValidCashTender}
+          changeAmount={changeAmount}
+          pending={pending}
+          outcome={outcome}
+          hasLines={lines.length > 0}
+          onCompleteClick={handleOpenConfirm}
+          onViewReceipt={(id) => setCompletedReceipt({ id })}
+        />
         <PickupPanel />
       </aside>
 
       {picker && <VariantPicker items={picker} onPick={addItem} onClose={() => setPicker(null)} />}
+
+      <PaymentConfirmationModal
+        open={showConfirm}
+        onClose={() => setShowConfirm(false)}
+        onConfirm={() => void complete()}
+        totalAmount={priced.total_amount}
+        paymentMethod={payment}
+        onPaymentMethodChange={setPayment}
+        tenderedAmount={tenderedAmount}
+        onTenderedAmountChange={setTenderedAmount}
+        pending={pending}
+      />
+
+      <ReceiptModal
+        saleId={completedReceipt?.id ?? null}
+        tendered={completedReceipt?.tendered}
+        change={completedReceipt?.change}
+        onClose={() => setCompletedReceipt(null)}
+      />
     </div>
   );
 }
