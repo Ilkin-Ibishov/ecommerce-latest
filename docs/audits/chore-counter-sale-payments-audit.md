@@ -192,3 +192,21 @@ Not done:
 Observation, not a finding to fix here: `payment_methods` seeds `bank_transfer`, which
 `counter_sales.payment_method`'s CHECK refuses. The lookup is wider than the till; harmless until a
 method is added, and that change must touch both.
+
+## CI — run 43597764065 at `a0208ce`, 2026-11-14: red, not on this chore
+
+- `unit`: pass. API integration: pass, including `counter-sale-payments.integration.test.ts`
+  (8 tests) — the first time the four migrations and these tests have run against Postgres. Serial
+  integration: pass.
+- E2E: 3 failures, all in `cart-flow.spec.ts`. The test opens the first product in the listing and
+  expects an add-to-cart button; the first product was out of stock (screenshot: "Stokda yoxdur",
+  price 19.99, no image). This branch changes no file under `artifacts/store/src` or
+  `artifacts/api-server/src`.
+- Likely cause, not proven to the row: four 19.99 products were written to the test project on
+  2026-11-14 around 06:00 UTC, after `main`'s last green run (2026-11-13 17:04) and before this run;
+  one of them has nothing available. That matches M4 audit m7 (fixture script writing to the shared
+  test project with nothing recording what it wrote).
+
+Not mergeable on a red run. Two things to do, in this order: remove or restock the stray fixture and
+re-run; then make `cart-flow.spec.ts` pick a product that is in stock rather than the first one, as a
+separate simple task.
