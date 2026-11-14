@@ -1,9 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { getAdminSupabase, getSupabase } from "../lib/supabase";
 
-// Staff or owner session. Attaches req.user, req.admin (service-role client) and req.userRole.
-// Six M2 route files still carry their own copy of this check; migrating them is listed as
-// debt in docs/audits/m3-implementation-notes.md (M3a design note §3, audit A9).
+// Staff or owner session. Attaches req.user, req.admin (service-role client), req.userRole and req.userName.
 export async function requireStaffOrAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token) {
@@ -16,15 +14,17 @@ export async function requireStaffOrAdmin(req: Request, res: Response, next: Nex
     return;
   }
   const admin = getAdminSupabase();
-  const { data: profile } = await admin.from("users").select("role").eq("id", user.id).single();
-  const role = profile?.role;
+  const { data: profile } = await admin.from("users").select("role, full_name").eq("id", user.id).maybeSingle();
+  const rawRole = profile?.role || (user.app_metadata?.role as string) || (user.user_metadata?.role as string);
+  const role = typeof rawRole === "string" ? rawRole.toLowerCase() : "";
   if (role !== "admin" && role !== "staff") {
     res.status(403).json({ error: "Forbidden: staff or admin required" });
     return;
   }
-  req.user = { id: user.id };
+  req.user = { id: user.id, email: user.email };
+  (req as any).userName = profile?.full_name ?? (user.user_metadata?.full_name as string) ?? user.email ?? "Staff";
   req.admin = admin;
-  req.userRole = role;
+  req.userRole = role as "admin" | "staff";
   next();
 }
 

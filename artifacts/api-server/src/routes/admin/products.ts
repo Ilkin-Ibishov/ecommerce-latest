@@ -231,9 +231,31 @@ router.patch("/admin/products/:id/stock", requireAdmin, async (req, res) => {
     return res.status(400).json({ error: "stock must be a non-negative integer" });
   }
 
+  // Resolve target variant ID: check if rawId is a variant ID or a product ID
+  let targetVariantId = rawId;
+  const { data: directVariant } = await (ctx.admin as any)
+    .from("product_variants")
+    .select("id")
+    .eq("id", rawId)
+    .maybeSingle();
+
+  if (!directVariant) {
+    const { data: fallbackVariant } = await (ctx.admin as any)
+      .from("product_variants")
+      .select("id")
+      .eq("product_id", rawId)
+      .order("is_default", { ascending: false })
+      .order("sort_order", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+    if (fallbackVariant) {
+      targetVariantId = fallbackVariant.id;
+    }
+  }
+
   const { data: resultingStock, error: rpcErr } = await setProductStockSafe(
     ctx.admin,
-    rawId,
+    targetVariantId,
     stock,
     ctx.user.id,
     reason,

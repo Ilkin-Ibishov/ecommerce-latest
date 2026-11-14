@@ -152,11 +152,38 @@ router.patch("/admin/users/:id/role", requireAdmin, async (req, res) => {
   }
 
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
-  if (rawId === ctx.user.id && role !== "admin") {
-    return res.status(400).json({ error: "Cannot remove your own admin role" });
+
+  const { data: targetUser, error: fetchErr } = await (ctx.admin as any)
+    .from("users")
+    .select("role")
+    .eq("id", rawId)
+    .single();
+
+  if (fetchErr || !targetUser) {
+    return res.status(404).json({ error: "User not found" });
   }
 
-  await (ctx.admin as any).from("users").update({ role }).eq("id", rawId);
+  // Sole Admin Demotion Guard: protect against leaving the system without an administrator
+  if (targetUser.role === "admin" && role !== "admin") {
+    const { count, error: countErr } = await (ctx.admin as any)
+      .from("users")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "admin");
+
+    if (countErr) {
+      return res.status(500).json({ error: countErr.message });
+    }
+
+    if ((count ?? 0) <= 1) {
+      return res.status(400).json({ error: "Cannot demote the last remaining administrator" });
+    }
+  }
+
+  const { error: updateErr } = await (ctx.admin as any).from("users").update({ role }).eq("id", rawId);
+  if (updateErr) {
+    return res.status(500).json({ error: updateErr.message });
+  }
+
   writeAudit({
     admin: ctx.admin, req, actorId: ctx.user.id,
     action: "change_user_role", entityType: "user", entityId: rawId, details: { role },

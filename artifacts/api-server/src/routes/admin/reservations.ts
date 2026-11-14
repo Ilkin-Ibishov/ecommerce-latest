@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from "express";
 import { getAdminSupabase, getSupabase } from "../../lib/supabase";
 import { fulfilReservation } from "../../lib/rpc";
+import { requireStaffOrAdmin } from "../../middlewares/requireStaffOrAdmin";
 import {
   CreateReservationBody,
   RecordReservationPaymentBody,
@@ -9,24 +10,6 @@ import {
 } from "@workspace/api-zod";
 
 const router = Router();
-
-async function requireStaffOrAdmin(req: Request, res: Response, next: () => void): Promise<void> {
-  const token = req.headers.authorization?.replace("Bearer ", "");
-  if (!token) return void res.status(401).json({ error: "Unauthorized" });
-  const supabase = getSupabase(token);
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return void res.status(401).json({ error: "Invalid token" });
-  const admin = getAdminSupabase();
-  const { data: profile } = await (admin as any).from("users").select("role, name").eq("id", user.id).single();
-  if (profile?.role !== "admin" && profile?.role !== "staff") {
-    return void res.status(403).json({ error: "Forbidden: staff or admin required" });
-  }
-  (req as any).user = user;
-  (req as any).userRole = profile.role;
-  (req as any).userName = profile.name;
-  (req as any).admin = admin;
-  next();
-}
 
 function mapReservationRow(r: any) {
   const effective_status = (r.status === "active" && r.expires_at && new Date(r.expires_at) < new Date())

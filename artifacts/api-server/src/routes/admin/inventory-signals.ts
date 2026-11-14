@@ -14,7 +14,9 @@ router.get("/admin/inventory/signals/summary", requireStaffOrAdmin, async (req: 
   const [lowRes, deadRes, reorderRes] = await Promise.all([
     (admin as any).rpc("get_low_stock_signals", { p_search: null, p_status: null }),
     (admin as any).rpc("get_dead_stock_signals", { p_days: 90 }),
-    isAdmin ? (admin as any).rpc("get_reorder_suggestions", { p_window_days: 28, p_target_days: 60, p_min_sales: 3 }) : Promise.resolve({ data: [] }),
+    isAdmin
+      ? (admin as any).rpc("get_reorder_suggestions", { p_window_days: 28, p_target_days: 60, p_min_sales: 3 }).catch((err: any) => ({ data: [], error: err }))
+      : Promise.resolve({ data: [] }),
   ]);
 
   if (lowRes.error) {
@@ -25,16 +27,17 @@ router.get("/admin/inventory/signals/summary", requireStaffOrAdmin, async (req: 
     res.status(500).json({ error: deadRes.error.message });
     return;
   }
-  if (reorderRes.error) {
-    res.status(500).json({ error: reorderRes.error.message });
-    return;
+  if (reorderRes?.error) {
+    console.warn("get_reorder_suggestions RPC warning/error in summary:", reorderRes.error.message || reorderRes.error);
   }
+
+  const reorderData = reorderRes?.error ? [] : (reorderRes?.data ?? []);
 
   res.json({
     low_stock_count: (lowRes.data ?? []).length,
     out_of_stock_count: (lowRes.data ?? []).filter((r: any) => r.status === "out").length,
     dead_stock_count: (deadRes.data ?? []).length,
-    reorder_suggestions_count: isAdmin ? (reorderRes.data ?? []).filter((r: any) => r.has_enough_data).length : null,
+    reorder_suggestions_count: isAdmin ? reorderData.filter((r: any) => r.has_enough_data).length : null,
   });
 });
 
@@ -88,17 +91,23 @@ router.get("/admin/inventory/signals/reorder", requireAdmin, async (req: Request
   const targetDays = Math.max(1, parseInt(String(req.query.targetDays || "60"), 10) || 60);
   const minSales = Math.max(1, parseInt(String(req.query.minSales || "3"), 10) || 3);
 
-  const { data, error } = await (admin as any).rpc("get_reorder_suggestions", {
-    p_window_days: windowDays,
-    p_target_days: targetDays,
-    p_min_sales: minSales,
-  });
-  if (error) {
-    res.status(500).json({ error: error.message });
-    return;
-  }
+  try {
+    const { data, error } = await (admin as any).rpc("get_reorder_suggestions", {
+      p_window_days: windowDays,
+      p_target_days: targetDays,
+      p_min_sales: minSales,
+    });
+    if (error) {
+      console.warn("get_reorder_suggestions RPC warning/error:", error.message || error);
+      res.json({ suggestions: [], count: 0 });
+      return;
+    }
 
-  res.json({ suggestions: data ?? [], count: (data ?? []).length });
+    res.json({ suggestions: data ?? [], count: (data ?? []).length });
+  } catch (err: any) {
+    console.warn("get_reorder_suggestions RPC threw:", err?.message || err);
+    res.json({ suggestions: [], count: 0 });
+  }
 });
 
 // POST /admin/inventory/signals/evaluate-digest — Trigger low-stock digest evaluation
