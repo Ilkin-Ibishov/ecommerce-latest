@@ -156,9 +156,14 @@ export default function HomePage({ locale }: { locale: string }) {
           .select("product_id, available_quantity")
           .in("product_id", allProductIds);
 
-        const availMap = new Map<string, number>();
+        const availMap = new Map<string, number | null>();
         for (const row of availRows ?? []) {
-          availMap.set(row.product_id, (availMap.get(row.product_id) ?? 0) + Number(row.available_quantity));
+          const cur = availMap.get(row.product_id);
+          if (row.available_quantity === null || cur === null) {
+            availMap.set(row.product_id, null);
+          } else {
+            availMap.set(row.product_id, (cur ?? 0) + Number(row.available_quantity));
+          }
         }
 
         const enrich = (list: any[]) =>

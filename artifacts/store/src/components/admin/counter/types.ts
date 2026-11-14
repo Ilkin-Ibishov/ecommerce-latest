@@ -9,7 +9,7 @@ export interface LookupItem {
   options: { name: string; value: string }[];
   price: number;
   on_hand: number;
-  available: number;
+  available: number | null;
   pack_quantity: number;
   reservations: { reservation_number: string; customer_name: string; quantity: number }[];
 }
@@ -29,7 +29,7 @@ export interface CartLine {
   quantity: number;
   unit_price: number;
   on_hand: number;
-  available: number;
+  available: number | null;
   reservations: LookupItem["reservations"];
   bundle_id: string | null;
 }

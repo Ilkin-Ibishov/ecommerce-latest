@@ -102,7 +102,9 @@ router.get("/inventory/scan/:barcode", requireStaffOrAdmin, async (req: Request,
       const avail = availMap.get(variant.id);
       const onHand = Number(variant.on_hand);
       const reserved = avail ? Number(avail.reserved_quantity) : 0;
-      const available = avail ? Number(avail.available_quantity) : Math.max(0, onHand - reserved);
+      const available = avail
+        ? (avail.available_quantity === null ? null : Number(avail.available_quantity))
+        : (variant.track_stock === false ? null : Math.max(0, onHand - reserved));
       const deficit = avail ? Number(avail.deficit_quantity) : Math.max(0, reserved - onHand);
 
       return {

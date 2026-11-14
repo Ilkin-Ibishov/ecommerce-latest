@@ -163,6 +163,10 @@ router.post("/admin/reservations", requireStaffOrAdmin, async (req: Request, res
     return res.status(400).json({ error: "Variant not found or unable to check availability" });
   }
 
+  if (availData.available_quantity === null) {
+    return res.status(400).json({ error: "Cannot create reservation for non-tracked variant" });
+  }
+
   const available = Number(availData.available_quantity);
   if (available < quantity) {
     return res.status(400).json({

@@ -63,12 +63,14 @@ router.get("/admin/counter/lookup", requireStaffOrAdmin, async (req: Request, re
     return;
   }
 
-  const available = new Map((avail.data ?? []).map((a) => [a.variant_id, Number(a.available_quantity)]));
+  const available = new Map<string, number | null>(
+    (avail.data ?? []).map((a) => [a.variant_id, a.available_quantity === null ? null : Number(a.available_quantity)])
+  );
   const items = (variants.data ?? []).map((v) => {
     const translations = v.products?.product_translations ?? [];
     const title = translations.find((t) => t.lang_code === "az")?.title ?? translations[0]?.title ?? v.sku ?? "";
     const images = [...(v.products?.product_images ?? [])].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-    const avl = available.get(v.id) ?? Number(v.on_hand);
+    const avl = available.has(v.id) ? available.get(v.id)! : Number(v.on_hand);
     return {
       variant_id: v.id,
       sku: v.sku,
@@ -83,7 +85,7 @@ router.get("/admin/counter/lookup", requireStaffOrAdmin, async (req: Request, re
       available: avl,
       pack_quantity: packs.get(v.id) ?? 1,
       // Staff may see who holds the unit (M2c §9); only shown where nothing is free.
-      reservations: avl <= 0 ? (holds.data ?? []).filter((h) => h.variant_id === v.id) : [],
+      reservations: avl !== null && avl <= 0 ? (holds.data ?? []).filter((h) => h.variant_id === v.id) : [],
     };
   });
   res.json({ matched_by: matchedBy, items });

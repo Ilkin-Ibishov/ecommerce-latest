@@ -40,7 +40,7 @@ interface InventoryProduct {
   stock: number;
   on_hand: number;
   reserved_quantity: number;
-  available_quantity: number;
+  available_quantity: number | null;
   deficit_quantity: number;
   brand: string | null;
   title: string;
@@ -124,12 +124,16 @@ export default function AdminInventoryPage() {
       .from("product_variant_availability")
       .select("product_id, on_hand, reserved_quantity, available_quantity, deficit_quantity");
 
-    const availMap = new Map<string, { on_hand: number; reserved_quantity: number; available_quantity: number; deficit_quantity: number }>();
+    const availMap = new Map<string, { on_hand: number; reserved_quantity: number; available_quantity: number | null; deficit_quantity: number }>();
     for (const row of availRows ?? []) {
       const cur = availMap.get(row.product_id) ?? { on_hand: 0, reserved_quantity: 0, available_quantity: 0, deficit_quantity: 0 };
       cur.on_hand += Number(row.on_hand ?? 0);
       cur.reserved_quantity += Number(row.reserved_quantity ?? 0);
-      cur.available_quantity += Number(row.available_quantity ?? 0);
+      if (row.available_quantity === null || cur.available_quantity === null) {
+        cur.available_quantity = null;
+      } else {
+        cur.available_quantity += Number(row.available_quantity ?? 0);
+      }
       cur.deficit_quantity += Number(row.deficit_quantity ?? 0);
       availMap.set(row.product_id, cur);
     }
@@ -183,25 +187,25 @@ export default function AdminInventoryPage() {
   }
 
   // Derived stats
-  const outOfStock = products.filter((p) => p.available_quantity === 0).length;
+  const outOfStock = products.filter((p) => p.available_quantity !== null && p.available_quantity === 0).length;
   const lowStock = lowStockProductIds.size > 0
-    ? products.filter((p) => lowStockProductIds.has(p.id) && p.available_quantity > 0).length
-    : products.filter((p) => p.available_quantity > 0 && p.available_quantity < 10).length;
-  const healthyStock = products.filter((p) => p.available_quantity >= 10).length;
+    ? products.filter((p) => lowStockProductIds.has(p.id) && p.available_quantity !== null && p.available_quantity > 0).length
+    : products.filter((p) => p.available_quantity !== null && p.available_quantity > 0 && p.available_quantity < 10).length;
+  const healthyStock = products.filter((p) => p.available_quantity === null || p.available_quantity >= 10).length;
   const deficitCount = products.filter((p) => p.deficit_quantity > 0).length;
   const totalValue = products.reduce((sum, p) => sum + p.price * p.on_hand, 0);
 
   // Client-side filtering pipeline: stock filter → search → category
   const filteredProducts = products
     .filter((p) => {
-      if (filter === "out_of_stock") return p.available_quantity === 0;
+      if (filter === "out_of_stock") return p.available_quantity !== null && p.available_quantity === 0;
       if (filter === "low_stock") {
         return lowStockProductIds.size > 0
           ? lowStockProductIds.has(p.id)
-          : (p.available_quantity > 0 && p.available_quantity < 10);
+          : (p.available_quantity !== null && p.available_quantity > 0 && p.available_quantity < 10);
       }
       if (filter === "not_selling") return deadProductIds.has(p.id);
-      if (filter === "healthy") return p.available_quantity >= 10;
+      if (filter === "healthy") return p.available_quantity === null || p.available_quantity >= 10;
       if (filter === "deficit") return p.deficit_quantity > 0;
       return true;
     })
@@ -236,9 +240,12 @@ export default function AdminInventoryPage() {
           case "reserved":
             cmp = a.reserved_quantity - b.reserved_quantity;
             break;
-          case "available":
-            cmp = a.available_quantity - b.available_quantity;
+          case "available": {
+            const aVal = a.available_quantity ?? Infinity;
+            const bVal = b.available_quantity ?? Infinity;
+            cmp = aVal - bVal;
             break;
+          }
           case "value":
             cmp = (a.price * a.on_hand) - (b.price * b.on_hand);
             break;
@@ -509,7 +516,11 @@ export default function AdminInventoryPage() {
                 <tr
                   key={p.id}
                   className={`border-b border-border/50 hover:bg-muted/20 transition ${
-                    p.available_quantity === 0 ? "bg-red-500/5" : p.available_quantity < 5 ? "bg-orange-500/5" : ""
+                    p.available_quantity !== null && p.available_quantity === 0
+                      ? "bg-red-500/5"
+                      : p.available_quantity !== null && p.available_quantity < 5
+                      ? "bg-orange-500/5"
+                      : ""
                   }`}
                 >
                   <td className="px-4 py-3">
@@ -551,7 +562,7 @@ export default function AdminInventoryPage() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <span className={`font-semibold ${p.available_quantity === 0 ? "text-red-500" : ""}`}>
-                        {p.available_quantity}
+                        {p.available_quantity === null ? "—" : p.available_quantity}
                       </span>
                       {p.deficit_quantity > 0 && (
                         <span

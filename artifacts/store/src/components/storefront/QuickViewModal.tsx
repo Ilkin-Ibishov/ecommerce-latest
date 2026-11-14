@@ -52,8 +52,13 @@ async function fetchQuickViewProduct(
     .select("available_quantity")
     .eq("product_id", data.id);
 
-  const totalAvail = (availRows ?? []).reduce((acc: number, r: any) => acc + Number(r.available_quantity), 0);
-  const effectiveStock = availRows && availRows.length > 0 ? totalAvail : (data.stock ?? 0);
+  const hasUnlimited = (availRows ?? []).some((r: any) => r.available_quantity === null);
+  const totalAvail = hasUnlimited
+    ? null
+    : (availRows ?? []).reduce((acc: number, r: any) => acc + Number(r.available_quantity), 0);
+  const effectiveStock = hasUnlimited
+    ? null
+    : (availRows && availRows.length > 0 ? totalAvail : (data.stock ?? 0));
 
   const sortedImages = [...(data.product_images ?? [])].sort(
     (a: any, b: any) => a.sort_order - b.sort_order

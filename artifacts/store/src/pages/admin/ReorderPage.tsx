@@ -10,8 +10,8 @@ import { Badge } from "@/components/ui/badge";
 interface ReorderItem {
   variant_id: string; product_id: string; product_title: string; variant_sku: string;
   barcode: string | null; unit_of_measure: string; supplier_id: string | null;
-  supplier_name: string; supplier_contact: string | null; on_hand: number;
-  reserved_quantity: number; available_quantity: number; units_sold_window: number;
+  supplier_name: string | null; supplier_contact: string | null; on_hand: number;
+  reserved_quantity: number; available_quantity: number | null; units_sold_window: number;
   sales_count: number; velocity: number; days_of_cover: number | null;
   suggested_qty: number | null; has_enough_data: boolean;
 }
@@ -49,13 +49,13 @@ export default function ReorderPage() {
   const groups = useMemo(() => {
     const map = new Map<string, SupplierGroup>();
     for (const item of items) {
-      const key = item.supplier_name || "Unassigned";
+      const key = item.supplier_name || t("Admin.Reorder.unassignedSupplier");
       const group = map.get(key) ?? { name: key, contact: item.supplier_contact || null, items: [] };
       group.items.push(item);
       map.set(key, group);
     }
     return Array.from(map.values());
-  }, [items]);
+  }, [items, t]);
 
   if (roleLoading) {
     return (
@@ -137,7 +137,7 @@ export default function ReorderPage() {
                       <tr key={row.variant_id} className="border-b border-border/50 hover:bg-muted/20 transition">
                         <td className="px-4 py-3 font-medium">{row.product_title}</td>
                         <td className="px-4 py-3 text-xs font-mono text-muted-foreground">{row.variant_sku}</td>
-                        <td className="px-4 py-3 text-right font-semibold">{row.available_quantity}</td>
+                        <td className="px-4 py-3 text-right font-semibold">{row.available_quantity !== null ? row.available_quantity : "—"}</td>
                         <td className="px-4 py-3 text-right text-muted-foreground">{row.units_sold_window}</td>
                         <td className="px-4 py-3 text-right text-muted-foreground">{row.sales_count}</td>
                         <td className="px-4 py-3 text-right font-mono text-muted-foreground">{Number(row.velocity).toFixed(2)}</td>

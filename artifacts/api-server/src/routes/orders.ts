@@ -38,9 +38,9 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
   const { data: availRows } = allVariantIds.length > 0
     ? await (admin as any).from("product_variant_availability").select("variant_id, available_quantity").in("variant_id", allVariantIds)
     : { data: [] };
-  const availMap = new Map<string, number>();
+  const availMap = new Map<string, number | null>();
   for (const r of availRows ?? []) {
-    availMap.set(r.variant_id, Number(r.available_quantity));
+    availMap.set(r.variant_id, r.available_quantity === null ? null : Number(r.available_quantity));
   }
   let subtotal = 0;
   const orderItems = [];
@@ -57,7 +57,7 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
     const availableStock = variant
       ? (availMap.has(variant.id) ? availMap.get(variant.id)! : Number(variant.on_hand))
       : (product.stock ?? 0);
-    if (availableStock < item.quantity) {
+    if (availableStock !== null && availableStock < item.quantity) {
       return res.status(400).json({ error: `Insufficient stock`, product_id: item.product_id });
     }
 
