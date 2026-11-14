@@ -210,3 +210,18 @@ method is added, and that change must touch both.
 Not mergeable on a red run. Two things to do, in this order: remove or restock the stray fixture and
 re-run; then make `cart-flow.spec.ts` pick a product that is in stock rather than the first one, as a
 separate simple task.
+
+### E2E cause, confirmed from the trace
+
+The detail page the test opened requested availability for product
+`03fb84fc-3b63-447c-be30-3f875251e762`, slug `qa-m4-services`: the M4 QA fixture (M4 audit m7), a
+service product with `on_hand` 0, written to the test project 2026-11-14 06:31 UTC. This replaces
+"likely cause" above.
+
+Done on the test project, on the owner's instruction: `products.sort_order` set to 9999 for that one
+row, so it lists last. `products` has no active flag, so this is the nearest thing to deactivating
+it; nothing was deleted. The other three `qa-m4-*` products are in stock and were left alone.
+
+This is a patch, not a fix. The storefront list orders by `sort_order` only and almost every product
+has 0, so which product is "first" is whatever Postgres returns. `cart-flow.spec.ts` must choose an
+in-stock product itself; simple task for the builder.
