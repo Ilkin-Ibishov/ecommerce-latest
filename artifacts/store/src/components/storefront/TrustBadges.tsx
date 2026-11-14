@@ -38,7 +38,7 @@ export default function TrustBadges() {
             <Icon size={18} className="text-primary" />
           </div>
           <div className="min-w-0">
-            <p className="text-xs sm:text-sm font-semibold leading-tight truncate">{title}</p>
+            <p className="text-xs sm:text-sm font-semibold leading-tight">{title}</p>
             <p className="text-[11px] text-muted-foreground mt-0.5 leading-tight">{subtitle}</p>
           </div>
         </div>
