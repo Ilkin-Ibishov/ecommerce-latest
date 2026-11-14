@@ -1,4 +1,14 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
+
+// scripts/seed-test-data.ts (CI step "Seed test data") upserts test-product-1 with
+// stock 20 on every run, so it is always in stock. The listing's first product is
+// arbitrary (sort_order is 0 for nearly all rows) and may be out of stock.
+const IN_STOCK_SLUG = "test-product-1";
+
+async function openInStockProduct(page: Page): Promise<void> {
+  await page.goto(`/az/products/${IN_STOCK_SLUG}`);
+  await page.waitForURL("**/products/**");
+}
 
 /**
  * E2E: Cart Flow
@@ -21,17 +31,7 @@ test.describe("Cart Flow", () => {
   });
 
   test("add product to cart from product detail page", async ({ page }) => {
-    await page.goto("/az/products");
-    await page.waitForLoadState("networkidle");
-
-    // Click first product to open detail
-    const productLink = page.locator('a[href*="/products/"]').first();
-    if (!(await productLink.isVisible())) {
-      test.skip(true, "No products available");
-      return;
-    }
-    await productLink.click();
-    await page.waitForURL("**/products/**");
+    await openInStockProduct(page);
 
     // Find and click "Add to cart" button
     const addToCartBtn = page.locator("button").filter({ hasText: /səbətə|cart|корзин/i }).first();
@@ -46,16 +46,7 @@ test.describe("Cart Flow", () => {
 
   test("cart drawer shows item details", async ({ page }) => {
     // Navigate to a product and add it
-    await page.goto("/az/products");
-    await page.waitForLoadState("networkidle");
-
-    const productLink = page.locator('a[href*="/products/"]').first();
-    if (!(await productLink.isVisible())) {
-      test.skip(true, "No products available");
-      return;
-    }
-    await productLink.click();
-    await page.waitForURL("**/products/**");
+    await openInStockProduct(page);
     // This is a client-side (wouter) route change, not a real navigation, so
     // Playwright's load-state tracking never resets here — waitForLoadState
     // is a no-op and resolves instantly, well before ProductPage's async
@@ -86,16 +77,7 @@ test.describe("Cart Flow", () => {
 
   test("quantity controls in cart drawer work", async ({ page }) => {
     // Add a product first
-    await page.goto("/az/products");
-    await page.waitForLoadState("networkidle");
-
-    const productLink = page.locator('a[href*="/products/"]').first();
-    if (!(await productLink.isVisible())) {
-      test.skip(true, "No products available");
-      return;
-    }
-    await productLink.click();
-    await page.waitForURL("**/products/**");
+    await openInStockProduct(page);
 
     const addToCartBtn = page.locator("button").filter({ hasText: /səbətə|cart|корзин/i }).first();
     await addToCartBtn.click();
@@ -126,16 +108,7 @@ test.describe("Cart Flow", () => {
 
   test("cart persists after page navigation", async ({ page }) => {
     // Add a product
-    await page.goto("/az/products");
-    await page.waitForLoadState("networkidle");
-
-    const productLink = page.locator('a[href*="/products/"]').first();
-    if (!(await productLink.isVisible())) {
-      test.skip(true, "No products available");
-      return;
-    }
-    await productLink.click();
-    await page.waitForURL("**/products/**");
+    await openInStockProduct(page);
 
     const addToCartBtn = page.locator("button").filter({ hasText: /səbətə|cart|корзин/i }).first();
     if (await addToCartBtn.isVisible()) {
