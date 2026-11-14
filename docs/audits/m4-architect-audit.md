@@ -1,0 +1,183 @@
+# Audit — M4 stock signals
+
+2026-11-14, architect pass. Branch `m4/stock-signals` at `c1d569b`, against
+`docs/tasks/warehouse-m4-stock-signals.md`. Inputs: the spec, `git diff main...HEAD`, the invariant
+list, and read-only queries on the test project (`jcvsnoiacrknzejouxah`). The design note and the
+builder's own QA reports were not used as evidence.
+
+**Verdict: rejected as one branch. Not mergeable, and not fixable in place.** Two blockers in M4
+itself, one security blocker in work that is not M4, and the branch carries roughly three phases of
+unrelated change. Split it (§5), then fix M4 on its own.
+
+This is one architect's reading. It is not the independent adversarial audit from a different model
+family that the process calls for; that still has to run, once, on the split M4 branch.
+
+## 1. Process
+
+- **The design-note gate did not hold.** Note committed 21:20, amended 21:28 "addressing verifier audit
+  findings", first migration 21:47. No architect review happened in those 27 minutes.
+- **No M4 migration has ever executed.** On the test project `low_stock_notification_events` does not
+  exist, `post_counter_sale` has no `track_stock`, and the availability view has its M2c columns. Spec
+  §16 requires every migration applied to the test project.
+- **So every figure in the builder's black-box QA came from the TypeScript fallback (M1), not from the
+  SQL.** The three RPCs, the trigger change and the four sale functions are untested code.
+- `docs/audits/m4-implementation-notes.md` (spec §16) does not exist.
+- The branch is 224 files, +9710/−1160. M4 as specified is about a fifth of that.
+
+## 2. Blockers
+
+### B1. Any signed-in shopper can become staff or admin — `requireStaffOrAdmin.ts:18`
+
+```ts
+const rawRole = profile?.role || user.app_metadata?.role || user.user_metadata?.role;
+```
+
+New on this branch; `main` reads `public.users.role` only. `user_metadata` is writable by the user
+themselves: `supabase.auth.updateUser({ data: { role: "admin" } })` with their own session and the
+public anon key. Whenever `profile?.role` is falsy — no `public.users` row, or a null role — that
+value is accepted, and the middleware then hands the request the service-role client.
+
+Ordinary flow: a row with a role exists, so the fallback is dead code. It meets the earlier decision
+that `public.users.role` is the only source of authority; `auth.ts:98` and `bootstrap.ts` upsert that
+row without the request depending on it having succeeded, and `handle_new_user` exists only in
+`schema.sql`, not in the migrations. One failed upsert is one shopper who can promote themselves.
+
+Not demonstrated end to end: no account without a `public.users` row was constructed. The code path
+is unambiguous; the precondition's frequency is unknown.
+
+Fix: delete both fallbacks. No row or no role is 403. `app_metadata` is not user-writable but is not
+this product's source of truth either; do not keep it "to be safe". Becomes an invariant: no file
+under `artifacts/api-server/src` reads `user_metadata.role` or `app_metadata.role`.
+
+### B2. `20261113220000_m4_track_stock_trigger.sql` cannot apply
+
+`CREATE OR REPLACE VIEW product_variant_availability` inserts `track_stock` as the sixth column. The
+live view's columns are `variant_id, product_id, sku, price, on_hand, reserved_quantity,
+available_quantity, deficit_quantity`. Postgres allows `CREATE OR REPLACE VIEW` to add columns only
+at the end; this fails with 42P16 ("cannot change name of view column"). The trigger function is in
+the same file, so the `track_stock` enforcement — the defect fix the phase leads with — does not land
+either.
+
+Established from the live column order and the documented rule; the statement itself was not run.
+
+Fix: move `track_stock` to the end of the select list. Not `DROP VIEW`:
+`product_variant_public_availability` depends on it.
+
+### B3. `post_counter_sale` collides with the `counter_sale_payments` chore
+
+Recorded in `docs/audits/chore-counter-sale-payments-audit.md` B3. Decision: the chore merges first;
+M4 rebases onto it; `20261113220010` is re-timestamped after `20261113230400` and its
+`post_counter_sale` carries the payment insert. M4's own invariant `no-non-tracked-variant-movements`
+already fails on the chore's file once both are present — it works as designed and is the tripwire.
+
+## 3. Major
+
+### M1. Every signal is implemented twice, and the copies disagree
+
+`routes/admin/inventory-signals.ts` calls each RPC and, on any error, falls through `catch {}` to a
+TypeScript re-implementation in `lib/inventory-signals-*.ts` (313 lines). The low-stock fallback counts
+every `active` reservation; the RPC and the view exclude expired ones. A variant with an expired hold
+is low in one path and fine in the other, and nothing tells the caller which path answered.
+
+This is the phase's own invariant turned inside out: a signal with two derivations can disagree with
+itself. It also hides a missing migration instead of failing on it, which is why §1's third point went
+unnoticed. Fix: delete the fallback libs. An RPC error is a 500.
+
+### M2. The low-stock digest is never evaluated and never shown
+
+`POST /admin/inventory/signals/evaluate-digest` has no caller outside tests: no schedule, no hook on a
+sale, no button. If it were called, it writes a `notifications` row with `channel = 'in_app'`,
+`recipient = 'admin'`, `user_id = null`, and no reader of such a row was found in the store. The
+dispatch branch is `result = { ok: true }`. Spec §6.4 and deliverable 5 are not delivered; what exists
+is the suppression table and a route.
+
+Also in that route: no step checks its `error`. If the suppression insert fails the digest is still
+sent, and is sent again on every call — the exact noise §6.4 exists to prevent.
+
+Decide in a revised design note where the digest runs and where the owner sees it, before more code.
+
+### M3. A variant switched to non-tracked breaks what already happened to it
+
+The trigger rejects every movement for a `track_stock = false` variant, and nothing guards the switch.
+
+- Sell a tracked variant, then mark it non-tracked: `void_counter_sale` inserts the reversing movement,
+  gets ST030, and the sale can no longer be voided.
+- Mark a variant non-tracked while it is on an open stocktake: posting the correction raises ST030 and
+  the whole stocktake fails to post.
+- `on_hand` freezes at whatever it was; no movement can ever correct it.
+
+Ordinary flow: a variant is created non-tracked and never changes — fine. Intersections: M3a void, M2b
+stocktake posting, M1 "stock changes only through the ledger". Spec §9 bullets 4 and 5 (bundle
+availability over tracked components; non-tracked variants absent from count sheets) are not
+implemented at all — no stocktake or bundle code reads the flag.
+
+Fix direction: refuse the true→false switch while `on_hand <> 0` or the variant is on an open
+stocktake; let a reversal of an existing movement through. Design note first.
+
+### M4. 76 new `as any`
+
+`AGENTS.md` deny list. `m4-stock-signals.integration.test.ts` 23, `DashboardPage.tsx` 16,
+`routes/admin/users.ts` 8, the signals route and libs 17. `main` already carries 363 in the same
+trees, so this is the house habit and not a new one — but many of these exist because
+`database.types.ts` was not regenerated for the new RPCs and table. Regenerate, then remove what
+remains.
+
+## 4. Minor
+
+- **m1.** Non-tracked availability is the literal `999999`, and it flows through
+  `product_variant_public_availability` to `anon`. Any "only N left" display prints it. Return NULL for
+  unlimited and handle NULL at the readers.
+- **m2.** `has_enough_data` counts distinct transactions including fully voided ones. One real sale
+  plus two voided ones shows a confident suggestion. Count transactions with net units > 0.
+- **m3.** `'Unassigned'` is an English literal returned from SQL into a grouped, three-locale screen.
+  Return NULL; label it in `t()`.
+- **m4.** `needs_owner` sales are added to velocity from `counter_sale_lines` because they wrote no
+  movement. That contradicts spec §5.2 and the spec's own §12 row, which wrongly says such a sale
+  "consumed stock". The builder's reading is the defensible one; the spec needs a correction from the
+  architect, and the deviation should have been raised rather than made silently.
+- **m5.** `GET /admin/inventory/availability` returns `on_hand` to staff. Blind counting was already
+  not tamper-proof (STATUS item 7); this makes the number one request away.
+- **m6.** 8.7 MB of screenshots under `docs/audits/`. Evidence belongs in CI artifacts.
+- **m7.** `scripts/audit/setup-m4-test-environment.ts` loads `artifacts/api-server/.env` and writes
+  fixtures with the service-role key. Nothing records what it wrote to the test project, which now
+  holds 231 counter sales.
+
+## 5. What is not M4, and where it goes
+
+| Commits | Content | Disposition |
+|---|---|---|
+| `27b6646` `7ea7cd7` `6c3919d` `fc71328` | Staff provisioning, three-role management, sole-admin guard, the middleware change (B1) | Own branch, own spec. It changes who holds authority; it gets its own audit |
+| `2a92d46` | Counter confirmation modal, change calculator, direct quantity input | Own branch. Touches the till the payments chore says has no UI change |
+| `4dbba30` `6487713` | Storefront mobile, checkout, SPA navigation fixes | Own branch; simple-task tier |
+| `ca38231` `5ee69e9` `fa0abed` | Admin inventory and receipt fixes, new availability endpoint | Own branch |
+| `43f6410` `bd5fae7` `ea870bf` `c1d569b` (docs, scripts) | Persona audits, QA scripts, screenshots | Keep the written reports; drop the images and the one-off scripts |
+
+M4 proper is `49eafe6`…`506bbcf` plus `b632b5b`, and `b632b5b` is the fallback that M1 deletes.
+None of the non-M4 commits was audited here beyond B1 and m5.
+
+## 6. What holds
+
+- The trigger change itself: the `track_stock` check precedes the existing logic and leaves the
+  negative-stock and availability branches as M2c wrote them.
+- The three RPCs are revoked from `public, anon, authenticated` and granted to `service_role` only.
+- No stored signal column; the only stored state is what was notified. §4 is respected.
+- Dead-stock cost is stripped in the API for staff, not in the component, and reorder is owner-only.
+- Velocity is net of void reversals, which share the sale's `transaction_id` and `posting_date`.
+- Dead stock uses first movement as the floor, so an opening-count variant is not dead on day one.
+- No test was deleted or skipped. No `@ts-ignore`. No dependency, CI or workspace-config change.
+- No variant on the test project has movements while non-tracked (one such variant, zero movements).
+
+## 7. Tiers run for this audit
+
+Locally at `c1d569b`: `pnpm run typecheck` — exit 0. `pnpm test:unit` — 709 tests, 64 files, all
+pass. `audit:invariants` — pass. Integration and E2E: not run; they cannot be meaningful until the
+migrations apply (B2). Passing unit tests here say little about the SQL: none of it has executed.
+
+## 8. Next
+
+1. Chore `counter_sale_payments` finishes its fix round and merges.
+2. Architect splits this branch per §5. B1 is fixed on the staff-provisioning branch before anything
+   from it merges.
+3. Builder revises `docs/design-notes/m4-stock-signals.md` for M2 and M3 and **stops**.
+4. After review: fix round on the split M4 branch (B2, B3, M1, M4, minors), migrations applied to the
+   test project by hand, CI, then the one cross-family adversarial audit.
