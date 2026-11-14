@@ -102,3 +102,16 @@ bullets. Signals stay in RPCs with no fallback. Evidence is cited by file and li
 The line numbers the note cites were not verified one by one. The reader list in D4 comes from a
 grep for `available_quantity` under the two `src` trees, excluding tests and generated types; a
 reader that reaches the value under another name is not in it.
+
+## Owner's decision on D1 — 2026-11-15
+
+Confirmed by the owner: no low-stock notification in M4. The shop owner opens the dashboard every
+day and sees the count there.
+
+The owner also wants a store-level notification system in the product, with the low-stock alert as
+one of its messages. That is not on `docs/tasks/warehouse-roadmap.md` today and is not M4. What
+exists: a `notifications` table and `lib/notifications.ts`, which send WhatsApp messages to
+*customers* about their orders, and `NotificationCenterPage.tsx`, which shows platform announcements
+from the control plane. Nothing delivers a store's own operational messages to its owner or staff.
+It needs a roadmap entry and its own spec before any code; D1's reopening condition becomes "when
+that system exists".
