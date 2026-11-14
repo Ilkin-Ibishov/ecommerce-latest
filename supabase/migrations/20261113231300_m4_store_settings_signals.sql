@@ -1,9 +1,11 @@
 -- =============================================================================
 -- Migration: M4 Store Settings for Stock Signals
--- Timestamp: 20261113220100_m4_store_settings_signals.sql
+-- Timestamp: 20261113231300_m4_store_settings_signals.sql
+-- Source: supabase/migrations/20261113220100_m4_store_settings_signals.sql
 -- Description:
 --   Seeds operational parameters into store_settings for dead stock,
 --   reorder suggestions target horizon, trailing window, and minimum sales count.
+--   No owner_notification_phone (review D1).
 -- =============================================================================
 
 INSERT INTO public.store_settings (key, value, description) VALUES

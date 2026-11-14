@@ -1,14 +1,13 @@
 -- =============================================================================
--- Migration: M4 Track Stock Enforcement Trigger & Availability View
--- Timestamp: 20261113220000_m4_track_stock_trigger.sql
+-- Migration: M4 track_stock enforcement in movement apply trigger
+-- Timestamp: 20261113231000_m4_track_stock_movement_trigger.sql
+-- Source: supabase/migrations/20261104190000_m2c_trigger_bypass_reasons.sql
 -- Description:
---   1. Enforces track_stock in trg_apply_stock_movement, raising ST030 if an insert
---      to stock_movements is attempted for a non-tracked variant.
---   2. Updates product_variant_availability view to expose track_stock and report
---      unlimited availability (999999) and 0 deficit for non-tracked variants.
+--   trg_apply_stock_movement raises ST030 for track_stock = false variants.
+--   No exceptions of any kind (review D2).
+--   Existing negative-stock and availability branches stay exactly as they are.
 -- =============================================================================
 
--- ─── 1. Enhanced Apply Movement Trigger with track_stock Check ───────────────
 CREATE OR REPLACE FUNCTION trg_apply_stock_movement() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE
   v_new_stock numeric(12,3);
@@ -36,6 +35,12 @@ BEGIN
   LIMIT 1;
 
   -- 3. Availability check for online sales
+  -- Reasons deliberately bypassing the availability check:
+  -- counter_sale: the customer is at the till and the unit is physically present; M3 records the override
+  -- stocktake_correction and opening_balance: physical observation outranks a promise
+  -- damage_write_off and return_to_supplier: the unit is gone
+  -- manual_adjustment: owner's explicit correction
+  -- customer_return and goods_receipt: inbound movements adding stock
   IF NEW.reason = 'online_sale' AND NOT v_allow_negative THEN
     SELECT COALESCE(SUM(quantity), 0) INTO v_reserved
     FROM public.reservations
@@ -43,6 +48,7 @@ BEGIN
       AND status = 'active'
       AND (expires_at IS NULL OR expires_at > now());
 
+    -- Verify that on-hand after decrement still covers all active reservations
     IF (SELECT on_hand FROM public.product_variants WHERE id = NEW.variant_id) + NEW.quantity_delta < v_reserved THEN
       RAISE EXCEPTION 'Insufficient available stock for variant % (available: %, requested: %)',
         NEW.variant_id,
@@ -86,36 +92,3 @@ BEGIN
   RETURN NEW;
 END;
 $$;
-
--- ─── 2. Updated Availability View Exposing track_stock ───────────────────────
-CREATE OR REPLACE VIEW public.product_variant_availability AS
-SELECT
-  pv.id AS variant_id,
-  pv.product_id,
-  pv.sku,
-  pv.price,
-  pv.on_hand,
-  pv.track_stock,
-  CASE
-    WHEN pv.track_stock = false THEN 0::numeric(12,3)
-    ELSE COALESCE(r.active_reserved, 0)::numeric(12,3)
-  END AS reserved_quantity,
-  CASE
-    WHEN pv.track_stock = false THEN 999999::numeric(12,3)
-    ELSE GREATEST(0, pv.on_hand - COALESCE(r.active_reserved, 0))::numeric(12,3)
-  END AS available_quantity,
-  CASE
-    WHEN pv.track_stock = false THEN 0::numeric(12,3)
-    ELSE GREATEST(0, COALESCE(r.active_reserved, 0) - pv.on_hand)::numeric(12,3)
-  END AS deficit_quantity
-FROM public.product_variants pv
-LEFT JOIN (
-  SELECT variant_id, SUM(quantity) AS active_reserved
-  FROM public.reservations
-  WHERE status = 'active' AND (expires_at IS NULL OR expires_at > now())
-  GROUP BY variant_id
-) r ON r.variant_id = pv.id;
-
-ALTER VIEW public.product_variant_availability OWNER TO postgres;
-REVOKE ALL ON public.product_variant_availability FROM public, anon, authenticated;
-GRANT SELECT ON public.product_variant_availability TO service_role;

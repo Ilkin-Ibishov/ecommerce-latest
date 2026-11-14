@@ -1,9 +1,14 @@
 -- =============================================================================
 -- Migration: M4 Stock Signals Database RPCs
--- Timestamp: 20261113220300_m4_stock_signals_rpcs.sql
+-- Timestamp: 20261113231500_m4_stock_signals_rpcs.sql
+-- Source: supabase/migrations/20261113220300_m4_stock_signals_rpcs.sql
 -- Description:
 --   Defines get_low_stock_signals, get_dead_stock_signals, and get_reorder_suggestions.
 --   Revoked from public, anon, authenticated; granted exclusively to service_role.
+--   Fixes audit minors:
+--   - m2: has_enough_data counts transactions with net units > 0 (voided sales do not count)
+--   - m3: supplier group is NULL when unassigned, not literal 'Unassigned'
+--   - m4: pending_needs_owner remains out of ledger velocity, kept as-is
 -- =============================================================================
 
 -- ─── 1. Low Stock Signals RPC ────────────────────────────────────────────────
@@ -187,22 +192,30 @@ RETURNS TABLE (
 ) LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   RETURN QUERY
-  WITH sales_movements AS (
+  WITH tx_net AS (
     SELECT
       sm.variant_id,
-      -SUM(sm.quantity_delta) AS net_sold,
-      COUNT(DISTINCT COALESCE(sm.transaction_id::text, sm.reference_id)) AS tx_count
+      COALESCE(sm.transaction_id::text, sm.reference_id) AS tx_id,
+      -SUM(sm.quantity_delta) AS tx_units
     FROM public.stock_movements sm
     WHERE sm.reason IN ('online_sale', 'counter_sale')
       AND sm.posting_date >= now() - (p_window_days || ' days')::interval
-    GROUP BY sm.variant_id
+    GROUP BY sm.variant_id, COALESCE(sm.transaction_id::text, sm.reference_id)
     HAVING -SUM(sm.quantity_delta) > 0
+  ),
+  sales_movements AS (
+    SELECT
+      tn.variant_id,
+      SUM(tn.tx_units) AS net_sold,
+      COUNT(DISTINCT tn.tx_id)::integer AS tx_count
+    FROM tx_net tn
+    GROUP BY tn.variant_id
   ),
   pending_needs_owner AS (
     SELECT
       csl.variant_id,
       SUM(csl.quantity) AS pending_sold,
-      COUNT(DISTINCT cs.id) AS pending_tx_count
+      COUNT(DISTINCT cs.id)::integer AS pending_tx_count
     FROM public.counter_sale_lines csl
     JOIN public.counter_sales cs ON cs.id = csl.sale_id
     WHERE cs.status = 'needs_owner'
@@ -244,7 +257,7 @@ BEGIN
       vs.total_tx AS v_sales_count,
       ROUND(vs.total_sold::numeric / p_window_days::numeric, 4) AS v_velocity,
       rs.supplier_id AS sup_id,
-      COALESCE(rs.sup_name, 'Unassigned') AS sup_name,
+      rs.sup_name AS sup_name,
       rs.sup_contact AS sup_contact
     FROM public.product_variants pv
     JOIN public.products p ON p.id = pv.product_id
@@ -287,7 +300,7 @@ BEGIN
   FROM calculated c
   WHERE c.v_velocity > 0
     AND (c.v_available <= 0 OR (c.v_available / c.v_velocity) < p_target_days)
-  ORDER BY c.sup_name ASC, (c.v_sales_count >= p_min_sales) DESC, c.v_available ASC;
+  ORDER BY c.sup_name ASC NULLS LAST, (c.v_sales_count >= p_min_sales) DESC, c.v_available ASC;
 END;
 $$;
 
