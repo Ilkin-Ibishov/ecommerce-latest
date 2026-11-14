@@ -170,3 +170,25 @@ Applying, for the human who does it:
   it is re-runnable for exactly this.
 - `database.types.ts` was not regenerated; do it after the migrations are applied.
 - Then dispatch CI. Merge on green.
+
+## Applied to the test project — 2026-11-14
+
+The four migrations were applied to `jcvsnoiacrknzejouxah` by the architect, on the owner's explicit
+instruction, as one transaction (the four files concatenated in order, from `e1c92c9`). The gap
+between `…230300` and `…230400` therefore never existed.
+
+Checked afterwards with separate read-only queries: 231 sales, 231 payment rows, no sale whose
+payments differ from its total; three triggers present; RLS on; the only client grant on
+`counter_sale_payments` is `authenticated: SELECT`; `post_counter_sale` contains the payment insert.
+
+Not done:
+
+- `supabase_migrations.schema_migrations` was not written; the files were run as plain SQL.
+- `artifacts/supabase-types/src/database.types.ts` is still not regenerated. The Supabase CLI is not
+  installed in this checkout and the package has no script for it. Typecheck passes without it, so it
+  does not block CI; it goes to the builder.
+- The integration tier has still never run. That is CI, next.
+
+Observation, not a finding to fix here: `payment_methods` seeds `bank_transfer`, which
+`counter_sales.payment_method`'s CHECK refuses. The lookup is wider than the till; harmless until a
+method is added, and that change must touch both.
