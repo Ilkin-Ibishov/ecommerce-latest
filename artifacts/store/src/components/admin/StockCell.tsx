@@ -12,8 +12,9 @@ const REASONS = [
   { value: "return_to_supplier", label: "Return to Supplier" },
 ];
 
-export function StockCell({ productId, initialStock, onSaved }: {
+export function StockCell({ productId, variantId, initialStock, onSaved }: {
   productId: string;
+  variantId?: string;
   initialStock: number;
   onSaved: (id: string, stock: number) => void;
 }) {
@@ -36,8 +37,9 @@ export function StockCell({ productId, initialStock, onSaved }: {
 
     setSaving(true);
     setError(null);
+    const targetId = variantId || productId;
     try {
-      const res = await adminFetch(apiUrl(`/admin/products/${productId}/stock`), {
+      const res = await adminFetch(apiUrl(`/admin/products/${targetId}/stock`), {
         method: "PATCH",
         body: JSON.stringify({ stock: newStock, reason }),
       });
@@ -65,7 +67,7 @@ export function StockCell({ productId, initialStock, onSaved }: {
   if (editing) {
     return (
       <div className="flex flex-col gap-1 items-end py-1">
-        <span className="text-[10px] text-muted-foreground whitespace-nowrap font-sans">
+        <span className="text-[10px] text-muted-foreground whitespace-normal max-w-[150px] text-right font-sans">
           Modifies physical on-hand (H) only — not reservations
         </span>
         <div className="flex items-center gap-1">

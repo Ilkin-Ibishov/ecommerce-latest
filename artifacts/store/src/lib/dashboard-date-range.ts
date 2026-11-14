@@ -34,7 +34,7 @@ export function getDateRange(preset: DatePreset): DateRange {
       const from = new Date(now.getFullYear(), now.getMonth(), 1);
       const compareFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const compareTo = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-      return { from, to: today, compareFrom, compareTo, label: "This month" };
+      return { from, to: today, compareFrom, compareTo, label: "Bu ay" };
     }
   }
 }

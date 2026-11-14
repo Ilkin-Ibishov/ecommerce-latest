@@ -25,8 +25,9 @@ export default function ReceiptDetailPage({ id: propId }: { id?: string }) {
     try {
       setLoading(true);
       const data = await adminJson(apiUrl(`/admin/receipts/${receiptId}`));
-      setReceipt(data.receipt);
-      setLines(data.receipt?.lines ?? []);
+      const receiptData = data.receipt ?? data;
+      setReceipt(receiptData);
+      setLines(receiptData?.lines ?? []);
     } catch {
       setReceipt(null);
     } finally {
@@ -147,16 +148,16 @@ export default function ReceiptDetailPage({ id: propId }: { id?: string }) {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
           <div>
             <span className="text-xs text-muted-foreground block">{t("Admin.Receipts.supplier")}</span>
-            <span className="font-medium text-foreground">{receipt.suppliers?.name ?? "—"}</span>
+            <span className="font-medium text-foreground">{receipt.suppliers?.name ?? receipt.supplier_name ?? "—"}</span>
           </div>
           <div>
             <span className="text-xs text-muted-foreground block">{t("Admin.Receipts.postingDate")}</span>
             <span className="font-mono text-xs text-foreground">{new Date(receipt.posting_date).toLocaleDateString()}</span>
           </div>
-          {receipt.notes && (
+          {(receipt.notes || receipt.note) && (
             <div className="col-span-2 sm:col-span-1">
               <span className="text-xs text-muted-foreground block">{t("Admin.Receipts.notes")}</span>
-              <span className="text-xs text-muted-foreground">{receipt.notes}</span>
+              <span className="text-xs text-muted-foreground">{receipt.notes || receipt.note}</span>
             </div>
           )}
         </div>

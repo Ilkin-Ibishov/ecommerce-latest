@@ -34,6 +34,7 @@ interface DeadStockVariant {
 
 interface InventoryProduct {
   id: string;
+  variantId: string;
   slug: string;
   sku: string | null;
   price: number;
@@ -120,6 +121,17 @@ export default function AdminInventoryPage() {
       .select("id, slug, sku, price, stock, brand, product_translations(lang_code, title), product_images(url, sort_order), product_categories(category_id)")
       .order("stock", { ascending: true });
 
+    const { data: variants } = await supabase
+      .from("product_variants")
+      .select("id, product_id, is_default");
+
+    const variantMap = new Map<string, string>();
+    for (const v of variants ?? []) {
+      if (v.is_default || !variantMap.has(v.product_id)) {
+        variantMap.set(v.product_id, v.id);
+      }
+    }
+
     const { data: availRows } = await (supabase as any)
       .from("product_variant_availability")
       .select("product_id, on_hand, reserved_quantity, available_quantity, deficit_quantity");
@@ -153,6 +165,7 @@ export default function AdminInventoryPage() {
 
       return {
         id: p.id,
+        variantId: variantMap.get(p.id) ?? p.id,
         slug: p.slug,
         sku: p.sku ?? null,
         price: Number(p.price),
@@ -533,6 +546,7 @@ export default function AdminInventoryPage() {
                   <td className="px-4 py-3 text-right">
                     <StockCell
                       productId={p.id}
+                      variantId={p.variantId}
                       initialStock={p.on_hand}
                       onSaved={(id, newOnHand) =>
                         setProducts((prev) => prev.map((x) => x.id === id ? {

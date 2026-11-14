@@ -37,20 +37,58 @@ export default function AdminUsersPage() {
   const { t } = useI18n();
   const [addStaffOpen, setAddStaffOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [roleFilter, setRoleFilter] = useState<"all" | "staff" | "customer">("all");
 
-  // Fetcher runs the existing /admin/users API query unchanged; the server
-  // paginates by page (PAGE_SIZE 30) and returns { users, total }.
   const fetcher = useCallback(
     async (args: { offset: number; limit: number; search: string; signal: AbortSignal }) => {
-      const p = new URLSearchParams();
-      p.set("page", String(args.offset / args.limit + 1));
-      if (args.search) p.set("q", args.search);
-      const res = await adminFetch(`${apiUrl("/admin/users")}?${p.toString()}`, { signal: args.signal });
-      if (!res.ok) throw new Error(`Request failed (${res.status})`);
-      const data = await res.json();
-      return { rows: (data.users ?? []) as AdminUser[], count: (data.total ?? 0) as number };
+      if (roleFilter === "all") {
+        const p = new URLSearchParams();
+        p.set("page", String(args.offset / args.limit + 1));
+        if (args.search) p.set("q", args.search);
+        const res = await adminFetch(`${apiUrl("/admin/users")}?${p.toString()}`, { signal: args.signal });
+        if (!res.ok) throw new Error(`Request failed (${res.status})`);
+        const data = await res.json();
+        return { rows: (data.users ?? []) as AdminUser[], count: (data.total ?? 0) as number };
+      }
+
+      const p1 = new URLSearchParams();
+      p1.set("page", "1");
+      if (args.search) p1.set("q", args.search);
+      const res1 = await adminFetch(`${apiUrl("/admin/users")}?${p1.toString()}`, { signal: args.signal });
+      if (!res1.ok) throw new Error(`Request failed (${res1.status})`);
+      const data1 = await res1.json();
+      const allUsers: AdminUser[] = [...(data1.users ?? [])];
+      const total = data1.total ?? 0;
+      const totalPages = Math.ceil(total / args.limit);
+
+      if (totalPages > 1) {
+        const extraPromises = [];
+        for (let pg = 2; pg <= totalPages; pg++) {
+          const pExtra = new URLSearchParams();
+          pExtra.set("page", String(pg));
+          if (args.search) pExtra.set("q", args.search);
+          extraPromises.push(
+            adminFetch(`${apiUrl("/admin/users")}?${pExtra.toString()}`, { signal: args.signal })
+              .then((r) => (r.ok ? r.json() : { users: [] }))
+              .then((d) => (d.users ?? []) as AdminUser[])
+              .catch(() => [])
+          );
+        }
+        const extraResults = await Promise.all(extraPromises);
+        extraResults.forEach((batch) => allUsers.push(...batch));
+      }
+
+      const filtered = allUsers.filter((u) => {
+        if (roleFilter === "staff") return u.role === "admin" || u.role === "staff";
+        if (roleFilter === "customer") return u.role === "customer";
+        return true;
+      });
+
+      const pageIndex = Math.floor(args.offset / args.limit);
+      const rows = filtered.slice(pageIndex * args.limit, (pageIndex + 1) * args.limit);
+      return { rows, count: filtered.length };
     },
-    [refreshKey],
+    [refreshKey, roleFilter],
   );
 
   const { rows: users, count, loading, page, totalPages, search, searchInput, setSearchInput } =
@@ -97,6 +135,7 @@ export default function AdminUsersPage() {
     const ps = new URLSearchParams();
     if (p > 1) ps.set("page", String(p));
     if (search) ps.set("q", search);
+    if (roleFilter !== "all") ps.set("role", roleFilter);
     return `/admin/users${ps.toString() ? `?${ps.toString()}` : ""}`;
   };
 
@@ -235,6 +274,37 @@ export default function AdminUsersPage() {
         >
           <UserPlus size={14} />
           {t("Admin.Users.addStaff")}
+        </button>
+      </div>
+
+      {/* Role filter tabs */}
+      <div className="flex gap-1 border border-border rounded-lg p-1 bg-muted/20 w-fit">
+        <button
+          type="button"
+          onClick={() => { setRoleFilter("all"); setRefreshKey((k) => k + 1); }}
+          className={`px-3 py-1.5 text-xs rounded-md font-medium transition ${
+            roleFilter === "all" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {t("Admin.Users.filterAll")}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setRoleFilter("staff"); setRefreshKey((k) => k + 1); }}
+          className={`px-3 py-1.5 text-xs rounded-md font-medium transition ${
+            roleFilter === "staff" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {t("Admin.Users.filterStaff")}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setRoleFilter("customer"); setRefreshKey((k) => k + 1); }}
+          className={`px-3 py-1.5 text-xs rounded-md font-medium transition ${
+            roleFilter === "customer" ? "bg-primary text-primary-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {t("Admin.Users.filterCustomers")}
         </button>
       </div>
 

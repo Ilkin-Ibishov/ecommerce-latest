@@ -463,6 +463,7 @@ const en = {
         counter: "Counter",
         bundles: "Bundles",
         reorder: "Reorder",
+        reservations: "Reservations",
       },
       Layout: {
         adminPanel: "Admin Panel",
@@ -597,6 +598,9 @@ const en = {
       },
       Users: {
         title: "Customers",
+        filterAll: "All",
+        filterStaff: "Staff Only",
+        filterCustomers: "Customers",
         searchPlaceholder: "Search by name or phone…",
         resultCount: "{count} results for \"{query}\"",
         registeredCount: "{count} registered",

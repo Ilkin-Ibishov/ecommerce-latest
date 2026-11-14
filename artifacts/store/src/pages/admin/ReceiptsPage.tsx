@@ -14,6 +14,7 @@ interface ReceiptListItem {
   posting_date: string;
   created_at: string;
   suppliers?: { name: string } | null;
+  supplier_name?: string | null;
   line_count?: number;
 }
 
@@ -34,7 +35,8 @@ export default function ReceiptsPage() {
         ? apiUrl("/admin/receipts")
         : apiUrl(`/admin/receipts?status=${statusFilter}`);
       const data = await adminJson(url);
-      setReceipts(data.receipts ?? []);
+      const items = Array.isArray(data) ? data : (data.receipts ?? []);
+      setReceipts(items);
     } catch {
       setReceipts([]);
     } finally {
@@ -112,7 +114,7 @@ export default function ReceiptsPage() {
                         {r.receipt_number}
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
-                        {r.suppliers?.name ?? "—"}
+                        {r.suppliers?.name ?? r.supplier_name ?? "—"}
                       </td>
                       <td className="px-4 py-3 text-xs font-mono text-muted-foreground">
                         {new Date(r.posting_date).toLocaleDateString()}
