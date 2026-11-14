@@ -747,7 +747,7 @@ checks.push(
       for (const { file, text } of files) {
         if (!isSql(file)) continue;
         const r = rel(file);
-        const isM4OrLater = (/^supabase\/migrations\/(\d{14})/.exec(r)?.[1] ?? '') >= '20261113220000';
+        const isM4OrLater = (/^supabase\/migrations\/(\d{14})/.exec(r)?.[1] ?? '') >= '20261113231000';
         if (!isM4OrLater) continue;
         if (text.includes('FUNCTION trg_apply_stock_movement') && (!text.includes('track_stock') || !text.includes('ST030'))) {
           hits.push({ file: r, line: 0, text: 'trg_apply_stock_movement must check track_stock and raise ST030' });
@@ -761,8 +761,53 @@ checks.push(
         if (text.includes('FUNCTION public.decrement_order_stock(') && !text.includes('track_stock')) {
           hits.push({ file: r, line: 0, text: 'decrement_order_stock must check track_stock' });
         }
-        if (text.includes('FUNCTION public.fulfil_reservation(') && !text.includes('track_stock')) {
-          hits.push({ file: r, line: 0, text: 'fulfil_reservation must check track_stock' });
+        if (text.includes('FUNCTION public.void_counter_sale(') && !text.includes('track_stock = true')) {
+          hits.push({ file: r, line: 0, text: 'void_counter_sale must filter track_stock = true for movements' });
+        }
+      }
+      return hits;
+    },
+  },
+  {
+    id: 'signals-have-one-derivation',
+    why: 'Stock signals have exactly one derivation in SQL RPCs; no duplicate TypeScript engine and no swallowed RPC errors.',
+    run: (files) => {
+      const hits = [];
+      for (const { file, text } of files) {
+        const r = rel(file);
+        if (r.startsWith('artifacts/api-server/src/lib/') && /inventory-signals/i.test(r)) {
+          hits.push({ file: r, line: 0, text: 'Duplicate signals derivation file in lib/ is forbidden; SQL RPCs are the single source of truth' });
+        }
+        if (r === 'artifacts/api-server/src/routes/admin/inventory-signals.ts') {
+          const emptyCatchRegex = /catch\s*(?:\([^)]*\))?\s*\{\s*\}/g;
+          if (emptyCatchRegex.test(text)) {
+            hits.push({ file: r, line: 0, text: 'Empty catch block forbidden in inventory-signals.ts; RPC errors must return 500' });
+          }
+        }
+      }
+      return hits;
+    },
+  },
+  {
+    id: 'no-undispatched-notification-type',
+    why: 'Every notification type in NotifType union must have an explicit dispatch branch in queueNotification.',
+    run: (files) => {
+      const hits = [];
+      const notifFile = files.find(({ file }) => rel(file) === 'artifacts/api-server/src/lib/notifications.ts');
+      if (!notifFile) return hits;
+      const { file, text } = notifFile;
+      const r = rel(file);
+
+      const typeMatch = /type\s+NotifType\s*=\s*([^;]+);/.exec(text);
+      if (!typeMatch) {
+        hits.push({ file: r, line: 0, text: 'Could not find NotifType definition in notifications.ts' });
+        return hits;
+      }
+      const rawTypes = [...typeMatch[1].matchAll(/["']([^"']+)["']/g)].map((m) => m[1]);
+      for (const t of rawTypes) {
+        const handled = text.includes(`"${t}"`) && (text.includes(`type === "${t}"`) || text.includes(`case "${t}"`));
+        if (!handled) {
+          hits.push({ file: r, line: 0, text: `Notification type "${t}" has no dispatch branch in queueNotification` });
         }
       }
       return hits;
