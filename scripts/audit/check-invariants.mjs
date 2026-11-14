@@ -655,8 +655,9 @@ checks.push(
         .sort((a, b) => rel(a.file).localeCompare(rel(b.file)));
 
       const hits = [];
-      const grantRe = /\bGRANT\s+([^;]+?)\s+ON\s+(?:TABLE\s+)?(?:public\.)?counter_sale_payments\b\s+TO\s+([^;]+);/gi;
-      const policyRe = /CREATE\s+POLICY\s+"([^"]+)"\s+ON\s+(?:public\.)?counter_sale_payments\b([^;]*);/gi;
+      const grantRe = /\bGRANT\s+([^;]+?)\s+ON\s+([^;]+?)\s+TO\s+([^;]+);/gi;
+      const policyRe = /CREATE\s+POLICY\s+(?:"([^"]+)"|(\w+))\s+ON\s+(?:(?:"?public"?\.)?"?counter_sale_payments"?)\b([^;]*);/gi;
+      const tableMatchRe = /(?:^|[\s,])(?:"?public"?\s*\.\s*)?"?counter_sale_payments"?(?:[\s,]|$)/i;
 
       for (const { file, text } of migs) {
         const r = rel(file);
@@ -665,24 +666,31 @@ checks.push(
         // 1. Table privilege grants
         for (const m of clean.matchAll(grantRe)) {
           const privs = m[1].toUpperCase();
-          const targetRoles = m[2].toLowerCase();
+          const targetObjects = m[2].trim();
+          const targetRoles = m[3].toLowerCase();
           const targetsClient = /\b(anon|authenticated|public)\b/.test(targetRoles);
           const hasWritePriv = /\b(ALL|INSERT|UPDATE|DELETE)\b/.test(privs);
-          if (targetsClient && hasWritePriv) {
+          if (!targetsClient || !hasWritePriv) continue;
+
+          const isAllTables = /\bALL\s+TABLES\s+IN\s+SCHEMA\b/i.test(targetObjects);
+          const mentionsTable = tableMatchRe.test(targetObjects);
+
+          if (isAllTables || mentionsTable) {
             hits.push({
               file: r,
               line: 0,
-              text: `Migration grants ${privs.trim()} on counter_sale_payments to client role: ${m[2].trim()}`,
+              text: `Migration grants ${privs.trim()} on ${isAllTables ? targetObjects : 'counter_sale_payments'} to client role: ${m[3].trim()}`,
             });
           }
         }
 
         // 2. RLS policies
         for (const m of clean.matchAll(policyRe)) {
-          const policyName = m[1];
-          const policyBody = m[2];
+          const policyName = m[1] || m[2];
+          const policyBody = m[3];
           const cmd = /\bFOR\s+(\w+)/i.exec(policyBody)?.[1]?.toUpperCase() ?? 'ALL';
-          const toClause = /\bTO\s+([^;]+?)(?:\s+USING|\s+WITH\s+CHECK|$)/i.exec(policyBody)?.[1]?.toLowerCase() ?? 'public';
+          const toMatch = /\bTO\s+([^;]+?)(?:\s+USING|\s+WITH\s+CHECK|$)/i.exec(policyBody);
+          const toClause = toMatch ? toMatch[1].toLowerCase() : 'public';
           const targetsClient = /\b(anon|authenticated|public)\b/.test(toClause);
           const isWrite = ['INSERT', 'UPDATE', 'DELETE', 'ALL'].includes(cmd);
           if (targetsClient && isWrite) {
@@ -695,6 +703,40 @@ checks.push(
         }
       }
       return hits;
+    },
+  },
+  {
+    id: 'post-counter-sale-writes-payments',
+    why: 'post_counter_sale must record settlement rows atomically. The last migration defining it must insert into counter_sale_payments so later CREATE OR REPLACE statements do not drop payments.',
+    run: (files) => {
+      const migs = files
+        .filter(({ file }) => isSql(file) && /^supabase\/migrations\//.test(rel(file)))
+        .sort((a, b) => rel(a.file).localeCompare(rel(b.file)));
+
+      let lastDefiningFile = null;
+      let lastFileText = null;
+
+      for (const { file, text } of migs) {
+        if (/CREATE\s+(?:OR\s+REPLACE\s+)?FUNCTION\s+(?:public\.)?post_counter_sale\b/i.test(text)) {
+          lastDefiningFile = rel(file);
+          lastFileText = text;
+        }
+      }
+
+      if (!lastDefiningFile) return [];
+
+      const clean = lastFileText.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+      const writesPayments = /INSERT\s+INTO\s+(?:public\.)?counter_sale_payments\b/i.test(clean);
+
+      if (!writesPayments) {
+        return [{
+          file: lastDefiningFile,
+          line: 0,
+          text: `Last migration defining post_counter_sale ("${lastDefiningFile}") does not insert into counter_sale_payments`,
+        }];
+      }
+
+      return [];
     },
   },
 );

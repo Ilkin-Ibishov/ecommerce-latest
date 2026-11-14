@@ -53,6 +53,42 @@ describe("no-client-writes-on-counter-sale-payments invariant", () => {
     expect(r.stdout).toContain('Policy "Client insert" allows client INSERT on counter_sale_payments');
   });
 
+  it("fails when GRANT ALL ON ALL TABLES IN SCHEMA public is given to authenticated", () => {
+    const badSql = `
+      GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
+    `;
+    const r = runFixture(badSql);
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain("no-client-writes-on-counter-sale-payments");
+  });
+
+  it("fails when GRANT INSERT lists multiple tables including counter_sale_payments", () => {
+    const badSql = `
+      GRANT INSERT ON public.counter_sales, public.counter_sale_payments TO authenticated;
+    `;
+    const r = runFixture(badSql);
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain("no-client-writes-on-counter-sale-payments");
+  });
+
+  it("fails when an unquoted policy grants client INSERT on counter_sale_payments", () => {
+    const badSql = `
+      CREATE POLICY client_insert ON public.counter_sale_payments FOR INSERT TO authenticated WITH CHECK (true);
+    `;
+    const r = runFixture(badSql);
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain("no-client-writes-on-counter-sale-payments");
+  });
+
+  it("fails when GRANT INSERT uses quoted identifiers for schema and table", () => {
+    const badSql = `
+      GRANT INSERT ON "public"."counter_sale_payments" TO authenticated;
+    `;
+    const r = runFixture(badSql);
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain("no-client-writes-on-counter-sale-payments");
+  });
+
   it("passes when only SELECT is granted to client and writes are denied", () => {
     const goodSql = `
       CREATE TABLE public.counter_sale_payments (sale_id uuid, method text, amount numeric);
@@ -64,6 +100,39 @@ describe("no-client-writes-on-counter-sale-payments invariant", () => {
     `;
     const r = runFixture(goodSql);
     expect(r.stdout).toMatch(/ok\s+no-client-writes-on-counter-sale-payments\s+0 total/);
+  });
+});
+
+describe("post-counter-sale-writes-payments invariant", () => {
+  it("fails when the last migration defining post_counter_sale omits payment insert", () => {
+    const badSql = `
+      CREATE OR REPLACE FUNCTION public.post_counter_sale(p_sale jsonb, p_hash text, p_user uuid)
+      RETURNS jsonb LANGUAGE plpgsql AS $$
+      BEGIN
+        INSERT INTO public.counter_sales (id) VALUES ((p_sale->>'id')::uuid);
+        RETURN jsonb_build_object('ok', true);
+      END;
+      $$;
+    `;
+    const r = runFixture(badSql);
+    expect(r.status).toBe(1);
+    expect(r.stdout).toContain("post-counter-sale-writes-payments");
+    expect(r.stdout).toContain("does not insert into counter_sale_payments");
+  });
+
+  it("passes when the last migration defining post_counter_sale inserts into counter_sale_payments", () => {
+    const goodSql = `
+      CREATE OR REPLACE FUNCTION public.post_counter_sale(p_sale jsonb, p_hash text, p_user uuid)
+      RETURNS jsonb LANGUAGE plpgsql AS $$
+      BEGIN
+        INSERT INTO public.counter_sales (id) VALUES ((p_sale->>'id')::uuid);
+        INSERT INTO public.counter_sale_payments (sale_id, method, amount) VALUES ((p_sale->>'id')::uuid, 'cash', 10);
+        RETURN jsonb_build_object('ok', true);
+      END;
+      $$;
+    `;
+    const r = runFixture(goodSql);
+    expect(r.stdout).toMatch(/ok\s+post-counter-sale-writes-payments\s+0 total/);
   });
 });
 
