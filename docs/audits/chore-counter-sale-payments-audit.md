@@ -1,0 +1,235 @@
+# Audit — chore `counter_sale_payments`
+
+2026-11-14, architect pass. Branch `chore/counter-sale-payments` at `c5e8d74`, against
+`docs/tasks/chore-counter-sale-payments.md`. Inputs: the spec, `git diff main...HEAD`, the invariant
+list, and read-only queries on the test project (`jcvsnoiacrknzejouxah`). The design note was not used
+as evidence.
+
+**Verdict: needs rework. Not mergeable.** Three blockers, three major, four minor. The core of the
+function change is right; what fails is everything around it.
+
+## Process
+
+- The design-note gate did not hold. The note was committed 21:59, the first migration 22:00. Nobody
+  reviewed it.
+- No implementation notes file exists, so nothing states which tiers ran. The launch prompt required it.
+- **None of the four migrations has ever executed.** On the test project `payment_methods` and
+  `counter_sale_payments` do not exist and `post_counter_sale` is still the M3 version. The integration
+  test file has therefore never run. This project has already paid for SQL that was never run (the
+  `verify_stock_integrity` syntax error).
+- `database.types.ts` was not regenerated and the branch does not say so.
+
+## Blockers
+
+### B1. The integration test "a voided sale keeps its payment rows" cannot pass
+
+It posts with `payment_method = "bank_transfer"`. `counter_sales.payment_method` still carries
+`CHECK (payment_method = ANY ('cash','card','other'))` (confirmed live), so the header insert is
+refused with 23514. The test ignores the error from `post`, the void then finds no sale, and
+`expect(voided.error).toBeNull()` fails. CI goes red on the first run.
+
+Fix: use `other`. Do not widen the CHECK — a new method in the till is out of scope (§9). Also assert
+`error` on every `post` in the file; three of five tests discard it.
+
+### B2. Applying the migrations one at a time takes the till down
+
+`20261113230200` creates `trg_counter_sales_has_payments`, which refuses any new `counter_sales` row
+without payments at commit. The function that writes the payment arrives in `20261113230400`. Between
+the two, every counter sale fails with ST027. Migrations here are applied by hand, in pieces
+(STATUS item 5, rounds 7 and 10), so the gap is not theoretical.
+
+Fix: create that trigger in `20261113230400`, after the `CREATE OR REPLACE FUNCTION`. The table,
+immutability trigger and the sum trigger on `counter_sale_payments` can stay where they are.
+
+### B3. This branch and `m4/stock-signals` each replace `post_counter_sale`, and each drops the other's change
+
+| Migration | Branch | Has payment insert | Has `track_stock` |
+|---|---|---|---|
+| `20261113220010_m4_track_stock_sales_functions.sql` | `m4/stock-signals` | no | yes |
+| `20261113230400_post_counter_sale_payments.sql` | this one | yes | no |
+
+Fresh database, both merged: the chore's file sorts last, so the `track_stock` fix (STATUS item 15)
+is silently undone and a service variant is decremented again. One untracked variant already exists on
+the test project. Applied by hand in the other order: M4's version wins, writes no payment row, and
+every sale is refused with ST027.
+
+Resolution, architect's call: **the chore merges first, as the spec ordered.** M4 rebases onto it, and
+its function migration is re-timestamped after `20261113230400` and carries both changes. That is a
+finding against M4, recorded here because this is where it was found. It also becomes an invariant —
+see M2.
+
+## Major
+
+### M1. Three of the seven tests in spec §6 are missing
+
+Absent: a two-leg split that sums commits; one that does not sum is refused at commit; the backfill
+gives one row per existing sale. The deferred sum trigger — the one piece of new logic with a branch —
+has no test at all. All three are reachable through PostgREST without a multi-statement transaction:
+
+- refused: insert a second leg with `amount > 0` on a posted sale → ST027;
+- commits: insert a second leg with `amount = 0` and a different method → two rows, sum unchanged;
+- backfill: no `counter_sales` row without a payment row, and no sale whose payments differ from its
+  total (two count queries, both zero).
+
+### M2. The new invariant is bypassed by four ordinary statements
+
+Each of these exits 0 with "0 total" (run against fixtures, 2026-11-14):
+
+```sql
+GRANT ALL ON ALL TABLES IN SCHEMA public TO authenticated;
+GRANT INSERT ON public.counter_sales, public.counter_sale_payments TO authenticated;
+CREATE POLICY client_insert ON public.counter_sale_payments FOR INSERT TO authenticated WITH CHECK (true);
+GRANT INSERT ON "public"."counter_sale_payments" TO authenticated;
+```
+
+The grant pattern requires the table to be the only, unquoted object; the policy pattern requires a
+double-quoted policy name. Fix both and add these four as failing fixtures.
+
+Add a second check for B3: the last migration, in file order, that defines `post_counter_sale` must
+contain `INSERT INTO public.counter_sale_payments`. That is the mechanical form of "a later
+`CREATE OR REPLACE` must not drop the payment row", and it would have caught the M4 collision.
+
+### M3. The backfill is not re-runnable once a split sale exists
+
+`ON CONFLICT (sale_id, method) DO NOTHING` skips only a row with the same method. For a sale later
+settled cash + card with `payment_method = 'other'`, a re-run inserts a third leg for the full total,
+the deferred check fails, and the whole migration rolls back. Ordinary flow today: harmless, there are
+no splits. It meets §1's stated purpose, which is exactly to allow them.
+
+Fix: `WHERE NOT EXISTS (SELECT 1 FROM counter_sale_payments p WHERE p.sale_id = cs.id)`.
+
+## Minor
+
+- **m1.** `"PaymentMethods: staff/admin read"` is `TO authenticated USING (true)`. In this product
+  `authenticated` is every signed-in shopper. The data is three labels, so nothing leaks, but the name
+  states a restriction the policy does not make. Rename it to what it does, or restrict it.
+- **m2.** `counter_sales.total_amount` can be updated without the sum being rechecked — the constraint
+  trigger on `counter_sales` fires on INSERT only. No code path does it today. Make it
+  `AFTER INSERT OR UPDATE OF total_amount`; that is §5's "never modify prices afterwards" as a rule
+  rather than a habit.
+- **m3.** `counter-sale-payments.test.ts` lives in `artifacts/store`, and half of it asserts that
+  migration files contain particular strings. Those tests pin wording, not behaviour, and break on a
+  reformat. Keep the invariant-fixture half, beside the other invariant tests; delete the string half
+  once M1's tests exist.
+- **m4.** `idx_counter_sale_payments_method` serves no query in this chore. Drop it; add it with the
+  day-end report if that report needs it.
+
+## What holds
+
+Read against the M3 function line by line; the only functional change is the one insert.
+
+- Replay, both paths: the early `FOUND` return and the `ON CONFLICT` race return both exit before the
+  payment insert. No second row.
+- `needs_owner`: the payment is written before the savepoint block, so an ST001 rollback keeps it. Any
+  other error rolls back header and payment together.
+- `post_pending_counter_sale` and `void_counter_sale` are untouched and write no payment row. A voided
+  sale keeps its legs.
+- Immutability by trigger, all roles, same as `stock_movements`. Right choice: a grant does not bind
+  `service_role`.
+- RLS on, admin-only SELECT, no client write grant, no write policy. A zero-amount row is legal.
+- §5a (pick-ups) correctly left out.
+
+## Tiers run for this audit
+
+Run locally at `c5e8d74`: `pnpm run typecheck` — exit 0. `pnpm test:unit` — 694 tests, 62 files, all
+pass. `pnpm run audit:invariants` — pass, 15 checks. Integration tier: not run, and cannot pass until
+the migrations are applied to the test project and B1 is fixed.
+
+## Next
+
+One fix round by the builder: `prompts/chore-counter-sale-payments-fix.md`. Then a human applies the
+four migrations to the test project (the harness declines `CREATE TRIGGER`), CI runs, and only then
+does this merge.
+
+## Fix round — verified 2026-11-14 at `d363db6`
+
+Builder run on `prompts/chore-counter-sale-payments-fix.md` (Gemini), seven commits. Checked against
+the diff, not against the builder's notes.
+
+| Finding | Status | How checked |
+|---|---|---|
+| B1 | fixed | void test posts with `other`; every `post` asserts `error` |
+| B2 | fixed | has-payments function and trigger now in `…230400`, after the function |
+| B3 | open, by design | belongs to M4's rebase; the new invariant `post-counter-sale-writes-payments` guards it |
+| M1 | fixed | three tests added as specified |
+| M2 | fixed | the four bypass statements re-run as fixtures: all exit 1 |
+| M3 | fixed | backfill uses `WHERE NOT EXISTS` on the sale |
+| m1–m4 | fixed | policy renamed, trigger covers `UPDATE OF total_amount`, string tests deleted, index dropped |
+
+Tiers run by the architect at `d363db6`: `typecheck` exit 0; `test:unit` 696 tests, 62 files, pass;
+`audit:invariants` 17 checks, pass. No `as any`, `@ts-ignore` or `.skip(` added. Files changed match
+the prompt; `post_counter_sale`'s body is untouched.
+
+**Verdict after the round: approved to apply, not yet to merge.** Still unverified: the four
+migrations have never run on Postgres, and the integration tests have never run at all.
+
+Applying, for the human who does it:
+
+- Apply the four in order, in one sitting. A sale posted after `…230300` and before `…230400` gets no
+  payment row and nothing refuses it. If that gap cannot be avoided, re-run `…230300` after `…230400`;
+  it is re-runnable for exactly this.
+- `database.types.ts` was not regenerated; do it after the migrations are applied.
+- Then dispatch CI. Merge on green.
+
+## Applied to the test project — 2026-11-14
+
+The four migrations were applied to `jcvsnoiacrknzejouxah` by the architect, on the owner's explicit
+instruction, as one transaction (the four files concatenated in order, from `e1c92c9`). The gap
+between `…230300` and `…230400` therefore never existed.
+
+Checked afterwards with separate read-only queries: 231 sales, 231 payment rows, no sale whose
+payments differ from its total; three triggers present; RLS on; the only client grant on
+`counter_sale_payments` is `authenticated: SELECT`; `post_counter_sale` contains the payment insert.
+
+Not done:
+
+- `supabase_migrations.schema_migrations` was not written; the files were run as plain SQL.
+- `artifacts/supabase-types/src/database.types.ts` is still not regenerated. The Supabase CLI is not
+  installed in this checkout and the package has no script for it. Typecheck passes without it, so it
+  does not block CI; it goes to the builder.
+- The integration tier has still never run. That is CI, next.
+
+Observation, not a finding to fix here: `payment_methods` seeds `bank_transfer`, which
+`counter_sales.payment_method`'s CHECK refuses. The lookup is wider than the till; harmless until a
+method is added, and that change must touch both.
+
+## CI — run 43597764065 at `a0208ce`, 2026-11-14: red, not on this chore
+
+- `unit`: pass. API integration: pass, including `counter-sale-payments.integration.test.ts`
+  (8 tests) — the first time the four migrations and these tests have run against Postgres. Serial
+  integration: pass.
+- E2E: 3 failures, all in `cart-flow.spec.ts`. The test opens the first product in the listing and
+  expects an add-to-cart button; the first product was out of stock (screenshot: "Stokda yoxdur",
+  price 19.99, no image). This branch changes no file under `artifacts/store/src` or
+  `artifacts/api-server/src`.
+- Likely cause, not proven to the row: four 19.99 products were written to the test project on
+  2026-11-14 around 06:00 UTC, after `main`'s last green run (2026-11-13 17:04) and before this run;
+  one of them has nothing available. That matches M4 audit m7 (fixture script writing to the shared
+  test project with nothing recording what it wrote).
+
+Not mergeable on a red run. Two things to do, in this order: remove or restock the stray fixture and
+re-run; then make `cart-flow.spec.ts` pick a product that is in stock rather than the first one, as a
+separate simple task.
+
+### E2E cause, confirmed from the trace
+
+The detail page the test opened requested availability for product
+`03fb84fc-3b63-447c-be30-3f875251e762`, slug `qa-m4-services`: the M4 QA fixture (M4 audit m7), a
+service product with `on_hand` 0, written to the test project 2026-11-14 06:31 UTC. This replaces
+"likely cause" above.
+
+Done on the test project, on the owner's instruction: `products.sort_order` set to 9999 for that one
+row, so it lists last. `products` has no active flag, so this is the nearest thing to deactivating
+it; nothing was deleted. The other three `qa-m4-*` products are in stock and were left alone.
+
+This is a patch, not a fix. The storefront list orders by `sort_order` only and almost every product
+has 0, so which product is "first" is whatever Postgres returns. `cart-flow.spec.ts` must choose an
+in-stock product itself; simple task for the builder.
+
+## CI — run 43599425849 at `b2e96d5`, 2026-11-14: green
+
+`unit` and `integration-e2e` both pass, E2E included. **Verdict: approved to merge.** The commit that
+adds this section is docs-only and comes after the green run.
+
+Carried forward, not blocking: regenerate `database.types.ts`; make `cart-flow.spec.ts` choose an
+in-stock product; B3 (M4 rebases onto this and carries the payment insert).
