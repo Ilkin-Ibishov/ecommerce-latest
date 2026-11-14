@@ -10,6 +10,25 @@ import { useI18n } from "@/lib/i18n/context";
 import { toastCouponApplied } from "@/hooks/use-toast";
 
 const PROMO_STORAGE_KEY = "ilk_promo";
+const CHECKOUT_DRAFT_KEY = "checkout_form_draft";
+const FREE_DELIVERY_THRESHOLD = 100;
+const STANDARD_DELIVERY_FEE = 5;
+
+function loadCheckoutDraft() {
+  try {
+    const saved = sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        customer_name: parsed.customer_name ?? "",
+        customer_phone: parsed.customer_phone ?? "",
+        delivery_address: parsed.delivery_address ?? "",
+        notes: parsed.notes ?? "",
+      };
+    }
+  } catch { /* ignore */ }
+  return { customer_name: "", customer_phone: "", delivery_address: "", notes: "" };
+}
 
 export default function CheckoutPage({ locale }: { locale: string }) {
   const { items, subtotal, removeItem, clearCart, updateQty } = useCart();
@@ -27,8 +46,15 @@ export default function CheckoutPage({ locale }: { locale: string }) {
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState("");
   const [coupon, setCoupon] = useState<any>(null);
-  const [form, setForm] = useState({ customer_name: "", customer_phone: "", delivery_address: "", notes: "" });
+  const [form, setForm] = useState(loadCheckoutDraft);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // Persist form draft to sessionStorage so language switches don't lose data
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CHECKOUT_DRAFT_KEY, JSON.stringify(form));
+    } catch { /* ignore */ }
+  }, [form]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }: any) => setUser(data.user ?? null));
@@ -102,8 +128,10 @@ export default function CheckoutPage({ locale }: { locale: string }) {
     } catch { /* ignore */ }
   }, []);
 
+  const isFreeDelivery = subtotal >= FREE_DELIVERY_THRESHOLD;
+  const deliveryFee = isFreeDelivery ? 0 : STANDARD_DELIVERY_FEE;
   const discountAmount = coupon?.discount_amount ?? 0;
-  const total = Math.max(0, subtotal - discountAmount);
+  const total = Math.max(0, subtotal - discountAmount + deliveryFee);
 
   const applyCoupon = async (code?: string) => {
     const codeToApply = (code ?? couponCode).trim();
@@ -167,6 +195,7 @@ export default function CheckoutPage({ locale }: { locale: string }) {
       setPlaced(true);
       clearCart();
       localStorage.removeItem(PROMO_STORAGE_KEY);
+      sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
     } catch { setError("Network error. Please try again."); }
     finally { setLoading(false); }
   };
@@ -294,7 +323,12 @@ export default function CheckoutPage({ locale }: { locale: string }) {
             <div className="border-t border-border mt-4 pt-4 space-y-2">
               <div className="flex justify-between text-sm"><span>{t("Checkout.subtotal")}</span><span>{subtotal.toFixed(2)} AZN</span></div>
               {coupon && <div className="flex justify-between text-sm text-green-600"><span>{t("Checkout.discount")}</span><span>-{discountAmount.toFixed(2)} AZN</span></div>}
-              <div className="flex justify-between text-sm"><span>{t("Checkout.delivery")}</span><span className="text-green-600">{t("Checkout.free")}</span></div>
+              <div className="flex justify-between text-sm">
+                <span>{t("Checkout.delivery")}</span>
+                <span className={isFreeDelivery ? "text-green-600 font-medium" : "font-medium"}>
+                  {isFreeDelivery ? t("Checkout.free") : `${STANDARD_DELIVERY_FEE.toFixed(2)} AZN`}
+                </span>
+              </div>
               <div className="flex justify-between font-bold text-lg border-t border-border pt-3 mt-1">
                 <span>{t("Checkout.total")}</span><span className="text-primary">{total.toFixed(2)} AZN</span>
               </div>

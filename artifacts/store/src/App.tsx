@@ -24,6 +24,7 @@ const ProfilePage = lazy(() => import("@/pages/storefront/ProfilePage"));
 const WishlistPage = lazy(() => import("@/pages/storefront/WishlistPage"));
 const CmsPage = lazy(() => import("@/pages/storefront/CmsPage"));
 const OrderTrackingPage = lazy(() => import("@/pages/storefront/OrderTrackingPage"));
+const SizeGuidePage = lazy(() => import("@/pages/storefront/SizeGuidePage"));
 
 // ─── Admin pages (lazy — entire admin chunk only fetched for /admin routes) ──
 const AdminLayout = lazy(() => import("@/pages/admin/AdminLayout"));
@@ -108,9 +109,9 @@ function StorefrontLayout({ locale, children }: { locale: string; children: Reac
     <SettingsProvider>
       <ThemeApplier />
       <I18nProvider locale={locale}>
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-hidden">
           <StorefrontHeader locale={locale} />
-          <main className="flex-1 pb-16 md:pb-0">
+          <main className="flex-1 pb-16 md:pb-0 w-full max-w-full overflow-x-hidden">
             <Suspense fallback={<PageFallback />}>
               {children}
             </Suspense>
@@ -183,6 +184,7 @@ function StorefrontRoutes({ locale }: { locale: string }) {
         <Route path={`/${locale}/policies/delivery`}>{() => <DeliveryPage locale={locale} />}</Route>
         <Route path={`/${locale}/policies/returns`}>{() => <ReturnsPage locale={locale} />}</Route>
         <Route path={`/${locale}/policies/terms`}>{() => <TermsPage locale={locale} />}</Route>
+        <Route path={`/${locale}/size-guide`}>{() => <SizeGuidePage locale={locale} />}</Route>
         <Route path={`/${locale}/page/:slug`}>{(params) => <CmsPage locale={locale} slug={params.slug} />}</Route>
         <Route>{() => <Redirect to={`/${locale}`} />}</Route>
       </Switch>
@@ -267,6 +269,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/">{() => <Redirect to="/az" />}</Route>
+      <Route path="/size-guide">{() => <Redirect to="/az/size-guide" />}</Route>
       <Route path="/platform">{() => <PlatformRoutes />}</Route>
       <Route path="/platform/*">{() => <PlatformRoutes />}</Route>
       <Route path="/admin/setup">{() => <Suspense fallback={<PageFallback />}><AdminSetupPage /></Suspense>}</Route>
