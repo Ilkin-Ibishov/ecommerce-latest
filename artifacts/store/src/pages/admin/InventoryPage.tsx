@@ -120,7 +120,7 @@ export default function AdminInventoryPage() {
       .select("id, slug, sku, price, stock, brand, product_translations(lang_code, title), product_images(url, sort_order), product_categories(category_id)")
       .order("stock", { ascending: true });
 
-    const { data: availRows } = await (supabase as any)
+    const { data: availRows } = await supabase
       .from("product_variant_availability")
       .select("product_id, on_hand, reserved_quantity, available_quantity, deficit_quantity");
 
@@ -408,7 +408,7 @@ export default function AdminInventoryPage() {
                     : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                {t(`Admin.Inventory.days${d}` as any)}
+                {t(`Admin.Inventory.days${d}`)}
               </button>
             ))}
             {deadStockLoading && <span className="text-[11px] text-muted-foreground animate-pulse ml-1">{t("Common.loading")}</span>}

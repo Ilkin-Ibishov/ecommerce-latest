@@ -44,6 +44,20 @@ interface StatusBucket { name: string; value: number; color: string }
 interface TopProduct { product_id: string; title: string; units: number; revenue: number; image: string | null }
 interface LowStockProduct { id: string; stock: number; title: string; image: string | null }
 interface RevenueByCat { title: string; revenue: number }
+interface SignalsSummary {
+  low_stock_count: number;
+  out_of_stock_count: number;
+  dead_stock_count: number;
+  reorder_suggestions_count: number | null;
+}
+interface RecentOrder {
+  id: string;
+  status: string;
+  total_azn: number | string;
+  customer_name: string | null;
+  customer_phone: string | null;
+  created_at: string;
+}
 
 // ─── Main Page ────────────────────────────────────────────────
 export default function DashboardPage() {
@@ -67,15 +81,10 @@ export default function DashboardPage() {
   const [dailyRevenue, setDailyRevenue] = useState<DailyRevenue[]>([]);
   const [statusBreakdown, setStatusBreakdown] = useState<StatusBucket[]>([]);
   const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
-  const [recentOrders, setRecentOrders] = useState<any[]>([]);
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([]);
   const [lowStockProducts, setLowStockProducts] = useState<LowStockProduct[]>([]);
   const [revenueByCategory, setRevenueByCategory] = useState<RevenueByCat[]>([]);
-  const [signals, setSignals] = useState<{
-    low_stock_count: number;
-    out_of_stock_count: number;
-    dead_stock_count: number;
-    reorder_suggestions_count: number | null;
-  } | null>(null);
+  const [signals, setSignals] = useState<SignalsSummary | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -98,47 +107,47 @@ export default function DashboardPage() {
       lowStockRes,
     ] = await Promise.all([
       // Orders in selected range
-      (supabase as any).from("orders").select("id, status, total_azn, created_at")
+      supabase.from("orders").select("id, status, total_azn, created_at")
         .gte("created_at", fromISO).lte("created_at", toISO),
       // Orders in comparison range
-      (supabase as any).from("orders").select("id, status, total_azn, created_at")
+      supabase.from("orders").select("id, status, total_azn, created_at")
         .gte("created_at", compareFromISO).lte("created_at", compareToISO),
       // Recent orders (last 10 — always latest regardless of range)
-      (supabase as any).from("orders")
+      supabase.from("orders")
         .select("id, status, total_azn, customer_name, customer_phone, created_at")
         .order("created_at", { ascending: false }).limit(10),
       // All orders for status breakdown (all-time)
-      (supabase as any).from("orders").select("status"),
+      supabase.from("orders").select("status"),
       // Orders in range for daily chart
-      (supabase as any).from("orders").select("total_azn, created_at")
+      supabase.from("orders").select("total_azn, created_at")
         .gte("created_at", fromISO).lte("created_at", toISO)
         .order("created_at", { ascending: true }),
       // New customers in range
-      (supabase as any).from("users").select("id", { count: "exact", head: true })
+      supabase.from("users").select("id", { count: "exact", head: true })
         .gte("created_at", fromISO).lte("created_at", toISO),
       // New customers in comparison range
-      (supabase as any).from("users").select("id", { count: "exact", head: true })
+      supabase.from("users").select("id", { count: "exact", head: true })
         .gte("created_at", compareFromISO).lte("created_at", compareToISO),
       // Coupon usages in range
-      (supabase as any).from("coupon_usages").select("id", { count: "exact", head: true })
+      supabase.from("coupon_usages").select("id", { count: "exact", head: true })
         .gte("used_at", fromISO).lte("used_at", toISO),
       // Low stock products
-      (supabase as any).from("products")
+      supabase.from("products")
         .select("id, stock, product_translations(lang_code, title), product_images(url, sort_order)")
         .lt("stock", LOW_STOCK_THRESHOLD).order("stock", { ascending: true }).limit(10),
     ]);
 
     // ── Order items for selected range ──
-    const thisOrderIds: string[] = (ordersThisRes.data ?? []).map((o: any) => o.id);
+    const thisOrderIds: string[] = (ordersThisRes.data ?? []).map((o) => o.id);
     const orderItemsThisRes = thisOrderIds.length > 0
-      ? await (supabase as any).from("order_items")
+      ? await supabase.from("order_items")
           .select("product_id, product_title_snapshot, line_total, quantity")
           .in("order_id", thisOrderIds)
       : { data: [] };
 
     // ── KPIs ──
-    const thisOrders: any[] = ordersThisRes.data ?? [];
-    const prevOrders: any[] = ordersPrevRes.data ?? [];
+    const thisOrders = ordersThisRes.data ?? [];
+    const prevOrders = ordersPrevRes.data ?? [];
 
     const revCur = thisOrders.reduce((s, o) => s + Number(o.total_azn), 0);
     const revPrev = prevOrders.reduce((s, o) => s + Number(o.total_azn), 0);
@@ -149,8 +158,8 @@ export default function DashboardPage() {
     const pendCur = thisOrders.filter((o) => o.status === "pending").length;
     const pendPrev = prevOrders.filter((o) => o.status === "pending").length;
 
-    const cancelledCur = thisOrders.filter((o) => o.status === "cancelled").length;
-    const cancelledPrev = prevOrders.filter((o) => o.status === "cancelled").length;
+    const cancelledCur = thisOrders.filter((o) => (o.status as string) === "cancelled").length;
+    const cancelledPrev = prevOrders.filter((o) => (o.status as string) === "cancelled").length;
     const cancelRateCur = ordCur > 0 ? (cancelledCur / ordCur) * 100 : 0;
     const cancelRatePrev = ordPrev > 0 ? (cancelledPrev / ordPrev) * 100 : 0;
 
@@ -171,7 +180,7 @@ export default function DashboardPage() {
     setRecentOrders(recentRes.data ?? []);
 
     // ── Daily revenue chart (bucket by day across selected range) ──
-    const rangeOrders: any[] = rangeOrdersRes.data ?? [];
+    const rangeOrders = rangeOrdersRes.data ?? [];
     const totalDays = Math.round((to.getTime() - from.getTime()) / 86400000) + 1;
     const byDate = new Map<string, number>();
     for (let i = 0; i < totalDays; i++) {
@@ -187,7 +196,7 @@ export default function DashboardPage() {
     setDailyRevenue(Array.from(byDate.entries()).map(([date, revenue]) => ({ date, revenue })));
 
     // ── Top products ──
-    const items: any[] = orderItemsThisRes.data ?? [];
+    const items = orderItemsThisRes.data ?? [];
     const productMap = new Map<string, { title: string; units: number; revenue: number }>();
     for (const item of items) {
       const pid = item.product_id ?? `snapshot:${item.product_title_snapshot}`;
@@ -200,37 +209,38 @@ export default function DashboardPage() {
     const realProductIds = top5Raw.map((p) => p.product_id).filter((id) => !id.startsWith("snapshot:"));
     const imageMap = new Map<string, string>();
     if (realProductIds.length > 0) {
-      const { data: images } = await (supabase as any).from("product_images")
+      const { data: images } = await supabase.from("product_images")
         .select("product_id, url").in("product_id", realProductIds).order("sort_order", { ascending: true });
-      (images ?? []).forEach((img: any) => { if (!imageMap.has(img.product_id)) imageMap.set(img.product_id, img.url); });
+      (images ?? []).forEach((img) => { if (!imageMap.has(img.product_id)) imageMap.set(img.product_id, img.url); });
     }
     setTopProducts(top5Raw.map((p) => ({ ...p, image: imageMap.get(p.product_id) ?? null })));
 
     // ── Revenue by category (uses product_specs __category rows) ──
-    const productIdsInOrders = [...new Set(items.map((i: any) => i.product_id).filter(Boolean))];
+    const productIdsInOrders = [...new Set(items.map((i) => i.product_id).filter((id): id is string => Boolean(id)))];
     if (productIdsInOrders.length > 0) {
-      const { data: catSpecs } = await (supabase as any)
+      const { data: catSpecs } = await supabase
         .from("product_specs")
         .select("product_id, spec_value")
         .eq("spec_key", "__category")
         .in("product_id", productIdsInOrders);
 
       if (catSpecs && catSpecs.length > 0) {
-        const catIds = [...new Set((catSpecs as any[]).map((s: any) => s.spec_value))];
-        const { data: catTranslations } = await (supabase as any)
+        const catIds = [...new Set(catSpecs.map((s) => s.spec_value))];
+        const { data: catTranslations } = await supabase
           .from("category_translations")
           .select("category_id, title")
           .eq("lang_code", "az")
           .in("category_id", catIds);
 
         const catTitleMap = new Map<string, string>(
-          (catTranslations ?? []).map((t: any) => [t.category_id, t.title])
+          (catTranslations ?? []).map((t) => [t.category_id, t.title])
         );
         const prodToCat = new Map<string, string>();
-        (catSpecs as any[]).forEach((s: any) => prodToCat.set(s.product_id, s.spec_value));
+        catSpecs.forEach((s) => prodToCat.set(s.product_id, s.spec_value));
 
         const catRevMap = new Map<string, { title: string; revenue: number }>();
-        items.forEach((item: any) => {
+        items.forEach((item) => {
+          if (!item.product_id) return;
           const catId = prodToCat.get(item.product_id);
           if (!catId) return;
           const title = catTitleMap.get(catId) ?? "Other";
@@ -252,7 +262,7 @@ export default function DashboardPage() {
     }
 
     // ── Status breakdown (all-time) ──
-    const allOrders: any[] = allOrdersStatusRes.data ?? [];
+    const allOrders = allOrdersStatusRes.data ?? [];
     const statusMap = new Map<string, number>();
     for (const o of allOrders) statusMap.set(o.status, (statusMap.get(o.status) ?? 0) + 1);
     const breakdown: StatusBucket[] = [...statusMap.entries()]
@@ -261,9 +271,9 @@ export default function DashboardPage() {
     setStatusBreakdown(breakdown);
 
     // ── Low stock ──
-    const lowStockData = (lowStockRes.data ?? []).map((p: any) => {
-      const title = getTranslatedField(p.product_translations as any[], "az", "title", "Unknown");
-      const sortedImgs = [...(p.product_images ?? [])].sort((a: any, b: any) => a.sort_order - b.sort_order);
+    const lowStockData = (lowStockRes.data ?? []).map((p) => {
+      const title = getTranslatedField(p.product_translations, "az", "title", "Unknown");
+      const sortedImgs = [...(p.product_images ?? [])].sort((a, b) => a.sort_order - b.sort_order);
       return { id: p.id, stock: p.stock, title, image: sortedImgs[0]?.url ?? null };
     });
     setLowStockProducts(lowStockData);
@@ -272,7 +282,7 @@ export default function DashboardPage() {
     try {
       const sigRes = await adminFetch(apiUrl("/admin/inventory/signals/summary"));
       if (sigRes.ok) {
-        const sigData = await sigRes.json();
+        const sigData: SignalsSummary = await sigRes.json();
         setSignals(sigData);
       }
     } catch {
@@ -597,7 +607,7 @@ export default function DashboardPage() {
                 ))
               ) : recentOrders.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-muted-foreground">{t("Admin.Dashboard.noOrdersYet")}</td></tr>
-              ) : recentOrders.map((order: any) => (
+              ) : recentOrders.map((order) => (
                 <tr key={order.id} className="border-b border-border/50 hover:bg-muted/30 transition">
                   <td className="px-6 py-3">
                     <Link href={`/admin/orders/${order.id}`} className="font-mono text-xs text-primary hover:underline">
