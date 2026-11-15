@@ -539,3 +539,11 @@ Builder run `.agent-runs/m4-fix-round-4-20261115-212606.log`, exit 0. Commits `6
 Local tiers on the branch with the cast removed: `pnpm run typecheck` exit 0; `pnpm test:unit`
 67 files, 741 passed; `pnpm run audit:invariants` "All invariant checks passed." Integration not run
 locally. The two migrations are **not yet applied** to the test project.
+
+**Applied 2026-11-15, owner's approval in chat:** `20261116100000_m4_margin_report_non_tracked.sql`
+and `20261116100100_m4_signals_net_order_returns.sql` to the test project, each as one transaction
+through the Supabase MCP `execute_sql` (bodies byte-identical to the dry run). Stored `md5(prosrc)`
+equals the files: `get_margin_report` 8b5a5d8b… (file body with its one comment line stripped, as
+applied), `get_dead_stock_signals` 74676a84…, `get_reorder_suggestions` 6ac2334e…. `EXECUTE`:
+`service_role` only; `anon` and `authenticated` false. `supabase_migrations.schema_migrations` not
+written, as for the earlier M4 migrations.
