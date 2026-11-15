@@ -480,4 +480,188 @@ artifacts/store typecheck$ tsc -p tsconfig.json --noEmit
 artifacts/api-server typecheck: Done
 artifacts/store typecheck: Done
 ```
+
+---
+
+## 9. Round 3 Fixes & Verification
+
+### 9.1 Scope & Execution Statement
+- **The integration tier was not run locally** (it requires live Supabase credentials and a running API server; per `AGENTS.md` and `prompts/m4-fix-round-3.md`, integration tests run in CI).
+- **No SQL was executed against Supabase** and no migrations were altered.
+- All work was executed on branch `m4/stock-signals-core` without committing to `main`.
+
+### 9.2 Summary of Round 3 Changes by Item
+
+#### Item 1: C1 — Route Zod Schema Alignment & Offline Parity Test (Audit C1)
+- In `artifacts/api-server/src/routes/admin/inventory-signals.ts`:
+  - Replaced `lowStockRowSchema`, `deadStockRowSchema`, and `reorderSuggestionRowSchema` with the exact column list and column ordering of each function's `RETURNS TABLE` in `supabase/migrations/20261113231500_m4_stock_signals_rpcs.sql`:
+    - `lowStockRowSchema`: `variant_id`, `product_id`, `product_title`, `variant_sku`, `barcode`, `unit_of_measure`, `on_hand`, `reserved_quantity`, `available_quantity`, `threshold`, `status`.
+    - `deadStockRowSchema`: `variant_id`, `product_id`, `product_title`, `variant_sku`, `barcode`, `unit_of_measure`, `on_hand`, `days_since_last_sale`, `days_since_first_receipt`, `unit_cost`, `capital_tied_up`.
+    - `reorderSuggestionRowSchema`: `variant_id`, `product_id`, `product_title`, `variant_sku`, `barcode`, `unit_of_measure`, `supplier_id`, `supplier_name`, `supplier_contact`, `on_hand`, `reserved_quantity`, `available_quantity`, `units_sold_window`, `sales_count`, `velocity`, `days_of_cover`, `suggested_qty`, `has_enough_data`.
+  - Enforced type rules: quantities are `numeric(12,3)` handled as `z.coerce.number()`; nullable fields marked `.nullable()`; integers (`sales_count`, `days_since_*`) typed `z.number().int()`.
+  - Replaced throws from `.parse()` with `safeParse` wrapped in `parseSignals` helper that logs Zod validation issues via `(req.log || logger).error()` and returns HTTP 500 with fixed `{ error: "Failed to parse inventory signals data" }`. Staff role cost stripping for `unit_cost` and `capital_tied_up` preserved.
+  - Kept file at 191 lines (<= 200 lines).
+- In `artifacts/store/src/__tests__/invariant-stock-signals-schema.test.ts` (67 lines):
+  - Added pure offline unit test in the `store-unit` project that parses the SQL migration file and the route file as text, asserting that each Zod schema's keys match the function's `RETURNS TABLE` column names exactly in order.
+
+#### Item 2: C2 — Admin Route Inventory Parity (Audit C2)
+- In `artifacts/api-server/tests/admin-routes.test.ts`:
+  - Verified registration order in `artifacts/api-server/src/routes/admin/index.ts` where `inventorySignals` is mounted directly after `bundles`.
+  - Appended the 4 signals routes (`GET /admin/inventory/signals/summary`, `GET /admin/inventory/signals/low-stock`, `GET /admin/inventory/signals/dead-stock`, `GET /admin/inventory/signals/reorder`) to `EXPECTED_ROUTES` following `bundles.ts`, updating the registered route inventory from 84 to 88.
+  - Verified router layer stack parity passes (4/4 tests pass).
+
+#### Item 3: C3 — Track Stock Integration Test Setup Errors (Audit C3)
+- In `artifacts/api-server/tests/m4-track-stock.integration.test.ts`:
+  - Lines 86 (test 2b) and 113 (test 3): Supplied required `NOT NULL` columns `stocktake_number` (unique timestamped stamp) and `title`. Confirmed `status: 'draft'` satisfies `CHECK (status IN ('draft', 'posted', 'cancelled'))` in `20261104130000_m2b_stocktake_tables.sql`.
+  - Line 175 (test 5): Replaced filter `.eq("reason", "counter_sale_void")` (which failed with 22P02 because `counter_sale_void` is not an enum value) with `.eq("note", "void")`, matching `void_counter_sale`'s movement signature (`reason = 'counter_sale'`, `note = 'void'`).
+  - Kept file at 197 lines (<= 200 lines).
+
+#### Item 4: C4 — Stock Signals Test 4 Target Days (Audit C4)
+- In `artifacts/api-server/tests/m4-stock-signals.integration.test.ts` (test 4):
+  - Changed RPC call argument `p_target_days` from 60 to 100000 so the variant with ~250 days cover is returned by `get_reorder_suggestions`.
+  - Retained assertions `item` is defined and `has_enough_data === false`.
+  - Added assertion `expect(item?.sales_count).toBe(1)`.
+
+### 9.3 Invariant & Deny-List Adherence
+- Zero `@ts-ignore` used.
+- Zero new `as any` added.
+- Zero tests deleted or skipped (`.skip()` count unchanged).
+- All modified and new files respect line length constraints:
+  - `artifacts/api-server/src/routes/admin/inventory-signals.ts`: 191 lines
+  - `artifacts/api-server/tests/m4-track-stock.integration.test.ts`: 197 lines
+  - `artifacts/store/src/__tests__/invariant-stock-signals-schema.test.ts`: 67 lines
+  - `artifacts/api-server/tests/m4-stock-signals.integration.test.ts`: 275 lines (< 300 lines)
+
+### 9.4 Verbatim Command Outputs
+
+#### 1. `pnpm run audit:invariants`
+```
+> workspace@0.0.0 audit:invariants C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\sessiyaya-basla-240a51
+> node scripts/audit/check-invariants.mjs
+
+ok    ledger-only-stock-writes         0 total, 0 new
+ok    rls-on-new-tables                0 total, 0 new
+ok    no-has-variants-flag             0 total, 0 new
+ok    no-customer-industry-naming      0 total, 0 new
+ok    reservations-are-not-movements   0 total, 0 new
+ok    on-hand-repair-setting-isolation 0 total, 0 new
+ok    no-direct-variant-costs-writes   0 total, 0 new
+ok    no-cost-column-on-staff-tables   0 total, 0 new
+ok    no-private-columns-on-anon-grants 0 total, 0 new
+ok    no-expected-quantity-on-staff-endpoints 0 total, 0 new
+ok    security-definer-service-role-privileges 0 total, 0 new
+ok    no-client-insert-policy-on-stock-movements 0 total, 0 new
+ok    stocktake-mutations-check-draft-status 0 total, 0 new
+ok    no-on-hand-reads-on-storefront   0 total, 0 new
+ok    no-sensitive-columns-in-exposed-views 0 total, 0 new
+ok    no-client-writes-on-counter-sale-payments 0 total, 0 new
+ok    post-counter-sale-writes-payments 0 total, 0 new
+ok    no-non-tracked-variant-movements 0 total, 0 new
+ok    signals-have-one-derivation      0 total, 0 new
+ok    no-undispatched-notification-type 0 total, 0 new
+
+All invariant checks passed.
+```
+
+#### 2. `pnpm test:unit`
+```
+> workspace@0.0.0 test:unit C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\sessiyaya-basla-240a51
+> vitest --run --project store-unit --project env-validation
+
+ DEPRECATED  The workspace file is deprecated and will be removed in the next major. Please, use the `test.projects` field in the root config file instead.
+
+ RUN  v3.2.6 C:/Users/user/Documents/ecommerce-latest/.claude/worktrees/sessiyaya-basla-240a51
+
+ ✓ |store-unit| src/__tests__/translated-field.property.test.ts (3 tests) 232ms
+ ✓ |store-unit| src/__tests__/cart-validation.test.ts (25 tests) 659ms
+ ✓ |store-unit| src/__tests__/order-tracking.property.test.ts (6 tests) 893ms
+ ✓ |store-unit| src/lib/settings/cms-rendering.property.test.ts (14 tests) 985ms
+ ✓ |store-unit| src/__tests__/admin-list.property.test.ts (7 tests) 382ms
+ ✓ |store-unit| src/__tests__/image-proxy.property.test.ts (5 tests) 459ms
+ ✓ |store-unit| src/pages/admin/settings/validate-settings.property.test.ts (14 tests) 399ms
+ ✓ |store-unit| src/__tests__/admin-logic.test.ts (32 tests) 94ms
+ ✓ |store-unit| src/__tests__/admin-components.property.test.ts (6 tests) 190ms
+ ✓ |store-unit| src/__tests__/invariant-definer-grants.test.ts (5 tests) 3463ms
+ ✓ |store-unit| src/__tests__/invariant-stock-signals.test.ts (7 tests) 3947ms
+ ✓ |store-unit| src/__tests__/image-proxy.unit.test.ts (25 tests) 29ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-public-grant.test.ts (3 tests) 29ms
+ ✓ |store-unit| src/lib/settings/theme-engine.property.test.ts (4 tests) 160ms
+ ✓ |env-validation| tests/env-validation.test.ts (9 tests) 158ms
+ ✓ |store-unit| src/__tests__/heading-hierarchy.property.test.ts (8 tests) 242ms
+ ✓ |store-unit| src/__tests__/i18n-split.property.test.ts (2 tests) 420ms
+ ✓ |store-unit| src/__tests__/invariant-counter-sale-payments.test.ts (10 tests) 5113ms
+ ✓ |store-unit| src/__tests__/counter-pricing.test.ts (10 tests) 550ms
+ ✓ |store-unit| src/__tests__/costing-engine-replay.property.test.ts (4 tests) 130ms
+ ✓ |store-unit| src/__tests__/brand-marquee.test.ts (8 tests) 1030ms
+ ✓ |store-unit| src/__tests__/i18n-consistency.test.ts (16 tests) 124ms
+ ✓ |store-unit| src/lib/settings/storefront-rendering.property.test.ts (11 tests) 2176ms
+ ✓ |store-unit| src/__tests__/stocktake-variance.test.ts (24 tests) 53ms
+ ✓ |store-unit| src/__tests__/barcode-pack-quantity.test.ts (6 tests) 42ms
+ ✓ |store-unit| src/lib/settings/context.test.ts (32 tests) 47ms
+ ✓ |store-unit| src/components/admin/ImageCandidateGrid.test.ts (9 tests) 11ms
+ ✓ |store-unit| src/__tests__/adjustment-role-guards.test.ts (4 tests) 10ms
+ ✓ |store-unit| src/__tests__/staff-cost-reachability.test.ts (6 tests) 22ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-order.test.ts (3 tests) 18ms
+ ✓ |store-unit| src/__tests__/admin-components.test.ts (17 tests) 83ms
+ ✓ |store-unit| src/pages/admin/SettingsPage.test.ts (22 tests) 17ms
+ ✓ |store-unit| src/__tests__/allow-negative-stock.test.ts (9 tests) 33ms
+ ✓ |store-unit| src/__tests__/fixtures.test.ts (7 tests) 29ms
+ ✓ |store-unit| src/__tests__/barcode-matrix-resolution.test.ts (4 tests) 26ms
+ ✓ |store-unit| src/__tests__/i18n-preservation.test.ts (36 tests) 31ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-effective-status.test.ts (2 tests) 16ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-view-security.test.ts (5 tests) 39ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-bypass-and-fulfil.test.ts (3 tests) 16ms
+ ✓ |store-unit| src/lib/settings/default-rendering.test.ts (17 tests) 16ms
+ ✓ |store-unit| src/__tests__/m1-schema-additions-migration.test.ts (5 tests) 24ms
+ ✓ |store-unit| src/__tests__/margin-report-granularity.test.ts (3 tests) 19ms
+ ✓ |store-unit| src/__tests__/i18n-hardcoded-strings.test.ts (120 tests) 135ms
+ ✓ |store-unit| src/__tests__/admin-i18n.property.test.ts (2 tests) 187ms
+ ✓ |store-unit| src/__tests__/m2a-admin-ui-components.test.ts (7 tests) 32ms
+ ✓ |store-unit| src/__tests__/storefront-ux.property.test.ts (25 tests) 8815ms
+ ✓ |store-unit| src/lib/settings/theme-engine.test.ts (15 tests) 29ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-availability-view.test.ts (3 tests) 16ms
+ ✓ |store-unit| src/__tests__/queries.test.ts (14 tests) 149ms
+ ✓ |store-unit| src/__tests__/m4-stock-signals.unit.test.ts (15 tests) 26ms
+ ✓ |store-unit| src/__tests__/stocktake-posting-integrity.test.ts (19 tests) 23ms
+ ✓ |store-unit| src/__tests__/m4-stock-signals-ui.test.ts (4 tests) 24ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-fulfilment.test.ts (3 tests) 25ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-suite.test.ts (7 tests) 14ms
+ ✓ |store-unit| src/__tests__/variant-costs-lifecycle.test.ts (5 tests) 11ms
+ ✓ |store-unit| src/__tests__/stocktake-mutation-guards.test.ts (7 tests) 15ms
+ ✓ |store-unit| src/__tests__/stocktake-reconciliation.test.ts (4 tests) 18ms
+ ✓ |store-unit| src/__tests__/unit-cost-privacy.test.ts (3 tests) 19ms
+ ✓ |store-unit| src/__tests__/stock-adjust-race.test.ts (2 tests) 9ms
+ ✓ |store-unit| src/__tests__/invariant-stock-signals-schema.test.ts (4 tests) 22ms
+ ✓ |store-unit| src/__tests__/inventory-auth.test.ts (4 tests) 13ms
+ ✓ |store-unit| src/__tests__/blind-counting-security.test.ts (4 tests) 12ms
+ ✓ |store-unit| src/__tests__/coupons-page-admin-fetch.test.ts (3 tests) 261ms
+ ✓ |store-unit| src/__tests__/login-modal-profile-reroute.test.ts (2 tests) 316ms
+ ✓ |store-unit| src/__tests__/checkout-form-security.test.ts (1 test) 123ms
+
+ Test Files  67 passed (67)
+      Tests  741 passed (741)
+   Start at  20:26:30
+   Duration  22.82s (transform 14.74s, setup 0ms, collect 49.57s, tests 35.55s, environment 17.44s, prepare 58.78s)
+```
+
+#### 3. `pnpm run typecheck`
+```
+> workspace@0.0.0 typecheck C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\sessiyaya-basla-240a51
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+
+
+> workspace@0.0.0 typecheck:libs C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\sessiyaya-basla-240a51
+> tsc --build
+
+Scope: 5 of 11 workspace projects
+artifacts/mockup-sandbox typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/supabase-types typecheck$ tsc -p tsconfig.json --noEmit
+scripts typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/supabase-types typecheck: Done
+scripts typecheck: Done
+artifacts/mockup-sandbox typecheck: Done
+artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/store typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/api-server typecheck: Done
+artifacts/store typecheck: Done
 ```

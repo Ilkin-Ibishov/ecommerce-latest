@@ -262,7 +262,7 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
     // Call RPC with min_sales = 3
     const { data: rows, error: rpcErr } = await (db as any).rpc("get_reorder_suggestions", {
       p_window_days: 28,
-      p_target_days: 60,
+      p_target_days: 100000,
       p_min_sales: 3,
     });
     expect(rpcErr).toBeNull();
@@ -270,5 +270,6 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
     expect(item).toBeDefined();
     // Only 1 real non-voided transaction exists -> has_enough_data must be false
     expect(item?.has_enough_data).toBe(false);
+    expect(item?.sales_count).toBe(1);
   });
 });
