@@ -605,7 +605,7 @@ Consequences for planning:
 - Audit prompts must tell the auditor to **work directly and not spawn subagents** — the first M2b
   audit attempt fanned out, hit rate limits, and produced nothing.
 
-### AGY CLI facts worth knowing (verified against v1.5.0)
+### AGY CLI facts worth knowing (first verified against v1.5.0; rechecked on v1.5.9, 2026-11-15)
 
 - `--output-format json` returns a `finished_reason` field (`print_timeout`, `interrupted`, `error`),
   absent on a normal finish. The wrapper currently captures only the exit code, so a quota death
@@ -627,7 +627,39 @@ Consequences for planning:
   (`& "scripts\agent\run-agent.cmd" "prompts\<file>.md"`, run in background) — that one actually
   works. Confirmed `.agent-runs/` appearing within a few seconds as the signal it's really running.
 
-### Two failure modes this project has actually produced
+### How the builder should be driven — proposed 2026-11-15, not yet built
+
+Today `run-agent.cmd` sends one prompt, captures text, and exits: the log appears only at the end,
+the conversation is lost, and the builder cannot ask anything. The CLI already supports better.
+
+| Want | Flag | Checked |
+|---|---|---|
+| See each step as it happens | `--output-format stream-json` — NDJSON: one `init` (with `conversation_id`), `step_update` per tool call or response, one `result` | Run on v1.5.9: works |
+| Continue the same session | `--conversation <id>` or `-c` with a new `-p` | Documented; not tried here. An old changelog entry says resuming once reprinted the whole history |
+| A report that cannot omit fields | `--json-schema <file>` with `--output-format json`; parsed result in `structured_output` | Documented; not tried |
+| Plan before any edit | `--mode plan` | Flag exists; not tried |
+| Questions in the middle of a run | `--input-format stream-json` (turns on stdin) or `agy acp` (ACP over stdio). The tool list includes `ask_question` | Exists; needs a driver that is not written |
+
+The loop this allows, in order of effort: (1) a plan turn that returns the plan and the builder's
+questions as structured output; (2) the orchestrator answers and resumes the same conversation;
+(3) the build turn streams, so a wrong direction is stopped in minutes, not after forty; (4) audit
+findings go back into the same conversation instead of a new cold prompt. Mid-run questions (ACP)
+only if this is not enough.
+
+Changing the wrapper is builder work under `scripts/`. No prompt for it exists yet. Try resuming on
+a throwaway prompt before relying on it. Official reference:
+`https://antigravity.google/docs/cli/headless.md`.
+
+Two things seen while checking:
+
+- The Supabase MCP server is still configured at account scope in `agy`, so the builder **can**
+  reach the database today; only prose stops it. If it is to probe the test project (rolled-back
+  `pg_temp` objects, read-only queries), re-add the server scoped to `jcvsnoiacrknzejouxah`, or
+  point it at a Supabase branch. Applying a migration stays with the orchestrator and the owner.
+- `agy mcp list` prints an API key that is stored in plain text in one server's header
+  (`google-developer-knowledge`). Move it to an environment variable. The value is not recorded here.
+
+### Three failure modes this project has actually produced
 
 Both are worth re-reading before writing a spec or a builder prompt.
 
@@ -652,3 +684,17 @@ companion view's `authenticated` grant revoked and an invariant added
 
 The lesson is the question, not the fix: whenever a grant names `anon` or `authenticated`, ask who
 actually holds that role in this product.
+
+**3. Present and plausible is not correct (M4, 2026-11-15).** Three defects passed a careful read of
+the diff and failed on contact: a view migration Postgres refused (42P16), two functions that raised
+on their first call (42702), and four routes that answered 500 because their validation schemas
+named fields no function returned. A fourth — an unlimited item removed from the cart — was missed
+because the list of readers came from a grep for `available_quantity` and the checkout read the
+same value as `available`. The builder's notes were wrong in the same way: they reported one deleted
+test where the diff had four.
+
+The lesson is the habit, not the four fixes: execute SQL on Postgres before applying it (temporary
+objects in a rolled-back transaction), compare a schema with the thing it describes, follow a value
+through the code rather than its name, and accept a round against the diff. The mechanical parts
+are now rules: `.agents/rules/migrations.md`, `.agents/rules/testing.md`, `AGENTS.md` ("Audit
+interface"), and the orchestrator prompt.

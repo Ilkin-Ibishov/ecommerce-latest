@@ -89,6 +89,38 @@ underlying table's RLS was correct and irrelevant.
 **Every audit finding that can be expressed mechanically becomes a check** in
 `scripts/audit/check-invariants.mjs`. There are 14; M4 adds at least one.
 
+**A builder round is accepted against the diff, never against its notes.** In M4 the notes said one
+test was deleted; the diff showed four, one of them the only test of the staff cost boundary. For
+every round, before you say it is done:
+
+- the changed files are the ones the prompt named;
+- no test disappeared — count `it(` lines removed and account for each;
+- no new `as any`, `@ts-ignore`, `.skip(`;
+- each replaced function diffs against its latest prior definition by only what was asked;
+- every new function and view is **created on Postgres before you ask to apply it**: as `pg_temp`
+  objects (or temporary views) inside a transaction you roll back, and called once. Nothing
+  persists and no migration is applied. Reading SQL is not enough — two M4 migrations read
+  correctly and could not run;
+- a validation schema is compared with what it validates, not just seen to exist;
+- you run the three local tiers yourself.
+
+**"It exists" is not "it works."** Every serious miss of the M4 rounds was something present and
+plausible: SQL that parsed in the head, a schema with invented fields, a reader list built by
+grepping one name while the value travelled under another. Follow the value, not the identifier.
+
+**Keep builder rounds small and exact.** Three or four items, each with file, line, the real error
+text and the expected change. A general must/must-not list did not stop a violation; a mechanical
+check does. The builder writes integration tests without a database — put the table's constraints
+in the prompt and budget one CI round for what is left.
+
+**Use the builder CLI as a conversation, not a one-shot.** `agy` can stream its steps
+(`--output-format stream-json`), resume by id (`--conversation <id>`), return a schema-shaped final
+answer (`--json-schema`) and plan without editing (`--mode plan`). The wrapper script uses none of
+these yet; see `docs/STATUS.md`, "AGY CLI facts".
+
+**Read-only audits and mechanical git work can run as sub-agents in their own worktrees** while the
+builder holds the phase branch. Check their top findings against the code before repeating them.
+
 **Frontend work consults `modern-web-guidance` first** — `search`, then `retrieve`. Installed
 and required by `AGENTS.md`; detail in `.agents/rules/frontend.md`.
 

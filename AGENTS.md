@@ -62,3 +62,12 @@ design note and explain the trade-off — do not silently deviate during impleme
 ## Audit interface
 Your work is reviewed from git, not from chat. Anything that matters must end up in a file:
 design notes, code, tests, and migration files. A decision explained only in the chat is lost.
+
+Your notes file is part of the work, and it is checked against the diff. It must contain:
+- **Blocked / Assumptions / Not verified** — every question you could not ask, every fact you
+  assumed, everything you lacked access to. An empty section means you claim there were none.
+- Every test you deleted, renamed, moved or weakened, by name. "None" if none.
+- The real output of the commands you ran, not a summary.
+
+Never invent a name. A column, field, enum value, route or setting you write must be one you read
+in the file that defines it; if you cannot find it, say so under *Blocked* and stop on that item.

@@ -34,3 +34,17 @@ Some tables in this schema are append-only ledgers. For those:
 - If the schema changed in a way the OpenAPI spec describes, regenerate:
   `pnpm --filter @workspace/api-spec run codegen`.
 - Run `pnpm run audit:invariants`.
+
+## Two Postgres rules that reading the SQL does not reveal
+
+Both produced migrations that looked correct and could not run (M4, 2026-11-15).
+
+- **`CREATE OR REPLACE VIEW` must keep each existing column's exact type, including its typmod.**
+  `CASE WHEN c THEN NULL ELSE x::numeric(12,3) END` is plain `numeric`; the replace fails with
+  42P16. Cast the whole expression: `(CASE … END)::numeric(12,3)`. New columns go last.
+- **In a plpgsql function with `RETURNS TABLE`, every output column name is a variable.** A bare
+  `variant_id` or `status` inside the body is ambiguous (42702) at the first call, not at creation.
+  Alias every table in every subquery and CTE and qualify every column.
+
+When you replace a function, start from its **latest** definition, change only what the task names,
+and keep its signature, `SECURITY DEFINER` setting and grants. Name the source file in your notes.

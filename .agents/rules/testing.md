@@ -88,3 +88,24 @@ requests, or the test asserts nothing about the bug it exists to catch.
 A test that silently skips because a database URL is missing is a test that does not exist, and the
 ones that skip are the RLS tests protecting tenant isolation. If a required database is absent, fail
 loudly.
+
+## Integration tests are written without a database — read the schema instead
+
+You cannot run the integration tier, so nothing tells you a setup call is wrong until CI does.
+Every round of M4 that added integration tests shipped setup errors. Before each one:
+
+- For every `insert` in setup, open the table's `CREATE TABLE` (and any later `ALTER`) and supply
+  every `NOT NULL` column without a default, and a value each `CHECK` and `UNIQUE` accepts.
+- For every enum or status literal in a filter or an insert, find the literal in the migration that
+  defines it. A value that does not exist is a `22P02` at run time, not a type error.
+- Assert `error` is null on **every** setup call, so a broken fixture fails where it breaks.
+- When a test looks a row up in a function's result, check the function's own `WHERE` clause first:
+  a row the function rightly filters out is a test-data error, not a defect.
+
+## A validation schema must match the thing it validates
+
+A Zod schema for a database function's result takes its keys from that function's `RETURNS TABLE`,
+same names, nothing invented, and `numeric` columns are never `.int()`. Prove it offline with a
+test that reads the migration and the route as text and compares the two key lists (see
+`invariant-*.test.ts`). M4 shipped schemas with five field names no function returned; every route
+answered 500 and only CI saw it.
