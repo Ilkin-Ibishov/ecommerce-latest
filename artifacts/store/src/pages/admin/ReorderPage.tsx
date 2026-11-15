@@ -110,7 +110,7 @@ export default function ReorderPage() {
                 <div>
                   <h2 className="font-semibold text-sm flex items-center gap-2">
                     <Building2 size={16} className="text-primary" />
-                    {group.name === "Unassigned" ? t("Admin.Reorder.unassignedSupplier") : group.name}
+                    {group.name}
                   </h2>
                   {group.contact && <p className="text-xs text-muted-foreground mt-0.5">{t("Admin.Reorder.contact")} {group.contact}</p>}
                 </div>
