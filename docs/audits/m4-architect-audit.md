@@ -311,3 +311,62 @@ no `.skip(`. The eleven remaining client casts in the integration test are the p
 The frontend `NULL` handling was read in the diff, not exercised in a browser. The new integration
 tests were read for names and setup assertions, not line by line. Whether the product card treats a
 `null` stock as out of stock (R5). The three new invariant checks were run, not read.
+
+## Fix round 2 — verification, 2026-11-15
+
+Builder run on `prompts/m4-fix-round-2.md`, commits `5f65500..5317760` (five, one per item). Checked
+against the diff, not the notes.
+
+**Verdict: approved to apply to the test project.** Not yet approved to merge: no M4 migration has
+run on Postgres as a migration, and the integration and E2E tiers have not run.
+
+### Ran by the architect
+
+`pnpm run typecheck` exit 0. `pnpm test:unit` 737 passed / 66 files. `pnpm run audit:invariants` all
+checks ok.
+
+The three RPC bodies were created as `pg_temp` functions on the test project
+(`jcvsnoiacrknzejouxah`) inside a transaction that was rolled back, and each was called:
+`get_low_stock_signals` returned 420 rows, `get_dead_stock_signals` 2, `get_reorder_suggestions`
+216, no error. The corrected view expression was tried as `CREATE OR REPLACE` over a
+`numeric(12,3)` temporary view: accepted. Nothing was created or changed in the project.
+
+### Findings of round 1
+
+| | Status |
+|---|---|
+| R1 view typmod | Fixed: the whole `CASE` is cast to `numeric(12,3)`; probed |
+| R2 ambiguous references | Fixed: `res.` and `ss.` aliases in both functions; all three functions executed |
+| R3 deleted tests | Restored: staff cost privacy on dead-stock, reorder evidence and staff 403, the `decrement_order_stock` half. The suite is split into `m4-stock-signals.integration.test.ts` (274 lines) and `m4-track-stock.integration.test.ts` (191); every round 1 test name is present in one of the two |
+| R4 checkout removes an unlimited item | Fixed in `CheckoutPage.tsx`: `available === null` keeps the line and its quantity |
+| R5 two `as any` | Removed. `stock` is left alone when availability is `null`; the `null` travels in `available_quantity` |
+| Notes §3, §6; dead `"Unassigned"` comparison | Corrected |
+
+No `@ts-ignore`, no `.skip(`, no new `as any` except the one client cast that moved with the split
+test file.
+
+### New minors, accepted for merge and recorded
+
+- `CheckoutPage.tsx` applies a server price change by assigning `item.price` on the cart item it
+  received from context and then calling `updateQty`. It works because the reducer copies the item;
+  it is a mutation of state. The server prices the order, so this is display only.
+- `resolveProductStock` (`lib/stock-decision.ts`) returns `outOfStock: true` when neither a stock
+  nor an availability number is passed; the old inline code returned false. Every current caller of
+  `ProductCard` passes `stock`, so nothing changes today.
+- Both integration files exceed 190 lines and the first exceeds 200; split by concern as the prompt
+  asked, reason recorded here.
+
+### Not checked
+
+The storefront was not exercised in a browser. The restored tests were compared by name and by the
+presence of their assertions' subjects, not line by line against `f4b129d`. The other four
+migrations were verified in round 1 by diff against their sources and have not been executed in any
+form.
+
+### Next, in order
+
+1. Owner's consent, then apply the seven `20261113231xxx` migrations to the test project in one
+   transaction, with verification queries.
+2. Regenerate `database.types.ts`; remove the client casts it makes unnecessary.
+3. Push the branch and run CI: integration and E2E.
+4. The one cross-family adversarial audit, then the merge decision.
