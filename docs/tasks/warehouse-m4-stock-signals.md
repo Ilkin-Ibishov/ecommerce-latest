@@ -69,6 +69,10 @@ about whether a message was sent.
 2. **Velocity is computed from `stock_movements`, not from sale documents.** A voided
    counter sale reverses its movement; a ledger-derived velocity is therefore self-correcting
    and a document-derived one is not.
+   **One exception (corrected 2026-11-15, audit m4):** a counter sale in `needs_owner` has
+   written no movement yet, but the goods have left the shop. Its lines are added to velocity
+   from `counter_sale_lines` for as long as the sale is `needs_owner`. Posting it writes the
+   movement and voiding it removes it, so it is never counted twice and never left behind.
 3. **No forecasting.** Plain units-per-day over a fixed window. No seasonality, no smoothing,
    no safety-stock model. The shop sells tens of units a day; a model would be fitting noise.
 4. **No automation.** No purchase order is created, no supplier is contacted.
@@ -253,7 +257,7 @@ more:
 |---|---|---|
 | Signals read `available` | M2c reservations | A deposit held against stock makes it unavailable, so it must be able to trigger a low-stock signal even with on-hand unchanged |
 | Velocity from movements | M3a void | A voided counter sale reverses its movement, so velocity drops without special handling. Verify, do not assume |
-| Velocity from movements | M3a `needs_owner` | A sale flagged for the owner still consumed stock and still sold. It **counts** toward velocity |
+| Velocity from movements | M3a `needs_owner` | A sale flagged for the owner has sold but has **not** written a movement. It **counts** toward velocity, read from `counter_sale_lines` while its status is `needs_owner` (§5.2) |
 | Velocity excludes corrections | M2b stocktake | A shrinkage correction reduces on-hand and is not demand. Excluding it is required, not optional |
 | Dead-stock value | M2a cost RLS | Cost is owner-only; the API must not return value columns to staff |
 | Dead-stock "days since last sale" | M2b opening count | A variant first entered by opening count has no sale history and is not therefore dead on day one. Use days since first receipt as the floor |
