@@ -15,7 +15,7 @@ the builder's job, and a spec you implement yourself is a spec nobody reviewed.
 
 ## Read first, in this order
 
-1. `docs/STATUS.md` — the entry point. Its "Start here — 2026-11-13" section is current.
+1. `docs/STATUS.md` — the entry point. Its "Start here — 2026-11-15" section is current.
 2. `AGENTS.md` — house rules, the deny list, and the design-note gate.
 3. `docs/tasks/warehouse-roadmap.md` — what remains and what is deferred, with the condition
    for reopening each deferred item.
