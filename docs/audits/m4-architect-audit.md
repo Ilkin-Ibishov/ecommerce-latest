@@ -234,3 +234,80 @@ All branches are cut from `main` at `673e3ab`. None is pushed, none is audited b
   on top of both staff provisioning and the M4 UI. It is rebuilt after those two land, not before.
 - The persona audit reports, screenshots and QA scripts (`43f6410 bd5fae7 ea870bf c1d569b`) are still
   only on `m4/stock-signals`.
+
+## Fix round 1 — verification, 2026-11-15
+
+Builder run on `prompts/m4-fix-round.md`, commits `2051b8d..fb72f92` (eight, one per item). Checked
+against the diff, not the notes.
+
+**Verdict: not approved. Two migrations cannot run. One more fix round, small
+(`prompts/m4-fix-round-2.md`).**
+
+### Ran by the architect
+
+`pnpm run typecheck` exit 0. `pnpm test:unit` 731 passed / 66 files. `pnpm run audit:invariants` all
+20 checks ok. Integration and E2E not run: no M4 migration is applied anywhere.
+
+Two SQL shapes were probed on the test project (`jcvsnoiacrknzejouxah`) with temporary objects inside
+a transaction that was rolled back; nothing was created or changed.
+
+### Blockers
+
+**R1. `…231020` fails with 42P16.** `CASE WHEN pv.track_stock = false THEN NULL ELSE (…)::numeric(12,3) END`
+has type `numeric` with no typmod; the existing column is `numeric(12,3)`. Probe result:
+`cannot change data type of view column "available_quantity" from numeric(12,3) to numeric`.
+Fix: cast the whole `CASE … END` to `numeric(12,3)`.
+
+**R2. `get_low_stock_signals` and `get_reorder_suggestions` fail at first call with 42702.** Both
+declare `variant_id` (and the first also `status`) as `RETURNS TABLE` columns and then use those
+names unqualified in the reservations subquery (`SELECT variant_id, SUM(quantity) … WHERE status =
+'active' … GROUP BY variant_id`). Probe result: `column reference "variant_id" is ambiguous`.
+Fix: alias the table and qualify every column in those subqueries. `get_dead_stock_signals`
+qualifies everything and is not affected.
+
+### Majors
+
+**R3. Three tests were deleted without being named; the notes say one.** The prompt allowed deleting
+the digest test only. Also gone from `m4-stock-signals.integration.test.ts`: the
+`decrement_order_stock` half of old test 2, old test 3 (staff get no `unit_cost` /
+`capital_tied_up` / `total_dead_capital` from `/admin/inventory/signals/dead-stock`), and old test 5
+(reorder evidence fields; staff get 403 on `/admin/inventory/signals/reorder`). No other test covers
+the staff cost boundary on these routes. Restore all three.
+
+**R4. A non-tracked item is removed from the cart at checkout.** `/products/prices` returns
+`available: null` and `stock: Number(p.stock) || 0`; `CheckoutPage.tsx:59` falls back to `stock`
+when `available` is not a number and removes the line when it is `<= 0`. `CheckoutPage.tsx` was not
+in review D4's list — the list was a grep for `available_quantity` and said so; the miss is the
+architect's. Assumed, not checked: that the legacy `products.stock` of a non-tracked product is 0.
+
+**R5. Two new `as any`.** `p.stock = val as any` in `routes/products.ts` and `routes/categories.ts`
+writes `null` into a field typed `number`. Not a client cast, so not covered by the one permitted
+exception. Leave `stock` alone and carry the `null` only in `available_quantity`; then check what
+the product card does with it.
+
+### Minors
+
+- Notes §3 names `20261104160000_m2b_posting_date_nullable.sql` as the source of five replaced
+  objects. The migration headers name the right files and the diffs against those files show only
+  the intended change (plus dropped comments), so the code is right and the table is wrong.
+- `ReorderPage.tsx:113` still compares the group name with the literal `"Unassigned"`; after m3 that
+  branch is dead.
+- `…231100` (245 lines) and `…231500` (315) exceed 200 lines. The prompt put three functions in each;
+  accepted, reason recorded here.
+
+### Confirmed correct
+
+Trigger (`…231000`): source body plus the ST030 block, no exception (D2). Guards (`…231010`): ST031–
+ST034, reservation test is `status = 'active'` alone (D3). View grants match the latest prior state
+(`20261105200000`): service_role only. `post_pending_counter_sale`, `decrement_order_stock`,
+`void_counter_sale`, `post_counter_sale`: each diffed against its latest definition — only the
+`track_stock` filter added; signatures, `SECURITY DEFINER` and grants kept; the payments insert is
+in place. No `owner_notification_phone`, no digest table, function or route (D1). D6: `post_stocktake`
+builds its deltas from `stocktake_lines` only, so the insert guard is sufficient. No `@ts-ignore`,
+no `.skip(`. The eleven remaining client casts in the integration test are the permitted kind.
+
+### Not checked
+
+The frontend `NULL` handling was read in the diff, not exercised in a browser. The new integration
+tests were read for names and setup assertions, not line by line. Whether the product card treats a
+`null` stock as out of stock (R5). The three new invariant checks were run, not read.
