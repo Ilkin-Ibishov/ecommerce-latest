@@ -392,3 +392,32 @@ Verified afterwards by query:
 
 Not done: `database.types.ts` is not regenerated (no Supabase CLI session on this machine), so the
 eleven client casts in the integration tests stay for now.
+
+## CI — run 43682778875 on `fd00b40`+apply note, 2026-11-15: red
+
+`unit` passed. `integration-e2e`: 8 failed, 1169 passed, 10 skipped (110 files, 3 failed). E2E 54
+passed. The migrations are not the cause; nothing in the database needs to change.
+
+**C1. Blocker — all four signal routes answer 500.** The Zod schemas added in round 1
+(`routes/admin/inventory-signals.ts`) name fields the RPCs do not return (`reorder_point`,
+`lead_time_days`, `daily_velocity`, `recommended_qty`, `preferred_supplier_name`) and declare
+quantities as integers. `.parse()` throws on the first row. The admin pages read the RPCs' real
+field names, so only the route is wrong. Fails tests 1 and 2 of `m4-stock-signals`.
+The architect asked for Zod validation in round 1 and verified that schemas existed, not that they
+matched the functions. Round 3 adds an offline test that compares the two.
+
+**C2. The admin route inventory test expects 84 routes; the router registers 88.** The four signal
+routes were never added to `tests/admin-routes.test.ts`. Two failures.
+
+**C3. Test setup errors in `m4-track-stock`.** `stocktakes` insert without `stocktake_number`
+(23502), twice; a filter on `reason = 'counter_sale_void'`, which is not an enum value (22P02).
+Three failures.
+
+**C4. Test data error in `m4-stock-signals` test 4.** The variant has ~250 days of cover, so the
+RPC correctly omits it at a 60-day target and the test finds no row. One failure.
+
+Also seen: the switch guard tests stocktake status `IN ('draft', 'in_progress')`; the table's
+`CHECK` allows `draft`, `posted`, `cancelled`. `in_progress` can never match. Harmless, left as is;
+the migration is applied.
+
+Fix round: `prompts/m4-fix-round-3.md`.
