@@ -63,7 +63,8 @@ function ProductGrid({ title, products, locale, showSaleBadge }: {
               isOnSale={showSaleBadge || product.is_on_sale}
               isDealOfDay={product.is_deal_of_day}
               stock={product.stock}
-              availableStock={product.availableStock ?? product.stock}
+              availableStock={product.availableStock}
+              available_quantity={product.available_quantity}
               brand={product.brand}
               locale={locale}
             />

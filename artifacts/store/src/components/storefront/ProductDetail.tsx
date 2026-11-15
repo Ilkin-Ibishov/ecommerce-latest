@@ -359,6 +359,8 @@ export default function ProductDetail({ product, images, translation, comments: 
                 isOnSale={p.is_on_sale}
                 isDealOfDay={p.is_deal_of_day}
                 stock={p.stock}
+                availableStock={p.available_quantity}
+                available_quantity={p.available_quantity}
                 brand={p.brand}
                 locale={locale}
               />

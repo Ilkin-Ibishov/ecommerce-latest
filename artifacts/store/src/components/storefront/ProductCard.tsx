@@ -5,6 +5,7 @@ import { useCart } from "@/lib/cart/context";
 import { useI18n } from "@/lib/i18n/context";
 import { getProxyUrl } from "@/lib/image-proxy";
 import { toastCartAdd } from "@/hooks/use-toast";
+import { resolveProductStock } from "@/lib/stock-decision";
 import { QuickViewModal } from "./QuickViewModal";
 
 interface Props {
@@ -15,8 +16,9 @@ interface Props {
   image: string | null;
   isOnSale?: boolean;
   isDealOfDay?: boolean;
-  stock?: number;
-  availableStock?: number;
+  stock?: number | null;
+  availableStock?: number | null;
+  available_quantity?: number | null;
   locale: string;
   rating?: number | null;
   ratingCount?: number;
@@ -43,16 +45,18 @@ function StarRow({ rating }: { rating: number }) {
 
 export default function ProductCard({
   slug, title, price, originalPrice, image, isOnSale, isDealOfDay,
-  stock, availableStock, locale, rating, ratingCount, brand, productId, headingLevel = 3,
+  stock, availableStock, available_quantity, locale, rating, ratingCount, brand, productId, headingLevel = 3,
 }: Props) {
   const [added, setAdded] = useState(false);
   const [quickViewOpen, setQuickViewOpen] = useState(false);
   const quickViewTriggerRef = useRef<HTMLButtonElement>(null);
   const { addItem } = useCart();
   const { t } = useI18n();
-  const effectiveStock = typeof availableStock === "number" ? availableStock : stock;
-  const outOfStock = typeof effectiveStock === "number" && effectiveStock === 0;
-  const lowStock   = typeof effectiveStock === "number" && effectiveStock > 0 && effectiveStock < 5;
+  const { isUnlimited, outOfStock, lowStock, effectiveStock } = resolveProductStock({
+    stock,
+    availableStock,
+    available_quantity,
+  });
   const monthlyPrice = (price / INSTALLMENT_MONTHS).toFixed(2);
   const discount = originalPrice && originalPrice > price
     ? Math.round(((originalPrice - price) / originalPrice) * 100)

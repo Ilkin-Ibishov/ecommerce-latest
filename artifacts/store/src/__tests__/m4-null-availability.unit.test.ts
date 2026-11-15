@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { resolveProductStock } from "@/lib/stock-decision";
 
 export interface BundleComponentInput {
   variant_id: string;
@@ -101,6 +102,60 @@ describe("M4 NULL Availability Pure Functions", () => {
     it("returns formatted count for tracked available", () => {
       expect(formatAvailabilityPill(0)).toEqual({ isUnlimited: false, display: "0" });
       expect(formatAvailabilityPill(42)).toEqual({ isUnlimited: false, display: "42" });
+    });
+  });
+
+  describe("resolveProductStock", () => {
+    it("treats available_quantity === null with stock === 0 as unlimited and in-stock", () => {
+      const res = resolveProductStock({ stock: 0, available_quantity: null });
+      expect(res.isUnlimited).toBe(true);
+      expect(res.outOfStock).toBe(false);
+      expect(res.lowStock).toBe(false);
+      expect(res.effectiveStock).toBeNull();
+    });
+
+    it("treats availableStock === null with stock === 0 as unlimited and in-stock", () => {
+      const res = resolveProductStock({ stock: 0, availableStock: null });
+      expect(res.isUnlimited).toBe(true);
+      expect(res.outOfStock).toBe(false);
+      expect(res.lowStock).toBe(false);
+      expect(res.effectiveStock).toBeNull();
+    });
+
+    it("treats tracked zero stock as out of stock", () => {
+      const res = resolveProductStock({ stock: 0, available_quantity: 0 });
+      expect(res.isUnlimited).toBe(false);
+      expect(res.outOfStock).toBe(true);
+      expect(res.lowStock).toBe(false);
+      expect(res.effectiveStock).toBe(0);
+    });
+
+    it("treats tracked low stock correctly", () => {
+      const res = resolveProductStock({ stock: 5, available_quantity: 3 });
+      expect(res.isUnlimited).toBe(false);
+      expect(res.outOfStock).toBe(false);
+      expect(res.lowStock).toBe(true);
+      expect(res.effectiveStock).toBe(3);
+    });
+
+    it("treats tracked healthy stock correctly", () => {
+      const res = resolveProductStock({ stock: 10, available_quantity: 10 });
+      expect(res.isUnlimited).toBe(false);
+      expect(res.outOfStock).toBe(false);
+      expect(res.lowStock).toBe(false);
+      expect(res.effectiveStock).toBe(10);
+    });
+
+    it("falls back to stock when available_quantity is undefined", () => {
+      const resInStock = resolveProductStock({ stock: 15 });
+      expect(resInStock.isUnlimited).toBe(false);
+      expect(resInStock.outOfStock).toBe(false);
+      expect(resInStock.effectiveStock).toBe(15);
+
+      const resOos = resolveProductStock({ stock: 0 });
+      expect(resOos.isUnlimited).toBe(false);
+      expect(resOos.outOfStock).toBe(true);
+      expect(resOos.effectiveStock).toBe(0);
     });
   });
 });

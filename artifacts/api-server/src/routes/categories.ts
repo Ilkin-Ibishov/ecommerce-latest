@@ -72,8 +72,10 @@ router.get("/categories/:slug/products", platformStatus("storefront_read"), asyn
     for (const p of products) {
       if (availMap.has(p.id)) {
         const val = availMap.get(p.id)!;
-        p.stock = val as any;
-        (p as any).available_quantity = val;
+        if (val !== null) {
+          p.stock = val;
+        }
+        (p as { available_quantity?: number | null }).available_quantity = val;
       }
     }
   }

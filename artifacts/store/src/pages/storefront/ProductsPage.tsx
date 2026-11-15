@@ -385,6 +385,8 @@ export default function ProductsPage({ locale }: { locale: string }) {
                 is_on_sale: product.is_on_sale,
                 is_deal_of_day: product.is_deal_of_day,
                 stock: product.stock,
+                availableStock: product.available_quantity,
+                available_quantity: product.available_quantity,
                 brand: product.brand,
               }))}
               loading={false}
