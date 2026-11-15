@@ -421,3 +421,28 @@ Also seen: the switch guard tests stocktake status `IN ('draft', 'in_progress')`
 the migration is applied.
 
 Fix round: `prompts/m4-fix-round-3.md`.
+
+## Fix round 3 — verification (2026-11-15)
+
+Builder run `.agent-runs/m4-fix-round-3-20261115-200803.log`, exit 0. Commits `fdf2ee3` (C1),
+`99ee93c` (C2), `535e0b9` (C3), `47b9d14` (C4 and notes). Accepted against the diff:
+
+- Files changed are exactly the ones the prompt named, plus the new unit test and the notes.
+- No `it(` removed; no new `as any`, `@ts-ignore` or `.skip(` in the diff.
+- C1: each of the three schemas lists the `RETURNS TABLE` columns of
+  `20261113231500_m4_stock_signals_rpcs.sql` by name and in order; no later migration redefines
+  the three functions. Quantities `z.coerce.number()`, `sales_count` and `days_since_*` integers,
+  nullables as specified, `status` enum matches the `CASE` ('out' / 'low'). `.parse()` replaced
+  by `safeParse` with a fixed 500 message and logged issues; staff path still strips cost fields.
+  The offline test reads both files and compares keys in order. Its fourth case compares two
+  literal arrays and tests nothing — harmless, not worth a round.
+- C2: the four routes are appended after `bundles`, matching `router.use(inventorySignals)` last
+  in `routes/admin/index.ts:60`.
+- C3: `stocktake_number` (UNIQUE NOT NULL) and `title` (NOT NULL) now supplied; `'draft'` is in the
+  `CHECK`. The void filter `note = 'void'` matches what `void_counter_sale` writes
+  (`20261113231100_m4_track_stock_sales_functions.sql`, reason `'counter_sale'`, note `'void'`).
+- C4: `p_target_days: 100000`, both assertions kept, `sales_count` = 1 added.
+
+Local tiers, run by the architect on `47b9d14`: `pnpm run typecheck` exit 0; `pnpm test:unit`
+67 files, 741 tests passed; `pnpm run audit:invariants` "All invariant checks passed." The
+integration tier was not run locally.
