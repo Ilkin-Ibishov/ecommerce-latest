@@ -8,13 +8,11 @@ const MAX_VERIFY_ATTEMPTS = 5;
 
 const IS_DEV = process.env.NODE_ENV !== "production";
 
-// Hardcoded test bypass: these phones accept TEST_CODE in any environment.
-// Used by automated/manual test flows to obtain sessions without WhatsApp.
-const TEST_PHONES = new Set<string>([
-  "+994550000001",
-  "+994550000002",
-  "+994550000003",
-]);
+// Test bypass: these phones accept TEST_CODE and skip rate limits — outside
+// production only. In production the set is empty, so the bypass cannot match.
+const TEST_PHONES = new Set<string>(
+  IS_DEV ? ["+994550000001", "+994550000002", "+994550000003"] : [],
+);
 const TEST_CODE = "999999";
 
 // In-memory OTP store used in dev/test mode so tests don't need the
