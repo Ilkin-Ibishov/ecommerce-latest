@@ -3,16 +3,21 @@ import { z } from "zod";
 import { getAdminSupabase } from "../../lib/supabase";
 import { requireStaffOrAdmin } from "../../middlewares/requireStaffOrAdmin";
 import { requireAdmin } from "../../middlewares/requireAdmin";
+import { logger } from "../../lib/logger";
 
 const router = Router();
 
 const lowStockRowSchema = z.object({
   variant_id: z.string().uuid(),
   product_id: z.string().uuid(),
-  product_title: z.string(),
+  product_title: z.string().nullable(),
   variant_sku: z.string().nullable(),
-  available_quantity: z.number().int(),
-  reorder_point: z.number().int(),
+  barcode: z.string().nullable(),
+  unit_of_measure: z.string().nullable(),
+  on_hand: z.coerce.number(),
+  reserved_quantity: z.coerce.number(),
+  available_quantity: z.coerce.number(),
+  threshold: z.coerce.number(),
   status: z.enum(["out", "low"]),
 });
 type LowStockRow = z.infer<typeof lowStockRowSchema>;
@@ -20,9 +25,11 @@ type LowStockRow = z.infer<typeof lowStockRowSchema>;
 const deadStockRowSchema = z.object({
   variant_id: z.string().uuid(),
   product_id: z.string().uuid(),
-  product_title: z.string(),
+  product_title: z.string().nullable(),
   variant_sku: z.string().nullable(),
-  on_hand: z.number().int(),
+  barcode: z.string().nullable(),
+  unit_of_measure: z.string().nullable(),
+  on_hand: z.coerce.number(),
   days_since_last_sale: z.number().int().nullable(),
   days_since_first_receipt: z.number().int().nullable(),
   unit_cost: z.coerce.number().optional().nullable(),
@@ -33,35 +40,43 @@ type DeadStockRow = z.infer<typeof deadStockRowSchema>;
 const reorderSuggestionRowSchema = z.object({
   variant_id: z.string().uuid(),
   product_id: z.string().uuid(),
-  product_title: z.string(),
+  product_title: z.string().nullable(),
   variant_sku: z.string().nullable(),
-  available_quantity: z.number().int(),
-  lead_time_days: z.number().int(),
-  daily_velocity: z.coerce.number(),
-  reorder_point: z.number().int(),
-  recommended_qty: z.number().int(),
-  preferred_supplier_name: z.string().nullable(),
+  barcode: z.string().nullable(),
+  unit_of_measure: z.string().nullable(),
+  supplier_id: z.string().uuid().nullable(),
+  supplier_name: z.string().nullable(),
+  supplier_contact: z.string().nullable(),
+  on_hand: z.coerce.number(),
+  reserved_quantity: z.coerce.number(),
+  available_quantity: z.coerce.number(),
+  units_sold_window: z.coerce.number(),
+  sales_count: z.number().int(),
+  velocity: z.coerce.number(),
+  days_of_cover: z.coerce.number().nullable(),
+  suggested_qty: z.coerce.number().nullable(),
   has_enough_data: z.boolean(),
 });
 type ReorderSuggestionRow = z.infer<typeof reorderSuggestionRowSchema>;
 
 interface SignalsRpcClient {
-  rpc(
-    fn: "get_low_stock_signals",
-    args: { p_search: string | null; p_status: string | null }
-  ): Promise<{ data: unknown; error: { message: string } | null }>;
-  rpc(
-    fn: "get_dead_stock_signals",
-    args: { p_days: number }
-  ): Promise<{ data: unknown; error: { message: string } | null }>;
-  rpc(
-    fn: "get_reorder_suggestions",
-    args: { p_window_days: number; p_target_days: number; p_min_sales: number }
-  ): Promise<{ data: unknown; error: { message: string } | null }>;
+  rpc(fn: "get_low_stock_signals", args: { p_search: string | null; p_status: string | null }): Promise<{ data: unknown; error: { message: string } | null }>;
+  rpc(fn: "get_dead_stock_signals", args: { p_days: number }): Promise<{ data: unknown; error: { message: string } | null }>;
+  rpc(fn: "get_reorder_suggestions", args: { p_window_days: number; p_target_days: number; p_min_sales: number }): Promise<{ data: unknown; error: { message: string } | null }>;
 }
 
 function getSignalsClient(admin: unknown): SignalsRpcClient {
   return admin as unknown as SignalsRpcClient;
+}
+
+function parseSignals<T>(req: Request, res: Response, schema: z.ZodType<T>, data: unknown, label: string): T | null {
+  const parsed = schema.safeParse(data ?? []);
+  if (!parsed.success) {
+    (req.log || logger).error({ issues: parsed.error.issues }, `Failed to parse ${label}`);
+    res.status(500).json({ error: "Failed to parse inventory signals data" });
+    return null;
+  }
+  return parsed.data;
 }
 
 // GET /admin/inventory/signals/summary — Dashboard counts
@@ -78,22 +93,21 @@ router.get("/admin/inventory/signals/summary", requireStaffOrAdmin, async (req: 
       : Promise.resolve({ data: [] as unknown, error: null }),
   ]);
 
-  if (lowRes.error) {
-    res.status(500).json({ error: lowRes.error.message });
-    return;
-  }
-  if (deadRes.error) {
-    res.status(500).json({ error: deadRes.error.message });
-    return;
-  }
-  if (reorderRes.error) {
-    res.status(500).json({ error: reorderRes.error.message });
-    return;
-  }
+  if (lowRes.error) { res.status(500).json({ error: lowRes.error.message }); return; }
+  if (deadRes.error) { res.status(500).json({ error: deadRes.error.message }); return; }
+  if (reorderRes.error) { res.status(500).json({ error: reorderRes.error.message }); return; }
 
-  const lowRows = z.array(lowStockRowSchema).parse(lowRes.data ?? []);
-  const deadRows = z.array(deadStockRowSchema).parse(deadRes.data ?? []);
-  const reorderRows = isAdmin ? z.array(reorderSuggestionRowSchema).parse(reorderRes.data ?? []) : null;
+  const lowRows = parseSignals(req, res, z.array(lowStockRowSchema), lowRes.data, "low stock signals");
+  if (!lowRows) return;
+
+  const deadRows = parseSignals(req, res, z.array(deadStockRowSchema), deadRes.data, "dead stock signals");
+  if (!deadRows) return;
+
+  let reorderRows: ReorderSuggestionRow[] | null = null;
+  if (isAdmin) {
+    reorderRows = parseSignals(req, res, z.array(reorderSuggestionRowSchema), reorderRes.data, "reorder suggestions");
+    if (!reorderRows) return;
+  }
 
   res.json({
     low_stock_count: lowRows.length,
@@ -115,7 +129,9 @@ router.get("/admin/inventory/signals/low-stock", requireStaffOrAdmin, async (req
     return;
   }
 
-  const rows = z.array(lowStockRowSchema).parse(data ?? []);
+  const rows = parseSignals(req, res, z.array(lowStockRowSchema), data, "low stock signals");
+  if (!rows) return;
+
   res.json({ variants: rows, count: rows.length });
 });
 
@@ -131,7 +147,9 @@ router.get("/admin/inventory/signals/dead-stock", requireStaffOrAdmin, async (re
     return;
   }
 
-  const rawRows = z.array(deadStockRowSchema).parse(data ?? []);
+  const rawRows = parseSignals(req, res, z.array(deadStockRowSchema), data, "dead stock signals");
+  if (!rawRows) return;
+
   if (isAdmin) {
     const totalCapital = rawRows.reduce((sum, r) => sum + Number(r.capital_tied_up || 0), 0);
     res.json({
@@ -164,7 +182,9 @@ router.get("/admin/inventory/signals/reorder", requireAdmin, async (req: Request
     return;
   }
 
-  const suggestions = z.array(reorderSuggestionRowSchema).parse(data ?? []);
+  const suggestions = parseSignals(req, res, z.array(reorderSuggestionRowSchema), data, "reorder suggestions");
+  if (!suggestions) return;
+
   res.json({ suggestions, count: suggestions.length });
 });
 
