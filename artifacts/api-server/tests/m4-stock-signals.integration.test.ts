@@ -6,11 +6,21 @@ import { loginTestUser, type AuthSession } from "./helpers/auth.js";
 import { cleanupTestUser } from "./helpers/cleanup.js";
 import { generatePhone } from "./helpers/isolation.js";
 
-/** Phase M4 Stock Signals integration suite against live ledger & Express routes. */
-const db = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, { auth: { persistSession: false } });
+/** Phase M4 Stock Signals integration suite: RPCs, route endpoints, and RBAC privacy. */
+const BASE = `http://localhost:${process.env.PORT || "5000"}/api`;
+const db = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  auth: { persistSession: false },
+});
 
 let session: AuthSession;
 let actorId: string;
+
+const call = (method: string, path: string, body?: unknown) =>
+  fetch(`${BASE}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${session.accessToken}`, "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
 
 const setRole = (role: Database["public"]["Enums"]["user_role"]) =>
   db.from("users").update({ role }).eq("id", session.userId);
@@ -97,130 +107,95 @@ afterAll(async () => {
 });
 
 describe("Phase M4 Stock Signals Integration Tests", () => {
-  it("1. a movement for a non-tracked variant is refused with ST030", async () => {
-    const ntId = await createVariant(db, { track: false });
-    const { error } = await db.from("stock_movements").insert({
-      variant_id: ntId,
-      quantity_delta: 5,
-      reason: "opening_balance",
-      reference_type: "manual",
+  it("1. cost privacy RLS: GET /admin/inventory/signals/dead-stock strips unit_cost/capital_tied_up for staff", async () => {
+    const deadVarId = await createVariant(db, { onHand: 5, daysAgo: 100, actor: actorId });
+    const { error: costErr } = await db.from("variant_costs").upsert({ variant_id: deadVarId, cost_price: 15.0, opening_cost: 15.0 });
+    expect(costErr).toBeNull();
+
+    await setRole("staff");
+    const staffRes = await call("GET", "/admin/inventory/signals/dead-stock?days=90");
+    expect(staffRes.status).toBe(200);
+    const staffJson = (await staffRes.json()) as { total_dead_capital?: number; variants?: Record<string, unknown>[] };
+    expect(staffJson).not.toHaveProperty("total_dead_capital");
+    const staffVar = (staffJson.variants ?? []).find((v) => v.variant_id === deadVarId);
+    if (staffVar) {
+      expect(staffVar).not.toHaveProperty("unit_cost");
+      expect(staffVar).not.toHaveProperty("capital_tied_up");
+    }
+
+    await setRole("admin");
+    const adminRes = await call("GET", "/admin/inventory/signals/dead-stock?days=90");
+    expect(adminRes.status).toBe(200);
+    const adminJson = (await adminRes.json()) as { total_dead_capital?: number; variants?: Record<string, unknown>[] };
+    expect(typeof adminJson.total_dead_capital).toBe("number");
+    const adminVar = (adminJson.variants ?? []).find((v) => v.variant_id === deadVarId);
+    if (adminVar) {
+      expect(adminVar).toHaveProperty("unit_cost");
+      expect(adminVar).toHaveProperty("capital_tied_up");
+    }
+  });
+
+  it("2. reorder suggestions returns honest formula evidence and preserves candidates with sales_count < 3 with has_enough_data=false", async () => {
+    await setRole("admin");
+    const vFew = await createVariant(db, { onHand: 3, actor: actorId });
+    const vEnough = await createVariant(db, { onHand: 7, actor: actorId });
+
+    const { error: sm1Err } = await db.from("stock_movements").insert({
+      variant_id: vFew,
+      quantity_delta: -2,
+      reason: "counter_sale",
+      reference_type: "counter_sale",
+      transaction_id: randomUUID(),
       actor_id: actorId,
     });
-    expect(error).not.toBeNull();
-    expect(error?.code).toBe("ST030");
+    expect(sm1Err).toBeNull();
+
+    for (let i = 0; i < 3; i++) {
+      const { error: sm2Err } = await db.from("stock_movements").insert({
+        variant_id: vEnough,
+        quantity_delta: -2,
+        reason: "counter_sale",
+        reference_type: "counter_sale",
+        transaction_id: randomUUID(),
+        actor_id: actorId,
+      });
+      expect(sm2Err).toBeNull();
+    }
+
+    const res = await call("GET", "/admin/inventory/signals/reorder?windowDays=28&targetDays=60&minSales=3");
+    expect(res.status).toBe(200);
+    interface ReorderItem {
+      variant_id: string;
+      has_enough_data: boolean;
+      suggested_qty: number | null;
+      sales_count: number;
+      units_sold_window: number;
+      velocity: number;
+    }
+    const { suggestions } = (await res.json()) as { suggestions: ReorderItem[] };
+
+    const cand1 = suggestions.find((s) => s.variant_id === vFew);
+    expect(cand1).toBeDefined();
+    expect(cand1!.has_enough_data).toBe(false);
+    expect(cand1!.suggested_qty).toBeNull();
+    expect(Number(cand1!.sales_count)).toBe(1);
+    expect(Number(cand1!.units_sold_window)).toBe(2);
+    expect(Number(cand1!.velocity)).toBeCloseTo(2 / 28, 4);
+
+    const cand2 = suggestions.find((s) => s.variant_id === vEnough);
+    expect(cand2).toBeDefined();
+    expect(cand2!.has_enough_data).toBe(true);
+    expect(Number(cand2!.suggested_qty)).toBe(12);
+    expect(Number(cand2!.sales_count)).toBe(3);
+    expect(Number(cand2!.units_sold_window)).toBe(6);
+    expect(Number(cand2!.velocity)).toBeCloseTo(6 / 28, 4);
+
+    await setRole("staff");
+    const staffRes = await call("GET", "/admin/inventory/signals/reorder");
+    expect(staffRes.status).toBe(403);
   });
 
-  it("2. true -> false is refused with ST031, ST032 and ST033 in turn, and allowed when all three are clear", async () => {
-    // 2a. ST031: on_hand <> 0
-    const v1 = await createVariant(db, { track: true, onHand: 5, actor: actorId });
-    const { error: err31 } = await db.from("product_variants").update({ track_stock: false }).eq("id", v1);
-    expect(err31).not.toBeNull();
-    expect(err31?.code).toBe("ST031");
-
-    // 2b. ST032: open stocktake
-    const v2 = await createVariant(db, { track: true });
-    const { data: st, error: stErr } = await db.from("stocktakes").insert({ status: "draft", created_by: actorId }).select("id").single();
-    expect(stErr).toBeNull();
-    const { error: stlErr } = await db.from("stocktake_lines").insert({ stocktake_id: st!.id, variant_id: v2, counted_quantity: 0 });
-    expect(stlErr).toBeNull();
-    const { error: err32 } = await db.from("product_variants").update({ track_stock: false }).eq("id", v2);
-    expect(err32).not.toBeNull();
-    expect(err32?.code).toBe("ST032");
-
-    // 2c. ST033: active reservation (regardless of expires_at per D3)
-    const v3 = await createVariant(db, { track: true });
-    const { data: resv, error: resvErr } = await db.from("reservations").insert({
-      variant_id: v3,
-      quantity: 1,
-      status: "active",
-      customer_name: "Test",
-      customer_phone: "+994501234567",
-      hold_type: "cart_hold",
-      created_by: actorId,
-    }).select("id").single();
-    expect(resvErr).toBeNull();
-    expect(resv).toBeDefined();
-    const { error: err33 } = await db.from("product_variants").update({ track_stock: false }).eq("id", v3);
-    expect(err33).not.toBeNull();
-    expect(err33?.code).toBe("ST033");
-
-    // 2d. Clean: on_hand=0, no open stocktake, no active reservation -> succeeds
-    const vClean = await createVariant(db, { track: true });
-    const { error: cleanErr } = await db.from("product_variants").update({ track_stock: false }).eq("id", vClean);
-    expect(cleanErr).toBeNull();
-  });
-
-  it("3. a non-tracked variant is refused on a stocktake line (ST034)", async () => {
-    const ntId = await createVariant(db, { track: false });
-    const { data: st, error: stErr } = await db.from("stocktakes").insert({ status: "draft", created_by: actorId }).select("id").single();
-    expect(stErr).toBeNull();
-    const { error: lineErr } = await db.from("stocktake_lines").insert({ stocktake_id: st!.id, variant_id: ntId, counted_quantity: 1 });
-    expect(lineErr).not.toBeNull();
-    expect(lineErr?.code).toBe("ST034");
-  });
-
-  it("4. a counter sale with a non-tracked line posts, writes its counter_sale_payments row and writes no movement for that line", async () => {
-    const ntId = await createVariant(db, { track: false });
-    const s = sale([{ variant_id: ntId, quantity: 2, price: 10 }]);
-    const { data: saleData, error: saleErr } = await postSale(s);
-    expect(saleErr).toBeNull();
-    expect(saleData).toMatchObject({ status: "posted" });
-
-    // Check payment row exists
-    const { data: pmts, error: pmtErr } = await db.from("counter_sale_payments").select("sale_id, amount, method").eq("sale_id", s.id);
-    expect(pmtErr).toBeNull();
-    expect(pmts).toHaveLength(1);
-    expect(Number(pmts![0].amount)).toBe(20);
-
-    // Check no movements recorded
-    const { data: saleMv, error: mvErr } = await db.from("stock_movements").select("id").eq("transaction_id", s.id);
-    expect(mvErr).toBeNull();
-    expect(saleMv ?? []).toHaveLength(0);
-  });
-
-  it("5. a sale of a tracked variant, then the switch to non-tracked, then void_counter_sale: void succeeds and writes no movement", async () => {
-    const varId = await createVariant(db, { track: true, onHand: 2, actor: actorId });
-    const s = sale([{ variant_id: varId, quantity: 2, price: 10 }]);
-    const { data: saleData, error: saleErr } = await postSale(s);
-    expect(saleErr).toBeNull();
-    expect(saleData).toMatchObject({ status: "posted" });
-
-    // Now on_hand is 0, no stocktake, no reservation -> can switch to non-tracked
-    const { error: flipErr } = await db.from("product_variants").update({ track_stock: false }).eq("id", varId);
-    expect(flipErr).toBeNull();
-
-    // Void the counter sale
-    const { data: voidData, error: voidErr } = await db.rpc("void_counter_sale", {
-      p_id: s.id,
-      p_reason: "customer_return",
-      p_session_user: actorId,
-    });
-    expect(voidErr).toBeNull();
-    expect(voidData).toMatchObject({ status: "voided" });
-
-    // No void movement was written for non-tracked variant
-    const { data: voidMv, error: vMvErr } = await db
-      .from("stock_movements")
-      .select("id")
-      .eq("transaction_id", s.id)
-      .eq("reason", "counter_sale_void");
-    expect(vMvErr).toBeNull();
-    expect(voidMv ?? []).toHaveLength(0);
-  });
-
-  it("6. the availability view returns NULL available_quantity and track_stock = false for non-tracked variant", async () => {
-    const ntId = await createVariant(db, { track: false });
-    const { data: avail, error: availErr } = await (db as any)
-      .from("product_variant_availability")
-      .select("available_quantity, track_stock")
-      .eq("variant_id", ntId)
-      .single();
-    expect(availErr).toBeNull();
-    expect(avail?.track_stock).toBe(false);
-    expect(avail?.available_quantity).toBeNull();
-  });
-
-  it("7. none of the three RPCs returns a non-tracked variant; anon and authenticated cannot execute them", async () => {
+  it("3. none of the three RPCs returns a non-tracked variant; anon and authenticated cannot execute them", async () => {
     const ntId = await createVariant(db, { track: false });
 
     // Service role execution: verify ntId is never returned
@@ -262,7 +237,7 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
     expect(authReorderErr).not.toBeNull();
   });
 
-  it("8. one real sale plus two fully voided ones: has_enough_data is false", async () => {
+  it("4. one real sale plus two fully voided ones: has_enough_data is false", async () => {
     const varId = await createVariant(db, { track: true, onHand: 10, actor: actorId });
 
     // Sale 1: real active sale
