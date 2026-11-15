@@ -512,3 +512,30 @@ Minors spot-checked: 6 (summary route hard-codes 90/28/60/3, `inventory-signals.
 `m4-stock-signals.integration.test.ts:120-123`) confirmed. The rest not re-checked by the architect.
 
 Next: fix round 4 with the four majors; minors 5, 6 and 11 if they fit; 7–10, 12, 13 recorded.
+
+## Fix round 4 — verification (2026-11-15)
+
+Builder run `.agent-runs/m4-fix-round-4-20261115-212606.log`, exit 0. Commits `6068df4` (1, margin),
+`90fbe3a` (2, order returns), `3075eb1` (3, inventory availability), `6dd62a8` (4, sticky bar + notes).
+
+- Files are the ones the prompt named; no existing migration edited; no test removed; no `.skip`,
+  `@ts-ignore`.
+- Both new functions diffed against their live definitions: only the requested change, same
+  signature and grants.
+- **Executed on Postgres before applying**, as `pg_temp` copies in a rolled-back transaction on the
+  test project, beside the live functions over the same data:
+  `get_margin_report` 400 days — 424 rows vs 420 live, revenue 6515.73 vs 6435.73: exactly the 4 posted
+  non-tracked counter-sale lines (+80.00), every other row unchanged.
+  `get_dead_stock_signals(90)` 6 = 6; `(1)` 244 vs 243; `get_reorder_suggestions(28, 100000, 3)` 427 vs
+  428 — one variant whose sales are fully netted by order returns leaves reorder and enters dead stock.
+  84 `customer_return`/`order` movements exist; old ones have NULL `reference_id` and are not netted
+  (they age out of the window).
+- `as any`: one new in `inventory-signals.ts` on a typed view — removed by the architect. Four new
+  in the two integration tests, on RPCs absent from `database.types.ts` (same pattern as the existing
+  cases in those files); they go when the blocked type regeneration lands.
+- Noted, not fixed: `InventoryPage.tsx` still falls back silently to `products.stock` if the new
+  endpoint fails.
+
+Local tiers on the branch with the cast removed: `pnpm run typecheck` exit 0; `pnpm test:unit`
+67 files, 741 passed; `pnpm run audit:invariants` "All invariant checks passed." Integration not run
+locally. The two migrations are **not yet applied** to the test project.

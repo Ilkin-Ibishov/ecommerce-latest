@@ -200,7 +200,7 @@ router.get("/admin/inventory/signals/reorder", requireAdmin, async (req: Request
 // GET /admin/inventory/availability — Aggregate variant availability for inventory overview
 router.get("/admin/inventory/availability", requireStaffOrAdmin, async (req: Request, res: Response): Promise<void> => {
   const admin = getAdminSupabase();
-  const { data, error } = await (admin as any)
+  const { data, error } = await admin
     .from("product_variant_availability")
     .select("product_id, on_hand, reserved_quantity, available_quantity, deficit_quantity");
 
