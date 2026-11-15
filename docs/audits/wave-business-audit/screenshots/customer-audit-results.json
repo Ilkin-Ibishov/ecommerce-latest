@@ -1,0 +1,57 @@
+{
+  "findings": [
+    {
+      "scenario": 1,
+      "severity": "P1",
+      "title": "Search Results Page Missing Sorting",
+      "details": "The SearchPage component does not offer sorting options (price asc/desc, popularity, newest). Users cannot sort search results."
+    },
+    {
+      "scenario": 1,
+      "severity": "P1",
+      "title": "Search Results Page Missing Price & Facet Filters",
+      "details": "SearchPage only displays raw search matches and category chips; it lacks sidebar or drawer filters for price range, brands, or stock availability."
+    },
+    {
+      "scenario": 1,
+      "severity": "P2",
+      "title": "Hard Window Reload on Price Filter Application",
+      "details": "applyPriceFilter executes `window.location.href = ...` causing a full browser reload and DOM reconstruction rather than client-side router navigation."
+    },
+    {
+      "scenario": 2,
+      "severity": "P2",
+      "title": "Stock Indicator Not Visible",
+      "details": "No clear stock badge found on product detail page."
+    },
+    {
+      "scenario": 3,
+      "severity": "P1",
+      "title": "No Variant Switching or Sizing Options in Cart Drawer",
+      "details": "CartDrawer does not display selected variant attributes and provides no dropdown or modal to switch size/color inside the cart before checkout."
+    },
+    {
+      "scenario": 5,
+      "severity": "P1",
+      "title": "No Payment Method Choice at Checkout",
+      "details": "Checkout page lacks payment method selection (Cash on Delivery vs Credit/Debit Card vs Birkart/Kapital installment). Customers are unilaterally forced into Cash on Delivery."
+    },
+    {
+      "scenario": 5,
+      "severity": "P2",
+      "title": "No Delivery Method Selection",
+      "details": "Checkout does not permit choosing between Courier Home Delivery, Express 2-hour Delivery, or In-Store Pickup."
+    },
+    {
+      "scenario": 7,
+      "severity": "P2",
+      "title": "Language Switcher Drops Query Parameters",
+      "details": "Switching languages from /az to /ru or /en drops active filters (?brand=Apple) and resets the user view because LocaleSwitcher only splits pathname."
+    }
+  ],
+  "consoleErrors": [
+    "In HTML, %s cannot be a descendant of <%s>.\nThis will cause a hydration error.%s <li> li \n\n  ...\n    <div className=\"min-h-scre...\">\n      <StorefrontHeader>\n      <main className=\"flex-1 pb-...\">\n        <Suspense fallback={<PageFallback>}>\n          <Switch>\n            <Route path=\"/az/produc...\" match={[...]}>\n              <ProductPage locale=\"az\" slug=\"m2c-sales-...\">\n                <div className=\"container ...\">\n                  <StorefrontBreadcrumb segments={[...]} currentLabel=\"M2c Satış ...\">\n                    <script>\n                    <_c aria-label=\"Breadcrumb\">\n                      <nav ref={null} aria-label=\"Breadcrumb\">\n                        <_c3 className=\"overflow-x...\">\n                          <ol ref={null} className=\"flex items...\">\n                            <_c5>\n                            <_c5>\n>                             <li ref={null} className=\"inline-flex items-center gap-1.5\">\n                                <BreadcrumbSeparator>\n>                                 <li role=\"presentation\" aria-hidden=\"true\" className={\"[&>svg]:w-3.5 [&>svg]:h-3.5\"}>\n                                ...\n                  ...\n      ...\n",
+    "<%s> cannot contain a nested %s.\nSee this log for the ancestor stack trace. li <li>",
+    "Failed to load resource: the server responded with a status of 403 ()"
+  ]
+}
