@@ -457,3 +457,7 @@ ST034 trigger fires before the NOT NULL check).
 `reservation_number` (23502). `agreed_price` is also NOT NULL with no default
 (`20261104180000_m2c_reservations_schema.sql`); both supplied. Every other insert in test 2
 checked against its table's NOT NULL columns.
+
+**CI run 43736706062: green** — `unit` and `integration-e2e` (API integration, E2E) both
+`success`, on `m4/stock-signals-core` after the reservation fix. Remaining before the merge
+decision: regenerate `database.types.ts`, then the one cross-family adversarial audit.
