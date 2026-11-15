@@ -461,3 +461,23 @@ checked against its table's NOT NULL columns.
 **CI run 43736706062: green** — `unit` and `integration-e2e` (API integration, E2E) both
 `success`, on `m4/stock-signals-core` after the reservation fix. Remaining before the merge
 decision: regenerate `database.types.ts`, then the one cross-family adversarial audit.
+
+## `database.types.ts` regeneration — blocked (2026-11-15)
+
+Generated from the test project with the Supabase MCP `generate_typescript_types` and swapped in:
+`pnpm run typecheck` fails with 17 errors, none caused by M4.
+
+- **`product_specs`** (11 in `routes/products.ts`, 4 in `routes/categories.ts`): the table does not
+  exist on the test project. The committed types came from another live project that has it; the only
+  DDL in the repository is the runtime string in `routes/migration.ts:15`, not a tracked migration.
+  So the related-products and category routes cannot work on a database built from this repository.
+- **`orders.subtotal_azn`** (`routes/orders.ts:137`): `NOT NULL`, no default on the test project; the
+  route never writes it. Adding it to the insert is only safe once production's `orders` shape is
+  known — if production lacks the column, writing it breaks every order there. Same question as the
+  delivery-fee design note's *Blocked* item.
+- **`counter-lookup.ts:67`**: generated view columns are nullable, so `variant_id` is `string | null`
+  as a `Map` key. A one-line fix; held back with the rest so the regen lands in one commit.
+- `otp_codes` is in the committed types and not on the test project; no code reads it.
+
+Not a merge blocker for M4: the code typechecks against the committed types and CI is green. The
+regeneration waits for production's `information_schema.columns` for `orders` and `product_specs`.
