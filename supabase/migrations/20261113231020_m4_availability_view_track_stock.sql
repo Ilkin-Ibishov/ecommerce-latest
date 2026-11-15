@@ -17,10 +17,8 @@ SELECT
   pv.price,
   pv.on_hand,
   COALESCE(r.active_reserved, 0)::numeric(12,3) AS reserved_quantity,
-  CASE
-    WHEN pv.track_stock = false THEN NULL
-    ELSE GREATEST(0, pv.on_hand - COALESCE(r.active_reserved, 0))::numeric(12,3)
-  END AS available_quantity,
+  (CASE WHEN pv.track_stock = false THEN NULL
+        ELSE GREATEST(0, pv.on_hand - COALESCE(r.active_reserved, 0)) END)::numeric(12,3) AS available_quantity,
   CASE
     WHEN pv.track_stock = false THEN 0::numeric(12,3)
     ELSE GREATEST(0, COALESCE(r.active_reserved, 0) - pv.on_hand)::numeric(12,3)
