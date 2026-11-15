@@ -83,7 +83,10 @@ describe("Phase M4 Track Stock Integration Tests", () => {
 
     // 2b. ST032: open stocktake
     const v2 = await createVariant(db, { track: true });
-    const { data: st, error: stErr } = await db.from("stocktakes").insert({ status: "draft", created_by: actorId }).select("id").single();
+    const st2Stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const { data: st, error: stErr } = await db.from("stocktakes").insert({
+      stocktake_number: `ST-${st2Stamp}`, title: `Stocktake ${st2Stamp}`, status: "draft", created_by: actorId,
+    }).select("id").single();
     expect(stErr).toBeNull();
     const { error: stlErr } = await db.from("stocktake_lines").insert({ stocktake_id: st!.id, variant_id: v2, counted_quantity: 0 });
     expect(stlErr).toBeNull();
@@ -110,7 +113,10 @@ describe("Phase M4 Track Stock Integration Tests", () => {
 
   it("3. a non-tracked variant is refused on a stocktake line (ST034)", async () => {
     const ntId = await createVariant(db, { track: false });
-    const { data: st, error: stErr } = await db.from("stocktakes").insert({ status: "draft", created_by: actorId }).select("id").single();
+    const st3Stamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const { data: st, error: stErr } = await db.from("stocktakes").insert({
+      stocktake_number: `ST-${st3Stamp}`, title: `Stocktake ${st3Stamp}`, status: "draft", created_by: actorId,
+    }).select("id").single();
     expect(stErr).toBeNull();
     const { error: lineErr } = await db.from("stocktake_lines").insert({ stocktake_id: st!.id, variant_id: ntId, counted_quantity: 1 });
     expect(lineErr).not.toBeNull();
@@ -172,7 +178,7 @@ describe("Phase M4 Track Stock Integration Tests", () => {
     expect(voidData).toMatchObject({ status: "voided" });
 
     // No void movement was written for non-tracked variant
-    const { data: voidMv, error: vMvErr } = await db.from("stock_movements").select("id").eq("transaction_id", s.id).eq("reason", "counter_sale_void");
+    const { data: voidMv, error: vMvErr } = await db.from("stock_movements").select("id").eq("transaction_id", s.id).eq("note", "void");
     expect(vMvErr).toBeNull();
     expect(voidMv ?? []).toHaveLength(0);
   });
