@@ -481,3 +481,34 @@ Generated from the test project with the Supabase MCP `generate_typescript_types
 
 Not a merge blocker for M4: the code typechecks against the committed types and CI is green. The
 regeneration waits for production's `information_schema.columns` for `orders` and `product_specs`.
+
+## Adversarial audit — verification (2026-11-15)
+
+Auditor run in a clean sub-agent (Claude, cross-family to the Gemini builder), prompt
+`prompts/m4-audit.md` on branch `prompts/m4-audit` (`4c642bc`). Report:
+`docs/audits/m4-stock-signals-audit.md` on `audit/m4-stock-signals-core` (`ffaf356`, pushed).
+Verdict **FIX**: 4 major, 9 minor, no cost leak, no ledger corruption.
+
+Majors, each checked against the code on `origin/m4/stock-signals-core` by the architect:
+
+1. **Confirmed, introduced by M4.** `get_margin_report` takes revenue from `stock_movements` only
+   (`20261111120800_margin_report_live_schema.sql:30-40`); non-tracked lines now write no movement, so
+   their revenue leaves the report. Spec §9: a non-tracked line "reaches the receipt and the revenue
+   figures".
+2. **Confirmed.** Cancelling an order restocks through `increment_stock`, which writes
+   `customer_return` (`20261102100000_m1_variants_ledger.sql:327-331`; called from
+   `routes/admin/orders.ts:80-83`). The three RPCs count only `online_sale`/`counter_sale`
+   (`20261113231500_m4_stock_signals_rpcs.sql:123,130,201`). A cancelled order stays in velocity and
+   in "last sold". Spec §5.2's "self-correcting" assumed the reversal shares the sale's reason.
+3. **Confirmed; root cause predates M4.** `InventoryPage.tsx` reads `product_variant_availability`
+   with the browser client; `authenticated` lost `SELECT` in `20261105200000_m2c_view_security.sql:10`
+   (and again in M4 `231020:36`), so the page falls back to `products.stock` (0 at creation,
+   `routes/admin/products.ts:62`). M4's low-stock filter on that page inherits wrong numbers.
+4. **Confirmed.** `ProductDetail.tsx:133-136` turns unlimited into `product.stock ?? 0` and passes it to
+   `StickyAddToCartBar` (`:461-468`), which shows "out of stock" on `stock === 0` (`:85`). Mobile only.
+
+Minors spot-checked: 6 (summary route hard-codes 90/28/60/3, `inventory-signals.ts:90,92`; the four
+`store_settings` rows are never read) and 11 (cost-privacy assertions under `if (staffVar)`,
+`m4-stock-signals.integration.test.ts:120-123`) confirmed. The rest not re-checked by the architect.
+
+Next: fix round 4 with the four majors; minors 5, 6 and 11 if they fit; 7–10, 12, 13 recorded.
