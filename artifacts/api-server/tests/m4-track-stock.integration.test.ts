@@ -97,6 +97,7 @@ describe("Phase M4 Track Stock Integration Tests", () => {
     // 2c. ST033: active reservation (regardless of expires_at per D3)
     const v3 = await createVariant(db, { track: true });
     const { data: resv, error: resvErr } = await db.from("reservations").insert({
+      reservation_number: `RS-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, agreed_price: 1,
       variant_id: v3, quantity: 1, status: "active", customer_name: "Test", customer_phone: "+994501234567", hold_type: "cart_hold", created_by: actorId,
     }).select("id").single();
     expect(resvErr).toBeNull();

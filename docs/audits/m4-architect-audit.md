@@ -452,3 +452,8 @@ integration tier was not run locally.
 users(id)`, `20261104130000_m2b_stocktake_tables.sql:89`). Fixed by the architect directly — test
 setup only: `counter_id: actorId` on both `stocktake_lines` inserts (test 3 passed only because the
 ST034 trigger fires before the NOT NULL check).
+
+**CI run 43736281632:** the same test, next setup error: `reservations` insert without
+`reservation_number` (23502). `agreed_price` is also NOT NULL with no default
+(`20261104180000_m2c_reservations_schema.sql`); both supplied. Every other insert in test 2
+checked against its table's NOT NULL columns.
