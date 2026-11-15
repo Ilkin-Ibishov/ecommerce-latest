@@ -665,3 +665,190 @@ artifacts/store typecheck$ tsc -p tsconfig.json --noEmit
 artifacts/api-server typecheck: Done
 artifacts/store typecheck: Done
 ```
+
+
+---
+
+## 10. Round 4 — Adversarial Audit Majors Resolution
+
+### 10.1 Scope & Execution Statement
+- **The integration test tier was not run locally** (requires live Supabase credentials and running API server infrastructure; tests were written, typed, and schema-verified for CI execution per `AGENTS.md` and `.agents/rules/testing.md`).
+- **No SQL was executed against Supabase**; changes are delivered via new forward-only migrations `20261116100000_m4_margin_report_non_tracked.sql` and `20261116100100_m4_signals_net_order_returns.sql`. Existing migrations were left untouched.
+- All four confirmed defects from `docs/audits/m4-stock-signals-audit.md` (findings 1–4) were resolved across four atomic commits on branch `m4/stock-signals-core`.
+
+### 10.2 Summary of Changes by Item
+
+#### Item 1: Non-Tracked Sales in Margin Report (Audit Finding 1)
+- **Migration:** Authored `supabase/migrations/20261116100000_m4_margin_report_non_tracked.sql`.
+  - Replaced `public.get_margin_report` preserving exact signature, `RETURNS TABLE`, `SECURITY DEFINER`, and service_role grant/revocations.
+  - Added CTE `non_tracked_lines (variant_id, units, revenue)` combining `counter_sale_lines` (`cs.status = 'posted'`, date window) and `order_items` (`o.status NOT IN ('cancelled', 'refused_at_delivery')`, date window).
+  - Restricted to `pv.track_stock = false` and guarded with `NOT EXISTS` on `stock_movements` (by `transaction_id = cs.id` or `reference_type = 'order' AND reference_id = o.id::text`) to prevent double-counting of variants converted from tracked to non-tracked.
+  - Folded rows into `aggregated_metrics` with COGS = 0, units into `net_units_sold`, revenue into `total_revenue`, and 0 into `unpriced_units_out`.
+- **Test:** In `artifacts/api-server/tests/m4-track-stock.integration.test.ts`, added test 4b executing a counter sale with one tracked line and one non-tracked line, calling `get_margin_report`, and asserting non-tracked revenue = net_line_total, cogs = 0, units_sold = quantity, with the tracked line unchanged.
+
+#### Item 2: Netted Order Returns in Signals (Audit Finding 2)
+- **API & RPC:** In `artifacts/api-server/src/lib/rpc.ts`, added optional parameter `referenceId?: string` to `incrementStock`, passing `p_reference_id`. Updated all four callers:
+  - `artifacts/api-server/src/routes/admin/orders.ts:83`: passed order `id as string` when cancelling an order.
+  - `artifacts/api-server/src/routes/orders.ts:162, 199, 222`: passed `orderId` / `order.id` on stock rollback.
+- **Migration:** Authored `supabase/migrations/20261116100100_m4_signals_net_order_returns.sql`.
+  - Replaced `public.get_reorder_suggestions`: in CTE `tx_net`, updated filter to `(sm.reason IN ('online_sale', 'counter_sale') OR (sm.reason = 'customer_return' AND sm.reference_type = 'order'))` parenthesised against the window condition. Cancelled orders net to zero and drop out via `HAVING -SUM(sm.quantity_delta) > 0`.
+  - Replaced `public.get_dead_stock_signals`: computed CTEs `trailing_sales` and `lifetime_last_sale` by netting transactions grouped by `(variant_id, COALESCE(transaction_id::text, reference_id))`, retaining transactions with net units > 0, and taking `MAX(posting_date)` of sale movements (`sm.quantity_delta < 0`). Voided counter sales and cancelled orders net to 0.
+  - `get_low_stock_signals` left unchanged and un-redefined.
+- **Tests:**
+  - Added test 5 in `artifacts/api-server/tests/m4-stock-signals.integration.test.ts` verifying order decrement followed by order-referenced increment nets velocity to 0 and variant is omitted from reorder suggestions.
+  - Updated offline unit test `artifacts/store/src/__tests__/invariant-stock-signals-schema.test.ts` to source `get_low_stock_signals` from `20261113231500_m4_stock_signals_rpcs.sql` and `get_dead_stock_signals` / `get_reorder_suggestions` from `20261116100100_m4_signals_net_order_returns.sql`.
+
+#### Item 3: Service-Role Availability Endpoint for Inventory Page (Audit Finding 3)
+- **API Server:** In `artifacts/api-server/src/routes/admin/inventory-signals.ts`, added route `GET /admin/inventory/availability` (`requireStaffOrAdmin`) directly after the four signals routes. Queries `product_variant_availability` view via service-role client, selecting `product_id, on_hand, reserved_quantity, available_quantity, deficit_quantity`. Validated with Zod schema (`available_quantity` nullable, other three coerced numbers).
+- **Storefront Admin:** In `artifacts/store/src/pages/admin/InventoryPage.tsx`, replaced direct browser Supabase query on `product_variant_availability` with `adminFetch(apiUrl("/admin/inventory/availability"))`. Maintained downstream map aggregation logic.
+- **Route Inventory Test:** In `artifacts/api-server/tests/admin-routes.test.ts`, added `"GET /admin/inventory/availability"` after `"GET /admin/inventory/signals/reorder"`. Expected routes increased to 89.
+
+#### Item 4: Unlimited Items in Mobile Add-To-Cart Bar (Audit Finding 4)
+- **Storefront UI:**
+  - In `artifacts/store/src/components/storefront/ProductDetail.tsx:468`: Passed `stock: isUnlimited ? null : availableStock` to `StickyAddToCartBar`.
+  - In `artifacts/store/src/components/storefront/StickyAddToCartBar.tsx:14`: Typed `stock: number | null`. When `null`, `outOfStock = product.stock === 0` evaluates to `false`, correctly enabling the Add to Cart button for unlimited variants on mobile.
+  - Ran `modern-web-guidance` query prior to UI changes.
+
+### 10.3 Invariant & Deny-List Adherence
+- Zero `@ts-ignore` used.
+- Zero new `as any` added.
+- Zero existing tests deleted, skipped, or weakened.
+- Zero existing migration files modified.
+- Full type safety preserved across all workspaces.
+
+### 10.4 Verbatim Command Outputs
+
+#### 1. `pnpm run audit:invariants`
+```
+> workspace@0.0.0 audit:invariants C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\sessiyaya-basla-240a51
+> node scripts/audit/check-invariants.mjs
+
+ok    ledger-only-stock-writes         0 total, 0 new
+ok    rls-on-new-tables                0 total, 0 new
+ok    no-has-variants-flag             0 total, 0 new
+ok    no-customer-industry-naming      0 total, 0 new
+ok    reservations-are-not-movements   0 total, 0 new
+ok    on-hand-repair-setting-isolation 0 total, 0 new
+ok    no-direct-variant-costs-writes   0 total, 0 new
+ok    no-cost-column-on-staff-tables   0 total, 0 new
+ok    no-private-columns-on-anon-grants 0 total, 0 new
+ok    no-expected-quantity-on-staff-endpoints 0 total, 0 new
+ok    security-definer-service-role-privileges 0 total, 0 new
+ok    no-client-insert-policy-on-stock-movements 0 total, 0 new
+ok    stocktake-mutations-check-draft-status 0 total, 0 new
+ok    no-on-hand-reads-on-storefront   0 total, 0 new
+ok    no-sensitive-columns-in-exposed-views 0 total, 0 new
+ok    no-client-writes-on-counter-sale-payments 0 total, 0 new
+ok    post-counter-sale-writes-payments 0 total, 0 new
+ok    no-non-tracked-variant-movements 0 total, 0 new
+ok    signals-have-one-derivation      0 total, 0 new
+ok    no-undispatched-notification-type 0 total, 0 new
+
+All invariant checks passed.
+```
+
+#### 2. `pnpm test:unit`
+```
+> workspace@0.0.0 test:unit C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\sessiyaya-basla-240a51
+> vitest --run --project store-unit --project env-validation
+
+ DEPRECATED  The workspace file is deprecated and will be removed in the next major. Please, use the `test.projects` field in the root config file instead.
+
+ RUN  v3.2.6 C:/Users/user/Documents/ecommerce-latest/.claude/worktrees/sessiyaya-basla-240a51
+
+ ✓ |store-unit| src/__tests__/counter-pricing.test.ts (10 tests) 72ms
+ ✓ |store-unit| src/__tests__/cart-validation.test.ts (25 tests) 142ms
+ ✓ |store-unit| src/lib/settings/theme-engine.property.test.ts (4 tests) 91ms
+ ✓ |store-unit| src/__tests__/translated-field.property.test.ts (3 tests) 74ms
+ ✓ |store-unit| src/__tests__/admin-list.property.test.ts (7 tests) 60ms
+ ✓ |store-unit| src/__tests__/order-tracking.property.test.ts (6 tests) 170ms
+ ✓ |store-unit| src/__tests__/image-proxy.property.test.ts (5 tests) 93ms
+ ✓ |store-unit| src/lib/settings/cms-rendering.property.test.ts (14 tests) 252ms
+ ✓ |store-unit| src/pages/admin/settings/validate-settings.property.test.ts (14 tests) 85ms
+ ✓ |store-unit| src/__tests__/invariant-definer-grants.test.ts (5 tests) 799ms
+ ✓ |store-unit| src/__tests__/costing-engine-replay.property.test.ts (4 tests) 22ms
+ ✓ |store-unit| src/__tests__/margin-report-granularity.test.ts (3 tests) 5ms
+ ✓ |store-unit| src/__tests__/heading-hierarchy.property.test.ts (8 tests) 75ms
+ ✓ |store-unit| src/__tests__/i18n-consistency.test.ts (16 tests) 23ms
+ ✓ |store-unit| src/__tests__/i18n-split.property.test.ts (2 tests) 35ms
+ ✓ |store-unit| src/__tests__/invariant-stock-signals.test.ts (7 tests) 1081ms
+ ✓ |store-unit| src/__tests__/admin-logic.test.ts (32 tests) 25ms
+ ✓ |store-unit| src/__tests__/admin-components.property.test.ts (6 tests) 46ms
+ ✓ |env-validation| tests/env-validation.test.ts (9 tests) 20ms
+ ✓ |store-unit| src/lib/settings/storefront-rendering.property.test.ts (11 tests) 348ms
+ ✓ |store-unit| src/__tests__/brand-marquee.test.ts (8 tests) 180ms
+ ✓ |store-unit| src/__tests__/stocktake-variance.test.ts (24 tests) 22ms
+ ✓ |store-unit| src/__tests__/invariant-counter-sale-payments.test.ts (10 tests) 1539ms
+ ✓ |store-unit| src/__tests__/adjustment-role-guards.test.ts (4 tests) 5ms
+ ✓ |store-unit| src/__tests__/i18n-hardcoded-strings.test.ts (120 tests) 20ms
+ ✓ |store-unit| src/components/admin/ImageCandidateGrid.test.ts (9 tests) 7ms
+ ✓ |store-unit| src/__tests__/blind-counting-security.test.ts (4 tests) 6ms
+ ✓ |store-unit| src/__tests__/stocktake-reconciliation.test.ts (4 tests) 6ms
+ ✓ |store-unit| src/__tests__/m2a-admin-ui-components.test.ts (7 tests) 5ms
+ ✓ |store-unit| src/lib/settings/context.test.ts (32 tests) 17ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-view-security.test.ts (5 tests) 13ms
+ ✓ |store-unit| src/__tests__/storefront-ux.property.test.ts (25 tests) 1381ms
+   ✓ Property 3: Quick View addItem uses correct variant data > for products with variants, addItem uses the selected variant's price and label  1008ms
+ ✓ |store-unit| src/__tests__/unit-cost-privacy.test.ts (3 tests) 6ms
+ ✓ |store-unit| src/__tests__/stock-adjust-race.test.ts (2 tests) 5ms
+ ✓ |store-unit| src/__tests__/admin-components.test.ts (17 tests) 15ms
+ ✓ |store-unit| src/__tests__/stocktake-posting-integrity.test.ts (19 tests) 12ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-availability-view.test.ts (3 tests) 6ms
+ ✓ |store-unit| src/__tests__/i18n-preservation.test.ts (36 tests) 11ms
+ ✓ |store-unit| src/__tests__/variant-costs-lifecycle.test.ts (5 tests) 6ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-effective-status.test.ts (2 tests) 6ms
+ ✓ |store-unit| src/__tests__/admin-i18n.property.test.ts (2 tests) 17ms
+ ✓ |store-unit| src/__tests__/inventory-auth.test.ts (4 tests) 4ms
+ ✓ |store-unit| src/__tests__/allow-negative-stock.test.ts (9 tests) 12ms
+ ✓ |store-unit| src/__tests__/barcode-pack-quantity.test.ts (6 tests) 12ms
+ ✓ |store-unit| src/__tests__/stocktake-mutation-guards.test.ts (7 tests) 8ms
+ ✓ |store-unit| src/__tests__/m1-schema-additions-migration.test.ts (5 tests) 9ms
+ ✓ |store-unit| src/__tests__/image-proxy.unit.test.ts (25 tests) 11ms
+ ✓ |store-unit| src/lib/settings/default-rendering.test.ts (17 tests) 8ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-public-grant.test.ts (3 tests) 9ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-fulfilment.test.ts (3 tests) 8ms
+ ✓ |store-unit| src/__tests__/queries.test.ts (14 tests) 10ms
+ ✓ |store-unit| src/pages/admin/SettingsPage.test.ts (22 tests) 8ms
+ ✓ |store-unit| src/__tests__/m4-stock-signals-ui.test.ts (4 tests) 8ms
+ ✓ |store-unit| src/__tests__/barcode-matrix-resolution.test.ts (4 tests) 8ms
+ ✓ |store-unit| src/lib/settings/theme-engine.test.ts (15 tests) 9ms
+ ✓ |store-unit| src/__tests__/receiving-cost-integrity.test.ts (5 tests) 8ms
+ ✓ |store-unit| src/__tests__/m4-stock-signals.unit.test.ts (15 tests) 9ms
+ ✓ |store-unit| src/__tests__/fixtures.test.ts (7 tests) 9ms
+ ✓ |store-unit| src/__tests__/staff-cost-reachability.test.ts (6 tests) 8ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-order.test.ts (3 tests) 9ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-bypass-and-fulfil.test.ts (3 tests) 7ms
+ ✓ |store-unit| src/__tests__/m4-null-availability.unit.test.ts (15 tests) 8ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-suite.test.ts (7 tests) 7ms
+ ✓ |store-unit| src/__tests__/invariant-stock-signals-schema.test.ts (4 tests) 9ms
+ ✓ |store-unit| src/__tests__/coupons-page-admin-fetch.test.ts (3 tests) 138ms
+ ✓ |store-unit| src/__tests__/login-modal-profile-reroute.test.ts (2 tests) 163ms
+ ✓ |store-unit| src/__tests__/checkout-form-security.test.ts (1 test) 96ms
+
+ Test Files  67 passed (67)
+      Tests  741 passed (741)
+   Start at  21:47:29
+   Duration  7.68s (transform 2.50s, setup 0ms, collect 12.00s, tests 7.40s, environment 6.99s, prepare 18.76s)
+```
+
+#### 3. `pnpm run typecheck`
+```
+> workspace@0.0.0 typecheck C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\sessiyaya-basla-240a51
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+
+
+> workspace@0.0.0 typecheck:libs C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\sessiyaya-basla-240a51
+> tsc --build
+
+Scope: 5 of 11 workspace projects
+artifacts/mockup-sandbox typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/supabase-types typecheck$ tsc -p tsconfig.json --noEmit
+scripts typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/supabase-types typecheck: Done
+scripts typecheck: Done
+artifacts/mockup-sandbox typecheck: Done
+artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/store typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/api-server typecheck: Done
+artifacts/store typecheck: Done
+```

@@ -465,7 +465,7 @@ export default function ProductDetail({ product, images, translation, comments: 
           title: translation.title,
           price: product.price,
           image: images[0]?.url ?? null,
-          stock: availableStock,
+          stock: isUnlimited ? null : availableStock,
         }}
         primaryCtaRef={primaryCtaRef}
       />
