@@ -88,7 +88,7 @@ describe("Phase M4 Track Stock Integration Tests", () => {
       stocktake_number: `ST-${st2Stamp}`, title: `Stocktake ${st2Stamp}`, status: "draft", created_by: actorId,
     }).select("id").single();
     expect(stErr).toBeNull();
-    const { error: stlErr } = await db.from("stocktake_lines").insert({ stocktake_id: st!.id, variant_id: v2, counted_quantity: 0 });
+    const { error: stlErr } = await db.from("stocktake_lines").insert({ stocktake_id: st!.id, variant_id: v2, counter_id: actorId, counted_quantity: 0 });
     expect(stlErr).toBeNull();
     const { error: err32 } = await db.from("product_variants").update({ track_stock: false }).eq("id", v2);
     expect(err32).not.toBeNull();
@@ -118,7 +118,7 @@ describe("Phase M4 Track Stock Integration Tests", () => {
       stocktake_number: `ST-${st3Stamp}`, title: `Stocktake ${st3Stamp}`, status: "draft", created_by: actorId,
     }).select("id").single();
     expect(stErr).toBeNull();
-    const { error: lineErr } = await db.from("stocktake_lines").insert({ stocktake_id: st!.id, variant_id: ntId, counted_quantity: 1 });
+    const { error: lineErr } = await db.from("stocktake_lines").insert({ stocktake_id: st!.id, variant_id: ntId, counter_id: actorId, counted_quantity: 1 });
     expect(lineErr).not.toBeNull();
     expect(lineErr?.code).toBe("ST034");
   });

@@ -446,3 +446,9 @@ Builder run `.agent-runs/m4-fix-round-3-20261115-200803.log`, exit 0. Commits `f
 Local tiers, run by the architect on `47b9d14`: `pnpm run typecheck` exit 0; `pnpm test:unit`
 67 files, 741 tests passed; `pnpm run audit:invariants` "All invariant checks passed." The
 integration tier was not run locally.
+
+**CI run 43735808232 (round 3):** `unit` green; integration 1176 passed, 10 skipped, **1 failed**:
+`m4-track-stock` test 2, `stocktake_lines` insert without `counter_id` (23502; `NOT NULL REFERENCES
+users(id)`, `20261104130000_m2b_stocktake_tables.sql:89`). Fixed by the architect directly — test
+setup only: `counter_id: actorId` on both `stocktake_lines` inserts (test 3 passed only because the
+ST034 trigger fires before the NOT NULL check).
