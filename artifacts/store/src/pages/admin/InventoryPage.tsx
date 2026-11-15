@@ -120,9 +120,22 @@ export default function AdminInventoryPage() {
       .select("id, slug, sku, price, stock, brand, product_translations(lang_code, title), product_images(url, sort_order), product_categories(category_id)")
       .order("stock", { ascending: true });
 
-    const { data: availRows } = await supabase
-      .from("product_variant_availability")
-      .select("product_id, on_hand, reserved_quantity, available_quantity, deficit_quantity");
+    let availRows: Array<{
+      product_id: string;
+      on_hand: number;
+      reserved_quantity: number;
+      available_quantity: number | null;
+      deficit_quantity: number;
+    }> = [];
+    try {
+      const availRes = await adminFetch(apiUrl("/admin/inventory/availability"));
+      if (availRes.ok) {
+        const availData = await availRes.json();
+        availRows = availData.rows ?? [];
+      }
+    } catch {
+      // Non-blocking fallback
+    }
 
     const availMap = new Map<string, { on_hand: number; reserved_quantity: number; available_quantity: number | null; deficit_quantity: number }>();
     for (const row of availRows ?? []) {

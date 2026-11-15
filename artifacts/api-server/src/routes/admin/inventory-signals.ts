@@ -59,6 +59,15 @@ const reorderSuggestionRowSchema = z.object({
 });
 type ReorderSuggestionRow = z.infer<typeof reorderSuggestionRowSchema>;
 
+const availabilityRowSchema = z.object({
+  product_id: z.string().uuid(),
+  on_hand: z.coerce.number(),
+  reserved_quantity: z.coerce.number(),
+  available_quantity: z.coerce.number().nullable(),
+  deficit_quantity: z.coerce.number(),
+});
+type AvailabilityRow = z.infer<typeof availabilityRowSchema>;
+
 interface SignalsRpcClient {
   rpc(fn: "get_low_stock_signals", args: { p_search: string | null; p_status: string | null }): Promise<{ data: unknown; error: { message: string } | null }>;
   rpc(fn: "get_dead_stock_signals", args: { p_days: number }): Promise<{ data: unknown; error: { message: string } | null }>;
@@ -186,6 +195,24 @@ router.get("/admin/inventory/signals/reorder", requireAdmin, async (req: Request
   if (!suggestions) return;
 
   res.json({ suggestions, count: suggestions.length });
+});
+
+// GET /admin/inventory/availability — Aggregate variant availability for inventory overview
+router.get("/admin/inventory/availability", requireStaffOrAdmin, async (req: Request, res: Response): Promise<void> => {
+  const admin = getAdminSupabase();
+  const { data, error } = await (admin as any)
+    .from("product_variant_availability")
+    .select("product_id, on_hand, reserved_quantity, available_quantity, deficit_quantity");
+
+  if (error) {
+    res.status(500).json({ error: error.message });
+    return;
+  }
+
+  const rows = parseSignals(req, res, z.array(availabilityRowSchema), data, "variant availability");
+  if (!rows) return;
+
+  res.json({ rows });
 });
 
 export default router;
