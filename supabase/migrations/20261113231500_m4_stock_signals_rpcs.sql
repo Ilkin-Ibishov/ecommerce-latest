@@ -32,8 +32,8 @@ RETURNS TABLE (
 DECLARE
   v_global_threshold numeric;
 BEGIN
-  SELECT NULLIF(value, '')::numeric INTO v_global_threshold
-  FROM public.store_settings WHERE key = 'low_stock_threshold';
+  SELECT NULLIF(ss.value, '')::numeric INTO v_global_threshold
+  FROM public.store_settings ss WHERE ss.key = 'low_stock_threshold';
   v_global_threshold := COALESCE(v_global_threshold, 10);
 
   RETURN QUERY
@@ -50,10 +50,10 @@ BEGIN
     FROM public.product_variants pv
     JOIN public.products p ON p.id = pv.product_id
     LEFT JOIN (
-      SELECT variant_id, SUM(quantity) AS reserved
-      FROM public.reservations
-      WHERE status = 'active' AND (expires_at IS NULL OR expires_at > now())
-      GROUP BY variant_id
+      SELECT res.variant_id, SUM(res.quantity) AS reserved
+      FROM public.reservations res
+      WHERE res.status = 'active' AND (res.expires_at IS NULL OR res.expires_at > now())
+      GROUP BY res.variant_id
     ) r ON r.variant_id = pv.id
     WHERE pv.track_stock = true
   )
@@ -264,10 +264,10 @@ BEGIN
     JOIN variant_sales vs ON vs.v_id = pv.id
     LEFT JOIN recent_suppliers rs ON rs.variant_id = pv.id
     LEFT JOIN (
-      SELECT variant_id, SUM(quantity) AS reserved
-      FROM public.reservations
-      WHERE status = 'active' AND (expires_at IS NULL OR expires_at > now())
-      GROUP BY variant_id
+      SELECT res.variant_id, SUM(res.quantity) AS reserved
+      FROM public.reservations res
+      WHERE res.status = 'active' AND (res.expires_at IS NULL OR res.expires_at > now())
+      GROUP BY res.variant_id
     ) r ON r.variant_id = pv.id
     WHERE pv.track_stock = true
       AND vs.total_sold > 0
