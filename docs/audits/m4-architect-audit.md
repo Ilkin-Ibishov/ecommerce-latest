@@ -547,3 +547,11 @@ equals the files: `get_margin_report` 8b5a5d8b… (file body with its one commen
 applied), `get_dead_stock_signals` 74676a84…, `get_reorder_suggestions` 6ac2334e…. `EXECUTE`:
 `service_role` only; `anon` and `authenticated` false. `supabase_migrations.schema_migrations` not
 written, as for the earlier M4 migrations.
+
+**CI run 43744363132 (round 4, migrations applied): green** — `unit` and `integration-e2e` success.
+The two new integration cases ran and passed (`m4-stock-signals` 5 tests, `m4-track-stock` 7).
+
+M4 now stands: four builder rounds and two architect test fixes, adversarial audit majors fixed,
+CI green, all migrations applied and md5-verified. Open, none blocking the merge decision:
+`database.types.ts` regeneration (blocked on production schema drift, see above); audit minors 5, 6,
+7, 9–13 and the dashboard's old `stock < 10` banner; the silent fallback in `InventoryPage.tsx`.
