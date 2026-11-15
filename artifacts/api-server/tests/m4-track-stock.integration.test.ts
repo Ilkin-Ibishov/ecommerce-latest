@@ -160,6 +160,38 @@ describe("Phase M4 Track Stock Integration Tests", () => {
     expect(Number(v?.on_hand)).toBe(0);
   });
 
+  it("4b. counter sales with tracked and non-tracked lines appear in get_margin_report with cogs=0 for non-tracked", async () => {
+    const trackedId = await createVariant(db, { track: true, onHand: 5, actor: actorId });
+    const nonTrackedId = await createVariant(db, { track: false });
+
+    const s = sale([
+      { variant_id: trackedId, quantity: 2, price: 10 },
+      { variant_id: nonTrackedId, quantity: 3, price: 5 },
+    ]);
+    const { data: saleData, error: saleErr } = await postSale(s);
+    expect(saleErr).toBeNull();
+    expect(saleData).toMatchObject({ status: "posted" });
+
+    const from = new Date(Date.now() - 3600_000).toISOString();
+    const to = new Date(Date.now() + 3600_000).toISOString();
+    const { data: report, error: reportErr } = await (db as any).rpc("get_margin_report", {
+      p_start_date: from,
+      p_end_date: to,
+    });
+    expect(reportErr).toBeNull();
+
+    const ntRow = (report ?? []).find((r: { variant_id: string }) => r.variant_id === nonTrackedId);
+    expect(ntRow).toBeDefined();
+    expect(Number(ntRow.revenue)).toBe(15);
+    expect(Number(ntRow.cogs)).toBe(0);
+    expect(Number(ntRow.units_sold)).toBe(3);
+
+    const tRow = (report ?? []).find((r: { variant_id: string }) => r.variant_id === trackedId);
+    expect(tRow).toBeDefined();
+    expect(Number(tRow.revenue)).toBe(20);
+    expect(Number(tRow.units_sold)).toBe(2);
+  });
+
   it("5. a sale of a tracked variant, then the switch to non-tracked, then void_counter_sale: void succeeds and writes no movement", async () => {
     const varId = await createVariant(db, { track: true, onHand: 2, actor: actorId });
     const s = sale([{ variant_id: varId, quantity: 2, price: 10 }]);
