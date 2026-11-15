@@ -74,12 +74,14 @@ export async function incrementStock(
   c: SupabaseClient<Database>,
   productId: string,
   qty: number,
+  referenceId?: string,
 ): Promise<{ error: unknown }> {
   // increment_stock is absent from the generated Functions type; cast
   // localized here so call sites remain typed (see module note).
   const { error } = await (c as any).rpc("increment_stock", {
     p_product_id: productId,
     p_qty: qty,
+    ...(referenceId !== undefined ? { p_reference_id: referenceId } : {}),
   });
   return { error };
 }

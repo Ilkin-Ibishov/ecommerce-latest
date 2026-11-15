@@ -80,7 +80,7 @@ router.patch("/admin/orders/:id/status", requireAdmin, async (req, res) => {
   if (status === "cancelled" && oldStatus !== "cancelled") {
     for (const item of order.order_items ?? []) {
       const targetId = item.variant_id ?? item.product_id;
-      const { error: rpcErr } = await incrementStock(admin, targetId, item.quantity);
+      const { error: rpcErr } = await incrementStock(admin, targetId, item.quantity, id as string);
       if (rpcErr) {
         req.log?.error?.({ rpcErr, item }, "Failed to restock cancelled item");
       }

@@ -159,7 +159,7 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
     // Order insert failed — roll back all stock decrements
     for (const item of orderItems) {
       const targetId = item.variant_id ?? item.product_id;
-      await incrementStock(admin, targetId, item.quantity).catch((e) =>
+      await incrementStock(admin, targetId, item.quantity, orderId).catch((e) =>
         req.log.error({ error: e, targetId }, "Stock rollback failed after order insert error")
       );
     }
@@ -196,7 +196,7 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
         await admin.from("orders").delete().eq("id", order.id);
         for (const item of orderItems) {
           const targetId = item.variant_id ?? item.product_id;
-          await incrementStock(admin, targetId, item.quantity).catch((e) =>
+          await incrementStock(admin, targetId, item.quantity, order.id).catch((e) =>
             req.log.error({ error: e, targetId }, "Stock rollback failed after per-user coupon limit")
           );
         }
@@ -219,7 +219,7 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
       await admin.from("orders").delete().eq("id", order.id);
       for (const item of orderItems) {
         const targetId = item.variant_id ?? item.product_id;
-        await incrementStock(admin, targetId, item.quantity).catch((e) =>
+        await incrementStock(admin, targetId, item.quantity, order.id).catch((e) =>
           req.log.error({ error: e, targetId }, "Stock rollback failed after coupon limit race")
         );
       }

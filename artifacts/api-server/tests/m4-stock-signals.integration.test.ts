@@ -272,4 +272,32 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
     expect(item?.has_enough_data).toBe(false);
     expect(item?.sales_count).toBe(1);
   });
+
+  it("5. cancelling an order nets velocity to zero so it is omitted from reorder suggestions", async () => {
+    const varId = await createVariant(db, { track: true, onHand: 10, actor: actorId });
+    const orderId = randomUUID();
+
+    const { error: decErr } = await (db as any).rpc("decrement_order_stock", {
+      p_order_id: orderId,
+      p_lines: [{ variant_id: varId, quantity: 5 }],
+      p_actor_id: actorId,
+    });
+    expect(decErr).toBeNull();
+
+    const { error: incErr } = await (db as any).rpc("increment_stock", {
+      p_product_id: varId,
+      p_qty: 5,
+      p_reference_id: orderId,
+    });
+    expect(incErr).toBeNull();
+
+    const { data: rows, error: rpcErr } = await (db as any).rpc("get_reorder_suggestions", {
+      p_window_days: 28,
+      p_target_days: 100000,
+      p_min_sales: 1,
+    });
+    expect(rpcErr).toBeNull();
+    const item = (rows ?? []).find((r: { variant_id: string }) => r.variant_id === varId);
+    expect(item).toBeUndefined();
+  });
 });
