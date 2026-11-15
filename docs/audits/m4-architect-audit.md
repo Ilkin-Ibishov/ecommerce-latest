@@ -370,3 +370,25 @@ form.
 2. Regenerate `database.types.ts`; remove the client casts it makes unnecessary.
 3. Push the branch and run CI: integration and E2E.
 4. The one cross-family adversarial audit, then the merge decision.
+
+## Applied to the test project — 2026-11-15
+
+With the owner's consent, the seven `20261113231xxx` migrations were applied to
+`jcvsnoiacrknzejouxah` in one transaction (comments stripped; the file used is
+`.agent-runs/apply-m4-stock-signals.sql`, not tracked). `supabase_migrations.schema_migrations` was
+not written, as for the chore.
+
+Verified afterwards by query:
+
+- The source of all ten functions in the database has the same md5 as the body in the migration
+  files (comment and blank lines removed on both sides).
+- The seven `SECURITY DEFINER` functions are executable by `service_role` only. The three trigger
+  functions are not definer functions.
+- `product_variant_availability` has nine columns, `track_stock` last, `available_quantity` still
+  `numeric(12,3)`; its only grantee among the API roles is `service_role`.
+- Both guard triggers exist and are enabled. The four settings are present; `owner_notification_phone`
+  is not.
+- One variant in the project is non-tracked and the view returns `NULL` availability for it.
+
+Not done: `database.types.ts` is not regenerated (no Supabase CLI session on this machine), so the
+eleven client casts in the integration tests stay for now.
