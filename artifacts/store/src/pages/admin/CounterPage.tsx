@@ -173,7 +173,9 @@ export default function CounterPage() {
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">{t("Admin.Counter.title")}</h1>
-          <Link href="/admin/counter/sales" className="text-sm text-primary underline">{t("Admin.Counter.salesLink")}</Link>
+          {pending
+            ? <span className="text-sm text-muted-foreground">{t("Admin.Counter.salesLink")}</span>
+            : <Link href="/admin/counter/sales" className="text-sm text-primary underline">{t("Admin.Counter.salesLink")}</Link>}
         </div>
         <LookupBox
           disabled={pending || !!picker || showConfirm || !!completedReceipt}
