@@ -76,7 +76,7 @@ export default function AdminInventoryPage() {
   // Stock Signals state (M4)
   const [deadStockVariants, setDeadStockVariants] = useState<DeadStockVariant[]>([]);
   const [deadStockLoading, setDeadStockLoading] = useState(false);
-  const [notSellingDays, setNotSellingDays] = useState<number>(90);
+  const [notSellingDays, setNotSellingDays] = useState<number | null>(null);
   const [totalDeadCapital, setTotalDeadCapital] = useState<number | null>(null);
   const [lowStockProductIds, setLowStockProductIds] = useState<Set<string>>(new Set());
 
@@ -94,12 +94,16 @@ export default function AdminInventoryPage() {
     if (filter !== "not_selling") return;
     let active = true;
     setDeadStockLoading(true);
-    adminFetch(apiUrl(`/admin/inventory/signals/dead-stock?days=${notSellingDays}`))
+    const query = notSellingDays !== null ? `?days=${notSellingDays}` : "";
+    adminFetch(apiUrl(`/admin/inventory/signals/dead-stock${query}`))
       .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then((data) => {
         if (!active) return;
         setDeadStockVariants(data.variants ?? []);
         setTotalDeadCapital(typeof data.total_dead_capital === "number" ? data.total_dead_capital : null);
+        if (notSellingDays === null && typeof data.days === "number") {
+          setNotSellingDays(data.days);
+        }
       })
       .catch(() => {
         if (active) setDeadStockVariants([]);
