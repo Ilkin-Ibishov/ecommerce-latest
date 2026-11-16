@@ -57,3 +57,52 @@ Nothing was run in a browser. Item 1's `focusout` behaviour and item 2's discard
 unobserved — in particular whether the global `focusout` listener interacts badly with Radix dialogs
 is reasoned about (the box is `disabled` while any modal is open, so the listener is detached) but not
 tested on a real till.
+
+## CI — and the stale-locale test bug it exposed
+
+Run **43852791362** on `df2e8f1`: **failed**. Both `counter-sale.spec.ts` cases (desktop and phone)
+failed at the same line, `expect(getByRole("heading", { name: "Kassa" }))` — "element(s) not found".
+
+**It was a test bug, not a product defect.** The Playwright artifact (`playwright-report`,
+`error-context.md`) shows the page rendering correctly, with `heading "Counter" [level=1]` and a
+working till. The cause:
+
+- `main` has **no `Admin.Counter` dictionary block at all** — `az.ts` and `en.ts` are 1175 lines there
+  against 1263 on this branch, and `grep -c '^      Counter: {'` is 0 on `main`, 1 here. The till's
+  strings were **hardcoded Azerbaijani literals** in the components.
+- Round 1 correctly replaced them with `t()` calls and added the `Admin.Counter` block to az, ru and
+  en. From then on the heading renders in the **active locale**.
+- The admin UI runs in **English** in this spec — its own `loginAsAdmin` waits for "Dashboard",
+  "Admin Access Required" and "Sign In with Phone". So the heading is "Counter", and the six
+  Azerbaijani literals the spec still asserted could never match again.
+
+This also re-reads the earlier "flake". On run 43846603768 (`fix/m4-follow-ups`) the same test was
+reported flaky, but that branch carries `main`'s **untranslated** till, so it was matching the
+literals and failing on timing. Two unrelated causes under one name; the round-2 audit's guess that
+the flake was pre-existing timing was right for that branch and irrelevant to this one.
+
+### Fix — `a708bbc`, by the architect
+
+Six accessible names and one regex switched to the `en` dictionary values, with a comment recording
+why: `Kassa`→`Counter`, `Nağd`→`Cash`, `Tamamla`→`Complete`,
+`Təsdiqlə və Satışı Tamamla`→`Confirm & Complete Sale`, `Yeni Satış`→`New Sale`, and
+`/Satış #\d+ tamamlandı\./`→`/Sale #\d+ completed\./`. **No assertion removed or weakened** — each
+one now names the string the page actually renders. Every database assertion is untouched.
+
+Round 2's audit cleared these selectors against the components but checked them against the **az**
+dictionary, which is why it missed this. The lesson for future prompts: when a round replaces a
+hardcoded literal with `t()`, every E2E assertion on that literal has to move to the locale the spec
+actually runs in.
+
+### Re-run — green
+
+Run **43888981797** on `a708bbc`: **success**. `unit` success; `integration-e2e` success — 54
+component, 1179 integration tests passed with 10 skipped, **42 E2E passed, 1 skipped, no flaky**
+(4.2m). Both wedge-scanner cases pass on desktop and phone.
+
+**This branch is rebased on `main`, audited PASS, and CI green. It needs only the owner's decision to
+merge.**
+
+Unrelated and still live on `main`, seen in these runs: `tests/orders.test.ts` reports
+`5 tests | 5 skipped`, and the admin sidebar renders a raw `Admin.Nav.reservations` key (missing from
+all three dictionaries).
