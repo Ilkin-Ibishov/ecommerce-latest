@@ -1,7 +1,5 @@
-import { Link } from "wouter";
 import { useI18n } from "@/lib/i18n/context";
-
-type Outcome = { kind: "posted" | "needs_owner" | "error"; text: string; saleId?: string };
+import type { Outcome } from "./types";
 
 export function CounterCheckoutPanel({
   priced,

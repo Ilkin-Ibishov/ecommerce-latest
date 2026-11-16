@@ -4,6 +4,12 @@ import { Banknote, CreditCard, HelpCircle, Loader2 } from "lucide-react";
 import { computeChange } from "./counter-input";
 import { useI18n } from "@/lib/i18n/context";
 
+const PAYMENT_METHODS = [
+  { method: "cash" as const, Icon: Banknote, labelKey: "Admin.Counter.paymentCash" as const },
+  { method: "card" as const, Icon: CreditCard, labelKey: "Admin.Counter.paymentCard" as const },
+  { method: "other" as const, Icon: HelpCircle, labelKey: "Admin.Counter.paymentOther" as const },
+];
+
 export function PaymentConfirmationModal({
   open,
   onClose,
@@ -70,51 +76,24 @@ export function PaymentConfirmationModal({
               {t("Admin.Counter.paymentMethodLabel")}
             </span>
             <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="payment-method-label">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={paymentMethod === "cash"}
-                disabled={pending}
-                onClick={() => onPaymentMethodChange("cash")}
-                className={`flex items-center justify-center gap-1.5 rounded-lg border p-2.5 text-sm font-medium transition-colors ${
-                  paymentMethod === "cash"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:bg-muted"
-                }`}
-              >
-                <Banknote className="h-4 w-4" />
-                {t("Admin.Counter.paymentCash")}
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={paymentMethod === "card"}
-                disabled={pending}
-                onClick={() => onPaymentMethodChange("card")}
-                className={`flex items-center justify-center gap-1.5 rounded-lg border p-2.5 text-sm font-medium transition-colors ${
-                  paymentMethod === "card"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:bg-muted"
-                }`}
-              >
-                <CreditCard className="h-4 w-4" />
-                {t("Admin.Counter.paymentCard")}
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={paymentMethod === "other"}
-                disabled={pending}
-                onClick={() => onPaymentMethodChange("other")}
-                className={`flex items-center justify-center gap-1.5 rounded-lg border p-2.5 text-sm font-medium transition-colors ${
-                  paymentMethod === "other"
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-border hover:bg-muted"
-                }`}
-              >
-                <HelpCircle className="h-4 w-4" />
-                {t("Admin.Counter.paymentOther")}
-              </button>
+              {PAYMENT_METHODS.map(({ method, Icon, labelKey }) => (
+                <button
+                  key={method}
+                  type="button"
+                  role="radio"
+                  aria-checked={paymentMethod === method}
+                  disabled={pending}
+                  onClick={() => onPaymentMethodChange(method)}
+                  className={`flex items-center justify-center gap-1.5 rounded-lg border p-2.5 text-sm font-medium transition-colors ${
+                    paymentMethod === method
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-border hover:bg-muted"
+                  }`}
+                >
+                  <Icon className="h-4 w-4" />
+                  {t(labelKey)}
+                </button>
+              ))}
             </div>
           </div>
 
