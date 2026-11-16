@@ -47,6 +47,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
 
   useEffect(() => {
     const supabase = createClient();
+    let cancelled = false;
     async function load() {
       setLoading(true);
       let query = (supabase as any)
@@ -62,6 +63,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
           .from("product_variant_public_availability")
           .select("product_id")
           .or("available_quantity.gt.0,available_quantity.is.null");
+        if (cancelled) return;
         const inStockIds = [...new Set((inStockAvail ?? []).map((r: any) => r.product_id))];
         if (inStockIds.length > 0) {
           query = query.in("id", inStockIds);
@@ -78,12 +80,14 @@ export default function ProductsPage({ locale }: { locale: string }) {
       else query = query.order("sort_order").order("id");
 
       const { data, count: total } = await query;
+      if (cancelled) return;
       if (data && data.length > 0) {
         const productIds = data.map((p: any) => p.id);
         const { data: availRows } = await (supabase as any)
           .from("product_variant_public_availability")
           .select("product_id, available_quantity")
           .in("product_id", productIds);
+        if (cancelled) return;
 
         const availMap = new Map<string, number | null>();
         for (const row of availRows ?? []) {
@@ -112,6 +116,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
 
       const { data: cats } = await supabase.from("categories")
         .select("id, slug, category_translations(*)").is("parent_id", null);
+      if (cancelled) return;
       setCategories(cats ?? []);
 
       const { data: brandRows } = await (supabase as any)
@@ -119,12 +124,16 @@ export default function ProductsPage({ locale }: { locale: string }) {
         .select("brand")
         .not("brand", "is", null)
         .neq("brand", "");
+      if (cancelled) return;
       const uniqueBrands = [...new Set((brandRows ?? []).map((r: any) => r.brand).filter(Boolean))].sort() as string[];
       setBrands(uniqueBrands);
 
       setLoading(false);
     }
     load();
+    return () => {
+      cancelled = true;
+    };
   }, [sale, deal, page, sortParam, brandParam, inStockParam, priceMinParam, priceMaxParam]);
 
   const getTitle = (translations: any[] | null) =>
