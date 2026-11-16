@@ -21,6 +21,7 @@ export function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
   const { t } = useI18n();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const requestRef = useRef(0);
 
   const fetchSuggestions = (q: string) => {
     if (q.length < 2) {
@@ -28,18 +29,24 @@ export function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
       setShowSuggestions(false);
       return;
     }
+    const requestId = ++requestRef.current;
     setLoading(true);
     fetch(apiUrl(`/search/suggest?q=${encodeURIComponent(q)}&locale=${locale}`))
       .then((r) => r.json())
       .then((data) => {
+        if (requestId !== requestRef.current) return;
         setSuggestions({ products: data.products ?? [], categories: data.categories ?? [] });
         setShowSuggestions(true);
         setActiveIndex(-1);
       })
       .catch(() => {
+        if (requestId !== requestRef.current) return;
         setSuggestions({ products: [], categories: [] });
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (requestId !== requestRef.current) return;
+        setLoading(false);
+      });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,6 +84,9 @@ export function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
   };
 
   const closeSuggestions = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    requestRef.current++;
+    setLoading(false);
     setShowSuggestions(false);
     setActiveIndex(-1);
   };
