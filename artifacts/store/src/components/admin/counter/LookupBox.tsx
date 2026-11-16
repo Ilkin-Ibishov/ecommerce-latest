@@ -19,8 +19,22 @@ export function LookupBox({ onResults, disabled, resetSignal }: {
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!disabled && !busy) input.current?.focus();
+    if (disabled || busy) return;
+    const active = document.activeElement;
+    if (!active || active === document.body || active === input.current) input.current?.focus();
   }, [disabled, busy]);
+
+  useEffect(() => {
+    if (disabled) return;
+    const returnFocus = () => {
+      setTimeout(() => {
+        const active = document.activeElement;
+        if (!active || active === document.body) input.current?.focus();
+      }, 0);
+    };
+    document.addEventListener("focusout", returnFocus);
+    return () => document.removeEventListener("focusout", returnFocus);
+  }, [disabled]);
 
   useEffect(() => {
     if (resetSignal !== undefined) {
