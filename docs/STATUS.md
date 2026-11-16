@@ -1,10 +1,156 @@
 # Project status — handoff
 
-Last updated: 2026-11-16, 14:15 (second session of the day). Written as the entry point for a new
+Last updated: 2026-11-16, evening (third session of the day). Written as the entry point for a new
 session. Everything referenced here lives in this repository; nothing important is only in a chat
 transcript.
 
-## Start here — first thing to do in a new session (2026-11-16, afternoon)
+## Start here — first thing to do in a new session (2026-11-16, evening)
+
+**`main` is at `5f13d71`: the storefront fixes are merged. `fix/counter-sale-confirmation` is at
+`a708bbc`, rebased on `main`, audited PASS and CI green — it needs only the owner's yes. Nothing is
+running.**
+
+**Do this first:** confirm the two merge-ready branches are still green and mergeable, then ask the
+owner the questions below.
+
+```bash
+gh run view 43888981797 --json conclusion --jq .conclusion   # counter sale, expect success
+gh run view 43846603768 --json conclusion --jq .conclusion   # m4 follow-ups, expect success
+git fetch -q origin
+for b in fix/counter-sale-confirmation fix/m4-follow-ups; do
+  echo "$b behind main: $(git rev-list --count origin/$b..origin/main)"
+done
+```
+
+Then read `prompts/session-start-orchestrator.md` (your role).
+
+### Branches, exactly
+
+| Branch | Tip | State |
+|---|---|---|
+| `fix/counter-sale-confirmation` | `a708bbc` | Rebased on `main`, level with it. Rounds 1-3 built; round 2 re-audited **FIX** (2 majors, both fixed in round 3), round 3 audited **PASS**. CI run **43888981797 green** (54 component, 1179 integration / 10 skipped, 42 E2E / 1 skipped, no flaky). **Merge-ready, awaiting the owner** |
+| `fix/counter-sale-confirmation-r3` | `a708bbc` | **Exact duplicate of the line above — delete it.** Created only because a force-push was refused mid-session; the force-push later went through, so this ref has no purpose |
+| `fix/m4-follow-ups` | `1a228c5` | CI run **43846603768 green**, audited against its prompt. 20 commits behind `main`, but it touches only `inventory-signals.ts`, `InventoryPage.tsx` and three test files — **zero file overlap** with the eleven files the storefront merge changed, so its green run still means something. **Merge-ready; the owner was asked twice and has not answered** |
+| `design/m4b-store-notifications` | `c29f55d` | Design note awaiting the owner's review. No implementation before approval |
+| `fix/otp-bypass-production` | `fef34e1` | Security fix, pushed, **not merged**, now far behind `main`. Still needs a PR and the owner's merge |
+| `design/delivery-fee`, `design/staff-provisioning` | unchanged | Still awaiting review |
+
+Audit reports written this session, all on `main`:
+`docs/audits/fix-storefront-mobile-spa-round-2-audit.md`,
+`fix-counter-sale-confirmation-round-2-audit.md`, `fix-counter-sale-confirmation-round-3-audit.md`.
+Round-3 prompt: `prompts/fix-counter-sale-confirmation-round-3.md`.
+
+### What changed this session
+
+- **Storefront merged to `main`** (`5f13d71`, `--no-ff`) with the owner's yes. Verified before
+  pushing, not just trusted from the branch's CI: typecheck clean on all 5 projects, 741 unit tests,
+  all invariant checks passed on the merged tree.
+- **The afternoon handoff had never been merged.** `docs/STATUS.md` on `main` was still the morning
+  version. Commit `db59ab9` from `docs/handoff-2026-11-16b` was cherry-picked (`7393d45`) so this
+  file keeps that session's record instead of silently dropping it.
+- **Counter sale round 2 re-audited: FIX, two majors, both confirmed against the code.**
+  1. The scanner never got focus back after a quantity or tender edit — round 2's `relatedTarget`
+     guard was correct, but only the lookup box's own blur ever restored focus, so after
+     `commit(); blur()` focus sat on `body` and the next wedge scan typed into nothing.
+  2. A deterministic 5xx froze the till with no escape: the API maps every unmapped database error to
+     500, so Resend replayed the same failure forever and only a reload (losing the cart) got out.
+- **Round 3 written by the architect and built**: the `focusout` focus return, a "discard and start
+  over" button after three consecutive failures (keeps the cart, mints a new id, tells the cashier to
+  check the sales list), a `null`/unparseable-body guard that no longer empties the cart on a bad
+  200, and the "Satışlar" link disabled while a sale is pending. Audited PASS.
+- **A stale-locale test bug was found and fixed** — see the next section; this is the most reusable
+  thing learned today.
+- **Storefront round 2 re-audited PASS**, three minors recorded not fixed (worst: a one-character
+  query can show a stale suggestion dropdown, `HeaderSearchBar.tsx:27-31`).
+
+### The stale-locale trap — read this before writing an E2E assertion
+
+`main` has **no `Admin.Counter` dictionary block at all** (`az.ts` and `en.ts` are 1175 lines there,
+1263 on the branch). The till's strings were **hardcoded Azerbaijani literals**, and
+`counter-sale.spec.ts` asserted them directly. Round 1 correctly replaced them with `t()` calls and
+added the dictionary block — which turned six assertions into strings that can never match, because
+**the admin UI runs in English in that spec** (its own `loginAsAdmin` waits for "Dashboard" and
+"Sign In with Phone"). CI run 43852791362 failed on the first one, `getByRole("heading", { name:
+"Kassa" })`.
+
+Fixed in `a708bbc`: six accessible names and one regex moved to the `en` values, with a comment in
+the spec saying why. No assertion removed or weakened; every database assertion untouched.
+
+Two lessons:
+- **When a round replaces a hardcoded literal with `t()`, every E2E assertion on that literal must
+  move to the locale the spec actually runs in.** Round 2's audit checked those selectors against the
+  **az** dictionary and so cleared them wrongly.
+- **The "flake" was two different bugs under one name.** On run 43846603768 (`fix/m4-follow-ups`) the
+  same test was reported flaky, but that branch carries `main`'s *untranslated* till, so it matched
+  the literals and failed on timing. Do not assume a repeated test name means a repeated cause.
+
+### Waiting on the owner — in this order
+
+1. **Merge `fix/counter-sale-confirmation`** (`a708bbc`): rebased, audited, CI green.
+2. **Merge `fix/m4-follow-ups`** (`1a228c5`): CI green, audited, no overlap with the storefront merge.
+   Asked twice, no answer yet.
+3. **Production database.** (a) Apply the nine M4 migrations — the agent may not touch production.
+   (b) The `orders` / `product_specs` schema query from the morning section is **still unanswered**,
+   and it still blocks the `database.types.ts` regeneration.
+4. **Review `docs/design-notes/m4b-store-notifications.md`**, then the two older design notes
+   (`design/delivery-fee`, `design/staff-provisioning`).
+5. **Three M4 minors needing new migrations on the test project** (9, 10, 13 — see the afternoon
+   section). Applying them needs the owner's yes.
+6. **Two product decisions**: M4 minor 7 (a variant restocked yesterday after a long stock-out reads
+   as "not selling" — which date is the floor?); the dashboard's old `stock < 10` banner — delete it
+   or feed it from the low-stock signal.
+
+### Still open, ordered by what blocks what
+
+1. The owner answers above. **Nothing goes to `main` without a yes.**
+2. Delete `fix/counter-sale-confirmation-r3` (duplicate ref, no history of its own).
+3. **Two defects live on `main` today**, both seen in every CI run and neither belonging to any branch
+   in flight:
+   - `artifacts/api-server/tests/orders.test.ts` reports `5 tests | 5 skipped` on every run — the
+     undeclared `verify` from the morning handoff. **Every orders integration test has been passing
+     vacuously.** One-line fix; it is the kind of gap that hides a real regression.
+   - The admin sidebar renders a raw `Admin.Nav.reservations` key: the key is missing from **all
+     three** dictionaries, not just one.
+4. Minors recorded, not fixed: storefront round-2 minors 1-3; counter-sale round-2 minors 3, 6, 7
+   (silent drop of a late lookup result, silent revert of an invalid typed quantity, no 9999 cap on
+   the scanner's `addItem` path). Each report lists them with `file:line`.
+5. `artifacts/store/src/pages/admin/CounterPage.tsx` is now **248 lines**. Not a rule violation (the
+   200-line limit is for new files) but it is the obvious next extraction, and that belongs in its own
+   change rather than a fix round.
+6. After M4b approval: write the build prompt. The builder must confirm the §10 columns against the
+   test project before writing a query.
+
+### Operational notes from this session
+
+- **A force-push is refused by the permission classifier** until the owner approves it in chat. The
+  workaround that cost the least: push the rebased history to a **new** branch and run CI there, then
+  force-push the canonical branch once the owner says yes. Nothing is lost either way.
+- **`Stop-Process` on another process is also refused.** Do not plan around killing things.
+- **A stuck-looking AGY builder is often not stuck.** Its log filled with ~65 identical lines
+  ("I will wait for the typecheck process to complete") for 25 minutes and then finished cleanly with
+  all commits and notes. Read `.agent-runs/LAST-RUN.done` and the branch's commits before concluding
+  anything; killing it would have thrown away finished work.
+- **The builder pushes at the end even when the prompt says "Do not push".** Expect the branch to
+  move; check `origin/<branch>` before assuming your local view is current.
+- **`gh run download <id> -n playwright-report` is the fastest way to diagnose an E2E failure.** The
+  `error-context.md` holds the full accessibility tree at the moment of failure — that is what showed
+  the page rendering fine in English, which no amount of reading the diff would have revealed.
+- **`sed` and `perl` are unreliable here for non-ASCII text and for patterns containing regex
+  metacharacters** (Azerbaijani literals, `\d`, `/`). Several attempts silently matched nothing. What
+  works: a short `node -e` script that finds the line by an ASCII anchor and replaces it by index,
+  printing the before and after.
+- **`git -C <other-worktree> rebase origin/main` is allowed** (unlike `reset --hard`, which the
+  classifier refuses). A 26-commit rebase of `fix/counter-sale-confirmation` onto `main` ran clean
+  with no conflicts and left that worktree usable.
+- **Read-only audit sub-agents remain worth it** (Sonnet, clean context, own worktree, ~60-130s
+  each). Two ran in parallel on the two fix branches. Both reports held up on spot-checks against the
+  code — but one cleared a set of E2E selectors against the wrong dictionary, so **verify the premise
+  of a finding, not only the finding**.
+- Removable worktrees: every `.claude/worktrees/agent-*` from this session (branches pushed), plus
+  `fix-storefront` and `fix-m4-follow-ups` once their branches merge. `fix-counter-sale` holds the
+  live branch at `a708bbc`.
+
+## Previously — the 2026-11-16 afternoon session (superseded where the section above disagrees)
 
 **M4 is merged to `main` (`711781c`, CI green). Three branches are in fix rounds; one builder run and
 one CI run were still going when this was written.** Nothing else has been merged to `main`.
