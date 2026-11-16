@@ -67,8 +67,7 @@ async function runCounterSaleFlow(page: Page, db: SupabaseClient, variantId: str
 
   // Expect one cart line with quantity 2 and total 8.00 AZN
   await expect(cartLines).toHaveCount(1);
-  // The quantity span, not getByText("2"): the fixture title is a timestamp and holds digits too.
-  await expect(cartLines.first().locator("span.tabular-nums")).toHaveText("2");
+  await expect(cartLines.first().getByRole("spinbutton")).toHaveValue("2");
   await expect(page.getByText("8.00 AZN")).toBeVisible();
 
   // Payment method selection
@@ -80,6 +79,12 @@ async function runCounterSaleFlow(page: Page, db: SupabaseClient, variantId: str
   }
 
   await page.getByRole("button", { name: "Tamamla" }).click();
+  await page.locator("#tendered-amount-modal").fill("10");
+  await page.getByRole("button", { name: "Təsdiqlə və Satışı Tamamla" }).click();
+
+  await expect(page.locator("#inpage-receipt")).toBeVisible({ timeout: 10000 });
+  await expect(page.locator("#inpage-receipt")).toContainText("8.00");
+  await page.getByRole("button", { name: "Yeni Satış" }).click();
 
   // Status message
   await expect(page.getByRole("status")).toHaveText(/Satış #\d+ tamamlandı\./, { timeout: 10000 });
@@ -99,11 +104,6 @@ async function runCounterSaleFlow(page: Page, db: SupabaseClient, variantId: str
 
   const { data: varRow } = await db.from("product_variants").select("on_hand").eq("id", variantId).single();
   expect(Number(varRow?.on_hand)).toBe(3);
-
-  // Click Qəbz and verify receipt page shows 8.00
-  await page.getByRole("link", { name: "Qəbz" }).click();
-  await expect(page.locator("#receipt")).toBeVisible({ timeout: 10000 });
-  await expect(page.locator("#receipt")).toContainText("8.00");
 }
 
 test.describe("Counter Screen E2E", () => {

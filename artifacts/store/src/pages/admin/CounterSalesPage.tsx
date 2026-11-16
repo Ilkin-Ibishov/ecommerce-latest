@@ -77,7 +77,7 @@ export default function CounterSalesPage() {
       {isOwner && (
         <td className="px-3 py-2.5 space-x-2 text-right">
           {s.status === "needs_owner" && <button type="button" onClick={() => void act(`/admin/counter/sales/${s.id}/post-pending`)} className="text-primary underline">{t("Admin.Counter.postPendingStock")}</button>}
-          {s.status !== "voided" && <button type="button" onClick={() => voidSale(s)} className="text-destructive underline">{t("Admin.Counter.cancel")}</button>}
+          {s.status !== "voided" && <button type="button" onClick={() => voidSale(s)} className="text-destructive underline">{t("Admin.Counter.voidSale")}</button>}
         </td>
       )}
     </tr>
