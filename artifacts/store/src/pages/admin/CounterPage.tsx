@@ -80,8 +80,21 @@ export default function CounterPage() {
           lines: lines.map((l) => ({ variant_id: l.variant_id, quantity: l.quantity, charged_unit_price: l.unit_price, bundle_id: l.bundle_id })),
         }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (res.status >= 500) {
+          setShowConfirm(false);
+          setOutcome({ kind: "error", text: t("Admin.Counter.networkError") });
+          return;
+        }
+        if (data.code === "ST020") {
+          setShowConfirm(false);
+          setOutcome({ kind: "error", text: t("Admin.Counter.alreadyRecorded") });
+          setSaleId(crypto.randomUUID());
+          soldAtRef.current = null;
+          setPending(false);
+          return;
+        }
         soldAtRef.current = null;
         setPending(false);
         setShowConfirm(false);
