@@ -38,6 +38,7 @@ export default function CheckoutPage({ locale }: { locale: string }) {
   const [showLogin, setShowLogin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [placed, setPlaced] = useState(false);
+  const [placedTotal, setPlacedTotal] = useState(0);
   const [orderId, setOrderId] = useState("");
   const [error, setError] = useState("");
   const [couponCode, setCouponCode] = useState("");
@@ -194,6 +195,7 @@ export default function CheckoutPage({ locale }: { locale: string }) {
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Failed to place order"); return; }
       setOrderId(data.orderId);
+      setPlacedTotal(total);
       setPlaced(true);
       clearCart();
       localStorage.removeItem(PROMO_STORAGE_KEY);
@@ -211,7 +213,7 @@ export default function CheckoutPage({ locale }: { locale: string }) {
       <p className="text-muted-foreground mb-2">{t("Checkout.thankYou").replace("{name}", form.customer_name)}</p>
       <p className="text-sm text-muted-foreground mb-1">{t("Checkout.orderId")} <span className="font-mono font-medium">#{orderId.slice(0, 8).toUpperCase()}</span></p>
       <p className="text-sm text-muted-foreground mb-8">
-        {t("Checkout.courierWillCall").replace("{phone}", form.customer_phone).replace("{amount}", total.toFixed(2))}
+        {t("Checkout.courierWillCall").replace("{phone}", form.customer_phone).replace("{amount}", placedTotal.toFixed(2))}
       </p>
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Link href={`/${locale}/profile`} className="inline-block bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition">
