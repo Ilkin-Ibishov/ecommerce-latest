@@ -118,10 +118,9 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
     const staffJson = (await staffRes.json()) as { total_dead_capital?: number; variants?: Record<string, unknown>[] };
     expect(staffJson).not.toHaveProperty("total_dead_capital");
     const staffVar = (staffJson.variants ?? []).find((v) => v.variant_id === deadVarId);
-    if (staffVar) {
-      expect(staffVar).not.toHaveProperty("unit_cost");
-      expect(staffVar).not.toHaveProperty("capital_tied_up");
-    }
+    expect(staffVar).toBeDefined();
+    expect(staffVar).not.toHaveProperty("unit_cost");
+    expect(staffVar).not.toHaveProperty("capital_tied_up");
 
     await setRole("admin");
     const adminRes = await call("GET", "/admin/inventory/signals/dead-stock?days=90");
@@ -129,10 +128,9 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
     const adminJson = (await adminRes.json()) as { total_dead_capital?: number; variants?: Record<string, unknown>[] };
     expect(typeof adminJson.total_dead_capital).toBe("number");
     const adminVar = (adminJson.variants ?? []).find((v) => v.variant_id === deadVarId);
-    if (adminVar) {
-      expect(adminVar).toHaveProperty("unit_cost");
-      expect(adminVar).toHaveProperty("capital_tied_up");
-    }
+    expect(adminVar).toBeDefined();
+    expect(adminVar).toHaveProperty("unit_cost");
+    expect(adminVar).toHaveProperty("capital_tied_up");
   });
 
   it("2. reorder suggestions returns honest formula evidence and preserves candidates with sales_count < 3 with has_enough_data=false", async () => {
