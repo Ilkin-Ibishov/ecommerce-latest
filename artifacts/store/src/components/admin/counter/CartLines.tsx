@@ -21,7 +21,7 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
       {lines.map((line, i) => {
         const total = qtyByVariant.get(line.variant_id) ?? line.quantity;
         const overOnHand = total > line.on_hand;
-        const overAvailable = !overOnHand && total > line.available && line.reservations.length > 0;
+        const overAvailable = !overOnHand && line.available !== null && total > line.available && line.reservations.length > 0;
         return (
           <li key={line.key} className="py-3">
             <div className="flex items-center gap-3">

@@ -130,10 +130,11 @@ export default function ProductDetail({ product, images, translation, comments: 
     setCommentLoading(false);
   };
 
+  const isUnlimited = product.available_quantity === null || product.availableStock === null;
   const availableStock = typeof product.available_quantity === "number"
     ? product.available_quantity
     : (typeof product.availableStock === "number" ? product.availableStock : (product.stock ?? 0));
-  const inStock = availableStock > 0;
+  const inStock = isUnlimited || availableStock > 0;
   const originalPrice = product.original_price;
   const discount = originalPrice && originalPrice > product.price
     ? Math.round(((originalPrice - product.price) / originalPrice) * 100)
@@ -236,7 +237,7 @@ export default function ProductDetail({ product, images, translation, comments: 
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-green-600">
                 <span className="w-2 h-2 rounded-full bg-green-500" />
                 {t("ProductDetail.inStock")}
-                {availableStock < 10 && <span className="text-orange-500">— {t("ProductDetail.onlyLeft").replace("{count}", String(availableStock))}</span>}
+                {!isUnlimited && availableStock < 10 && <span className="text-orange-500">— {t("ProductDetail.onlyLeft").replace("{count}", String(availableStock))}</span>}
               </span>
             ) : (
               <span className="inline-flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
@@ -259,7 +260,7 @@ export default function ProductDetail({ product, images, translation, comments: 
                 </button>
                 <span className="w-11 text-center text-sm font-semibold select-none">{qty}</span>
                 <button
-                  onClick={() => setQty(Math.min(availableStock, qty + 1))}
+                  onClick={() => setQty(isUnlimited ? qty + 1 : Math.min(availableStock, qty + 1))}
                   className="w-10 h-10 flex items-center justify-center hover:bg-primary hover:text-primary-foreground transition-all duration-200"
                 >
                   <Plus size={14} />
@@ -358,6 +359,8 @@ export default function ProductDetail({ product, images, translation, comments: 
                 isOnSale={p.is_on_sale}
                 isDealOfDay={p.is_deal_of_day}
                 stock={p.stock}
+                availableStock={p.available_quantity}
+                available_quantity={p.available_quantity}
                 brand={p.brand}
                 locale={locale}
               />
@@ -462,7 +465,7 @@ export default function ProductDetail({ product, images, translation, comments: 
           title: translation.title,
           price: product.price,
           image: images[0]?.url ?? null,
-          stock: availableStock,
+          stock: isUnlimited ? null : availableStock,
         }}
         primaryCtaRef={primaryCtaRef}
       />

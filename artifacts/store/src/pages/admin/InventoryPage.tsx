@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
-import { Link } from "wouter";
-import { ClipboardCheck, BookmarkCheck, Plus, AlertTriangle } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { ClipboardCheck, BookmarkCheck, Plus, AlertTriangle, RotateCcw } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { adminFetch } from "@/lib/admin-fetch";
+import { apiUrl } from "@/lib/api";
+import { useAdminRole } from "@/lib/hooks/useAdminRole";
 import { StockCell } from "@/components/admin/StockCell";
 import { SearchInput } from "@/components/admin/SearchInput";
 import { SortableHeader } from "@/components/admin/SortableHeader";
@@ -13,9 +16,21 @@ import { getProxyUrl } from "@/lib/image-proxy";
 import { useI18n } from "@/lib/i18n/context";
 import { getTranslatedField } from "@/lib/utils";
 
-type Filter = "all" | "out_of_stock" | "low_stock" | "healthy" | "deficit";
+type Filter = "all" | "out_of_stock" | "low_stock" | "healthy" | "deficit" | "not_selling";
 type SortKey = "name" | "price" | "stock" | "reserved" | "available" | "value";
 type SortDir = "asc" | "desc";
+
+interface DeadStockVariant {
+  variant_id: string;
+  product_id: string;
+  product_title: string;
+  variant_sku: string;
+  on_hand: number;
+  days_since_last_sale: number | null;
+  days_since_first_receipt: number | null;
+  unit_cost?: number;
+  capital_tied_up?: number;
+}
 
 interface InventoryProduct {
   id: string;
@@ -25,7 +40,7 @@ interface InventoryProduct {
   stock: number;
   on_hand: number;
   reserved_quantity: number;
-  available_quantity: number;
+  available_quantity: number | null;
   deficit_quantity: number;
   brand: string | null;
   title: string;
@@ -47,6 +62,8 @@ function SummaryCard({ label, value, color, sub }: {
 
 export default function AdminInventoryPage() {
   const { t } = useI18n();
+  const { isAdmin } = useAdminRole();
+  const [location] = useLocation();
   const [products, setProducts] = useState<InventoryProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<Filter>("all");
@@ -56,6 +73,45 @@ export default function AdminInventoryPage() {
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [createDepositOpen, setCreateDepositOpen] = useState(false);
 
+  // Stock Signals state (M4)
+  const [deadStockVariants, setDeadStockVariants] = useState<DeadStockVariant[]>([]);
+  const [deadStockLoading, setDeadStockLoading] = useState(false);
+  const [notSellingDays, setNotSellingDays] = useState<number>(90);
+  const [totalDeadCapital, setTotalDeadCapital] = useState<number | null>(null);
+  const [lowStockProductIds, setLowStockProductIds] = useState<Set<string>>(new Set());
+
+  // URL query sync
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const f = params.get("filter");
+    if (f && ["all", "out_of_stock", "low_stock", "healthy", "deficit", "not_selling"].includes(f)) {
+      setFilter(f as Filter);
+    }
+  }, [location]);
+
+  // Fetch dead stock signals when not_selling filter is active
+  useEffect(() => {
+    if (filter !== "not_selling") return;
+    let active = true;
+    setDeadStockLoading(true);
+    adminFetch(apiUrl(`/admin/inventory/signals/dead-stock?days=${notSellingDays}`))
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then((data) => {
+        if (!active) return;
+        setDeadStockVariants(data.variants ?? []);
+        setTotalDeadCapital(typeof data.total_dead_capital === "number" ? data.total_dead_capital : null);
+      })
+      .catch(() => {
+        if (active) setDeadStockVariants([]);
+      })
+      .finally(() => {
+        if (active) setDeadStockLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [filter, notSellingDays]);
+
   const loadData = async () => {
     setLoading(true);
     const supabase = createClient();
@@ -64,18 +120,45 @@ export default function AdminInventoryPage() {
       .select("id, slug, sku, price, stock, brand, product_translations(lang_code, title), product_images(url, sort_order), product_categories(category_id)")
       .order("stock", { ascending: true });
 
-    const { data: availRows } = await (supabase as any)
-      .from("product_variant_availability")
-      .select("product_id, on_hand, reserved_quantity, available_quantity, deficit_quantity");
+    let availRows: Array<{
+      product_id: string;
+      on_hand: number;
+      reserved_quantity: number;
+      available_quantity: number | null;
+      deficit_quantity: number;
+    }> = [];
+    try {
+      const availRes = await adminFetch(apiUrl("/admin/inventory/availability"));
+      if (availRes.ok) {
+        const availData = await availRes.json();
+        availRows = availData.rows ?? [];
+      }
+    } catch {
+      // Non-blocking fallback
+    }
 
-    const availMap = new Map<string, { on_hand: number; reserved_quantity: number; available_quantity: number; deficit_quantity: number }>();
+    const availMap = new Map<string, { on_hand: number; reserved_quantity: number; available_quantity: number | null; deficit_quantity: number }>();
     for (const row of availRows ?? []) {
       const cur = availMap.get(row.product_id) ?? { on_hand: 0, reserved_quantity: 0, available_quantity: 0, deficit_quantity: 0 };
       cur.on_hand += Number(row.on_hand ?? 0);
       cur.reserved_quantity += Number(row.reserved_quantity ?? 0);
-      cur.available_quantity += Number(row.available_quantity ?? 0);
+      if (row.available_quantity === null || cur.available_quantity === null) {
+        cur.available_quantity = null;
+      } else {
+        cur.available_quantity += Number(row.available_quantity ?? 0);
+      }
       cur.deficit_quantity += Number(row.deficit_quantity ?? 0);
       availMap.set(row.product_id, cur);
+    }
+
+    try {
+      const lowRes = await adminFetch(apiUrl("/admin/inventory/signals/low-stock"));
+      if (lowRes.ok) {
+        const lowData = await lowRes.json();
+        setLowStockProductIds(new Set((lowData.variants ?? []).map((v: any) => v.product_id)));
+      }
+    } catch {
+      // Non-blocking fallback
     }
 
     const mapped: InventoryProduct[] = (prods ?? []).map((p) => {
@@ -110,19 +193,32 @@ export default function AdminInventoryPage() {
     loadData();
   }, []);
 
+  const deadProductIds = new Set(deadStockVariants.map((d) => d.product_id));
+  const deadInfoMap = new Map<string, DeadStockVariant>();
+  for (const d of deadStockVariants) {
+    if (!deadInfoMap.has(d.product_id)) deadInfoMap.set(d.product_id, d);
+  }
+
   // Derived stats
-  const outOfStock = products.filter((p) => p.available_quantity === 0).length;
-  const lowStock = products.filter((p) => p.available_quantity > 0 && p.available_quantity < 10).length;
-  const healthyStock = products.filter((p) => p.available_quantity >= 10).length;
+  const outOfStock = products.filter((p) => p.available_quantity !== null && p.available_quantity === 0).length;
+  const lowStock = lowStockProductIds.size > 0
+    ? products.filter((p) => lowStockProductIds.has(p.id) && p.available_quantity !== null && p.available_quantity > 0).length
+    : products.filter((p) => p.available_quantity !== null && p.available_quantity > 0 && p.available_quantity < 10).length;
+  const healthyStock = products.filter((p) => p.available_quantity === null || p.available_quantity >= 10).length;
   const deficitCount = products.filter((p) => p.deficit_quantity > 0).length;
   const totalValue = products.reduce((sum, p) => sum + p.price * p.on_hand, 0);
 
   // Client-side filtering pipeline: stock filter → search → category
   const filteredProducts = products
     .filter((p) => {
-      if (filter === "out_of_stock") return p.available_quantity === 0;
-      if (filter === "low_stock") return p.available_quantity > 0 && p.available_quantity < 10;
-      if (filter === "healthy") return p.available_quantity >= 10;
+      if (filter === "out_of_stock") return p.available_quantity !== null && p.available_quantity === 0;
+      if (filter === "low_stock") {
+        return lowStockProductIds.size > 0
+          ? lowStockProductIds.has(p.id)
+          : (p.available_quantity !== null && p.available_quantity > 0 && p.available_quantity < 10);
+      }
+      if (filter === "not_selling") return deadProductIds.has(p.id);
+      if (filter === "healthy") return p.available_quantity === null || p.available_quantity >= 10;
       if (filter === "deficit") return p.deficit_quantity > 0;
       return true;
     })
@@ -157,9 +253,12 @@ export default function AdminInventoryPage() {
           case "reserved":
             cmp = a.reserved_quantity - b.reserved_quantity;
             break;
-          case "available":
-            cmp = a.available_quantity - b.available_quantity;
+          case "available": {
+            const aVal = a.available_quantity ?? Infinity;
+            const bVal = b.available_quantity ?? Infinity;
+            cmp = aVal - bVal;
             break;
+          }
           case "value":
             cmp = (a.price * a.on_hand) - (b.price * b.on_hand);
             break;
@@ -177,6 +276,7 @@ export default function AdminInventoryPage() {
     { key: "all", label: t("Admin.Inventory.filterAll") },
     { key: "out_of_stock", label: t("Admin.Inventory.filterOutOfStock") },
     { key: "low_stock", label: t("Admin.Inventory.filterLowStock") },
+    { key: "not_selling", label: t("Admin.Inventory.filterNotSelling") },
     { key: "healthy", label: t("Admin.Inventory.filterHealthy") },
     ...(deficitCount > 0 ? [{ key: "deficit" as Filter, label: `Deficit (${deficitCount})` }] : []),
   ];
@@ -195,12 +295,25 @@ export default function AdminInventoryPage() {
     { key: (row) => (row.price * row.on_hand).toFixed(2), header: t("Admin.Inventory.colValue") + " (AZN)" },
   ];
 
+  const effectiveCsvColumns = isAdmin
+    ? csvColumns
+    : csvColumns.filter((c) => c.header !== t("Admin.Inventory.colValue") + " (AZN)");
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold">{t("Admin.Inventory.title")}</h1>
         <div className="flex items-center gap-2 flex-wrap">
+          {isAdmin && (
+            <Link
+              href="/admin/inventory/reorder"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input bg-card hover:bg-muted text-xs font-semibold text-foreground transition"
+            >
+              <RotateCcw size={14} className="text-primary" />
+              {t("Admin.Inventory.viewReorder")}
+            </Link>
+          )}
           <Link
             href="/admin/reservations"
             className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-input bg-card hover:bg-muted text-xs font-semibold text-foreground transition"
@@ -221,7 +334,7 @@ export default function AdminInventoryPage() {
             <ClipboardCheck size={15} className="text-primary" />
             Physical Stocktake
           </Link>
-          {!loading && (
+          {!loading && isAdmin && (
             <p className="text-sm text-muted-foreground ml-2">
               {t("Admin.Inventory.totalValue")} <span className="font-semibold text-foreground">{totalValue.toFixed(2)} AZN</span>
             </p>
@@ -269,7 +382,7 @@ export default function AdminInventoryPage() {
       )}
 
       {/* Filter tabs */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         {FILTERS.map(({ key, label }) => (
           <button
             key={key}
@@ -286,12 +399,34 @@ export default function AdminInventoryPage() {
                 ({key === "all" ? products.length
                   : key === "out_of_stock" ? outOfStock
                   : key === "low_stock" ? lowStock
+                  : key === "not_selling" ? deadProductIds.size
                   : key === "deficit" ? deficitCount
                   : healthyStock})
               </span>
             )}
           </button>
         ))}
+
+        {filter === "not_selling" && (
+          <div className="flex items-center gap-1.5 bg-muted/40 p-1 rounded-lg border border-border/50 ml-auto">
+            <span className="text-xs text-muted-foreground px-1">{t("Admin.Inventory.windowDays")}</span>
+            {[30, 60, 90, 180].map((d) => (
+              <button
+                key={d}
+                type="button"
+                onClick={() => setNotSellingDays(d)}
+                className={`px-2 py-0.5 text-xs font-semibold rounded transition ${
+                  notSellingDays === d
+                    ? "bg-primary text-primary-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {t(`Admin.Inventory.days${d}`)}
+              </button>
+            ))}
+            {deadStockLoading && <span className="text-[11px] text-muted-foreground animate-pulse ml-1">{t("Common.loading")}</span>}
+          </div>
+        )}
       </div>
 
       {/* Toolbar: Search, Category Filter, CSV Export */}
@@ -308,7 +443,7 @@ export default function AdminInventoryPage() {
         <div className="ml-auto">
           <CSVExportButton
             data={sortedProducts}
-            columns={csvColumns}
+            columns={effectiveCsvColumns}
             filename="inventory-export"
           />
         </div>
@@ -362,14 +497,16 @@ export default function AdminInventoryPage() {
                   onSort={handleSort}
                   className="text-right"
                 />
-                <SortableHeader
-                  label={t("Admin.Inventory.colValue")}
-                  sortKey="value"
-                  currentSort={sortKey}
-                  currentDir={sortDir}
-                  onSort={handleSort}
-                  className="text-right"
-                />
+                {isAdmin && (
+                  <SortableHeader
+                    label={filter === "not_selling" ? t("Admin.Inventory.capitalTiedUp") : t("Admin.Inventory.colValue")}
+                    sortKey="value"
+                    currentSort={sortKey}
+                    currentDir={sortDir}
+                    onSort={handleSort}
+                    className="text-right"
+                  />
+                )}
               </tr>
             </thead>
             <tbody>
@@ -383,16 +520,20 @@ export default function AdminInventoryPage() {
                     <td className="px-4 py-3 text-right"><div className="h-4 bg-muted animate-pulse rounded w-12 ml-auto" /></td>
                     <td className="px-4 py-3 text-right"><div className="h-4 bg-muted animate-pulse rounded w-12 ml-auto" /></td>
                     <td className="px-4 py-3 text-right"><div className="h-4 bg-muted animate-pulse rounded w-12 ml-auto" /></td>
-                    <td className="px-4 py-3 text-right"><div className="h-4 bg-muted animate-pulse rounded w-16 ml-auto" /></td>
+                    {isAdmin && <td className="px-4 py-3 text-right"><div className="h-4 bg-muted animate-pulse rounded w-16 ml-auto" /></td>}
                   </tr>
                 ))
               ) : sortedProducts.length === 0 ? (
-                <TableEmptyState colSpan={8} message={t("Admin.Common.noResults")} />
+                <TableEmptyState colSpan={isAdmin ? 8 : 7} message={t("Admin.Common.noResults")} />
               ) : sortedProducts.map((p) => (
                 <tr
                   key={p.id}
                   className={`border-b border-border/50 hover:bg-muted/20 transition ${
-                    p.available_quantity === 0 ? "bg-red-500/5" : p.available_quantity < 5 ? "bg-orange-500/5" : ""
+                    p.available_quantity !== null && p.available_quantity === 0
+                      ? "bg-red-500/5"
+                      : p.available_quantity !== null && p.available_quantity < 5
+                      ? "bg-orange-500/5"
+                      : ""
                   }`}
                 >
                   <td className="px-4 py-3">
@@ -434,7 +575,7 @@ export default function AdminInventoryPage() {
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1.5">
                       <span className={`font-semibold ${p.available_quantity === 0 ? "text-red-500" : ""}`}>
-                        {p.available_quantity}
+                        {p.available_quantity === null ? "—" : p.available_quantity}
                       </span>
                       {p.deficit_quantity > 0 && (
                         <span
@@ -446,20 +587,28 @@ export default function AdminInventoryPage() {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right text-muted-foreground">
-                    {(p.price * p.on_hand).toFixed(2)} AZN
-                  </td>
+                  {isAdmin && (
+                    <td className="px-4 py-3 text-right text-muted-foreground">
+                      {filter === "not_selling" && deadInfoMap.get(p.id)?.capital_tied_up !== undefined
+                        ? `${deadInfoMap.get(p.id)!.capital_tied_up!.toFixed(2)} AZN`
+                        : `${(p.price * p.on_hand).toFixed(2)} AZN`}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
-            {!loading && sortedProducts.length > 0 && (
+            {!loading && sortedProducts.length > 0 && isAdmin && (
               <tfoot>
                 <tr className="border-t-2 border-border bg-muted/20">
                   <td colSpan={7} className="px-4 py-3 font-semibold text-right text-sm">
-                    {filter === "all" && !search && !categoryFilter ? t("Admin.Inventory.totalInventoryValue") : t("Admin.Inventory.subtotalFiltered")}
+                    {filter === "not_selling" && totalDeadCapital !== null
+                      ? t("Admin.Inventory.totalCapitalTiedUp")
+                      : filter === "all" && !search && !categoryFilter ? t("Admin.Inventory.totalInventoryValue") : t("Admin.Inventory.subtotalFiltered")}
                   </td>
                   <td className="px-4 py-3 text-right font-bold text-primary">
-                    {sortedProducts.reduce((sum, p) => sum + p.price * p.on_hand, 0).toFixed(2)} AZN
+                    {filter === "not_selling" && totalDeadCapital !== null
+                      ? `${totalDeadCapital.toFixed(2)} AZN`
+                      : `${sortedProducts.reduce((sum, p) => sum + p.price * p.on_hand, 0).toFixed(2)} AZN`}
                   </td>
                 </tr>
               </tfoot>

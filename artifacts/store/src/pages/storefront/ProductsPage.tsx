@@ -55,7 +55,7 @@ export default function ProductsPage({ locale }: { locale: string }) {
         const { data: inStockAvail } = await (supabase as any)
           .from("product_variant_public_availability")
           .select("product_id")
-          .gt("available_quantity", 0);
+          .or("available_quantity.gt.0,available_quantity.is.null");
         const inStockIds = [...new Set((inStockAvail ?? []).map((r: any) => r.product_id))];
         if (inStockIds.length > 0) {
           query = query.in("id", inStockIds);
@@ -79,9 +79,14 @@ export default function ProductsPage({ locale }: { locale: string }) {
           .select("product_id, available_quantity")
           .in("product_id", productIds);
 
-        const availMap = new Map<string, number>();
+        const availMap = new Map<string, number | null>();
         for (const row of availRows ?? []) {
-          availMap.set(row.product_id, (availMap.get(row.product_id) ?? 0) + Number(row.available_quantity));
+          const cur = availMap.get(row.product_id);
+          if (row.available_quantity === null || cur === null) {
+            availMap.set(row.product_id, null);
+          } else {
+            availMap.set(row.product_id, (cur ?? 0) + Number(row.available_quantity));
+          }
         }
 
         const enriched = data.map((p: any) => {
@@ -380,6 +385,8 @@ export default function ProductsPage({ locale }: { locale: string }) {
                 is_on_sale: product.is_on_sale,
                 is_deal_of_day: product.is_deal_of_day,
                 stock: product.stock,
+                availableStock: product.available_quantity,
+                available_quantity: product.available_quantity,
                 brand: product.brand,
               }))}
               loading={false}

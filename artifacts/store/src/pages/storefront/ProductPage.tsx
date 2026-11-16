@@ -53,8 +53,13 @@ export default function ProductPage({ locale, slug }: { locale: string; slug: st
         (supabase as any).from("product_variant_public_availability").select("available_quantity").eq("product_id", data.id),
       ]);
 
-      const totalAvail = (availRes.data ?? []).reduce((acc: number, r: any) => acc + Number(r.available_quantity), 0);
-      const effectiveStock = availRes.data && availRes.data.length > 0 ? totalAvail : data.stock;
+      const hasUnlimited = (availRes.data ?? []).some((r: any) => r.available_quantity === null);
+      const totalAvail = hasUnlimited
+        ? null
+        : (availRes.data ?? []).reduce((acc: number, r: any) => acc + Number(r.available_quantity), 0);
+      const effectiveStock = hasUnlimited
+        ? null
+        : (availRes.data && availRes.data.length > 0 ? totalAvail : data.stock);
 
       setProduct({
         ...data,

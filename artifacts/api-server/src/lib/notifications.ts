@@ -6,16 +6,20 @@ import {
 
 type NotifType =
   | "order_confirmed"
-  | "status_changed"
-  | "low_stock";
+  | "status_changed";
+
+type NotifChannel = "whatsapp";
 
 export async function queueNotification(params: {
   userId?: string;
   type: NotifType;
-  recipient: string;
+  channel?: NotifChannel;
+  recipient?: string;
   payload: Record<string, any>;
 }): Promise<void> {
-  const { userId, type, recipient, payload } = params;
+  const { userId, type, payload } = params;
+  const channel = params.channel ?? "whatsapp";
+  const recipient = params.recipient || "";
   const admin = getAdminSupabase();
 
   let notifId: string | null = null;
@@ -25,7 +29,7 @@ export async function queueNotification(params: {
       .insert({
         user_id: userId ?? null,
         type,
-        channel: "whatsapp",
+        channel,
         recipient,
         payload,
         status: "pending",

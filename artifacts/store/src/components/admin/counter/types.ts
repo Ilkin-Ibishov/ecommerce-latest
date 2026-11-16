@@ -9,7 +9,7 @@ export interface LookupItem {
   options: { name: string; value: string }[];
   price: number;
   on_hand: number;
-  available: number;
+  available: number | null;
   pack_quantity: number;
   reservations: { reservation_number: string; customer_name: string; quantity: number }[];
 }
@@ -18,7 +18,8 @@ export interface CounterBundle {
   id: string;
   name: string;
   bundle_price: number | null;
-  lines: { variant_id: string; quantity: number; title: string; price: number; on_hand: number }[];
+  available?: number | null;
+  lines: { variant_id: string; quantity: number; title: string; price: number; on_hand: number; track_stock?: boolean; available?: number | null }[];
 }
 
 export interface CartLine {
@@ -29,7 +30,7 @@ export interface CartLine {
   quantity: number;
   unit_price: number;
   on_hand: number;
-  available: number;
+  available: number | null;
   reservations: LookupItem["reservations"];
   bundle_id: string | null;
 }

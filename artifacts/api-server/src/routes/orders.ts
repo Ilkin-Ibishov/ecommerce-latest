@@ -38,9 +38,9 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
   const { data: availRows } = allVariantIds.length > 0
     ? await (admin as any).from("product_variant_availability").select("variant_id, available_quantity").in("variant_id", allVariantIds)
     : { data: [] };
-  const availMap = new Map<string, number>();
+  const availMap = new Map<string, number | null>();
   for (const r of availRows ?? []) {
-    availMap.set(r.variant_id, Number(r.available_quantity));
+    availMap.set(r.variant_id, r.available_quantity === null ? null : Number(r.available_quantity));
   }
   let subtotal = 0;
   const orderItems = [];
@@ -57,7 +57,7 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
     const availableStock = variant
       ? (availMap.has(variant.id) ? availMap.get(variant.id)! : Number(variant.on_hand))
       : (product.stock ?? 0);
-    if (availableStock < item.quantity) {
+    if (availableStock !== null && availableStock < item.quantity) {
       return res.status(400).json({ error: `Insufficient stock`, product_id: item.product_id });
     }
 
@@ -159,7 +159,7 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
     // Order insert failed — roll back all stock decrements
     for (const item of orderItems) {
       const targetId = item.variant_id ?? item.product_id;
-      await incrementStock(admin, targetId, item.quantity).catch((e) =>
+      await incrementStock(admin, targetId, item.quantity, orderId).catch((e) =>
         req.log.error({ error: e, targetId }, "Stock rollback failed after order insert error")
       );
     }
@@ -196,7 +196,7 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
         await admin.from("orders").delete().eq("id", order.id);
         for (const item of orderItems) {
           const targetId = item.variant_id ?? item.product_id;
-          await incrementStock(admin, targetId, item.quantity).catch((e) =>
+          await incrementStock(admin, targetId, item.quantity, order.id).catch((e) =>
             req.log.error({ error: e, targetId }, "Stock rollback failed after per-user coupon limit")
           );
         }
@@ -219,7 +219,7 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
       await admin.from("orders").delete().eq("id", order.id);
       for (const item of orderItems) {
         const targetId = item.variant_id ?? item.product_id;
-        await incrementStock(admin, targetId, item.quantity).catch((e) =>
+        await incrementStock(admin, targetId, item.quantity, order.id).catch((e) =>
           req.log.error({ error: e, targetId }, "Stock rollback failed after coupon limit race")
         );
       }

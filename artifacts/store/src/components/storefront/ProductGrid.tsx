@@ -11,8 +11,9 @@ export interface ProductCardData {
   image?: string | null;
   is_on_sale?: boolean;
   is_deal_of_day?: boolean;
-  stock?: number;
-  availableStock?: number;
+  stock?: number | null;
+  availableStock?: number | null;
+  available_quantity?: number | null;
   brand?: string | null;
   rating?: number | null;
   ratingCount?: number;
@@ -48,7 +49,8 @@ export function ProductGrid({ products, loading, locale, headingLevel }: Product
           isOnSale={product.is_on_sale}
           isDealOfDay={product.is_deal_of_day}
           stock={product.stock}
-          availableStock={product.availableStock ?? product.stock}
+          availableStock={product.availableStock}
+          available_quantity={product.available_quantity}
           brand={product.brand}
           rating={product.rating}
           ratingCount={product.ratingCount}

@@ -59,15 +59,23 @@ router.get("/categories/:slug/products", platformStatus("storefront_read"), asyn
       .select("product_id, available_quantity")
       .in("product_id", productIds);
 
-    const availMap = new Map<string, number>();
+    const availMap = new Map<string, number | null>();
     for (const row of availRows ?? []) {
-      availMap.set(row.product_id, (availMap.get(row.product_id) ?? 0) + Number(row.available_quantity));
+      const cur = availMap.get(row.product_id);
+      if (row.available_quantity === null || cur === null) {
+        availMap.set(row.product_id, null);
+      } else {
+        availMap.set(row.product_id, (cur ?? 0) + Number(row.available_quantity));
+      }
     }
 
     for (const p of products) {
       if (availMap.has(p.id)) {
-        p.stock = availMap.get(p.id)!;
-        (p as any).available_quantity = availMap.get(p.id)!;
+        const val = availMap.get(p.id)!;
+        if (val !== null) {
+          p.stock = val;
+        }
+        (p as { available_quantity?: number | null }).available_quantity = val;
       }
     }
   }

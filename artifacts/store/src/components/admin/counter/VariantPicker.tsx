@@ -31,8 +31,8 @@ export function VariantPicker({ items, onPick, onClose }: {
                 </div>
                 <div className="text-right">
                   <p className="font-medium">{item.price.toFixed(2)} AZN</p>
-                  <p className={`text-xs ${item.available > 0 ? "text-muted-foreground" : "text-destructive"}`}>
-                    {item.available} mövcud
+                  <p className={`text-xs ${item.available === null || item.available > 0 ? "text-muted-foreground" : "text-destructive"}`}>
+                    {item.available === null ? "—" : `${item.available} mövcud`}
                   </p>
                 </div>
               </button>

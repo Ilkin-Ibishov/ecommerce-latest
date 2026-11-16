@@ -105,7 +105,7 @@ export default function CounterPage() {
             {bundles.map((b) => (
               <button key={b.id} type="button" disabled={pending} onClick={() => addBundle(b)}
                 className="rounded-full border border-border px-3 py-1 text-sm hover:bg-muted disabled:opacity-50">
-                + {b.name}{b.bundle_price !== null && ` (${b.bundle_price.toFixed(2)} AZN)`}
+                + {b.name}{b.bundle_price !== null && ` (${b.bundle_price.toFixed(2)} AZN)`}{b.available !== undefined && ` · ${b.available === null ? "—" : `${b.available} mövcud`}`}
               </button>
             ))}
           </div>

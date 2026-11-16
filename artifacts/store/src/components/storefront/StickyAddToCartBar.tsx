@@ -11,7 +11,7 @@ interface StickyAddToCartBarProps {
     title: string;
     price: number;
     image: string | null;
-    stock: number;
+    stock: number | null;
   };
   primaryCtaRef: React.RefObject<HTMLElement | null>;
 }
