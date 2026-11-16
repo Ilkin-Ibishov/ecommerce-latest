@@ -9,7 +9,7 @@ export function LocaleSwitcher({ currentLocale }: { currentLocale: string }) {
     if (locales.includes(parts[0])) parts[0] = newLocale;
     else parts.unshift(newLocale);
     const search = window.location.search || "";
-    window.location.href = `/${parts.join("/")}${search}`;
+    window.location.href = `/${parts.join("/")}${search}${window.location.hash || ""}`;
   };
 
   return (
