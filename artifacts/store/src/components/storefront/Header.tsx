@@ -99,7 +99,7 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
     <>
       <AnnouncementBar />
 
-      <header className="sticky top-0 z-40 bg-[hsl(var(--header-bg,var(--secondary)))] border-b border-[hsl(var(--border))] w-full max-w-full overflow-x-hidden">
+      <header className="sticky top-0 z-40 bg-[hsl(var(--header-bg,var(--secondary)))] border-b border-[hsl(var(--border))] w-full max-w-full overflow-x-clip">
         <div className="container mx-auto px-3 sm:px-4 max-w-full">
 
           {/* Main row */}

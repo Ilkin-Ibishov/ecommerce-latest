@@ -57,7 +57,7 @@ export default function StorefrontFooter({ locale }: { locale: string }) {
   const logoUrl = settings.logo_url;
 
   return (
-    <footer className="border-t border-border bg-secondary text-muted-foreground mt-8 mb-16 md:mb-0 w-full max-w-full overflow-x-hidden">
+    <footer className="border-t border-border bg-secondary text-muted-foreground mt-8 mb-16 md:mb-0 w-full max-w-full overflow-x-clip">
       <div className="container mx-auto px-4 py-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
 

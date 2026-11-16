@@ -8,7 +8,7 @@ export default function AnnouncementBar() {
 
   if (dismissed) return null;
   return (
-    <div className="bg-yellow-500 text-gray-900 text-xs sm:text-sm py-2 px-8 flex items-center justify-center gap-2 relative font-medium w-full max-w-full overflow-x-hidden">
+    <div className="bg-yellow-500 text-gray-900 text-xs sm:text-sm py-2 px-8 flex items-center justify-center gap-2 relative font-medium w-full max-w-full overflow-x-clip">
       <Truck size={14} className="shrink-0" />
       <span className="text-center truncate sm:whitespace-normal">
         {t("AnnouncementBar.message")}
