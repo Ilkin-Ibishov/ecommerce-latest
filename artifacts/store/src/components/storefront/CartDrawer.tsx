@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link } from "wouter";
 import { X, Minus, Plus, ShoppingBag, Trash2, Truck, Tag, ChevronDown, CheckCircle } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
 import { useI18n } from "@/lib/i18n/context";
@@ -44,19 +44,10 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const [location] = useLocation();
-
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => { document.body.style.overflow = ""; };
   }, [open]);
-
-  // Ensure cart drawer is automatically closed when navigating to checkout
-  useEffect(() => {
-    if (open && location.includes("/checkout")) {
-      onClose();
-    }
-  }, [location, open, onClose]);
 
   const deliveryProgress = Math.min(100, (subtotal / FREE_DELIVERY_THRESHOLD) * 100);
   const remaining = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal);
