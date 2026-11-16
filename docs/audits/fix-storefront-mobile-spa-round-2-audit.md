@@ -48,3 +48,16 @@ answers are ignored. No `AbortController` exists, so nothing leaks.
 Nothing was run in a browser. The scroll-lock conclusion is computed from the CSS overflow
 propagation rule (`html` visible → `body`'s overflow propagates to the viewport), not observed.
 The sub-agent ran no tests and no typecheck; CI for this branch is a separate record.
+
+## CI
+
+Run **43849025764** on `14ad31e`, dispatched by hand: **green**. `unit` success; `integration-e2e`
+success — 54 component, 110 integration files / 1179 tests passed with 10 skipped, 1 serial settings
+test, 42 E2E passed with 1 skipped (4.2m). The `counter-sale.spec.ts` "wedge scanner at desktop
+width" case that was flaky on run 43846603768 passed here.
+
+This branch is rebased on `main`, round-2 audited PASS and CI green. **It needs only the owner decision
+to merge.**
+
+Still visible in that run and unrelated to this branch: `tests/orders.test.ts` reports `5 tests | 5
+skipped` — the undeclared `verify` defect recorded in the morning handoff is still live on `main`.
