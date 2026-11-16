@@ -95,47 +95,18 @@ export function SizeGuideOverlay({
 
         {isLoading && <SizeGuideSkeleton />}
 
-        {(!data || isError) && !isLoading && (
-          <div className="space-y-4">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
-                <thead>
-                  <tr className="border-b">
-                    <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Ölçü / Size</th>
-                    <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Sinə / Chest (sm)</th>
-                    <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Bel / Waist (sm)</th>
-                    <th className="px-3 py-2 text-left font-semibold whitespace-nowrap">Omba / Hips (sm)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[
-                    ["XS", "84-88", "68-72", "88-92"],
-                    ["S", "88-92", "72-76", "92-96"],
-                    ["M", "92-96", "76-80", "96-100"],
-                    ["L", "96-102", "80-86", "100-106"],
-                    ["XL", "102-108", "86-92", "106-112"],
-                    ["XXL", "108-114", "92-98", "112-118"],
-                  ].map((row, rowIdx) => (
-                    <tr key={rowIdx} className="border-b last:border-b-0">
-                      {row.map((cell, cellIdx) => (
-                        <td key={cellIdx} className="px-3 py-2 whitespace-nowrap">
-                          {cell}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <div className="pt-2 text-center">
-              <a
-                href={`/${locale}/size-guide`}
-                onClick={() => handleOpenChange(false)}
-                className="text-xs text-primary hover:underline font-medium"
-              >
-                {t("SizeGuide.header")} — {t("Footer.allProducts") || "Bütün ölçülər"} &rarr;
-              </a>
-            </div>
+        {isError && (
+          <div className="text-center py-6">
+            <p className="text-destructive text-sm mb-4">
+              {t("SizeGuide.error")}
+            </p>
+            <button
+              type="button"
+              onClick={() => handleOpenChange(false)}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4"
+            >
+              {t("SizeGuide.close")}
+            </button>
           </div>
         )}
 
