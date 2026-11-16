@@ -547,3 +547,219 @@ ok    no-undispatched-notification-type 0 total, 0 new
 
 All invariant checks passed.
 ```
+
+---
+
+# Audit Notes — fix/counter-sale-confirmation Round 3
+
+**Date:** 2026-11-16  
+**Branch:** `fix/counter-sale-confirmation`  
+**Input:** `prompts/fix-counter-sale-confirmation-round-3.md`  
+
+---
+
+## 1. What Changed Per Item
+
+### Item 1: The scanner never gets focus back after a quantity or tender edit (major)
+- **File:** `artifacts/store/src/components/admin/counter/LookupBox.tsx`
+- **Changes:**
+  - Added an effect that attaches a `focusout` event listener to `document` which refocuses the input via `setTimeout(..., 0)` whenever `document.activeElement` is missing or is `document.body` (and the input is not disabled).
+  - Updated the existing `[disabled, busy]` effect so that a finished lookup only focuses the input if focus has fallen to nothing, to `document.body`, or already on the input, preventing it from stealing focus if the cashier is actively typing in another form element.
+- **Commit:** `fb04463 fix(counter): return scanner focus on focusout and protect active inputs`
+
+### Item 2: A deterministic 5xx freezes the till with no way out (major)
+- **Files:**
+  - `artifacts/store/src/pages/admin/CounterPage.tsx`
+  - `artifacts/store/src/components/admin/counter/CounterCheckoutPanel.tsx`
+  - `artifacts/store/src/lib/i18n/messages/az.ts`
+  - `artifacts/store/src/lib/i18n/messages/ru.ts`
+  - `artifacts/store/src/lib/i18n/messages/en.ts`
+- **Changes:**
+  - In `CounterPage.tsx`:
+    - Added `[failedAttempts, setFailedAttempts] = useState(0)` state.
+    - Added `console.error(data.error)` and `setFailedAttempts((n) => n + 1)` in the `res.status >= 500` branch.
+    - Added `setFailedAttempts((n) => n + 1)` in the `catch` block.
+    - Reset `setFailedAttempts(0)` on successful sale completion and in the `ST020` branch.
+    - Added `discardAttempt` handler resetting `saleId`, clearing `soldAtRef.current`, setting `pending` to false, closing confirm modal, resetting `failedAttempts` to 0, setting outcome error message with `Admin.Counter.discardedCheckSales`, and keeping the cart lines.
+    - Passed `onDiscard={discardAttempt}` and `canDiscard={pending && outcome?.kind === "error" && failedAttempts >= 3}` to `CounterCheckoutPanel`.
+  - In `CounterCheckoutPanel.tsx`:
+    - Destructured and typed `canDiscard?: boolean` and `onDiscard?: () => void`.
+    - Rendered a bordered secondary button directly below the Resend button when `canDiscard` is true, calling `onDiscard` and labelled `t("Admin.Counter.startOver")`.
+  - In `az.ts`, `ru.ts`, `en.ts`:
+    - Added translations for `startOver` and `discardedCheckSales`.
+- **Commit:** `3bf07f7 fix(counter): add discard and start over button after 3 failed attempts`
+
+### Item 3: A null or unparseable JSON body (minor)
+- **File:** `artifacts/store/src/pages/admin/CounterPage.tsx`
+- **Changes:**
+  - Updated JSON body extraction to `(await res.json().catch(() => null)) ?? {}` so a JSON literal `null` cannot cause property access throws.
+  - On the `res.ok` path, verified `data.sale_number` and `data.id`. If either is missing or falsy, avoids clearing the cart and treats it like a server error: closes modal, sets `networkError` outcome, keeps `pending`, keeps `soldAtRef`, and increments `failedAttempts`.
+- **Commit:** `6323070 fix(counter): handle null json response and validate 200 payload fields`
+
+### Item 4: In-SPA navigation while the outcome is unknown (minor)
+- **File:** `artifacts/store/src/pages/admin/CounterPage.tsx`
+- **Changes:**
+  - While `pending` is true, rendered the "Satışlar" link as a non-interactive `<span>` with `className="text-sm text-muted-foreground"` instead of a `<Link>`.
+- **Commit:** `6cf65cb fix(counter): disable sales navigation link while checkout is pending`
+
+---
+
+## 2. Tests Added, Changed, Deleted or Weakened
+
+### Tests Added
+None.
+
+### Tests Changed
+None.
+
+### Tests Deleted or Weakened
+None.
+
+---
+
+## 3. Blocked / Assumptions / Not Verified
+
+- **Not verified:** Nothing here was run in a browser; specifically, Item 1's `focusout` behaviour and Item 2's discard button are unobserved.
+- **Not verified:** The E2E tier (`artifacts/store/tests/e2e/counter-sale.spec.ts`) and integration tier (`api-integration`) were not run locally as they require a running API server, browser, and Supabase credentials; only the offline unit test (`store-unit`, `env-validation`), typecheck, and invariant audit tiers were run.
+- **Blocked:** None.
+- **Assumptions:** None.
+
+---
+
+## 4. Command Output
+
+### `pnpm run typecheck`
+```
+> workspace@0.0.0 typecheck C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\fix-counter-sale
+> pnpm run typecheck:libs && pnpm -r --filter "./artifacts/**" --filter "./scripts" --if-present run typecheck
+
+
+> workspace@0.0.0 typecheck:libs C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\fix-counter-sale
+> tsc --build
+
+Scope: 5 of 11 workspace projects
+artifacts/mockup-sandbox typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/supabase-types typecheck$ tsc -p tsconfig.json --noEmit
+scripts typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/supabase-types typecheck: Done
+scripts typecheck: Done
+artifacts/mockup-sandbox typecheck: Done
+artifacts/api-server typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/store typecheck$ tsc -p tsconfig.json --noEmit
+artifacts/api-server typecheck: Done
+artifacts/store typecheck: Done
+```
+
+### `pnpm test:unit`
+```
+> workspace@0.0.0 test:unit C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\fix-counter-sale
+> vitest --run --project store-unit --project env-validation
+
+ DEPRECATED  The workspace file is deprecated and will be removed in the next major. Please, use the `test.projects` field in the root config file instead.
+
+ RUN  v3.2.6 C:/Users/user/Documents/ecommerce-latest/.claude/worktrees/fix-counter-sale
+
+ ✓ |store-unit| src/lib/settings/theme-engine.property.test.ts (4 tests) 51ms
+ ✓ |store-unit| src/__tests__/admin-list.property.test.ts (7 tests) 54ms
+ ✓ |store-unit| src/__tests__/translated-field.property.test.ts (3 tests) 49ms
+ ✓ |store-unit| src/__tests__/counter-pricing.test.ts (10 tests) 72ms
+ ✓ |store-unit| src/__tests__/cart-validation.test.ts (25 tests) 123ms
+ ✓ |store-unit| src/__tests__/image-proxy.property.test.ts (5 tests) 67ms
+ ✓ |store-unit| src/lib/settings/cms-rendering.property.test.ts (14 tests) 199ms
+ ✓ |store-unit| src/__tests__/order-tracking.property.test.ts (6 tests) 142ms
+ ✓ |store-unit| src/pages/admin/settings/validate-settings.property.test.ts (14 tests) 76ms
+ ✓ |store-unit| src/__tests__/invariant-definer-grants.test.ts (5 tests) 642ms
+ ✓ |store-unit| src/__tests__/costing-engine-replay.property.test.ts (4 tests) 21ms
+ ✓ |store-unit| src/__tests__/heading-hierarchy.property.test.ts (8 tests) 37ms
+ ✓ |store-unit| src/__tests__/i18n-consistency.test.ts (16 tests) 24ms
+ ✓ |store-unit| src/__tests__/invariant-stock-signals.test.ts (7 tests) 900ms
+ ✓ |store-unit| src/__tests__/i18n-split.property.test.ts (2 tests) 35ms
+ ✓ |env-validation| tests/env-validation.test.ts (9 tests) 19ms
+ ✓ |store-unit| src/__tests__/admin-logic.test.ts (32 tests) 22ms
+ ✓ |store-unit| src/__tests__/stocktake-variance.test.ts (24 tests) 18ms
+ ✓ |store-unit| src/__tests__/admin-components.property.test.ts (6 tests) 39ms
+ ✓ |store-unit| src/__tests__/i18n-hardcoded-strings.test.ts (120 tests) 17ms
+ ✓ |store-unit| src/__tests__/brand-marquee.test.ts (8 tests) 175ms
+ ✓ |store-unit| src/__tests__/invariant-counter-sale-payments.test.ts (10 tests) 1263ms
+ ✓ |store-unit| src/lib/settings/storefront-rendering.property.test.ts (11 tests) 317ms
+ ✓ |store-unit| src/__tests__/allow-negative-stock.test.ts (9 tests) 16ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-view-security.test.ts (5 tests) 15ms
+ ✓ |store-unit| src/__tests__/stocktake-posting-integrity.test.ts (19 tests) 11ms
+ ✓ |store-unit| src/lib/settings/context.test.ts (32 tests) 14ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-public-grant.test.ts (3 tests) 12ms
+ ✓ |store-unit| src/__tests__/i18n-preservation.test.ts (36 tests) 10ms
+ ✓ |store-unit| src/__tests__/admin-components.test.ts (17 tests) 13ms
+ ✓ |store-unit| src/__tests__/barcode-pack-quantity.test.ts (6 tests) 11ms
+ ✓ |store-unit| src/__tests__/m1-schema-additions-migration.test.ts (5 tests) 9ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-availability-view.test.ts (3 tests) 7ms
+ ✓ |store-unit| src/__tests__/image-proxy.unit.test.ts (25 tests) 9ms
+ ✓ |store-unit| src/__tests__/admin-i18n.property.test.ts (2 tests) 15ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-fulfilment.test.ts (3 tests) 9ms
+ ✓ |store-unit| src/__tests__/storefront-ux.property.test.ts (25 tests) 1369ms
+   ✓ Property 3: Quick View addItem uses correct variant data > for products with variants, addItem uses the selected variant's price and label  1069ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-order.test.ts (3 tests) 8ms
+ ✓ |store-unit| src/__tests__/queries.test.ts (14 tests) 7ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-suite.test.ts (7 tests) 7ms
+ ✓ |store-unit| src/lib/settings/default-rendering.test.ts (17 tests) 7ms
+ ✓ |store-unit| src/lib/settings/theme-engine.test.ts (15 tests) 8ms
+ ✓ |store-unit| src/__tests__/m4-stock-signals-ui.test.ts (4 tests) 7ms
+ ✓ |store-unit| src/__tests__/m4-null-availability.unit.test.ts (15 tests) 7ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-effective-status.test.ts (2 tests) 7ms
+ ✓ |store-unit| src/__tests__/stocktake-mutation-guards.test.ts (7 tests) 7ms
+ ✓ |store-unit| src/__tests__/fixtures.test.ts (7 tests) 7ms
+ ✓ |store-unit| src/__tests__/m2c-reservations-bypass-and-fulfil.test.ts (3 tests) 8ms
+ ✓ |store-unit| src/__tests__/barcode-matrix-resolution.test.ts (4 tests) 7ms
+ ✓ |store-unit| src/__tests__/receiving-cost-integrity.test.ts (5 tests) 7ms
+ ✓ |store-unit| src/__tests__/staff-cost-reachability.test.ts (6 tests) 7ms
+ ✓ |store-unit| src/__tests__/m4-stock-signals.unit.test.ts (15 tests) 8ms
+ ✓ |store-unit| src/pages/admin/SettingsPage.test.ts (22 tests) 7ms
+ ✓ |store-unit| src/__tests__/invariant-stock-signals-schema.test.ts (4 tests) 6ms
+ ✓ |store-unit| src/__tests__/counter-input.test.ts (8 tests) 5ms
+ ✓ |store-unit| src/__tests__/stocktake-reconciliation.test.ts (4 tests) 6ms
+ ✓ |store-unit| src/__tests__/variant-costs-lifecycle.test.ts (5 tests) 7ms
+ ✓ |store-unit| src/__tests__/unit-cost-privacy.test.ts (3 tests) 6ms
+ ✓ |store-unit| src/__tests__/blind-counting-security.test.ts (4 tests) 5ms
+ ✓ |store-unit| src/__tests__/m2a-admin-ui-components.test.ts (7 tests) 4ms
+ ✓ |store-unit| src/components/admin/ImageCandidateGrid.test.ts (9 tests) 5ms
+ ✓ |store-unit| src/__tests__/margin-report-granularity.test.ts (3 tests) 4ms
+ ✓ |store-unit| src/__tests__/adjustment-role-guards.test.ts (4 tests) 4ms
+ ✓ |store-unit| src/__tests__/stock-adjust-race.test.ts (2 tests) 4ms
+ ✓ |store-unit| src/__tests__/inventory-auth.test.ts (4 tests) 3ms
+ ✓ |store-unit| src/__tests__/checkout-form-security.test.ts (1 test) 29ms
+ ✓ |store-unit| src/__tests__/coupons-page-admin-fetch.test.ts (3 tests) 47ms
+ ✓ |store-unit| src/__tests__/login-modal-profile-reroute.test.ts (2 tests) 52ms
+
+ Test Files  68 passed (68)
+      Tests  749 passed (749)
+   Start at  14:48:19
+   Duration  5.70s (transform 2.18s, setup 0ms, collect 9.74s, tests 6.18s, environment 4.47s, prepare 16.20s)
+```
+
+### `pnpm run audit:invariants`
+```
+> workspace@0.0.0 audit:invariants C:\Users\user\Documents\ecommerce-latest\.claude\worktrees\fix-counter-sale
+> node scripts/audit/check-invariants.mjs
+
+ok    ledger-only-stock-writes         0 total, 0 new
+ok    rls-on-new-tables                0 total, 0 new
+ok    no-has-variants-flag             0 total, 0 new
+ok    no-customer-industry-naming      0 total, 0 new
+ok    reservations-are-not-movements   0 total, 0 new
+ok    on-hand-repair-setting-isolation 0 total, 0 new
+ok    no-direct-variant-costs-writes   0 total, 0 new
+ok    no-cost-column-on-staff-tables   0 total, 0 new
+ok    no-private-columns-on-anon-grants 0 total, 0 new
+ok    no-expected-quantity-on-staff-endpoints 0 total, 0 new
+ok    security-definer-service-role-privileges 0 total, 0 new
+ok    no-client-insert-policy-on-stock-movements 0 total, 0 new
+ok    stocktake-mutations-check-draft-status 0 total, 0 new
+ok    no-on-hand-reads-on-storefront   0 total, 0 new
+ok    no-sensitive-columns-in-exposed-views 0 total, 0 new
+ok    no-client-writes-on-counter-sale-payments 0 total, 0 new
+ok    post-counter-sale-writes-payments 0 total, 0 new
+ok    no-non-tracked-variant-movements 0 total, 0 new
+ok    signals-have-one-derivation      0 total, 0 new
+ok    no-undispatched-notification-type 0 total, 0 new
+
+All invariant checks passed.
+```
