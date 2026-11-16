@@ -13,12 +13,14 @@ import { PaymentConfirmationModal } from "@/components/admin/counter/PaymentConf
 import { ReceiptModal } from "@/components/admin/counter/ReceiptModal";
 import { optionLabel, type CartLine, type CounterBundle, type LookupItem } from "@/components/admin/counter/types";
 import { computeChange } from "@/components/admin/counter/counter-input";
+import { useI18n } from "@/lib/i18n/context";
 
 type Outcome = { kind: "posted" | "needs_owner" | "error"; text: string; saleId?: string };
 
 // The till (M3a). The cart lives here until Complete; after Complete it is frozen until the
 // outcome is known, and a retry resends the same id (design note Q2, audit A10.2).
 export default function CounterPage() {
+  const { t } = useI18n();
   const [lines, setLines] = useState<CartLine[]>([]);
   const [bundles, setBundles] = useState<CounterBundle[]>([]);
   const [picker, setPicker] = useState<LookupItem[] | null>(null);
@@ -85,7 +87,7 @@ export default function CounterPage() {
         soldAtRef.current = null;
         setPending(false);
         setShowConfirm(false);
-        setOutcome({ kind: "error", text: data.error ?? "Xəta" });
+        setOutcome({ kind: "error", text: data.error ?? t("Admin.Counter.errorFallback") });
         return;
       }
       const serverTotal = Number(data.total_amount);
@@ -96,8 +98,8 @@ export default function CounterPage() {
 
       setShowConfirm(false);
       setOutcome(data.status === "needs_owner"
-        ? { kind: "needs_owner", text: `Satış #${data.sale_number} qeyd olundu. Stok sistemdə azdır: sahibkar yoxlamalıdır.`, saleId: data.id }
-        : { kind: "posted", text: `Satış #${data.sale_number} tamamlandı.`, saleId: data.id });
+        ? { kind: "needs_owner", text: t("Admin.Counter.saleNeedsOwner").replace("{saleNumber}", String(data.sale_number)), saleId: data.id }
+        : { kind: "posted", text: t("Admin.Counter.salePosted").replace("{saleNumber}", String(data.sale_number)), saleId: data.id });
       setCompletedReceipt({ id: data.id, tendered: finalTendered, change: finalChange });
       setLines([]);
       setOwnerDiscount("");
@@ -107,7 +109,7 @@ export default function CounterPage() {
       setPending(false);
     } catch {
       setShowConfirm(false);
-      setOutcome({ kind: "error", text: "Bağlantı xətası. Nəticə məlum deyil: yenidən göndərin." });
+      setOutcome({ kind: "error", text: t("Admin.Counter.networkError") });
     }
   };
 
@@ -126,8 +128,8 @@ export default function CounterPage() {
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Kassa</h1>
-          <Link href="/admin/counter/sales" className="text-sm text-primary underline">Satışlar</Link>
+          <h1 className="text-2xl font-bold">{t("Admin.Counter.title")}</h1>
+          <Link href="/admin/counter/sales" className="text-sm text-primary underline">{t("Admin.Counter.salesLink")}</Link>
         </div>
         <LookupBox disabled={pending || !!picker} resetSignal={saleId} onResults={(items) => (items.length === 1 ? addItem(items[0]) : setPicker(items))} />
         {bundles.length > 0 && (
@@ -135,7 +137,7 @@ export default function CounterPage() {
             {bundles.map((b) => (
               <button key={b.id} type="button" disabled={pending} onClick={() => addBundle(b)}
                 className="rounded-full border border-border px-3 py-1 text-sm hover:bg-muted disabled:opacity-50">
-                + {b.name}{b.bundle_price !== null && ` (${b.bundle_price.toFixed(2)} AZN)`}{b.available !== undefined && ` · ${b.available === null ? "—" : `${b.available} mövcud`}`}
+                + {b.name}{b.bundle_price !== null && ` (${b.bundle_price.toFixed(2)} AZN)`}{b.available !== undefined && ` · ${b.available === null ? "—" : t("Admin.Counter.bundleAvailable").replace("{n}", String(b.available))}`}
               </button>
             ))}
           </div>

@@ -1,4 +1,5 @@
 import { Link } from "wouter";
+import { useI18n } from "@/lib/i18n/context";
 
 type Outcome = { kind: "posted" | "needs_owner" | "error"; text: string; saleId?: string };
 
@@ -35,17 +36,18 @@ export function CounterCheckoutPanel({
   onCompleteClick: () => void;
   onViewReceipt: (saleId: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <section className="space-y-3 rounded-xl border border-border p-4">
       {priced.bundle_discount > 0 && (
         <p className="flex justify-between text-sm">
-          <span>Dəst endirimi</span>
+          <span>{t("Admin.Counter.bundleDiscount")}</span>
           <span>−{priced.bundle_discount.toFixed(2)}</span>
         </p>
       )}
       {isOwner && (
         <label className="flex items-center justify-between gap-2 text-sm">
-          Endirim (AZN)
+          {t("Admin.Counter.ownerDiscountLabel")}
           <input
             type="number"
             min="0"
@@ -58,12 +60,12 @@ export function CounterCheckoutPanel({
         </label>
       )}
       <p className="flex justify-between text-2xl font-bold">
-        <span>Cəmi</span>
+        <span>{t("Admin.Counter.total")}</span>
         <span>{priced.total_amount.toFixed(2)} AZN</span>
       </p>
 
       {/* Tender Radio Selector */}
-      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Ödəniş üsulu">
+      <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("Admin.Counter.paymentMethod")}>
         {(["cash", "card", "other"] as const).map((m) => (
           <button
             key={m}
@@ -76,7 +78,7 @@ export function CounterCheckoutPanel({
               payment === m ? "border-primary bg-primary/10 font-semibold" : "border-border"
             }`}
           >
-            {m === "cash" ? "Nağd" : m === "card" ? "Kart" : "Digər"}
+            {m === "cash" ? t("Admin.Counter.paymentCash") : m === "card" ? t("Admin.Counter.paymentCard") : t("Admin.Counter.paymentOther")}
           </button>
         ))}
       </div>
@@ -85,7 +87,7 @@ export function CounterCheckoutPanel({
       {payment === "cash" && (
         <div className="space-y-1.5 rounded-lg border border-border bg-muted/20 p-2.5 text-sm">
           <label className="flex items-center justify-between gap-2">
-            <span className="text-muted-foreground">Təqdim edilən məbləğ:</span>
+            <span className="text-muted-foreground">{t("Admin.Counter.tenderedAmountLabel")}</span>
             <input
               type="number"
               step="0.01"
@@ -99,9 +101,9 @@ export function CounterCheckoutPanel({
           </label>
           {tenderedAmount.trim() !== "" && (
             <p className="flex justify-between text-xs font-medium">
-              <span className="text-muted-foreground">Qalıq:</span>
+              <span className="text-muted-foreground">{t("Admin.Counter.changeLabel")}</span>
               <span className={`tabular-nums ${hasValidCashTender ? "font-bold text-green-600 dark:text-green-400" : "text-destructive"}`}>
-                {hasValidCashTender ? `${changeAmount.toFixed(2)} AZN` : "Məbləğ azdır"}
+                {hasValidCashTender ? `${changeAmount.toFixed(2)} AZN` : t("Admin.Counter.insufficientAmount")}
               </span>
             </p>
           )}
@@ -114,7 +116,7 @@ export function CounterCheckoutPanel({
         disabled={!hasLines || (pending && outcome?.kind !== "error")}
         className="w-full rounded-lg bg-primary py-3 text-lg font-semibold text-primary-foreground disabled:opacity-50"
       >
-        {pending && outcome?.kind === "error" ? "Yenidən göndər" : "Tamamla"}
+        {pending && outcome?.kind === "error" ? t("Admin.Counter.resend") : t("Admin.Counter.complete")}
       </button>
 
       {outcome && (
@@ -131,7 +133,7 @@ export function CounterCheckoutPanel({
               onClick={() => onViewReceipt(outcome.saleId!)}
               className="font-medium underline hover:opacity-80"
             >
-              Qəbzə bax
+              {t("Admin.Counter.viewReceipt")}
             </button>
           )}
         </p>

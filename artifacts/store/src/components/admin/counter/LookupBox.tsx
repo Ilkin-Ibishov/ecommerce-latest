@@ -3,6 +3,7 @@ import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
 import { ScanLine, X } from "lucide-react";
 import type { LookupItem } from "./types";
+import { useI18n } from "@/lib/i18n/context";
 
 // One box for the scanner, a typed barcode and a typed name (M3 spec §7). A scanner is a
 // keyboard that types fast and presses Enter, so the box keeps focus after every action.
@@ -11,6 +12,7 @@ export function LookupBox({ onResults, disabled, resetSignal }: {
   disabled?: boolean;
   resetSignal?: string | number;
 }) {
+  const { t } = useI18n();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [notFound, setNotFound] = useState(false);
@@ -72,8 +74,8 @@ export function LookupBox({ onResults, disabled, resetSignal }: {
             }
           }}
           onBlur={() => { if (!disabled) setTimeout(() => input.current?.focus(), 0); }}
-          placeholder="Barkodu oxudun və ya adı yazın"
-          aria-label="Barkod və ya məhsul adı"
+          placeholder={t("Admin.Counter.lookupPlaceholder")}
+          aria-label={t("Admin.Counter.lookupAriaLabel")}
           className="w-full bg-transparent py-3 text-lg outline-none"
           autoComplete="off"
         />
@@ -82,13 +84,13 @@ export function LookupBox({ onResults, disabled, resetSignal }: {
             type="button"
             onClick={handleClear}
             className="rounded-full p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label="Axtarışı təmizlə"
+            aria-label={t("Admin.Counter.clearSearch")}
           >
             <X className="h-4 w-4" />
           </button>
         )}
       </div>
-      {notFound && <p role="status" className="mt-1 text-sm text-destructive">Tapılmadı</p>}
+      {notFound && <p role="status" className="mt-1 text-sm text-destructive">{t("Admin.Counter.notFound")}</p>}
     </div>
   );
 }

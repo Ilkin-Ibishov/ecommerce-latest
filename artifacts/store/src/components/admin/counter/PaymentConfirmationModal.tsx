@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Banknote, CreditCard, HelpCircle, Loader2 } from "lucide-react";
 import { computeChange } from "./counter-input";
+import { useI18n } from "@/lib/i18n/context";
 
 export function PaymentConfirmationModal({
   open,
@@ -24,6 +25,7 @@ export function PaymentConfirmationModal({
   onTenderedAmountChange: (val: string) => void;
   pending: boolean;
 }) {
+  const { t } = useI18n();
   const tenderedNum = parseFloat(tenderedAmount);
   const isCash = paymentMethod === "cash";
   const hasTendered = tenderedAmount.trim() !== "" && !isNaN(tenderedNum);
@@ -47,16 +49,16 @@ export function PaymentConfirmationModal({
     <Dialog open={open} onOpenChange={(val) => { if (!val && !pending) onClose(); }}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle className="text-xl">Satışı Təsdiqlə</DialogTitle>
+          <DialogTitle className="text-xl">{t("Admin.Counter.confirmSaleTitle")}</DialogTitle>
           <DialogDescription>
-            Ödəniş üsulunu və məbləği yoxlayaraq satışı tamamlayın.
+            {t("Admin.Counter.confirmSaleDescription")}
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
           {/* Total Amount Display */}
           <div className="rounded-xl border border-border bg-muted/40 p-4 text-center">
-            <span className="text-xs uppercase tracking-wider text-muted-foreground">Yekun Məbləğ</span>
+            <span className="text-xs uppercase tracking-wider text-muted-foreground">{t("Admin.Counter.finalAmount")}</span>
             <p className="text-3xl font-bold tracking-tight text-primary">
               {totalAmount.toFixed(2)} <span className="text-lg">AZN</span>
             </p>
@@ -65,9 +67,9 @@ export function PaymentConfirmationModal({
           {/* Payment Method Selector */}
           <div>
             <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">
-              Ödəniş Üsulu
+              {t("Admin.Counter.paymentMethodLabel")}
             </label>
-            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Ödəniş üsulu">
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("Admin.Counter.paymentMethod")}>
               <button
                 type="button"
                 role="radio"
@@ -81,7 +83,7 @@ export function PaymentConfirmationModal({
                 }`}
               >
                 <Banknote className="h-4 w-4" />
-                Nağd
+                {t("Admin.Counter.paymentCash")}
               </button>
               <button
                 type="button"
@@ -96,7 +98,7 @@ export function PaymentConfirmationModal({
                 }`}
               >
                 <CreditCard className="h-4 w-4" />
-                Kart
+                {t("Admin.Counter.paymentCard")}
               </button>
               <button
                 type="button"
@@ -111,7 +113,7 @@ export function PaymentConfirmationModal({
                 }`}
               >
                 <HelpCircle className="h-4 w-4" />
-                Digər
+                {t("Admin.Counter.paymentOther")}
               </button>
             </div>
           </div>
@@ -121,7 +123,7 @@ export function PaymentConfirmationModal({
             <div className="space-y-3 rounded-lg border border-border bg-card p-3.5">
               <div>
                 <label htmlFor="tendered-amount-modal" className="block text-sm font-medium">
-                  Təqdim edilən nağd məbləğ (AZN)
+                  {t("Admin.Counter.tenderedCashLabel")}
                 </label>
                 <input
                   id="tendered-amount-modal"
@@ -147,7 +149,7 @@ export function PaymentConfirmationModal({
                     onClick={() => onTenderedAmountChange(amt.toFixed(2))}
                     className="rounded-md border border-border bg-muted/50 px-2 py-1 text-xs font-medium hover:bg-muted"
                   >
-                    {amt === totalAmount ? `Dəqiq (${amt.toFixed(2)})` : `${amt} AZN`}
+                    {amt === totalAmount ? t("Admin.Counter.exactAmount").replace("{amount}", amt.toFixed(2)) : `${amt} AZN`}
                   </button>
                 ))}
               </div>
@@ -163,18 +165,18 @@ export function PaymentConfirmationModal({
                 >
                   {isSufficient ? (
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold">Qaytarılacaq Qalıq:</span>
+                      <span className="text-sm font-semibold">{t("Admin.Counter.changeDueLabel")}</span>
                       <span className="text-xl font-bold tabular-nums">{changeDue.toFixed(2)} AZN</span>
                     </div>
                   ) : (
                     <p className="text-xs font-medium">
-                      Təqdim edilən məbləğ kifayət deyil ({tenderedNum.toFixed(2)} &lt; {totalAmount.toFixed(2)} AZN)
+                      {t("Admin.Counter.insufficientTender").replace("{tendered}", tenderedNum.toFixed(2)).replace("{total}", totalAmount.toFixed(2))}
                     </p>
                   )}
                 </div>
               ) : (
                 <p className="text-xs text-muted-foreground">
-                  Alıcının ödədiyi məbləği daxil edin (məs: 50 AZN)
+                  {t("Admin.Counter.enterTenderedPrompt")}
                 </p>
               )}
             </div>
@@ -182,13 +184,13 @@ export function PaymentConfirmationModal({
 
           {paymentMethod === "card" && (
             <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-              Müştəridən POS terminal vasitəsilə <strong>{totalAmount.toFixed(2)} AZN</strong> ödəniş qəbul edin və təsdiqləyin.
+              {t("Admin.Counter.cardInstructions").replace("{amount}", totalAmount.toFixed(2))}
             </div>
           )}
 
           {paymentMethod === "other" && (
             <div className="rounded-lg border border-border bg-muted/40 p-3 text-sm text-muted-foreground">
-              Digər ödəniş kanalı ilə <strong>{totalAmount.toFixed(2)} AZN</strong> məbləğində ödəniş qeyd olunacaq.
+              {t("Admin.Counter.otherInstructions").replace("{amount}", totalAmount.toFixed(2))}
             </div>
           )}
         </div>
@@ -200,7 +202,7 @@ export function PaymentConfirmationModal({
             onClick={onClose}
             className="rounded-lg border border-border px-4 py-2.5 text-sm font-medium hover:bg-muted disabled:opacity-50"
           >
-            Ləğv et
+            {t("Admin.Counter.cancel")}
           </button>
           <button
             type="button"
@@ -209,7 +211,7 @@ export function PaymentConfirmationModal({
             className="flex items-center justify-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}
-            Təsdiqlə və Satışı Tamamla
+            {t("Admin.Counter.confirmAndComplete")}
           </button>
         </DialogFooter>
       </DialogContent>
