@@ -77,7 +77,7 @@ export default function CounterPage() {
 
   const addBundle = (b: CounterBundle) => setLines((cur) => [...cur, ...b.lines.map((l) => ({
     key: crypto.randomUUID(), variant_id: l.variant_id, title: l.title, options: "", quantity: l.quantity,
-    unit_price: l.price, on_hand: l.on_hand, available: l.on_hand, reservations: [], bundle_id: b.id,
+    unit_price: l.price, on_hand: l.on_hand, available: l.track_stock === false ? null : l.on_hand, reservations: [], bundle_id: b.id,
   }))]);
 
   const complete = async () => {

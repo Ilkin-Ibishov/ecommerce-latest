@@ -73,7 +73,7 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
     <ul className="divide-y divide-border">
       {lines.map((line, i) => {
         const total = qtyByVariant.get(line.variant_id) ?? line.quantity;
-        const overOnHand = total > line.on_hand;
+        const overOnHand = line.available !== null && total > line.on_hand;
         const overAvailable = !overOnHand && line.available !== null && total > line.available && line.reservations.length > 0;
         return (
           <li key={line.key} className="py-3">
