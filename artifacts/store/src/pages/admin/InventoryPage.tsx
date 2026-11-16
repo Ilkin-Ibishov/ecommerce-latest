@@ -79,6 +79,7 @@ export default function AdminInventoryPage() {
   const [notSellingDays, setNotSellingDays] = useState<number | null>(null);
   const [totalDeadCapital, setTotalDeadCapital] = useState<number | null>(null);
   const [lowStockProductIds, setLowStockProductIds] = useState<Set<string>>(new Set());
+  const [loadError, setLoadError] = useState(false);
 
   // URL query sync
   useEffect(() => {
@@ -117,80 +118,84 @@ export default function AdminInventoryPage() {
   }, [filter, notSellingDays]);
 
   const loadData = async () => {
+    setLoadError(false);
     setLoading(true);
-    const supabase = createClient();
-    const { data: prods } = await supabase
-      .from("products")
-      .select("id, slug, sku, price, stock, brand, product_translations(lang_code, title), product_images(url, sort_order), product_categories(category_id)")
-      .order("stock", { ascending: true });
 
-    let availRows: Array<{
-      product_id: string;
-      on_hand: number;
-      reserved_quantity: number;
-      available_quantity: number | null;
-      deficit_quantity: number;
-    }> = [];
     try {
+      const supabase = createClient();
+      const { data: prods } = await supabase
+        .from("products")
+        .select("id, slug, sku, price, stock, brand, product_translations(lang_code, title), product_images(url, sort_order), product_categories(category_id)")
+        .order("stock", { ascending: true });
+
       const availRes = await adminFetch(apiUrl("/admin/inventory/availability"));
-      if (availRes.ok) {
-        const availData = await availRes.json();
-        availRows = availData.rows ?? [];
+      if (!availRes.ok) {
+        setLoadError(true);
+        setLoading(false);
+        return;
       }
-    } catch {
-      // Non-blocking fallback
-    }
+      const availData = await availRes.json();
+      const availRows: Array<{
+        product_id: string;
+        on_hand: number;
+        reserved_quantity: number;
+        available_quantity: number | null;
+        deficit_quantity: number;
+      }> = availData.rows ?? [];
 
-    const availMap = new Map<string, { on_hand: number; reserved_quantity: number; available_quantity: number | null; deficit_quantity: number }>();
-    for (const row of availRows ?? []) {
-      const cur = availMap.get(row.product_id) ?? { on_hand: 0, reserved_quantity: 0, available_quantity: 0, deficit_quantity: 0 };
-      cur.on_hand += Number(row.on_hand ?? 0);
-      cur.reserved_quantity += Number(row.reserved_quantity ?? 0);
-      if (row.available_quantity === null || cur.available_quantity === null) {
-        cur.available_quantity = null;
-      } else {
-        cur.available_quantity += Number(row.available_quantity ?? 0);
-      }
-      cur.deficit_quantity += Number(row.deficit_quantity ?? 0);
-      availMap.set(row.product_id, cur);
-    }
-
-    try {
       const lowRes = await adminFetch(apiUrl("/admin/inventory/signals/low-stock"));
-      if (lowRes.ok) {
-        const lowData = await lowRes.json();
-        setLowStockProductIds(new Set((lowData.variants ?? []).map((v: any) => v.product_id)));
+      if (!lowRes.ok) {
+        setLoadError(true);
+        setLoading(false);
+        return;
       }
+      const lowData = await lowRes.json();
+      setLowStockProductIds(new Set((lowData.variants ?? []).map((v: any) => v.product_id)));
+
+      const availMap = new Map<string, { on_hand: number; reserved_quantity: number; available_quantity: number | null; deficit_quantity: number }>();
+      for (const row of availRows) {
+        const cur = availMap.get(row.product_id) ?? { on_hand: 0, reserved_quantity: 0, available_quantity: 0, deficit_quantity: 0 };
+        cur.on_hand += Number(row.on_hand ?? 0);
+        cur.reserved_quantity += Number(row.reserved_quantity ?? 0);
+        if (row.available_quantity === null || cur.available_quantity === null) {
+          cur.available_quantity = null;
+        } else {
+          cur.available_quantity += Number(row.available_quantity ?? 0);
+        }
+        cur.deficit_quantity += Number(row.deficit_quantity ?? 0);
+        availMap.set(row.product_id, cur);
+      }
+
+      const mapped: InventoryProduct[] = (prods ?? []).map((p) => {
+        const av = availMap.get(p.id);
+        const onHand = av ? av.on_hand : 0;
+        const reserved = av ? av.reserved_quantity : 0;
+        const available = av ? av.available_quantity : 0;
+        const deficit = av ? av.deficit_quantity : 0;
+
+        return {
+          id: p.id,
+          slug: p.slug,
+          sku: p.sku ?? null,
+          price: Number(p.price),
+          stock: onHand,
+          on_hand: onHand,
+          reserved_quantity: reserved,
+          available_quantity: available,
+          deficit_quantity: deficit,
+          brand: p.brand ?? null,
+          title: getTranslatedField(p.product_translations, "az", "title", "Unknown"),
+          image: [...(p.product_images ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0]?.url ?? null,
+          categoryIds: (p.product_categories ?? []).map((pc) => pc.category_id),
+        };
+      });
+
+      setProducts(mapped);
+      setLoading(false);
     } catch {
-      // Non-blocking fallback
+      setLoadError(true);
+      setLoading(false);
     }
-
-    const mapped: InventoryProduct[] = (prods ?? []).map((p) => {
-      const av = availMap.get(p.id);
-      const onHand = av ? av.on_hand : Number(p.stock);
-      const reserved = av ? av.reserved_quantity : 0;
-      const available = av ? av.available_quantity : Math.max(0, onHand - reserved);
-      const deficit = av ? av.deficit_quantity : Math.max(0, reserved - onHand);
-
-      return {
-        id: p.id,
-        slug: p.slug,
-        sku: p.sku ?? null,
-        price: Number(p.price),
-        stock: onHand,
-        on_hand: onHand,
-        reserved_quantity: reserved,
-        available_quantity: available,
-        deficit_quantity: deficit,
-        brand: p.brand ?? null,
-        title: getTranslatedField(p.product_translations, "az", "title", "Unknown"),
-        image: [...(p.product_images ?? [])].sort((a, b) => a.sort_order - b.sort_order)[0]?.url ?? null,
-        categoryIds: (p.product_categories ?? []).map((pc) => pc.category_id),
-      };
-    });
-
-    setProducts(mapped);
-    setLoading(false);
   };
 
   useEffect(() => {
@@ -205,9 +210,7 @@ export default function AdminInventoryPage() {
 
   // Derived stats
   const outOfStock = products.filter((p) => p.available_quantity !== null && p.available_quantity === 0).length;
-  const lowStock = lowStockProductIds.size > 0
-    ? products.filter((p) => lowStockProductIds.has(p.id) && p.available_quantity !== null && p.available_quantity > 0).length
-    : products.filter((p) => p.available_quantity !== null && p.available_quantity > 0 && p.available_quantity < 10).length;
+  const lowStock = products.filter((p) => lowStockProductIds.has(p.id) && p.available_quantity !== null && p.available_quantity > 0).length;
   const healthyStock = products.filter((p) => p.available_quantity === null || p.available_quantity >= 10).length;
   const deficitCount = products.filter((p) => p.deficit_quantity > 0).length;
   const totalValue = products.reduce((sum, p) => sum + p.price * p.on_hand, 0);
@@ -217,9 +220,7 @@ export default function AdminInventoryPage() {
     .filter((p) => {
       if (filter === "out_of_stock") return p.available_quantity !== null && p.available_quantity === 0;
       if (filter === "low_stock") {
-        return lowStockProductIds.size > 0
-          ? lowStockProductIds.has(p.id)
-          : (p.available_quantity !== null && p.available_quantity > 0 && p.available_quantity < 10);
+        return lowStockProductIds.has(p.id);
       }
       if (filter === "not_selling") return deadProductIds.has(p.id);
       if (filter === "healthy") return p.available_quantity === null || p.available_quantity >= 10;
@@ -338,7 +339,7 @@ export default function AdminInventoryPage() {
             <ClipboardCheck size={15} className="text-primary" />
             Physical Stocktake
           </Link>
-          {!loading && isAdmin && (
+          {!loading && !loadError && isAdmin && (
             <p className="text-sm text-muted-foreground ml-2">
               {t("Admin.Inventory.totalValue")} <span className="font-semibold text-foreground">{totalValue.toFixed(2)} AZN</span>
             </p>
@@ -346,7 +347,20 @@ export default function AdminInventoryPage() {
         </div>
       </div>
 
-      {/* Summary cards */}
+      {loadError ? (
+        <div role="alert" className="bg-destructive/10 border border-destructive/20 rounded-xl p-6 flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-destructive">{t("Admin.Common.networkError")}</p>
+          <button
+            type="button"
+            onClick={loadData}
+            className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition shadow-sm"
+          >
+            {t("Admin.Common.retry")}
+          </button>
+        </div>
+      ) : (
+        <>
+          {/* Summary cards */}
       {loading ? (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
@@ -620,6 +634,8 @@ export default function AdminInventoryPage() {
           </table>
         </div>
       </div>
+      </>
+      )}
 
       <CreateDepositModal
         open={createDepositOpen}
