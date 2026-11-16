@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Banknote, CreditCard, HelpCircle, Loader2 } from "lucide-react";
+import { computeChange } from "./counter-input";
 
 export function PaymentConfirmationModal({
   open,
@@ -26,8 +27,7 @@ export function PaymentConfirmationModal({
   const tenderedNum = parseFloat(tenderedAmount);
   const isCash = paymentMethod === "cash";
   const hasTendered = tenderedAmount.trim() !== "" && !isNaN(tenderedNum);
-  const isSufficient = hasTendered && tenderedNum >= totalAmount;
-  const changeDue = isSufficient ? Math.round((tenderedNum - totalAmount) * 100) / 100 : 0;
+  const { sufficient: isSufficient, change: changeDue } = computeChange(tenderedAmount, totalAmount);
 
   // Quick cash note suggestions (e.g. 10, 20, 50, 100 AZN)
   const quickSuggestions = useMemo(() => {

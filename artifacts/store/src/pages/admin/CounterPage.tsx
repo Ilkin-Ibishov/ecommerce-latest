@@ -12,6 +12,7 @@ import { CounterCheckoutPanel } from "@/components/admin/counter/CounterCheckout
 import { PaymentConfirmationModal } from "@/components/admin/counter/PaymentConfirmationModal";
 import { ReceiptModal } from "@/components/admin/counter/ReceiptModal";
 import { optionLabel, type CartLine, type CounterBundle, type LookupItem } from "@/components/admin/counter/types";
+import { computeChange } from "@/components/admin/counter/counter-input";
 
 type Outcome = { kind: "posted" | "needs_owner" | "error"; text: string; saleId?: string };
 
@@ -87,9 +88,11 @@ export default function CounterPage() {
         setOutcome({ kind: "error", text: data.error ?? "Xəta" });
         return;
       }
+      const serverTotal = Number(data.total_amount);
+      const { change: serverChange } = computeChange(tenderedAmount, serverTotal);
       const tNum = parseFloat(tenderedAmount);
       const finalTendered = payment === "cash" && !isNaN(tNum) ? tNum : null;
-      const finalChange = finalTendered !== null ? Math.max(0, finalTendered - priced.total_amount) : null;
+      const finalChange = finalTendered !== null && serverTotal === priced.total_amount ? serverChange : null;
 
       setShowConfirm(false);
       setOutcome(data.status === "needs_owner"
@@ -116,9 +119,8 @@ export default function CounterPage() {
     setShowConfirm(true);
   };
 
-  const tenderedNum = parseFloat(tenderedAmount);
-  const hasValidCashTender = payment !== "cash" || (!isNaN(tenderedNum) && tenderedNum >= priced.total_amount);
-  const changeAmount = !isNaN(tenderedNum) && tenderedNum >= priced.total_amount ? tenderedNum - priced.total_amount : 0;
+  const { sufficient, change: changeAmount } = computeChange(tenderedAmount, priced.total_amount);
+  const hasValidCashTender = payment !== "cash" || sufficient;
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
