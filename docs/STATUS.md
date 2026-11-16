@@ -1,9 +1,118 @@
 # Project status — handoff
 
-Last updated: 2026-11-15. Written as the entry point for a new session. Everything referenced here
+Last updated: 2026-11-16. Written as the entry point for a new session. Everything referenced here
 lives in this repository; nothing important is only in a chat transcript.
 
-## Start here — first thing to do in a new session (2026-11-15)
+## Start here — first thing to do in a new session (2026-11-16)
+
+**M4 is green in CI, fully audited and ready to merge. Nothing is running.** Three owner answers
+gate everything else; ask for them before starting new work.
+
+**Do this first:** confirm M4 is still mergeable, then ask the owner the three questions below.
+
+```bash
+gh run view 43744363132 --json conclusion --jq .conclusion
+git fetch -q origin && git merge-tree --write-tree origin/main origin/m4/stock-signals-core >/dev/null && echo clean
+```
+
+Then read `prompts/session-start-orchestrator.md` (your role) and
+`docs/audits/m4-architect-audit.md` from "Fix round 3 — verification" to the end.
+
+### Waiting on the owner — in this order
+
+1. **Merge M4?** `m4/stock-signals-core` at `4167681`: 52 commits ahead of `main`, merges cleanly,
+   CI run 43744363132 green (`unit` + `integration-e2e`). Asked at the end of the session, no answer.
+2. **Production schema — urgent.** Run on the production database and paste the result:
+   `select table_name, column_name, is_nullable, column_default from information_schema.columns where table_name in ('orders', 'product_specs') order by 1, ordinal_position;`
+   On the **test project** `orders.subtotal_azn` is `NOT NULL` with no default and `routes/orders.ts`
+   never writes it, so **`POST /orders` cannot succeed there** (0 orders exist; no test has ever
+   created one). If production is the same, **online orders fail in production today.** The answer
+   also unblocks the `database.types.ts` regeneration and the delivery-fee migrations.
+3. **Review two design notes** (written by the architect, not by an agent):
+   `design/delivery-fee` (`bc754b6`, `docs/design-notes/delivery-fee.md`) and
+   `design/staff-provisioning` (`d471185`, `docs/design-notes/staff-provisioning.md`).
+   Neither phase may start implementation before approval.
+
+### What changed this session
+
+- **M4 finished.** Round 3 (`prompts/m4-fix-round-3.md`) fixed CI causes C1–C4; two more test-setup
+  errors fixed by the architect (`stocktake_lines.counter_id`; `reservations.reservation_number` and
+  `agreed_price`). **Cross-family adversarial audit** run once (Claude auditor, clean context, prompt
+  `prompts/m4-audit.md` on branch `prompts/m4-audit`): verdict FIX, 4 majors, 9 minors, report
+  `docs/audits/m4-stock-signals-audit.md` on `audit/m4-stock-signals-core` (`ffaf356`). All four majors
+  confirmed against code and fixed in round 4 (`prompts/m4-fix-round-4.md`): non-tracked revenue in
+  the margin report, cancelled orders netted out of velocity and dead stock, inventory page reads
+  availability through an API route, mobile sticky bar for unlimited items.
+- **Two new migrations applied to the test project** with owner approval:
+  `20261116100000_m4_margin_report_non_tracked.sql`, `20261116100100_m4_signals_net_order_returns.sql`.
+  Dry-run first as `pg_temp` copies in a rolled-back transaction; `md5(prosrc)` verified after.
+- **`database.types.ts` regeneration: blocked**, not a merge blocker. Generated types from the test
+  project break typecheck on drift M4 did not cause: `product_specs` does not exist on the test
+  project (only DDL is the runtime string in `routes/migration.ts:15`), `orders.subtotal_azn` (above).
+- **OTP bypass fixed** on `fix/otp-bypass-production` (`fef34e1`, pushed, **not merged**): the fixed
+  code `999999` and the rate-limit exemption are off where `NODE_ENV=production`. Offline test added.
+  Notes: `docs/audits/fix-otp-bypass-production-notes.md` on that branch. Railway's `NODE_ENV` not checked.
+- **Design notes** for delivery fee and staff provisioning (above). Both found defects on `main`:
+  - `routes/auth.ts:98-102`: sign-in can **demote a staff/admin row stored in the legacy `994…`
+    phone format to `customer`** (service-role upsert with `role: "customer"`).
+  - `tests/orders.test.ts:83` reads an undeclared `verify`, so every orders integration test skips
+    silently on every CI run.
+  - Checkout price refresh updates quantity but not price; `/products/prices` returns
+    `products.price` while orders charge the default variant's price.
+- **Test project facts** (read-only queries): 55 `admin` rows (fixtures); one bypass phone holds
+  `admin`, one `staff` (E2E depends on `+994550000001` being admin); `audit_log` exists but has no
+  tracked DDL.
+
+### Still open, ordered by what blocks what
+
+1. Owner answers above. **Do not merge anything to `main` without the owner's yes.**
+2. After M4 merges: rebase and run the fix rounds of `fix/counter-sale-confirmation` and
+   `fix/storefront-mobile-spa` (see "Branches that are not mergeable" below — still true); M4b
+   (`docs/tasks/m4b-store-notifications.md`) may start; the admin fixes listed below are rebuilt after
+   staff provisioning.
+3. After the production answer: regenerate `database.types.ts` (Supabase MCP
+   `generate_typescript_types`), then remove the four `as any` in the M4 integration tests that exist
+   only because the RPCs are missing from the types.
+4. After design-note approval: delivery-fee commit 1 (fix `orders.test.ts`) and the
+   `subtotal_azn` reconcile migration are urgent on their own if production matches the test project.
+   The `auth.ts` demotion fix can go ahead as a simple fix if the owner wants it before staff provisioning.
+5. `fix/otp-bypass-production`: needs a PR and the owner's merge. Staff provisioning assumes it may
+   or may not land and is safe either way.
+6. M4 follow-ups, recorded not fixed: audit minors 5, 6, 7, 9–13; the dashboard's old `stock < 10`
+   banner beside the new card; `InventoryPage.tsx` falls back silently to `products.stock` if the new
+   endpoint fails.
+
+### Rules the owner set this session
+
+- **Design notes and specs are written by the architect (main session) only** — never by AGY or a
+  sub-agent. Sub-agents are for read-only audits and mechanical work; run independent ones in parallel.
+
+### Operational notes from this session
+
+- **A hook blocks the Write tool on another worktree's files.** To change a branch checked out
+  elsewhere (e.g. `m4/stock-signals-core` in `.claude/worktrees/sessiyaya-basla-240a51`): in your own
+  worktree `git checkout -b <tmp> origin/<branch>`, commit, `git push origin <tmp>:<branch>`, then
+  `git -C <other-worktree> pull --ff-only origin <branch>` before the builder runs there.
+  This session used a local branch `m4/types` that way; it equals `m4/stock-signals-core` and can be deleted.
+- **Agent `isolation: "worktree"` bases the new worktree on your current branch, not `main`.** Tell
+  the agent which branch to check out; files on other branches are not there.
+- **Integration-test setup errors cost one CI run each.** Before dispatching, check every insert in a
+  new test against all `NOT NULL` columns of its table, not just the one CI named.
+- **Dry-running SQL works through MCP `execute_sql`:** `BEGIN; CREATE OR REPLACE FUNCTION pg_temp.<name> …;
+  SELECT … pg_temp.<name>(…) beside public.<name>(…); ROLLBACK;`. Compare row counts with the live
+  function to see the effect before applying.
+- **md5 check after applying:** hash the file's body between `$$` and `$$;` with full-line `--`
+  comments removed (that is what was applied) and compare with `md5(prosrc)`.
+- `generate_typescript_types` output (~88 KB) is saved to a file by the harness; extract with
+  `JSON.parse(...).types` in Node.
+- CI wait: `gh run watch <id> --exit-status` in the background, then `gh run view <id> --log-failed`.
+- **Unknown local branch** `audit/m4-stock-signals` (`a3c3b21`, "M4 stock signals architect audit"),
+  unpushed, from an earlier session — not read. Do not overwrite it.
+- Removable worktrees: `.claude/worktrees/agent-ab67900ee44e54045` (auditor; branch pushed).
+  `draft/delivery-fee-subagent` (`8ec9c8c`, pushed) is a sub-agent's superseded draft, kept for reference only.
+
+## Previously — the 2026-11-15 session (superseded where the section above disagrees)
+
 
 **M4 is built, its migrations are applied to the test project, and its CI is red for four known
 causes. The fix prompt is written and not launched.**
