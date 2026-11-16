@@ -43,6 +43,17 @@ export default function CounterPage() {
     });
   }, []);
 
+  useEffect(() => {
+    if (!pending) return;
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [pending]);
+
   const priced = useMemo(() => priceCounterSale(
     lines.map((l, i) => ({ line_no: i + 1, variant_id: l.variant_id, quantity: l.quantity, charged_unit_price: l.unit_price, bundle_id: l.bundle_id })),
     bundles.map((b) => ({ id: b.id, bundle_price: b.bundle_price, lines: b.lines })),
