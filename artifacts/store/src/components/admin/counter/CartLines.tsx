@@ -39,13 +39,7 @@ function QuantityCell({
       disabled={disabled}
       value={val}
       aria-label={t("Admin.Counter.quantity")}
-      onChange={(e) => {
-        setVal(e.target.value);
-        const q = parseQuantity(e.target.value);
-        if (q !== null && q !== quantity) {
-          onChange(q);
-        }
-      }}
+      onChange={(e) => setVal(e.target.value)}
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
@@ -100,7 +94,7 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
                   disabled={locked}
                   onChange={(q) => onQuantity(line.key, q)}
                 />
-                <button type="button" aria-label={t("Admin.Counter.increase")} disabled={locked}
+                <button type="button" aria-label={t("Admin.Counter.increase")} disabled={locked || line.quantity >= 9999}
                   onClick={() => onQuantity(line.key, line.quantity + 1)}
                   className="rounded-md border border-border p-2 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
               </div>
