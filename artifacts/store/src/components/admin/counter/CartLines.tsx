@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { Minus, Plus, Trash2, AlertTriangle } from "lucide-react";
 import type { CartLine } from "./types";
 import { parseQuantity } from "./counter-input";
+import { useI18n } from "@/lib/i18n/context";
 
 function QuantityCell({
   quantity,
@@ -12,6 +13,7 @@ function QuantityCell({
   disabled: boolean;
   onChange: (q: number) => void;
 }) {
+  const { t } = useI18n();
   const [val, setVal] = useState<string>(String(quantity));
 
   useEffect(() => {
@@ -36,7 +38,7 @@ function QuantityCell({
       min="1"
       disabled={disabled}
       value={val}
-      aria-label="Miqdar"
+      aria-label={t("Admin.Counter.quantity")}
       onChange={(e) => {
         setVal(e.target.value);
         const q = parseQuantity(e.target.value);
@@ -66,8 +68,9 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
   onQuantity: (key: string, quantity: number) => void;
   onRemove: (key: string) => void;
 }) {
+  const { t } = useI18n();
   if (lines.length === 0) {
-    return <p className="py-10 text-center text-muted-foreground">Səbət boşdur</p>;
+    return <p className="py-10 text-center text-muted-foreground">{t("Admin.Counter.cartEmpty")}</p>;
   }
   const qtyByVariant = new Map<string, number>();
   lines.forEach((l) => qtyByVariant.set(l.variant_id, (qtyByVariant.get(l.variant_id) ?? 0) + l.quantity));
@@ -85,11 +88,11 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
                 <p className="truncate font-medium">{line.title}</p>
                 <p className="text-sm text-muted-foreground">
                   {line.options}{line.options && " · "}{line.unit_price.toFixed(2)} AZN
-                  {line.bundle_id && <span className="ml-2 rounded bg-muted px-1.5 text-xs">dəst</span>}
+                  {line.bundle_id && <span className="ml-2 rounded bg-muted px-1.5 text-xs">{t("Admin.Counter.bundleBadge")}</span>}
                 </p>
               </div>
               <div className="flex items-center gap-1">
-                <button type="button" aria-label="Azalt" disabled={locked || line.quantity <= 1}
+                <button type="button" aria-label={t("Admin.Counter.decrease")} disabled={locked || line.quantity <= 1}
                   onClick={() => onQuantity(line.key, line.quantity - 1)}
                   className="rounded-md border border-border p-2 disabled:opacity-40"><Minus className="h-4 w-4" /></button>
                 <QuantityCell
@@ -97,12 +100,12 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
                   disabled={locked}
                   onChange={(q) => onQuantity(line.key, q)}
                 />
-                <button type="button" aria-label="Artır" disabled={locked}
+                <button type="button" aria-label={t("Admin.Counter.increase")} disabled={locked}
                   onClick={() => onQuantity(line.key, line.quantity + 1)}
                   className="rounded-md border border-border p-2 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
               </div>
               <p className="w-24 text-right font-semibold tabular-nums">{(nets[i] ?? 0).toFixed(2)}</p>
-              <button type="button" aria-label="Sil" disabled={locked} onClick={() => onRemove(line.key)}
+              <button type="button" aria-label={t("Admin.Counter.remove")} disabled={locked} onClick={() => onRemove(line.key)}
                 className="rounded-md p-2 text-muted-foreground hover:text-destructive disabled:opacity-40">
                 <Trash2 className="h-4 w-4" />
               </button>
@@ -110,13 +113,13 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
             {overOnHand && (
               <p className="mt-1 flex items-center gap-1 text-sm text-amber-700">
                 <AlertTriangle className="h-4 w-4" aria-hidden />
-                Sistemdə {line.on_hand} ədəd var. Satış qeyd olunacaq, sahibkar stoku yoxlamalıdır.
+                {t("Admin.Counter.stockWarningOnHand").replace("{n}", String(line.on_hand))}
               </p>
             )}
             {overAvailable && (
               <p className="mt-1 flex items-center gap-1 text-sm text-amber-700">
                 <AlertTriangle className="h-4 w-4" aria-hidden />
-                Rezervdədir: {line.reservations.map((r) => `${r.customer_name} (${r.quantity}, ${r.reservation_number})`).join(", ")}
+                {t("Admin.Counter.stockWarningReserved").replace("{reservations}", line.reservations.map((r) => `${r.customer_name} (${r.quantity}, ${r.reservation_number})`).join(", "))}
               </p>
             )}
           </li>
