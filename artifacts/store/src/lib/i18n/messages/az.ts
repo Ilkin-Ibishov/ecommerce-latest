@@ -1181,6 +1181,8 @@ const az = {
         statusVoided: "Ləğv edilib",
         voidPrompt: "Satış #{saleNumber} ləğv edilsin. Səbəb:",
         voidSale: "Ləğv et",
+        startOver: "Ləğv et və yenidən başla",
+        discardedCheckSales: "Satış ləğv edildi. Yenidən vurmadan əvvəl satışlar siyahısını yoxlayın.",
         amountMismatch: "ekran məbləği fərqli",
         postPendingStock: "Stokdan çıx",
         tabAll: "Hamısı",

@@ -17,6 +17,8 @@ export function CounterCheckoutPanel({
   hasLines,
   onCompleteClick,
   onViewReceipt,
+  canDiscard,
+  onDiscard,
 }: {
   priced: { bundle_discount: number; total_amount: number };
   isOwner: boolean;
@@ -33,6 +35,8 @@ export function CounterCheckoutPanel({
   hasLines: boolean;
   onCompleteClick: () => void;
   onViewReceipt: (saleId: string) => void;
+  canDiscard?: boolean;
+  onDiscard?: () => void;
 }) {
   const { t } = useI18n();
   return (
@@ -116,6 +120,16 @@ export function CounterCheckoutPanel({
       >
         {pending && outcome?.kind === "error" ? t("Admin.Counter.resend") : t("Admin.Counter.complete")}
       </button>
+
+      {canDiscard && (
+        <button
+          type="button"
+          onClick={onDiscard}
+          className="w-full rounded-lg border border-border py-2 text-sm font-semibold hover:bg-muted"
+        >
+          {t("Admin.Counter.startOver")}
+        </button>
+      )}
 
       {outcome && (
         <p

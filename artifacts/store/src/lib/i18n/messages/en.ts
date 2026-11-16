@@ -1181,6 +1181,8 @@ const en = {
         statusVoided: "Voided",
         voidPrompt: "Void sale #{saleNumber}. Reason:",
         voidSale: "Void",
+        startOver: "Discard and start over",
+        discardedCheckSales: "Sale discarded. Check the sales list before ringing it again.",
         amountMismatch: "screen amount differs",
         postPendingStock: "Post stock",
         tabAll: "All",

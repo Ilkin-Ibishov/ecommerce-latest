@@ -1181,6 +1181,8 @@ const ru = {
         statusVoided: "Аннулирована",
         voidPrompt: "Аннулировать продажу #{saleNumber}. Причина:",
         voidSale: "Аннулировать",
+        startOver: "Отменить и начать заново",
+        discardedCheckSales: "Продажа отменена. Перед повторным оформлением проверьте список продаж.",
         amountMismatch: "сумма на экране отличается",
         postPendingStock: "Списать со склада",
         tabAll: "Все",

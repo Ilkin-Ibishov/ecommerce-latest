@@ -28,6 +28,7 @@ export default function CounterPage() {
   const [isOwner, setIsOwner] = useState(false);
   const [saleId, setSaleId] = useState(() => crypto.randomUUID());
   const [pending, setPending] = useState(false); // Complete sent, outcome unknown
+  const [failedAttempts, setFailedAttempts] = useState(0);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [completedReceipt, setCompletedReceipt] = useState<{ id: string; tendered?: number | null; change?: number | null } | null>(null);
@@ -95,6 +96,8 @@ export default function CounterPage() {
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         if (res.status >= 500) {
+          console.error(data.error);
+          setFailedAttempts((n) => n + 1);
           setShowConfirm(false);
           setOutcome({ kind: "error", text: t("Admin.Counter.networkError") });
           return;
@@ -105,6 +108,7 @@ export default function CounterPage() {
           setSaleId(crypto.randomUUID());
           soldAtRef.current = null;
           setPending(false);
+          setFailedAttempts(0);
           return;
         }
         soldAtRef.current = null;
@@ -130,7 +134,9 @@ export default function CounterPage() {
       setSaleId(crypto.randomUUID());
       soldAtRef.current = null;
       setPending(false);
+      setFailedAttempts(0);
     } catch {
+      setFailedAttempts((n) => n + 1);
       setShowConfirm(false);
       setOutcome({ kind: "error", text: t("Admin.Counter.networkError") });
     }
@@ -142,6 +148,15 @@ export default function CounterPage() {
       return;
     }
     setShowConfirm(true);
+  };
+
+  const discardAttempt = () => {
+    setSaleId(crypto.randomUUID());
+    soldAtRef.current = null;
+    setPending(false);
+    setShowConfirm(false);
+    setFailedAttempts(0);
+    setOutcome({ kind: "error", text: t("Admin.Counter.discardedCheckSales") });
   };
 
   const { sufficient, change: changeAmount } = computeChange(tenderedAmount, priced.total_amount);
@@ -194,6 +209,8 @@ export default function CounterPage() {
           hasLines={lines.length > 0}
           onCompleteClick={handleOpenConfirm}
           onViewReceipt={(id) => setCompletedReceipt({ id })}
+          onDiscard={discardAttempt}
+          canDiscard={pending && outcome?.kind === "error" && failedAttempts >= 3}
         />
         <PickupPanel />
       </aside>
