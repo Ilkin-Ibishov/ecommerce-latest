@@ -535,7 +535,6 @@
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 
-html,
 body {
   max-width: 100%;
   overflow-x: clip;
