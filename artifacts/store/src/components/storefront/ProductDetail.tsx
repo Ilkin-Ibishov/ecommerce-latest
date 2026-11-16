@@ -150,16 +150,7 @@ export default function ProductDetail({ product, images, translation, comments: 
     getTranslatedField(p.product_translations, locale, "title", "Məhsul");
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Breadcrumb */}
-      <nav className="text-sm text-muted-foreground mb-6 flex items-center gap-1 flex-wrap">
-        <a href={`/${locale}`} className="hover:text-foreground">{t("ProductDetail.home")}</a>
-        <span>/</span>
-        <a href={`/${locale}/products`} className="hover:text-foreground">{t("ProductDetail.productsLink")}</a>
-        <span>/</span>
-        <span className="text-foreground">{translation.title}</span>
-      </nav>
-
+    <div className="py-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-10 mb-16">
         {/* Image gallery */}
         <div className="space-y-3">

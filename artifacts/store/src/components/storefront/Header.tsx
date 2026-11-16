@@ -70,7 +70,14 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
   };
 
   const storeName = getStoreName(locale);
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
+
+  // Automatically close cart, mobile nav, and search on any route navigation
+  useEffect(() => {
+    setCartOpen(false);
+    setMobileOpen(false);
+    setSearchOpen(false);
+  }, [location]);
 
   // Cart badge bounce animation on add-to-cart success
   const badgeRef = useRef<HTMLSpanElement>(null);
@@ -92,22 +99,22 @@ export default function StorefrontHeader({ locale }: { locale: string }) {
     <>
       <AnnouncementBar />
 
-      <header className="sticky top-0 z-40 bg-[hsl(var(--header-bg,var(--secondary)))] border-b border-[hsl(var(--border))]">
-        <div className="container mx-auto px-3 sm:px-4">
+      <header className="sticky top-0 z-40 bg-[hsl(var(--header-bg,var(--secondary)))] border-b border-[hsl(var(--border))] w-full max-w-full overflow-x-clip">
+        <div className="container mx-auto px-3 sm:px-4 max-w-full">
 
           {/* Main row */}
-          <div className="flex items-center justify-between h-14 sm:h-16 gap-2">
+          <div className="flex items-center justify-between h-14 sm:h-16 gap-2 min-w-0">
 
             {/* Logo — use logo_url from settings or display store name */}
-            <Link href={`/${locale}`} className="shrink-0 flex items-center py-1">
+            <Link href={`/${locale}`} className="shrink-0 flex items-center py-1 min-w-0">
               {settings.logo_url ? (
                 <img
                   src={settings.logo_url}
                   alt={storeName}
-                  className="h-10 sm:h-12 w-auto object-contain"
+                  className="h-10 sm:h-12 w-auto object-contain max-w-[140px] sm:max-w-none"
                 />
               ) : (
-                <span className="text-lg sm:text-xl font-bold text-[hsl(var(--primary))]">
+                <span className="text-lg sm:text-xl font-bold text-[hsl(var(--primary))] truncate max-w-[140px] sm:max-w-none">
                   {storeName}
                 </span>
               )}

@@ -109,9 +109,9 @@ function StorefrontLayout({ locale, children }: { locale: string; children: Reac
     <SettingsProvider>
       <ThemeApplier />
       <I18nProvider locale={locale}>
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col w-full max-w-full overflow-x-clip">
           <StorefrontHeader locale={locale} />
-          <main className="flex-1 pb-16 md:pb-0">
+          <main className="flex-1 pb-16 md:pb-0 w-full max-w-full overflow-x-clip">
             <Suspense fallback={<PageFallback />}>
               {children}
             </Suspense>

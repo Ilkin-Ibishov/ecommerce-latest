@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useLocation } from "wouter";
 import { Search } from "lucide-react";
 import SearchSuggestions from "./SearchSuggestions";
 import { useI18n } from "@/lib/i18n/context";
@@ -16,9 +17,11 @@ export function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [loading, setLoading] = useState(false);
+  const [, setLocation] = useLocation();
   const { t } = useI18n();
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const requestRef = useRef(0);
 
   const fetchSuggestions = (q: string) => {
     if (q.length < 2) {
@@ -26,18 +29,24 @@ export function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
       setShowSuggestions(false);
       return;
     }
+    const requestId = ++requestRef.current;
     setLoading(true);
     fetch(apiUrl(`/search/suggest?q=${encodeURIComponent(q)}&locale=${locale}`))
       .then((r) => r.json())
       .then((data) => {
+        if (requestId !== requestRef.current) return;
         setSuggestions({ products: data.products ?? [], categories: data.categories ?? [] });
         setShowSuggestions(true);
         setActiveIndex(-1);
       })
       .catch(() => {
+        if (requestId !== requestRef.current) return;
         setSuggestions({ products: [], categories: [] });
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (requestId !== requestRef.current) return;
+        setLoading(false);
+      });
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,18 +71,22 @@ export function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
       // Navigate to the active suggestion
       if (activeIndex < suggestions.products.length) {
         const p = suggestions.products[activeIndex];
-        window.location.href = `/${locale}/products/${p.slug}`;
+        setLocation(`/${locale}/products/${p.slug}`);
       } else {
         const cat = suggestions.categories[activeIndex - suggestions.products.length];
-        window.location.href = `/${locale}/categories/${cat.slug}`;
+        setLocation(`/${locale}/categories/${cat.slug}`);
       }
       closeSuggestions();
+      onClose();
     } else if (e.key === "Escape") {
       setShowSuggestions(false);
     }
   };
 
   const closeSuggestions = () => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    requestRef.current++;
+    setLoading(false);
     setShowSuggestions(false);
     setActiveIndex(-1);
   };
@@ -81,7 +94,7 @@ export function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      window.location.href = `/${locale}/search?q=${encodeURIComponent(query.trim())}`;
+      setLocation(`/${locale}/search?q=${encodeURIComponent(query.trim())}`);
       closeSuggestions();
       onClose();
     }

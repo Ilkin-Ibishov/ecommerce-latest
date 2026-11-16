@@ -10,6 +10,23 @@ import { useI18n } from "@/lib/i18n/context";
 import { toastCouponApplied } from "@/hooks/use-toast";
 
 const PROMO_STORAGE_KEY = "ilk_promo";
+const CHECKOUT_DRAFT_KEY = "checkout_form_draft";
+
+function loadCheckoutDraft() {
+  try {
+    const saved = sessionStorage.getItem(CHECKOUT_DRAFT_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      return {
+        customer_name: parsed.customer_name ?? "",
+        customer_phone: parsed.customer_phone ?? "",
+        delivery_address: parsed.delivery_address ?? "",
+        notes: parsed.notes ?? "",
+      };
+    }
+  } catch { /* ignore */ }
+  return { customer_name: "", customer_phone: "", delivery_address: "", notes: "" };
+}
 
 export default function CheckoutPage({ locale }: { locale: string }) {
   const { items, subtotal, removeItem, clearCart, updateQty } = useCart();
@@ -21,14 +38,22 @@ export default function CheckoutPage({ locale }: { locale: string }) {
   const [showLogin, setShowLogin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [placed, setPlaced] = useState(false);
+  const [placedTotal, setPlacedTotal] = useState(0);
   const [orderId, setOrderId] = useState("");
   const [error, setError] = useState("");
   const [couponCode, setCouponCode] = useState("");
   const [couponLoading, setCouponLoading] = useState(false);
   const [couponError, setCouponError] = useState("");
   const [coupon, setCoupon] = useState<any>(null);
-  const [form, setForm] = useState({ customer_name: "", customer_phone: "", delivery_address: "", notes: "" });
+  const [form, setForm] = useState(loadCheckoutDraft);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+
+  // Persist form draft to sessionStorage so language switches don't lose data
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(CHECKOUT_DRAFT_KEY, JSON.stringify(form));
+    } catch { /* ignore */ }
+  }, [form]);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }: any) => setUser(data.user ?? null));
@@ -170,9 +195,11 @@ export default function CheckoutPage({ locale }: { locale: string }) {
       const data = await res.json();
       if (!res.ok) { setError(data.error ?? "Failed to place order"); return; }
       setOrderId(data.orderId);
+      setPlacedTotal(total);
       setPlaced(true);
       clearCart();
       localStorage.removeItem(PROMO_STORAGE_KEY);
+      sessionStorage.removeItem(CHECKOUT_DRAFT_KEY);
     } catch { setError("Network error. Please try again."); }
     finally { setLoading(false); }
   };
@@ -186,7 +213,7 @@ export default function CheckoutPage({ locale }: { locale: string }) {
       <p className="text-muted-foreground mb-2">{t("Checkout.thankYou").replace("{name}", form.customer_name)}</p>
       <p className="text-sm text-muted-foreground mb-1">{t("Checkout.orderId")} <span className="font-mono font-medium">#{orderId.slice(0, 8).toUpperCase()}</span></p>
       <p className="text-sm text-muted-foreground mb-8">
-        {t("Checkout.courierWillCall").replace("{phone}", form.customer_phone).replace("{amount}", total.toFixed(2))}
+        {t("Checkout.courierWillCall").replace("{phone}", form.customer_phone).replace("{amount}", placedTotal.toFixed(2))}
       </p>
       <div className="flex flex-col sm:flex-row gap-3 justify-center">
         <Link href={`/${locale}/profile`} className="inline-block bg-primary text-primary-foreground px-8 py-3 rounded-xl font-semibold hover:bg-primary/90 transition">
