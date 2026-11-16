@@ -11,8 +11,6 @@ import { toastCouponApplied } from "@/hooks/use-toast";
 
 const PROMO_STORAGE_KEY = "ilk_promo";
 const CHECKOUT_DRAFT_KEY = "checkout_form_draft";
-const FREE_DELIVERY_THRESHOLD = 100;
-const STANDARD_DELIVERY_FEE = 5;
 
 function loadCheckoutDraft() {
   try {
@@ -134,10 +132,8 @@ export default function CheckoutPage({ locale }: { locale: string }) {
     } catch { /* ignore */ }
   }, []);
 
-  const isFreeDelivery = subtotal >= FREE_DELIVERY_THRESHOLD;
-  const deliveryFee = isFreeDelivery ? 0 : STANDARD_DELIVERY_FEE;
   const discountAmount = coupon?.discount_amount ?? 0;
-  const total = Math.max(0, subtotal - discountAmount + deliveryFee);
+  const total = Math.max(0, subtotal - discountAmount);
 
   const applyCoupon = async (code?: string) => {
     const codeToApply = (code ?? couponCode).trim();
@@ -329,12 +325,7 @@ export default function CheckoutPage({ locale }: { locale: string }) {
             <div className="border-t border-border mt-4 pt-4 space-y-2">
               <div className="flex justify-between text-sm"><span>{t("Checkout.subtotal")}</span><span>{subtotal.toFixed(2)} AZN</span></div>
               {coupon && <div className="flex justify-between text-sm text-green-600"><span>{t("Checkout.discount")}</span><span>-{discountAmount.toFixed(2)} AZN</span></div>}
-              <div className="flex justify-between text-sm">
-                <span>{t("Checkout.delivery")}</span>
-                <span className={isFreeDelivery ? "text-green-600 font-medium" : "font-medium"}>
-                  {isFreeDelivery ? t("Checkout.free") : `${STANDARD_DELIVERY_FEE.toFixed(2)} AZN`}
-                </span>
-              </div>
+              <div className="flex justify-between text-sm"><span>{t("Checkout.delivery")}</span><span className="text-green-600">{t("Checkout.free")}</span></div>
               <div className="flex justify-between font-bold text-lg border-t border-border pt-3 mt-1">
                 <span>{t("Checkout.total")}</span><span className="text-primary">{total.toFixed(2)} AZN</span>
               </div>
