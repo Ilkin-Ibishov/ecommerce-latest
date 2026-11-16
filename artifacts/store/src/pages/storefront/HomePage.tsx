@@ -145,12 +145,10 @@ export default function HomePage({ locale }: { locale: string }) {
         supabase.from("products").select("*, product_images(*), product_translations(*)").eq("is_deal_of_day", true).order("sort_order").limit(1).maybeSingle(),
         supabase.from("categories").select("*, category_translations(*)").is("parent_id", null).limit(12),
       ]);
-      const isRealDeal = (d: any) => d && Number(d.price) > 0 && d.slug !== "dsdvsdv";
-      const validDealData = isRealDeal(dealRes.data) ? dealRes.data : null;
       const allProductIds = [
         ...(featRes.data ?? []).map((p: any) => p.id),
         ...(saleRes.data ?? []).map((p: any) => p.id),
-        ...(validDealData ? [validDealData.id] : []),
+        ...(dealRes.data ? [dealRes.data.id] : []),
       ];
 
       if (allProductIds.length > 0) {
@@ -181,11 +179,11 @@ export default function HomePage({ locale }: { locale: string }) {
 
         setFeatured(enrich(featRes.data ?? []));
         setOnSale(enrich(saleRes.data ?? []));
-        setDealOfDay(validDealData ? enrich([validDealData])[0] : null);
+        setDealOfDay(dealRes.data ? enrich([dealRes.data])[0] : null);
       } else {
         setFeatured(featRes.data ?? []);
         setOnSale(saleRes.data ?? []);
-        setDealOfDay(validDealData ?? null);
+        setDealOfDay(dealRes.data ?? null);
       }
       setCategories(catRes.data ?? []);
       setLoading(false);
@@ -264,7 +262,7 @@ export default function HomePage({ locale }: { locale: string }) {
       )}
 
       {/* Deal of Day with countdown */}
-      {dealOfDay && Number(dealOfDay.price) > 0 && (
+      {dealOfDay && (
         <section>
           <div className="flex items-center justify-between mb-4 sm:mb-6 flex-wrap gap-3">
             <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
