@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Minus, Plus, Trash2, AlertTriangle } from "lucide-react";
 import type { CartLine } from "./types";
+import { parseQuantity } from "./counter-input";
 
 function QuantityCell({
   quantity,
@@ -18,13 +19,14 @@ function QuantityCell({
   }, [quantity]);
 
   const commit = () => {
-    const parsed = parseInt(val, 10);
-    if (!isNaN(parsed) && parsed >= 1) {
-      setVal(String(parsed));
-      onChange(parsed);
+    const q = parseQuantity(val);
+    if (q !== null) {
+      setVal(String(q));
+      if (q !== quantity) {
+        onChange(q);
+      }
     } else {
       setVal(String(quantity));
-      onChange(quantity);
     }
   };
 
@@ -37,9 +39,9 @@ function QuantityCell({
       aria-label="Miqdar"
       onChange={(e) => {
         setVal(e.target.value);
-        const parsed = parseInt(e.target.value, 10);
-        if (!isNaN(parsed) && parsed >= 1) {
-          onChange(parsed);
+        const q = parseQuantity(e.target.value);
+        if (q !== null && q !== quantity) {
+          onChange(q);
         }
       }}
       onBlur={commit}
