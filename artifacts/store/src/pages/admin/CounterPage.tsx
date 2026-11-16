@@ -11,11 +11,9 @@ import { PickupPanel } from "@/components/admin/counter/PickupPanel";
 import { CounterCheckoutPanel } from "@/components/admin/counter/CounterCheckoutPanel";
 import { PaymentConfirmationModal } from "@/components/admin/counter/PaymentConfirmationModal";
 import { ReceiptModal } from "@/components/admin/counter/ReceiptModal";
-import { optionLabel, type CartLine, type CounterBundle, type LookupItem } from "@/components/admin/counter/types";
+import { optionLabel, type CartLine, type CounterBundle, type LookupItem, type Outcome } from "@/components/admin/counter/types";
 import { computeChange } from "@/components/admin/counter/counter-input";
 import { useI18n } from "@/lib/i18n/context";
-
-type Outcome = { kind: "posted" | "needs_owner" | "error"; text: string; saleId?: string };
 
 // The till (M3a). The cart lives here until Complete; after Complete it is frozen until the
 // outcome is known, and a retry resends the same id (design note Q2, audit A10.2).

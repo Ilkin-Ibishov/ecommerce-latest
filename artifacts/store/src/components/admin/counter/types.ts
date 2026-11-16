@@ -35,5 +35,7 @@ export interface CartLine {
   bundle_id: string | null;
 }
 
+export type Outcome = { kind: "posted" | "needs_owner" | "error"; text: string; saleId?: string };
+
 export const optionLabel = (options: LookupItem["options"]) =>
   options.map((o) => o.value).filter(Boolean).join(" · ");
