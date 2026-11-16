@@ -93,7 +93,7 @@ export default function CounterPage() {
           lines: lines.map((l) => ({ variant_id: l.variant_id, quantity: l.quantity, charged_unit_price: l.unit_price, bundle_id: l.bundle_id })),
         }),
       });
-      const data = await res.json().catch(() => ({}));
+      const data = (await res.json().catch(() => null)) ?? {};
       if (!res.ok) {
         if (res.status >= 500) {
           console.error(data.error);
@@ -115,6 +115,12 @@ export default function CounterPage() {
         setPending(false);
         setShowConfirm(false);
         setOutcome({ kind: "error", text: data.error ?? t("Admin.Counter.errorFallback") });
+        return;
+      }
+      if (!data.sale_number || !data.id) {
+        setShowConfirm(false);
+        setOutcome({ kind: "error", text: t("Admin.Counter.networkError") });
+        setFailedAttempts((n) => n + 1);
         return;
       }
       const serverTotal = Number(data.total_amount);
