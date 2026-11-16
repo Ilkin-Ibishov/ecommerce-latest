@@ -66,10 +66,10 @@ export function PaymentConfirmationModal({
 
           {/* Payment Method Selector */}
           <div>
-            <label className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">
+            <span id="payment-method-label" className="mb-1.5 block text-xs font-semibold uppercase text-muted-foreground">
               {t("Admin.Counter.paymentMethodLabel")}
-            </label>
-            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("Admin.Counter.paymentMethod")}>
+            </span>
+            <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-labelledby="payment-method-label">
               <button
                 type="button"
                 role="radio"

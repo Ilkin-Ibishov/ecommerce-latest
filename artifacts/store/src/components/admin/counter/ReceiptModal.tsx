@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { CheckCircle2, Printer, PlusCircle } from "lucide-react";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
@@ -35,15 +35,25 @@ export function ReceiptModal({
   const [sale, setSale] = useState<ReceiptSale | null>(null);
   const [shop, setShop] = useState<{ name: string; phone: string }>({ name: "", phone: "" });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
 
   useEffect(() => {
     if (!saleId) return;
+    setSale(null);
+    setError(false);
     setLoading(true);
     Promise.all([
-      adminFetch(apiUrl(`/admin/counter/sales/${saleId}`)).then((r) => (r.ok ? r.json() : null)),
+      adminFetch(apiUrl(`/admin/counter/sales/${saleId}`)).then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch sale");
+        return r.json();
+      }),
       fetch(apiUrl("/site-settings")).then((r) => (r.ok ? r.json() : null)),
     ]).then(([s, settings]) => {
-      if (s) setSale(s);
+      if (s && s.id === saleId) {
+        setSale(s);
+      } else {
+        setError(true);
+      }
       if (settings) {
         const name = typeof settings.store_name === "object"
           ? settings.store_name?.[locale] ?? Object.values(settings.store_name ?? {})[0]
@@ -51,12 +61,16 @@ export function ReceiptModal({
         setShop({ name: String(name ?? ""), phone: String(settings.contact?.phone ?? "") });
       }
       setLoading(false);
-    }).catch(() => setLoading(false));
+    }).catch(() => {
+      setError(true);
+      setLoading(false);
+    });
   }, [saleId, locale]);
 
   if (!saleId) return null;
 
-  const discount = sale ? Number(sale.bundle_discount) + Number(sale.owner_discount) : 0;
+  const isCurrentSale = sale && sale.id === saleId;
+  const discount = isCurrentSale ? Number(sale.bundle_discount) + Number(sale.owner_discount) : 0;
 
   return (
     <Dialog open={!!saleId} onOpenChange={(open) => { if (!open) onClose(); }}>
@@ -66,9 +80,23 @@ export function ReceiptModal({
             <CheckCircle2 className="h-5 w-5" />
             {t("Admin.Counter.saleCompletedTitle")}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            {t("Admin.Counter.receiptDescription")}
+          </DialogDescription>
         </DialogHeader>
 
-        {loading || !sale ? (
+        {error ? (
+          <div className="space-y-4 py-6 text-center">
+            <p className="text-sm text-destructive">{t("Admin.Counter.receiptError")}</p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg border border-border px-4 py-2 text-sm font-medium hover:bg-muted"
+            >
+              {t("Admin.Counter.close")}
+            </button>
+          </div>
+        ) : loading || !isCurrentSale ? (
           <p className="py-8 text-center text-sm text-muted-foreground">{t("Admin.Counter.loadingReceipt")}</p>
         ) : (
           <div className="space-y-4">
