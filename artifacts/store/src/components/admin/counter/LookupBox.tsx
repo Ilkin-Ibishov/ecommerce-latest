@@ -73,7 +73,11 @@ export function LookupBox({ onResults, disabled, resetSignal }: {
               handleClear();
             }
           }}
-          onBlur={() => { if (!disabled) setTimeout(() => input.current?.focus(), 0); }}
+          onBlur={(e) => {
+            const next = e.relatedTarget;
+            if (disabled || next instanceof HTMLInputElement || next instanceof HTMLTextAreaElement || next instanceof HTMLSelectElement) return;
+            setTimeout(() => input.current?.focus(), 0);
+          }}
           placeholder={t("Admin.Counter.lookupPlaceholder")}
           aria-label={t("Admin.Counter.lookupAriaLabel")}
           className="w-full bg-transparent py-3 text-lg outline-none"
