@@ -39,6 +39,7 @@ export function ReceiptModal({
 
   useEffect(() => {
     if (!saleId) return;
+    let cancelled = false;
     setSale(null);
     setError(false);
     setLoading(true);
@@ -47,8 +48,9 @@ export function ReceiptModal({
         if (!r.ok) throw new Error("Failed to fetch sale");
         return r.json();
       }),
-      fetch(apiUrl("/site-settings")).then((r) => (r.ok ? r.json() : null)),
+      fetch(apiUrl("/site-settings")).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ]).then(([s, settings]) => {
+      if (cancelled) return;
       if (s && s.id === saleId) {
         setSale(s);
       } else {
@@ -62,9 +64,11 @@ export function ReceiptModal({
       }
       setLoading(false);
     }).catch(() => {
+      if (cancelled) return;
       setError(true);
       setLoading(false);
     });
+    return () => { cancelled = true; };
   }, [saleId, locale]);
 
   if (!saleId) return null;
@@ -74,7 +78,7 @@ export function ReceiptModal({
 
   return (
     <Dialog open={!!saleId} onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg text-green-600 dark:text-green-400">
             <CheckCircle2 className="h-5 w-5" />
