@@ -131,7 +131,7 @@ export default function CounterPage() {
           <h1 className="text-2xl font-bold">{t("Admin.Counter.title")}</h1>
           <Link href="/admin/counter/sales" className="text-sm text-primary underline">{t("Admin.Counter.salesLink")}</Link>
         </div>
-        <LookupBox disabled={pending || !!picker} resetSignal={saleId} onResults={(items) => (items.length === 1 ? addItem(items[0]) : setPicker(items))} />
+        <LookupBox disabled={pending || !!picker || showConfirm || !!completedReceipt} resetSignal={saleId} onResults={(items) => (items.length === 1 ? addItem(items[0]) : setPicker(items))} />
         {bundles.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {bundles.map((b) => (
