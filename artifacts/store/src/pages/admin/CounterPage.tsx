@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "wouter";
 import { priceCounterSale } from "@workspace/counter-pricing";
 import { apiUrl } from "@/lib/api";
@@ -30,6 +30,7 @@ export default function CounterPage() {
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   const [showConfirm, setShowConfirm] = useState(false);
   const [completedReceipt, setCompletedReceipt] = useState<{ id: string; tendered?: number | null; change?: number | null } | null>(null);
+  const soldAtRef = useRef<string | null>(null);
 
   useEffect(() => {
     adminFetch(apiUrl("/admin/counter/bundles")).then((r) => (r.ok ? r.json() : [])).then(setBundles).catch(() => {});
@@ -73,13 +74,14 @@ export default function CounterPage() {
       const res = await adminFetch(apiUrl("/admin/counter/sales"), {
         method: "POST",
         body: JSON.stringify({
-          id: saleId, sold_at: new Date().toISOString(), payment_method: payment,
+          id: saleId, sold_at: (soldAtRef.current ??= new Date().toISOString()), payment_method: payment,
           owner_discount: isOwner ? Number(ownerDiscount) || 0 : 0, displayed_total: priced.total_amount,
           lines: lines.map((l) => ({ variant_id: l.variant_id, quantity: l.quantity, charged_unit_price: l.unit_price, bundle_id: l.bundle_id })),
         }),
       });
       const data = await res.json();
       if (!res.ok) {
+        soldAtRef.current = null;
         setPending(false);
         setShowConfirm(false);
         setOutcome({ kind: "error", text: data.error ?? "Xəta" });
@@ -98,9 +100,9 @@ export default function CounterPage() {
       setOwnerDiscount("");
       setTenderedAmount("");
       setSaleId(crypto.randomUUID());
+      soldAtRef.current = null;
       setPending(false);
     } catch {
-      setPending(false);
       setShowConfirm(false);
       setOutcome({ kind: "error", text: "Bağlantı xətası. Nəticə məlum deyil: yenidən göndərin." });
     }
