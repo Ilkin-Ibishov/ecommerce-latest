@@ -11,7 +11,7 @@ import path from "node:path";
  *   counter_sale, stocktake_correction, opening_balance, damage_write_off, return_to_supplier, manual_adjustment, customer_return, goods_receipt.
  * - Fulfilment ordering: fulfil_reservation transitions status to 'fulfilled' BEFORE inserting movement.
  * - Fulfilling the last reserved unit (on_hand = 1, reserved = 1) succeeds without self-conflict.
- * - Documentation in .agents/rules/inventory.md and migration comment block verified.
+ * - Documentation in .claude/skills/inventory-domain/SKILL.md and migration comment block verified.
  */
 
 interface VariantState {
@@ -152,7 +152,11 @@ describe("M2c C6: Availability Bypass Reasons & Fulfilment Ordering", () => {
 
   it("verifies inventory rules documentation and migration comment block", () => {
     const root = path.resolve(import.meta.dirname, "../../../..");
-    const rulesMd = fs.readFileSync(path.join(root, ".agents/rules/inventory.md"), "utf-8").toLowerCase();
+    // The inventory rules moved from .agents/rules/inventory.md to a Claude Code skill on
+    // 2026-11-17; .agents/ was read by nobody in a Claude session. Same text, new path.
+    const rulesMd = fs
+      .readFileSync(path.join(root, ".claude/skills/inventory-domain/SKILL.md"), "utf-8")
+      .toLowerCase();
     const migrationSql = fs
       .readFileSync(path.join(root, "supabase/migrations/20261104190000_m2c_trigger_bypass_reasons.sql"), "utf-8")
       .toLowerCase();
