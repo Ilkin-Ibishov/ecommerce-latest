@@ -80,10 +80,18 @@ describe("Orders Integration Tests", () => {
       await (admin as any).rpc("increment_stock", { p_product_id: product.id, p_qty: 1 });
 
       testProductId = product.id;
-      console.log(`[orders.test] Using product ${product.id} (verified stock: ${verify.stock})`);
+      console.log(`[orders.test] Using product ${product.id} (verified stock: ${availableStock})`);
     } catch (err) {
+      // Only the documented "infrastructure is not deployed" case may skip. Any other error is a
+      // real failure: swallowing it into a silent skip is what hid the undeclared `verify` for
+      // weeks, with all five tests reporting as skipped in every CI run.
+      if (err instanceof Error && err.message === "RPC not deployed") {
+        console.warn(`[orders.test] Skipping: decrement_stock_safe is not deployed`);
+        setupFailed = true;
+        return;
+      }
       console.error(`[orders.test] Setup failed:`, err);
-      setupFailed = true;
+      throw err;
     }
   });
 
