@@ -50,8 +50,11 @@ async function createVariantWithBarcode(db: SupabaseClient, actor: string) {
 }
 
 async function runCounterSaleFlow(page: Page, db: SupabaseClient, variantId: string, barcode: string, isPhone = false) {
+  // The admin UI runs in English in this spec (loginAsAdmin waits for "Dashboard"), so every
+  // accessible name below is the en dictionary value. Before round 1 the till had hardcoded
+  // Azerbaijani literals; it is translated now, so az strings here would never match.
   await page.goto("/admin/counter");
-  await expect(page.getByRole("heading", { name: "Kassa" })).toBeVisible({ timeout: 20000 });
+  await expect(page.getByRole("heading", { name: "Counter" })).toBeVisible({ timeout: 20000 });
 
   // Scan without clicking the input: prove initial focus
   await page.keyboard.type(barcode);
@@ -67,22 +70,27 @@ async function runCounterSaleFlow(page: Page, db: SupabaseClient, variantId: str
 
   // Expect one cart line with quantity 2 and total 8.00 AZN
   await expect(cartLines).toHaveCount(1);
-  // The quantity span, not getByText("2"): the fixture title is a timestamp and holds digits too.
-  await expect(cartLines.first().locator("span.tabular-nums")).toHaveText("2");
+  await expect(cartLines.first().getByRole("spinbutton")).toHaveValue("2");
   await expect(page.getByText("8.00 AZN")).toBeVisible();
 
   // Payment method selection
-  await page.getByRole("radio", { name: "Nağd" }).click();
+  await page.getByRole("radio", { name: "Cash" }).click();
 
   if (isPhone) {
     const noSidewaysScroll = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth);
     expect(noSidewaysScroll).toBe(true);
   }
 
-  await page.getByRole("button", { name: "Tamamla" }).click();
+  await page.getByRole("button", { name: "Complete" }).click();
+  await page.locator("#tendered-amount-modal").fill("10");
+  await page.getByRole("button", { name: "Confirm & Complete Sale" }).click();
+
+  await expect(page.locator("#inpage-receipt")).toBeVisible({ timeout: 10000 });
+  await expect(page.locator("#inpage-receipt")).toContainText("8.00");
+  await page.getByRole("button", { name: "New Sale" }).click();
 
   // Status message
-  await expect(page.getByRole("status")).toHaveText(/Satış #\d+ tamamlandı\./, { timeout: 10000 });
+  await expect(page.getByRole("status")).toHaveText(/Sale #\d+ completed\./, { timeout: 10000 });
 
   // Verify DB with service client
   const { data: lineRows } = await db.from("counter_sale_lines").select("sale_id").eq("variant_id", variantId);
@@ -99,11 +107,6 @@ async function runCounterSaleFlow(page: Page, db: SupabaseClient, variantId: str
 
   const { data: varRow } = await db.from("product_variants").select("on_hand").eq("id", variantId).single();
   expect(Number(varRow?.on_hand)).toBe(3);
-
-  // Click Qəbz and verify receipt page shows 8.00
-  await page.getByRole("link", { name: "Qəbz" }).click();
-  await expect(page.locator("#receipt")).toBeVisible({ timeout: 10000 });
-  await expect(page.locator("#receipt")).toContainText("8.00");
 }
 
 test.describe("Counter Screen E2E", () => {
