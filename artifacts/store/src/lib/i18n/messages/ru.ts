@@ -461,6 +461,7 @@ const ru = {
         margins: "Отчет по марже",
         stocktakes: "Инвентаризация",
         counter: "Касса",
+        reservations: "Бронирования",
         bundles: "Наборы",
         reorder: "Повторный заказ",
       },

@@ -461,6 +461,7 @@ const en = {
         margins: "Margin Report",
         stocktakes: "Stocktakes",
         counter: "Counter",
+        reservations: "Reservations",
         bundles: "Bundles",
         reorder: "Reorder",
       },

@@ -461,6 +461,7 @@ const az = {
         margins: "Marja hesabatı",
         stocktakes: "Sayım",
         counter: "Kassa",
+        reservations: "Rezervasiyalar",
         bundles: "Dəstlər",
         reorder: "Təkrar sifariş",
       },
