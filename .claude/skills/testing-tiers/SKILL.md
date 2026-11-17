@@ -1,7 +1,11 @@
 ---
-trigger: glob
-globs: **/*.test.ts,**/*.spec.ts,artifacts/api-server/tests/**
-description: Testing rules and standards for this repository
+name: testing-tiers
+description: >-
+  Use when writing, running or reporting on tests in this repository: which tier runs where
+  (unit offline, api-integration and env-validation need Supabase and a running server, E2E
+  needs Playwright), what may be claimed as passing locally, and the rule against deleting or
+  skipping a test to make a build pass. Was .agents/rules/testing.md, whose glob spanned
+  directories and so could never be a scoped AGENTS.md.
 ---
 
 # Testing rules

@@ -1,6 +1,9 @@
 ---
-trigger: model_decision
-description: Load when working on stock, quantities, variants, the movement ledger, reservations, bundles or anything that changes how much of something exists
+name: inventory-domain
+description: >-
+  Use when working on stock, quantities, variants, the movement ledger, reservations, bundles,
+  stocktakes or anything that changes how much of something exists. The rules that survive
+  docs/tasks/warehouse-architecture.md.
 ---
 
 # Inventory domain rules

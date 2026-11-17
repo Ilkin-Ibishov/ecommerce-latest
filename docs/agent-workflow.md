@@ -11,11 +11,11 @@ rarely. Moved out of STATUS.md on 2026-11-17 so that a session start no longer r
 2. `docs/tasks/` — specs, architect-owned. Agents read, never edit
 3. `docs/design-notes/` — the implementer's proposals, written before code
 4. `docs/audits/` — every review and every agent's own notes, in order
-5. `.agents/rules/` — domain invariants
+5. `.claude/skills/` — skills, including the inventory domain rules and the testing tiers
 6. `docs/knowledgebase/` — cross-cutting operational lessons (Supabase project facts, harness
    tool restrictions, Playwright/SPA gotchas, Windows local-dev quirks) that aren't tied to one
    phase. Index in its `README.md`
-7. `.agents/skills/` and the per-package `AGENTS.md` files (`artifacts/api-server/`,
+7. The per-directory `AGENTS.md` files (`artifacts/api-server/`, `artifacts/store/`,
    `artifacts/store/`) — runbooks and scoped rules added on `antigravity-development`
 
 ## How work runs here
@@ -53,9 +53,9 @@ Consequences for planning:
   prompt text; plan mode would make it structural.
 - For Gemini, effort is **part of the model id** (`-high`/`-medium`/`-low`). Passing `--effort max`
   with `gemini-3.8-flash-high` is rejected as a conflict. The family tops out at `-high`.
-- `agy agents` lists nothing, so `.agents/agents/auditor.md` is **not** registered as a CLI agent.
+- `agy agents` lists nothing, so `.claude/agents/auditor.md` is **not** registered as a CLI agent.
   The auditor persona reaches the model only because the prompt tells it to adopt that file. Whether
-  `.agents/rules/*.md` trigger-loading works in the CLI is likewise unverified.
+  scoped-rule loading works in the CLI is likewise unverified.
 - `agy mcp list` shows the `supabase` server configured at **account scope** (no `project_ref`), so
   a builder run can reach every Supabase project including production. The only thing standing in
   its way is prose in `AGENTS.md`. Re-add it scoped to the test project's ref now that it exists
@@ -135,7 +135,7 @@ test where the diff had four.
 The lesson is the habit, not the four fixes: execute SQL on Postgres before applying it (temporary
 objects in a rolled-back transaction), compare a schema with the thing it describes, follow a value
 through the code rather than its name, and accept a round against the diff. The mechanical parts
-are now rules: `.agents/rules/migrations.md`, `.agents/rules/testing.md`, `AGENTS.md` ("Audit
+are now rules: `supabase/AGENTS.md`, `.claude/skills/testing-tiers/`, `AGENTS.md` ("Audit
 interface"), and the orchestrator prompt.
 
 ## Lessons that cost a session to learn
