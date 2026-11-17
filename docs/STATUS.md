@@ -8,8 +8,10 @@ repository; nothing important is only in a chat transcript.
 
 ## Start here — first thing to do in a new session (2026-11-18, the 2026-11-17 session past midnight)
 
-**`main` carries the whole agent-context-modularization change. Confirm its two CI runs, then ask
-the owner the questions below. Nothing is in flight: no builder, no sub-agent, no other CI run.**
+**`main` is at `ee498c4` and green: CI runs 44174185233 (`Test`: 69 unit files, 54 component,
+110 integration files, 42 E2E, no skips, no flaky) and 44174185297 (`Architectural invariants`:
+21 checks, indexes current). It carries the whole agent-context-modularization change. Nothing is
+in flight: no builder, no sub-agent, no other CI run.**
 
 ```bash
 gh run list -b main -L 2 --json databaseId,name,conclusion   # expect success on both
