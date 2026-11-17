@@ -142,6 +142,7 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
         customer_phone,
         delivery_address,
         notes: notes ?? null,
+        subtotal_azn: subtotal,
         discount_azn: discountAmount,
         total_azn: totalAzn,
         coupon_id: couponId,
