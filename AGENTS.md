@@ -59,6 +59,14 @@ design note and explain the trade-off — do not silently deviate during impleme
   the code and `retrieve` the matching guide; prefer the platform feature over a hand-rolled
   pattern or a new dependency. Detail in `.agents/rules/frontend.md`. Not for API, SQL or tooling.
 
+## Handoff
+
+`docs/STATUS.md` is current state only, and stays near 10 KB. A new handoff **replaces** its
+"Start here" block; the block it replaces moves to `docs/status/archive/<date>-<slot>.md` with a
+row in that file's History table, in the same commit. Durable process goes to
+`docs/agent-workflow.md`, never into STATUS.md. The file reached 80 KB once, 45% of it under
+headings telling the reader to skip them — about 19,000 tokens read and discarded per session.
+
 ## Audit interface
 Your work is reviewed from git, not from chat. Anything that matters must end up in a file:
 design notes, code, tests, and migration files. A decision explained only in the chat is lost.
