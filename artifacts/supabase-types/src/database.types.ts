@@ -505,6 +505,7 @@ export type Database = {
           id: string;
           notes: string | null;
           status: Database["public"]["Enums"]["order_status"];
+          subtotal_azn: number;
           total_azn: number;
           updated_at: string;
           user_id: string;
@@ -520,6 +521,7 @@ export type Database = {
           id?: string;
           notes?: string | null;
           status?: Database["public"]["Enums"]["order_status"];
+          subtotal_azn: number;
           total_azn: number;
           updated_at?: string;
           user_id: string;
@@ -535,6 +537,7 @@ export type Database = {
           id?: string;
           notes?: string | null;
           status?: Database["public"]["Enums"]["order_status"];
+          subtotal_azn?: number;
           total_azn?: number;
           updated_at?: string;
           user_id?: string;
