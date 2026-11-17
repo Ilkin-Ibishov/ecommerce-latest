@@ -36,12 +36,7 @@ function filterLowStockProducts(
   products: { id: string; available_quantity: number }[],
   lowStockVariantProductIds: Set<string>,
 ) {
-  return products.filter((p) => {
-    if (lowStockVariantProductIds.size > 0) {
-      return lowStockVariantProductIds.has(p.id) && p.available_quantity > 0;
-    }
-    return p.available_quantity > 0 && p.available_quantity < 10;
-  });
+  return products.filter((p) => lowStockVariantProductIds.has(p.id) && p.available_quantity > 0);
 }
 
 function maskCommercialMetricsForStaff<T extends { unit_cost?: number; capital_tied_up?: number }>(
@@ -109,6 +104,18 @@ describe("M4 Frontend UI Logic & Stock Signals", () => {
 
       const low = filterLowStockProducts(products, lowStockIds);
       expect(low.map((p) => p.id)).toEqual(["p1"]);
+    });
+
+    it("does not fall back to < 10 when lowStockVariantProductIds is empty", () => {
+      const products = [
+        { id: "p1", available_quantity: 3 },
+        { id: "p2", available_quantity: 0 },
+        { id: "p3", available_quantity: 15 },
+      ];
+      const lowStockIds = new Set<string>();
+
+      const low = filterLowStockProducts(products, lowStockIds);
+      expect(low).toEqual([]);
     });
   });
 

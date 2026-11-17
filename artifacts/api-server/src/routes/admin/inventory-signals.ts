@@ -88,17 +88,87 @@ function parseSignals<T>(req: Request, res: Response, schema: z.ZodType<T>, data
   return parsed.data;
 }
 
+export interface SignalSettings {
+  deadStockDays: number;
+  reorderTargetDays: number;
+  reorderWindowDays: number;
+  reorderMinSales: number;
+}
+
+const DEFAULT_SIGNAL_SETTINGS: SignalSettings = {
+  deadStockDays: 90,
+  reorderTargetDays: 60,
+  reorderWindowDays: 28,
+  reorderMinSales: 3,
+};
+
+function parsePositiveIntSetting(value: string | undefined, defaultValue: number): number {
+  if (value === undefined) return defaultValue;
+  const num = Number(value);
+  return Number.isInteger(num) && num >= 1 ? num : defaultValue;
+}
+
+export function parseSignalSettings(rows: { key: string; value: string }[]): SignalSettings {
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    map.set(row.key, row.value);
+  }
+
+  return {
+    deadStockDays: parsePositiveIntSetting(map.get("dead_stock_days"), DEFAULT_SIGNAL_SETTINGS.deadStockDays),
+    reorderTargetDays: parsePositiveIntSetting(map.get("reorder_target_days"), DEFAULT_SIGNAL_SETTINGS.reorderTargetDays),
+    reorderWindowDays: parsePositiveIntSetting(map.get("reorder_velocity_window_days"), DEFAULT_SIGNAL_SETTINGS.reorderWindowDays),
+    reorderMinSales: parsePositiveIntSetting(map.get("reorder_min_sales"), DEFAULT_SIGNAL_SETTINGS.reorderMinSales),
+  };
+}
+
+function parseQueryPositiveInt(param: unknown): number | null {
+  if (typeof param !== "string") return null;
+  const num = Number(param);
+  return Number.isInteger(num) && num >= 1 ? num : null;
+}
+
+async function getSignalSettings(req: Request): Promise<SignalSettings> {
+  try {
+    const admin = getAdminSupabase();
+    const { data, error } = await admin
+      .from("store_settings")
+      .select("key, value")
+      .in("key", [
+        "dead_stock_days",
+        "reorder_target_days",
+        "reorder_velocity_window_days",
+        "reorder_min_sales",
+      ]);
+
+    if (error) {
+      (req.log || logger).error({ error: error.message }, "Failed to fetch store_settings for inventory signals");
+      return parseSignalSettings([]);
+    }
+
+    return parseSignalSettings((data ?? []) as { key: string; value: string }[]);
+  } catch (err) {
+    (req.log || logger).error({ err }, "Exception fetching store_settings for inventory signals");
+    return parseSignalSettings([]);
+  }
+}
+
 // GET /admin/inventory/signals/summary — Dashboard counts
 router.get("/admin/inventory/signals/summary", requireStaffOrAdmin, async (req: Request, res: Response): Promise<void> => {
   const admin = getAdminSupabase();
   const isAdmin = req.userRole === "admin";
   const client = getSignalsClient(admin);
+  const settings = await getSignalSettings(req);
 
   const [lowRes, deadRes, reorderRes] = await Promise.all([
     client.rpc("get_low_stock_signals", { p_search: null, p_status: null }),
-    client.rpc("get_dead_stock_signals", { p_days: 90 }),
+    client.rpc("get_dead_stock_signals", { p_days: settings.deadStockDays }),
     isAdmin
-      ? client.rpc("get_reorder_suggestions", { p_window_days: 28, p_target_days: 60, p_min_sales: 3 })
+      ? client.rpc("get_reorder_suggestions", {
+          p_window_days: settings.reorderWindowDays,
+          p_target_days: settings.reorderTargetDays,
+          p_min_sales: settings.reorderMinSales,
+        })
       : Promise.resolve({ data: [] as unknown, error: null }),
   ]);
 
@@ -147,7 +217,8 @@ router.get("/admin/inventory/signals/low-stock", requireStaffOrAdmin, async (req
 // GET /admin/inventory/signals/dead-stock — Dead stock list (cost stripped for staff)
 router.get("/admin/inventory/signals/dead-stock", requireStaffOrAdmin, async (req: Request, res: Response): Promise<void> => {
   const admin = getAdminSupabase();
-  const days = Math.max(1, parseInt(String(req.query.days || "90"), 10) || 90);
+  const settings = await getSignalSettings(req);
+  const days = parseQueryPositiveInt(req.query.days) ?? settings.deadStockDays;
   const isAdmin = req.userRole === "admin";
 
   const { data, error } = await getSignalsClient(admin).rpc("get_dead_stock_signals", { p_days: days });
@@ -162,6 +233,7 @@ router.get("/admin/inventory/signals/dead-stock", requireStaffOrAdmin, async (re
   if (isAdmin) {
     const totalCapital = rawRows.reduce((sum, r) => sum + Number(r.capital_tied_up || 0), 0);
     res.json({
+      days,
       variants: rawRows,
       count: rawRows.length,
       total_dead_capital: Math.round(totalCapital * 100) / 100,
@@ -171,15 +243,16 @@ router.get("/admin/inventory/signals/dead-stock", requireStaffOrAdmin, async (re
 
   // Staff role: strictly strip unit_cost and capital_tied_up (M2a RLS boundary)
   const staffRows = rawRows.map(({ unit_cost, capital_tied_up, ...rest }) => rest);
-  res.json({ variants: staffRows, count: staffRows.length });
+  res.json({ days, variants: staffRows, count: staffRows.length });
 });
 
 // GET /admin/inventory/signals/reorder — Reorder suggestions (owner-only)
 router.get("/admin/inventory/signals/reorder", requireAdmin, async (req: Request, res: Response): Promise<void> => {
   const admin = getAdminSupabase();
-  const windowDays = Math.max(1, parseInt(String(req.query.windowDays || "28"), 10) || 28);
-  const targetDays = Math.max(1, parseInt(String(req.query.targetDays || "60"), 10) || 60);
-  const minSales = Math.max(1, parseInt(String(req.query.minSales || "3"), 10) || 3);
+  const settings = await getSignalSettings(req);
+  const windowDays = parseQueryPositiveInt(req.query.windowDays) ?? settings.reorderWindowDays;
+  const targetDays = parseQueryPositiveInt(req.query.targetDays) ?? settings.reorderTargetDays;
+  const minSales = parseQueryPositiveInt(req.query.minSales) ?? settings.reorderMinSales;
 
   const { data, error } = await getSignalsClient(admin).rpc("get_reorder_suggestions", {
     p_window_days: windowDays,
