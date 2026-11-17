@@ -1,26 +1,48 @@
 # Project status — handoff
 
-Last updated: 2026-11-17 (the 2026-11-16 evening session, which ran past midnight). Written as
-the entry point for a new session. Everything referenced here lives in this repository; nothing
-important is only in a chat transcript.
+Last updated: 2026-11-17 (evening session). Written as the entry point for a new session.
+Everything referenced here lives in this repository; nothing important is only in a chat transcript.
 
-## Start here — first thing to do in a new session (2026-11-16 evening, ran past midnight)
+## Start here — first thing to do in a new session (2026-11-17 evening)
 
-**`main` is at `10b66f5` and green: CI run 44013626997 (`unit` + `integration-e2e`) — 54 component,
-1179 integration tests with 10 skipped, 42 E2E with 1 skipped, no flaky. Three branches were merged
-with the owner's yes and nothing is in flight. No builder, no CI run, no sub-agent is running.**
+**`main` is at `5d68825`. CI runs 44148760824 (`Test`) and 44148761095 (`Architectural invariants`)
+were in progress when this was written — confirm them. Nothing else is in flight: no builder, no
+sub-agent, no other CI run.**
 
-**Do this first:** confirm `main` is still green, then ask the owner the questions below. There is no
-code work queued — everything left is gated on an owner answer or a design-note review.
+**Do this first:** confirm those two runs, then ask the owner the questions below. There is no code
+work queued — everything left is gated on an owner answer or a design-note review.
 
 ```bash
-gh run view 44013626997 --json conclusion --jq .conclusion   # expect success
+gh run list -b main -L 2 --json databaseId,name,conclusion   # expect success on both
 git fetch -q origin && git log --oneline -4 origin/main
 ```
 
 Then read `prompts/session-start-orchestrator.md` (your role).
 
-### Merged to `main` this session, in order
+### Merged to `main` this session
+
+| Commit | What |
+|---|---|
+| `24022d0` | **`fix/orders-test-skip`**, `--no-ff`. The orders integration suite reported `5 tests \| 5 skipped` in every CI run because its setup threw a `ReferenceError` on an undeclared `verify` that the `catch` swallowed into `setupFailed`. Un-skipping it exposed the defect the previous handoff predicted: `orders.subtotal_azn` is `NOT NULL` with no default and `routes/orders.ts` never wrote it, so `POST /orders` returned 500. Both fixed; the setup now only skips on the documented "RPC not deployed" case and rethrows anything else. `database.types.ts` hand-patched for the column. Branch CI 44119041881 green |
+| `5d68825` | **`Admin.Nav.reservations`** added to `az`, `en` and `ru`. The admin sidebar was rendering the raw key. Taken from `d242549` on `fix/main-live-defects` |
+
+typecheck / `pnpm test:unit` (754 passed, 69 files) / `audit:invariants` (20 checks, all ok) were run
+locally on the merged tree before the push. This worktree had no `node_modules`; `pnpm install
+--frozen-lockfile` was needed first.
+
+**Both defects that the previous handoff listed as "live on `main` right now" are now closed.**
+
+### `fix/main-live-defects` — what is left on it
+
+Its code commit `d242549` is superseded (the i18n lines were taken, the `verify` fix came in via
+`fix/orders-test-skip`). What remains unmerged and **wants the owner's review** is its design note
+`docs/design-notes/agent-context-modularization.md` (263 lines, `2091e50`): a measured audit finding
+that `docs/STATUS.md` at 80 KB read in full at every session start is ~85% of the avoidable context
+cost, and that `.agents/` is inert under Claude Code because this repository has no `.claude/`
+directory. Research only, no implementation. The branch's own CI (44121162226) is red and can be
+ignored — it failed for exactly the `POST /orders` 500 that `main` has now fixed.
+
+### Previously merged — the 2026-11-16 evening session
 
 | Commit | What |
 |---|---|
@@ -49,7 +71,10 @@ merged; their worktrees (`fix-storefront`, `fix-counter-sale`, `fix-m4-follow-up
    (b) The `orders` / `product_specs` schema query from the morning section is **still unanswered**,
    and it still blocks the `database.types.ts` regeneration. On the test project
    `orders.subtotal_azn` is `NOT NULL` with no default and `routes/orders.ts` never writes it, so
-   `POST /orders` cannot succeed there. If production matches, online orders fail there today.
+   `POST /orders` cannot succeed there. **Fixed on `main` in `24022d0`** — the route now writes
+   `subtotal_azn` and the orders integration suite proves it against the test project. The owner
+   question that remains is whether **production** carries the same column, which still blocks the
+   `database.types.ts` regeneration (it is hand-patched for this column today).
 2. **Review `docs/design-notes/m4b-store-notifications.md`** (`design/m4b-store-notifications`).
 3. **Review the two older design notes** (`design/delivery-fee`, `design/staff-provisioning`).
 4. **Three M4 minors that need new migrations on the test project** (9: reservation guard for
@@ -63,14 +88,9 @@ merged; their worktrees (`fix-storefront`, `fix-counter-sale`, `fix-m4-follow-up
 ### Still open, ordered by what blocks what
 
 1. The owner answers above. **Nothing goes to `main` without a yes.**
-2. **Two defects live on `main` right now**, both visible in every CI run, neither belonging to any
-   branch. These are the best next code work if the owner wants something done without a decision:
-   - `artifacts/api-server/tests/orders.test.ts` reports `5 tests | 5 skipped` on every run — it reads
-     an undeclared `verify` at about `:83`. **Every orders integration test has been passing
-     vacuously**, including in all three green runs above. One-line fix, and exactly the kind of hole
-     that swallows a real regression. Fixing it may well expose genuine failures; that is the point.
-   - The admin sidebar renders a raw `Admin.Nav.reservations` key — missing from **all three**
-     dictionaries, not just one.
+2. ~~Two defects live on `main`~~ — **both closed in `24022d0` and `5d68825`** (2026-11-17
+   evening). The orders suite now runs for real and `POST /orders` writes `subtotal_azn`; the
+   `Admin.Nav.reservations` key exists in all three dictionaries.
 3. Minors recorded with `file:line`, not fixed:
    - Storefront round 2: a one-character query can show a stale suggestion dropdown
      (`HeaderSearchBar.tsx:27-31`, the `q.length < 2` return does not bump `requestRef`; Escape has the
