@@ -16,6 +16,7 @@ Layout: `artifacts/store` (UI), `artifacts/api-server` (API), `lib/*` (shared, g
 - `pnpm run typecheck` — full typecheck, must pass before any commit
 - `pnpm test:unit` — offline unit tests (runs without database or server)
 - `pnpm run audit:invariants` — architectural invariant checks (see skill `audit-invariants`)
+- `pnpm run docs:index` — regenerate `INDEX.md` for `docs/` and `prompts/`; CI fails on a stale one
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks/schemas (see skill `openapi-codegen`)
 - `pnpm --filter @workspace/api-server run dev` — API on port 5000
 

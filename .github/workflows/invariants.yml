@@ -19,6 +19,8 @@ jobs:
       # before install, so a broken lockfile cannot hide an architectural regression.
       - name: Check invariants
         run: node scripts/audit/check-invariants.mjs
+      - name: Check doc indexes are current
+        run: node scripts/docs/build-index.mjs --check
       - name: Install
         run: pnpm install --frozen-lockfile
       - name: Typecheck
