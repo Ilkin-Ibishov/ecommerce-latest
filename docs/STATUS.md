@@ -1,53 +1,64 @@
 # Project status — current state only
 
-Last updated: 2026-11-17 (evening session). The entry point for a new session: what is true now,
+Last updated: 2026-11-18 (the 2026-11-17 session, which ran past midnight). The entry point for
+a new session: what is true now,
 what is open, and what waits on the owner. Superseded handoffs live in `docs/status/archive/`;
 how work runs here lives in `docs/agent-workflow.md`. Everything referenced lives in this
 repository; nothing important is only in a chat transcript.
 
-## Start here — first thing to do in a new session (2026-11-17 evening)
+## Start here — first thing to do in a new session (2026-11-18, the 2026-11-17 session past midnight)
 
-**`main` is at `5d68825`. CI runs 44148760824 (`Test`) and 44148761095 (`Architectural invariants`)
-were in progress when this was written — confirm them. Nothing else is in flight: no builder, no
-sub-agent, no other CI run.**
-
-**Do this first:** confirm those two runs, then ask the owner the questions below. There is no code
-work queued — everything left is gated on an owner answer or a design-note review.
+**`main` carries the whole agent-context-modularization change. Confirm its two CI runs, then ask
+the owner the questions below. Nothing is in flight: no builder, no sub-agent, no other CI run.**
 
 ```bash
 gh run list -b main -L 2 --json databaseId,name,conclusion   # expect success on both
-git fetch -q origin && git log --oneline -4 origin/main
+git fetch -q origin && git log --oneline -3 origin/main
 ```
 
-Then read `prompts/session-start-orchestrator.md` (your role).
+**This file is now current state only and stays near 10 KB. Read
+`.claude/skills/session-start/SKILL.md` for your role** — it replaces pasting
+`prompts/session-start-orchestrator.md`, and it names one spec instead of three.
+`docs/agent-workflow.md` holds the process detail; read it when you need it, not up front.
 
 ### Merged to `main` this session
 
-| Commit | What |
+The approved design note `docs/design-notes/agent-context-modularization.md`, implemented in full,
+items A-F in the order the note set:
+
+| Item | What |
 |---|---|
-| `24022d0` | **`fix/orders-test-skip`**, `--no-ff`. The orders integration suite reported `5 tests \| 5 skipped` in every CI run because its setup threw a `ReferenceError` on an undeclared `verify` that the `catch` swallowed into `setupFailed`. Un-skipping it exposed the defect the previous handoff predicted: `orders.subtotal_azn` is `NOT NULL` with no default and `routes/orders.ts` never wrote it, so `POST /orders` returned 500. Both fixed; the setup now only skips on the documented "RPC not deployed" case and rethrows anything else. `database.types.ts` hand-patched for the column. Branch CI 44119041881 green |
-| `5d68825` | **`Admin.Nav.reservations`** added to `az`, `en` and `ru`. The admin sidebar was rendering the raw key. Taken from `d242549` on `fix/main-live-defects` |
+| **A** | `docs/STATUS.md` split: 81,724 bytes → 10 KB current state, `docs/agent-workflow.md` for durable process, six files under `docs/status/archive/`. Every non-blank line of the old file accounted for. `AGENTS.md` carries the pruning rule — the root cause was that nothing said to prune |
+| **F** | `i18n-keys-exist-in-dictionaries` invariant (21 checks now), plus `en.ts`/`ru.ts` declared `const x: MessageSchema` so a key missing from one locale is a typecheck error. Proven against the defect it exists for; 5 fixture tests |
+| **B** | `.agents/` → `.claude/`: four skills and two sub-agents now load in a Claude session, `migrations.md` became `supabase/AGENTS.md`, `frontend.md` and `express5-api.md` merged into their directories' `AGENTS.md`, `testing.md` and `inventory.md` became skills. `.gitignore` now denies `.claude/*` with narrow negations, so `.claude/worktrees` cannot be committed |
+| **C** | Five new skills: `session-start`, `builder-round-accept`, `locale-key-add`, `e2e-diagnose`, `handoff-close` |
+| **D** | Three read-only sub-agents: `ci-triage`, `doc-finder`, `schema-verifier` |
+| **E** | `scripts/docs/build-index.mjs` writes an `INDEX.md` per doc directory (41 audits, 22 specs, 44 prompts, 8 design notes, 6 archives); `--check` runs in the invariants job and fails the build on a stale one |
 
-typecheck / `pnpm test:unit` (754 passed, 69 files) / `audit:invariants` (20 checks, all ok) were run
-locally on the merged tree before the push. This worktree had no `node_modules`; `pnpm install
---frozen-lockfile` was needed first.
+Local tiers on the merged tree: typecheck clean, **759 unit tests in 70 files**, 21 invariants ok,
+indexes current. One test was repointed, not weakened:
+`m2c-reservations-bypass-and-fulfil.test.ts` reads the inventory rules text, which item B moved —
+same three assertions, new path.
 
-**Both defects that the previous handoff listed as "live on `main` right now" are now closed.**
+**Session start before this change read ~133 KB / ~37,000 tokens before the first line of work.
+It now reads `AGENTS.md`, a 10 KB STATUS.md and the one spec the task needs.**
 
-### `fix/main-live-defects` — what is left on it
+### What was deliberately not done
 
-Its code commit `d242549` is superseded (the i18n lines were taken, the `verify` fix came in via
-`fix/orders-test-skip`). What remains unmerged and **wants the owner's review** is its design note
-`docs/design-notes/agent-context-modularization.md` (263 lines, `2091e50`): a measured audit finding
-that `docs/STATUS.md` at 80 KB read in full at every session start is ~85% of the avoidable context
-cost, and that `.agents/` is inert under Claude Code because this repository has no `.claude/`
-directory. Research only, no implementation. The branch's own CI (44121162226) is red and can be
-ignored — it failed for exactly the `POST /orders` 500 that `main` has now fixed.
+- **`.kiro/specs/` (~500 KB) is untouched and unindexed.** Nothing in `AGENTS.md` or the role skill
+  references it, so it may be dead weight from an earlier tool. **One question for the owner**
+  before anyone indexes it: is it live?
+- **`TranslationKey = MessageKey | (string & {})`** in `messages/index.ts` still lets any string
+  compile as a `t()` key. Tightening it would touch 1,463 call sites, some dynamic; the new
+  invariant covers the literal ones instead. Recorded, not scheduled.
+- Historical `prompts/*.md` and `docs/audits/*.md` keep their `.agents/` paths. They are the record
+  of what a builder was given, not live configuration.
 
 ### Branches still open
 
 | Branch | Tip | State |
 |---|---|---|
+| `fix/main-live-defects` | `2091e50` | **Fully superseded.** Its i18n lines and its design note are on `main`; its code commit is redundant and its red CI was the `POST /orders` 500 that `main` has fixed. Deletable |
 | `design/m4b-store-notifications` | `c29f55d` | Design note `docs/design-notes/m4b-store-notifications.md`. **Waiting for the owner's review. No implementation before approval** |
 | `fix/otp-bypass-production` | `fef34e1` | Security fix (the `999999` bypass and rate-limit exemption are off where `NODE_ENV=production`). Pushed, **not merged**, now far behind `main`. Needs a rebase, a PR and the owner's merge |
 | `design/delivery-fee`, `design/staff-provisioning` | unchanged | Still awaiting review |
@@ -72,6 +83,8 @@ ignored — it failed for exactly the `POST /orders` 500 that `main` has now fix
    as "not selling" (which date is the floor?); the dashboard's old `stock < 10` banner — delete it or
    feed it from the low-stock signal.
 6. **`fix/otp-bypass-production`**: rebase, PR, merge.
+7. **Is `.kiro/specs/` (~500 KB) live?** Nothing in `AGENTS.md` or the role skill references it.
+   If it is dead weight from an earlier tool, say so and it goes; if it is live, it wants an index.
 
 ### Still open, ordered by what blocks what
 
@@ -131,6 +144,7 @@ Superseded handoffs, archived verbatim. Nothing here is read at session start.
 
 | File | Session |
 |---|---|
+| `docs/status/archive/2026-11-17-evening.md` | 2026-11-17 evening — the orders subtotal_azn fix and the reservations locale key |
 | `docs/status/archive/2026-11-16-evening.md` | 2026-11-16 evening — three merges (storefront, counter sale, M4 follow-ups) |
 | `docs/status/archive/2026-11-16-afternoon.md` | 2026-11-16 afternoon |
 | `docs/status/archive/2026-11-16-morning.md` | 2026-11-16 morning |
