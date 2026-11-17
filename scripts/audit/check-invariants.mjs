@@ -813,6 +813,60 @@ checks.push(
       return hits;
     },
   },
+  {
+    id: 'i18n-keys-exist-in-dictionaries',
+    why: 'A t() key absent from the dictionaries renders as the raw key in the UI. Admin.Nav.reservations shipped missing from all three through three green CI runs.',
+    run: (files) => {
+      const hits = [];
+      const DICT = 'artifacts/store/src/lib/i18n/messages/az.ts';
+      const dict = files.find(({ file }) => rel(file) === DICT);
+      // Only az is parsed: en.ts and ru.ts are declared `const x: MessageSchema`, so a key
+      // missing from either is a typecheck error, not something this check has to find.
+      if (!dict) return hits;
+
+      // The dictionary is a formatted object literal. Walk it by brace depth, keeping the key
+      // path, and collect every string leaf as a dotted key.
+      const keys = new Set();
+      const stack = [];
+      for (const raw of dict.text.split('\n')) {
+        const line = raw.trim();
+        const open = /^"?([A-Za-z_]\w*)"?\s*:\s*\{$/.exec(line);
+        if (open) { stack.push(open[1]); continue; }
+        if (line.startsWith('}')) { stack.pop(); continue; }
+        const leaf = /^"?([A-Za-z_]\w*)"?\s*:\s*(?:"|'|`)/.exec(line);
+        if (leaf) keys.add([...stack, leaf[1]].join('.'));
+      }
+      // A silent parser failure would make this check pass on everything. Fail loudly instead.
+      if (keys.size < 500 || !keys.has('HomePage.hero.title')) {
+        hits.push({ file: DICT, line: 0, text: `dictionary parse produced ${keys.size} keys and no HomePage.hero.title — the parser, not the dictionary, is wrong` });
+        return hits;
+      }
+
+      const USES = [/\bt\(\s*"([A-Za-z_][\w.]*)"/g, /\blabelKey\s*:\s*"([A-Za-z_][\w.]*)"/g];
+      for (const { file, text } of files) {
+        const r = rel(file);
+        if (!r.startsWith('artifacts/store/src/')) continue;
+        if (r.startsWith('artifacts/store/src/lib/i18n/')) continue;
+        // Tests that assert the t() fallback must name a key that is deliberately absent.
+        if (/\/__tests__\//.test(r) || /\.(test|spec)\.tsx?$/.test(r)) continue;
+        if (!/\.tsx?$/.test(r)) continue;
+        text.split('\n').forEach((line, i) => {
+          for (const re of USES) {
+            re.lastIndex = 0;
+            let m;
+            while ((m = re.exec(line))) {
+              const k = m[1];
+              // A dotted key is a dictionary path; a bare word is a local variable or one of
+              // this codebase's several non-i18n t() calls.
+              if (!k.includes('.')) continue;
+              if (!keys.has(k)) hits.push({ file: r, line: i + 1, text: `i18n key "${k}" is not in the dictionaries` });
+            }
+          }
+        });
+      }
+      return hits;
+    },
+  },
 );
 
 /* ------------------------------------------------------------------- main */

@@ -59,11 +59,12 @@ Thumbs.db
 .kiro/settings/mcp.json
 
 # Replit agent artifacts (legacy)
-# Keep the Antigravity agent configuration tracked - it must travel with the repo.
-.agents/*
-!.agents/rules/
-!.agents/agents/
-!.agents/skills/
+# Keep the agent configuration tracked - it must travel with the repo. Claude Code reads
+# .claude/skills and .claude/agents; worktrees live under .claude/worktrees and must never be
+# committed, which is why this is a denylist with narrow negations rather than the reverse.
+.claude/*
+!.claude/skills/
+!.claude/agents/
 .config/
 .agent-runs/
 

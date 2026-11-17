@@ -1,8 +1,9 @@
 # AGENTS.md
 
 House rules for every agent session in this repository. Always in context — keep it short.
-Modular rules live in `.agents/rules/` and directory-level `AGENTS.md` (loaded on trigger/scope).
-Workflow runbooks live in `.agents/skills/`. Subagents live in `.agents/agents/`. Specs live in `docs/tasks/`.
+Scoped rules live in directory-level `AGENTS.md` (`artifacts/store`, `artifacts/api-server`,
+`supabase`), loaded when you work there. Skills live in `.claude/skills/`, subagents in
+`.claude/agents/`, specs in `docs/tasks/`. How work runs here: `docs/agent-workflow.md`.
 
 ## Stack
 pnpm workspaces · Node 24 · TypeScript 5.9 · Express 5 API · React + wouter storefront/admin ·
@@ -15,6 +16,7 @@ Layout: `artifacts/store` (UI), `artifacts/api-server` (API), `lib/*` (shared, g
 - `pnpm run typecheck` — full typecheck, must pass before any commit
 - `pnpm test:unit` — offline unit tests (runs without database or server)
 - `pnpm run audit:invariants` — architectural invariant checks (see skill `audit-invariants`)
+- `pnpm run docs:index` — regenerate `INDEX.md` for `docs/` and `prompts/`; CI fails on a stale one
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks/schemas (see skill `openapi-codegen`)
 - `pnpm --filter @workspace/api-server run dev` — API on port 5000
 
@@ -57,7 +59,15 @@ design note and explain the trade-off — do not silently deviate during impleme
 - Commit messages: `<type>(<scope>): <what changed>`. Small, reviewable commits.
 - Frontend work (HTML, CSS, client-side JS): run `modern-web-guidance` `search` **before** writing
   the code and `retrieve` the matching guide; prefer the platform feature over a hand-rolled
-  pattern or a new dependency. Detail in `.agents/rules/frontend.md`. Not for API, SQL or tooling.
+  pattern or a new dependency. Detail in `artifacts/store/AGENTS.md`. Not for API, SQL or tooling.
+
+## Handoff
+
+`docs/STATUS.md` is current state only, and stays near 10 KB. A new handoff **replaces** its
+"Start here" block; the block it replaces moves to `docs/status/archive/<date>-<slot>.md` with a
+row in that file's History table, in the same commit. Durable process goes to
+`docs/agent-workflow.md`, never into STATUS.md. The file reached 80 KB once, 45% of it under
+headings telling the reader to skip them — about 19,000 tokens read and discarded per session.
 
 ## Audit interface
 Your work is reviewed from git, not from chat. Anything that matters must end up in a file:

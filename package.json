@@ -14,7 +14,9 @@
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "audit:invariants": "node scripts/audit/check-invariants.mjs",
-    "audit:invariants:strict": "node scripts/audit/check-invariants.mjs --strict"
+    "audit:invariants:strict": "node scripts/audit/check-invariants.mjs --strict",
+    "docs:index": "node scripts/docs/build-index.mjs",
+    "docs:index:check": "node scripts/docs/build-index.mjs --check"
   },
   "private": true,
   "devDependencies": {

@@ -1,10 +1,8 @@
----
-trigger: glob
-globs: supabase/**/*.sql
-description: Rules for writing database migrations in this repository
----
+# Database Agent Guidelines
 
-# Migration rules
+This directory (`supabase`) holds the schema: migrations, the control plane, and `schema.sql`.
+Loaded by scope, so these rules apply to any SQL work here. Never run a migration against a
+production project — local or branch database only.
 
 ## Non-negotiable
 - One concern per migration file. Do not bundle a table creation with an unrelated backfill.

@@ -1,4 +1,12 @@
-# Session start — orchestrator role
+# Session start — orchestrator role (superseded)
+
+**Superseded 2026-11-17 by the `session-start` skill** (`.claude/skills/session-start/SKILL.md`),
+which loads on demand instead of being pasted into every session. The role and the hard-won rules
+moved there; the process detail moved to `docs/agent-workflow.md`. Kept as the record of what was
+pasted into sessions from 2026-11-13, including the four first actions of that date, all of which
+are long done.
+
+---
 
 Paste this as the first message of a new Claude Code session on this repository.
 Written 2026-11-13 as the handoff from the session that specified M4.

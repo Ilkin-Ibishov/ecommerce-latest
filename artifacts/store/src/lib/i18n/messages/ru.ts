@@ -1,4 +1,8 @@
-const ru = {
+import type { MessageSchema } from "./schema";
+
+// Typed against the az schema so a key missing from this locale is a typecheck error,
+// not a raw key rendered in the UI.
+const ru: MessageSchema = {
     HomePage: {
       hero: {
         title: "Лучшие продукты здесь",
