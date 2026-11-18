@@ -97,6 +97,17 @@ It now reads `AGENTS.md`, a 10 KB STATUS.md and the one spec the task needs.**
    `delivery_fee_azn`, so zones later touch the quote function, not the schema. What a zone
    model would lack is an address to key on: `orders.delivery_address` is one free-text column
    (`schema.sql:741`), with no city or region field anywhere.
+   **The note needs one change before implementation**, from a fact it did not have: payment is
+   cash on delivery (`Checkout.cashPayment`, "Çatdırılmada nağd"; no payment column on `orders`,
+   no gateway), so the checkout figure is a quote, not a charge. Where the regional amount is
+   unknown at checkout, the fee is not a checkout-time value at all — it is agreed on the call
+   that already moves the order `pending` → `phone_verified`. So `delivery_fee_azn` should be
+   **nullable** (NULL = not yet determined, 0 = no fee) and settable on that status change,
+   against the note's §5 `NOT NULL DEFAULT 0`; the note weighed nullable only for telling
+   "earned free" from "fee off" and decided against it, without this third reason. Checkout then
+   shows the goods amount and a delivery line with no number, and the submit button stops
+   printing a total it cannot stand behind (`CheckoutPage.tsx:299`). Once zones exist,
+   `quoteDelivery` fills the fee at checkout and the flow collapses back to the note's design.
 4. **Three M4 minors that need new migrations on the test project** (9: reservation guard for
    non-tracked variants in the database; 10: `FOR UPDATE` on the `track_stock` read in
    `trg_apply_stock_movement`; 13: `'in_progress'` is not a stocktake status). Applying them needs a yes.
