@@ -1133,6 +1133,7 @@ const en: MessageSchema = {
         cartEmpty: "Cart is empty",
         bundleBadge: "bundle",
         quantity: "Quantity",
+        quantityInvalid: "Enter a whole number from 1 to {max}",
         decrease: "Decrease",
         increase: "Increase",
         remove: "Remove",

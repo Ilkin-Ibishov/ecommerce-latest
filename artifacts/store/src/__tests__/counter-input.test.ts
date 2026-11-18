@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { MAX_QUANTITY, addQuantity, computeChange, parseQuantity } from "../components/admin/counter/counter-input";
+import { MAX_QUANTITY, addQuantity, computeChange, parseQuantity, resolveQuantityInput } from "../components/admin/counter/counter-input";
 
 describe("counter-input", () => {
   describe("computeChange", () => {
@@ -48,6 +48,19 @@ describe("counter-input", () => {
       expect(parseQuantity("abc")).toBeNull();
       expect(parseQuantity("1e9")).toBeNull();
       expect(parseQuantity("10000")).toBeNull();
+    });
+  });
+
+  describe("resolveQuantityInput", () => {
+    it("commits a valid typed quantity", () => {
+      expect(resolveQuantityInput("7", 3)).toEqual({ quantity: 7, rejected: false });
+      expect(resolveQuantityInput(String(MAX_QUANTITY), 3)).toEqual({ quantity: MAX_QUANTITY, rejected: false });
+    });
+
+    it("reverts an invalid typed quantity to the current one and flags it as rejected", () => {
+      for (const text of ["", "0", "-2", "2.5", "abc", "10000", "1e9"]) {
+        expect(resolveQuantityInput(text, 3)).toEqual({ quantity: 3, rejected: true });
+      }
     });
   });
 

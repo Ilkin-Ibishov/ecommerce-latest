@@ -1129,6 +1129,7 @@ const az = {
         cartEmpty: "Səbət boşdur",
         bundleBadge: "dəst",
         quantity: "Miqdar",
+        quantityInvalid: "1 ilə {max} arasında tam ədəd daxil edin",
         decrease: "Azalt",
         increase: "Artır",
         remove: "Sil",

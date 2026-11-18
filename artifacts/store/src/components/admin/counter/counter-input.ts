@@ -30,6 +30,13 @@ export function parseQuantity(text: string): number | null {
   return n;
 }
 
+// What a typed quantity commits to: the parsed number, or the line's current quantity when the
+// text is not a whole number from 1 to MAX_QUANTITY (rejected, so the till can say why).
+export function resolveQuantityInput(text: string, current: number): { quantity: number; rejected: boolean } {
+  const q = parseQuantity(text);
+  return q === null ? { quantity: current, rejected: true } : { quantity: q, rejected: false };
+}
+
 // A scan adds a pack to the line; the line stops at MAX_QUANTITY.
 export function addQuantity(current: number, added: number): number {
   return Math.min(current + added, MAX_QUANTITY);
