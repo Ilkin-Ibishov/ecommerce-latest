@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Minus, Plus, Trash2, AlertTriangle } from "lucide-react";
 import type { CartLine } from "./types";
-import { parseQuantity } from "./counter-input";
+import { MAX_QUANTITY, parseQuantity } from "./counter-input";
 import { useI18n } from "@/lib/i18n/context";
 
 function QuantityCell({
@@ -94,7 +94,7 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
                   disabled={locked}
                   onChange={(q) => onQuantity(line.key, q)}
                 />
-                <button type="button" aria-label={t("Admin.Counter.increase")} disabled={locked || line.quantity >= 9999}
+                <button type="button" aria-label={t("Admin.Counter.increase")} disabled={locked || line.quantity >= MAX_QUANTITY}
                   onClick={() => onQuantity(line.key, line.quantity + 1)}
                   className="rounded-md border border-border p-2 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
               </div>

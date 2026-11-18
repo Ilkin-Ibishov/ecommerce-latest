@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeChange, parseQuantity } from "../components/admin/counter/counter-input";
+import { MAX_QUANTITY, addQuantity, computeChange, parseQuantity } from "../components/admin/counter/counter-input";
 
 describe("counter-input", () => {
   describe("computeChange", () => {
@@ -48,6 +48,22 @@ describe("counter-input", () => {
       expect(parseQuantity("abc")).toBeNull();
       expect(parseQuantity("1e9")).toBeNull();
       expect(parseQuantity("10000")).toBeNull();
+    });
+  });
+
+  describe("addQuantity", () => {
+    it("adds a scanned pack to the line", () => {
+      expect(addQuantity(0, 1)).toBe(1);
+      expect(addQuantity(3, 6)).toBe(9);
+    });
+
+    it("stops a repeatedly scanned line at the same cap a typed quantity has", () => {
+      expect(MAX_QUANTITY).toBe(9999);
+      expect(addQuantity(MAX_QUANTITY - 1, 1)).toBe(MAX_QUANTITY);
+      expect(addQuantity(MAX_QUANTITY, 1)).toBe(MAX_QUANTITY);
+      expect(addQuantity(MAX_QUANTITY - 2, 12)).toBe(MAX_QUANTITY);
+      expect(addQuantity(0, 20000)).toBe(MAX_QUANTITY);
+      expect(parseQuantity(String(addQuantity(MAX_QUANTITY, 12)))).toBe(MAX_QUANTITY);
     });
   });
 });

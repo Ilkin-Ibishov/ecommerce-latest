@@ -12,7 +12,7 @@ import { CounterCheckoutPanel } from "@/components/admin/counter/CounterCheckout
 import { PaymentConfirmationModal } from "@/components/admin/counter/PaymentConfirmationModal";
 import { ReceiptModal } from "@/components/admin/counter/ReceiptModal";
 import { optionLabel, type CartLine, type CounterBundle, type LookupItem, type Outcome } from "@/components/admin/counter/types";
-import { computeChange } from "@/components/admin/counter/counter-input";
+import { addQuantity, computeChange } from "@/components/admin/counter/counter-input";
 import { useI18n } from "@/lib/i18n/context";
 
 // The till (M3a). The cart lives here until Complete; after Complete it is frozen until the
@@ -71,10 +71,10 @@ export default function CounterPage() {
     setOutcome(null);
     setLines((cur) => {
       const existing = cur.find((l) => l.variant_id === item.variant_id && !l.bundle_id);
-      if (existing) return cur.map((l) => (l === existing ? { ...l, quantity: l.quantity + item.pack_quantity } : l));
+      if (existing) return cur.map((l) => (l === existing ? { ...l, quantity: addQuantity(l.quantity, item.pack_quantity) } : l));
       return [...cur, {
         key: crypto.randomUUID(), variant_id: item.variant_id, title: item.title, options: optionLabel(item.options),
-        quantity: item.pack_quantity, unit_price: item.price, on_hand: item.on_hand, available: item.available,
+        quantity: addQuantity(0, item.pack_quantity), unit_price: item.price, on_hand: item.on_hand, available: item.available,
         reservations: item.reservations, bundle_id: null,
       }];
     });

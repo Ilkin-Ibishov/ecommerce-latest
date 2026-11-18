@@ -16,13 +16,21 @@ export function computeChange(
   return { sufficient, change };
 }
 
+// Largest quantity on one till line, whichever way it is entered (typed, +, scanned).
+export const MAX_QUANTITY = 9999;
+
 export function parseQuantity(text: string): number | null {
   if (typeof text !== "string" || text.trim() === "") {
     return null;
   }
   const n = Number(text);
-  if (!Number.isInteger(n) || n < 1 || n > 9999) {
+  if (!Number.isInteger(n) || n < 1 || n > MAX_QUANTITY) {
     return null;
   }
   return n;
+}
+
+// A scan adds a pack to the line; the line stops at MAX_QUANTITY.
+export function addQuantity(current: number, added: number): number {
+  return Math.min(current + added, MAX_QUANTITY);
 }
