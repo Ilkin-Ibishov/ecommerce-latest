@@ -1,12 +1,14 @@
 import { getAdminSupabase } from "./supabase";
 import {
+  sendWhatsAppDeliveryFeeSet,
   sendWhatsAppOrderConfirmed,
   sendWhatsAppStatusUpdate,
 } from "./whatsapp";
 
 type NotifType =
   | "order_confirmed"
-  | "status_changed";
+  | "status_changed"
+  | "delivery_fee_set";
 
 type NotifChannel = "whatsapp";
 
@@ -52,7 +54,20 @@ export async function queueNotification(params: {
         Number(payload.total ?? 0),
       );
     } else if (type === "status_changed") {
-      result = await sendWhatsAppStatusUpdate(recipient, payload.order_id, payload.status ?? "");
+      result = await sendWhatsAppStatusUpdate(
+        recipient,
+        payload.order_id,
+        payload.status ?? "",
+        payload.delivery_fee,
+        payload.total !== undefined ? Number(payload.total) : undefined,
+      );
+    } else if (type === "delivery_fee_set") {
+      result = await sendWhatsAppDeliveryFeeSet(
+        recipient,
+        payload.order_id,
+        Number(payload.delivery_fee ?? 0),
+        Number(payload.total ?? 0),
+      );
     }
 
     if (notifId) {

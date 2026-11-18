@@ -64,10 +64,12 @@ export async function sendWhatsAppOrderConfirmed(
   totalAzn: number,
 ): Promise<{ ok: boolean; error?: string }> {
   const shortId = orderId.slice(0, 8).toUpperCase();
+  const goodsAzn = totalAzn.toFixed(2);
   const message =
     `✅ ${STORE_NAME}\n\n` +
     `Sifariş #${shortId} qəbul edildi!\n` +
-    `📦 ${itemCount} məhsul · ${totalAzn.toFixed(2)} ₼\n` +
+    `📦 ${itemCount} məhsul · ${goodsAzn} ₼\n` +
+    `🚚 Çatdırılma: təsdiq zamanı bildirilir\n` +
     `💵 Ödəniş: Çatdırılmada nağd\n\n` +
     `Sualınız üçün: ${ADMIN_PHONE}`;
   return sendMessage(phone, message);
@@ -77,13 +79,27 @@ export async function sendWhatsAppStatusUpdate(
   phone: string,
   orderId: string,
   status: string,
+  deliveryFee?: number | null,
+  totalAzn?: number,
 ): Promise<{ ok: boolean; error?: string }> {
   const shortId = orderId.slice(0, 8).toUpperCase();
 
+  let phoneVerifiedMsg =
+    `📋 ${STORE_NAME} — Sifariş #${shortId}\n\n` +
+    `Sifarişiniz təsdiqləndi və hazırlanmağa başlandı.`;
+
+  if (deliveryFee !== null && deliveryFee !== undefined) {
+    const feeLine = Number(deliveryFee) > 0
+      ? `🚚 Çatdırılma: ${Number(deliveryFee).toFixed(2)} ₼`
+      : `🚚 Çatdırılma: pulsuz`;
+    const totalLine = totalAzn !== undefined
+      ? `\n💵 Yekun: ${Number(totalAzn).toFixed(2)} ₼ — çatdırılmada nağd`
+      : "";
+    phoneVerifiedMsg += `\n${feeLine}${totalLine}`;
+  }
+
   const statusMessages: Record<string, string> = {
-    phone_verified:
-      `📋 ${STORE_NAME} — Sifariş #${shortId}\n\n` +
-      `Sifarişiniz təsdiqləndi və hazırlanmağa başlandı.`,
+    phone_verified: phoneVerifiedMsg,
     courier_assigned:
       `🚴 ${STORE_NAME} — Sifariş #${shortId}\n\n` +
       `Kuryerimiz sifarişinizi götürdü. Tezliklə çatdırılacaq!`,
@@ -105,6 +121,25 @@ export async function sendWhatsAppStatusUpdate(
 
   const message = statusMessages[status];
   if (!message) return { ok: true };
+  return sendMessage(phone, message);
+}
+
+export async function sendWhatsAppDeliveryFeeSet(
+  phone: string,
+  orderId: string,
+  deliveryFee: number,
+  totalAzn: number,
+): Promise<{ ok: boolean; error?: string }> {
+  const shortId = orderId.slice(0, 8).toUpperCase();
+  const feeLine = Number(deliveryFee) > 0
+    ? `🚚 Çatdırılma: ${Number(deliveryFee).toFixed(2)} ₼`
+    : `🚚 Çatdırılma: pulsuz`;
+  const totalLine = `💵 Yekun: ${Number(totalAzn).toFixed(2)} ₼ — çatdırılmada nağd`;
+  const message =
+    `📋 ${STORE_NAME} — Sifariş #${shortId}\n\n` +
+    `${feeLine}\n` +
+    `${totalLine}\n\n` +
+    `Sualınız üçün: ${ADMIN_PHONE}`;
   return sendMessage(phone, message);
 }
 
