@@ -1126,6 +1126,7 @@ const az = {
         lookupAriaLabel: "Barkod və ya məhsul adı",
         clearSearch: "Axtarışı təmizlə",
         notFound: "Tapılmadı",
+        lookupFailed: "Axtarış alınmadı — yenidən cəhd edin",
         cartEmpty: "Səbət boşdur",
         bundleBadge: "dəst",
         quantity: "Miqdar",

@@ -1130,6 +1130,7 @@ const en: MessageSchema = {
         lookupAriaLabel: "Barcode or product name",
         clearSearch: "Clear search",
         notFound: "Not found",
+        lookupFailed: "Lookup failed — try again",
         cartEmpty: "Cart is empty",
         bundleBadge: "bundle",
         quantity: "Quantity",

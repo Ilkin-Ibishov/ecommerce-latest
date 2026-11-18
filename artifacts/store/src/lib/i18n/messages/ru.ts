@@ -1130,6 +1130,7 @@ const ru: MessageSchema = {
         lookupAriaLabel: "Штрихкод или название товара",
         clearSearch: "Очистить поиск",
         notFound: "Не найдено",
+        lookupFailed: "Не удалось выполнить поиск — попробуйте ещё раз",
         cartEmpty: "Корзина пуста",
         bundleBadge: "комплект",
         quantity: "Количество",
