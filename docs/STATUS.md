@@ -110,11 +110,18 @@ plus the one spec the task needs — is in `docs/archive/status/2026-11-18-morni
 
 ### Still open, ordered by what blocks what
 
-1. The owner answers above. **Nothing goes to `main` without a yes.**
+1. The owner answers above. Product decisions (specs, design notes, the database) need the
+   owner's yes; git mechanics — commits, branches, PRs, merging a green PR — are delegated to the
+   agent (owner, 2026-11-18).
 2. **`admin-panel.spec.ts` signs in with phone + OTP in every `beforeEach`** — 40-odd sign-ins a
    run, no `storageState` reuse. That 20s login wait is what failed in runs 44245021110 and
    44246337058 when the runner was slow. Raising the timeout would hide it; the fix is one
    sign-in reused across the file. Not scheduled.
+   **Same family — the test project outgrows PostgREST's 1000-row cap.** Every CI run adds
+   variants the append-only ledger keeps. The M4 signal tests now filter their RPCs server-side
+   (PR #16), but `m4-stock-signals` test 2 reads `GET /admin/inventory/signals/reorder`, which
+   has no filter: 694 rows on 2026-11-18, roughly 90 runs from the cap. Any other test that
+   searches a whole list for its own row has the same flaw.
 3. **`product_variants.track_stock` is declared and read by nothing.** The ledger
    (`20261102100000_m1_variants_ledger.sql`) and the counter path
    (`20261111120400_m3_post_counter_sale.sql`) never check it, so a `track_stock = false` variant
