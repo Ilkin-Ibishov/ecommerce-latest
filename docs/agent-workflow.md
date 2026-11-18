@@ -6,11 +6,13 @@ rarely. Moved out of STATUS.md on 2026-11-17 so that a session start no longer r
 
 ## Where to start
 
-`.kiro/` was an earlier tool's configuration. Its `specs/` tree was removed on 2026-11-18 as dead
-weight: 1.2 MB across 77 files, last touched 2026-07-01, referenced by nothing but provenance
-comments in the SEC-00x test files. `git show 9d885f7:.kiro/specs/<name>/requirements.md` recovers
-any of it. `steering/` and `hooks/` are still there and are the same dead tool — `steering/`
-includes a Drizzle ORM guide for a project that uses Supabase.
+`.kiro/` was an earlier tool's configuration and is gone as of 2026-11-18: `specs/` (1.2 MB, 77
+files) in `ad17c6d`, then `steering/` (19 files) and `hooks/` (4) in the commit after it. Nothing
+in a Claude session ever read any of it; the only references left were provenance comments in the
+SEC-00x test files. Recover a spec with `git show 9d885f7:.kiro/specs/<name>/requirements.md`, a
+steering file with `git show 4b59f51:.kiro/steering/<name>.md`. `ltm/` is the one thing that still
+names those paths — it is a Kiro-hook-driven memory capture tool, so it has not run since Kiro
+went away; left in place, unasked.
 
 
 

@@ -56,10 +56,10 @@ It now reads `AGENTS.md`, a 10 KB STATUS.md and the one spec the task needs.**
 - **`.kiro/specs/` was removed** in `ad17c6d`, the owner confirming it dead: 77 files, 1.2 MB,
   last touched 2026-07-01, referenced by nothing but provenance comments in the SEC-00x test
   files. Recover any of it with `git show 9d885f7:.kiro/specs/<name>/requirements.md`.
-  **`.kiro/steering/` (19 files) and `.kiro/hooks/` (4) are still there, 114 KB, and are the same
-  dead tool** — `steering/` includes a Drizzle ORM guide for a project that uses Supabase. Left
-  in place because the question asked and answered was about `specs/`. One more owner yes removes
-  them.
+  `.kiro/steering/` (19 files) and `.kiro/hooks/` (4) followed on the owner's second yes, so
+  `.kiro/` no longer exists; recover a steering file with
+  `git show 4b59f51:.kiro/steering/<name>.md`. `ltm/` still names those paths — a Kiro-hook-driven
+  memory capture tool that has not run since Kiro went away. Left in place, unasked.
 - **`TranslationKey = MessageKey | (string & {})`** in `messages/index.ts` still lets any string
   compile as a `t()` key. Tightening it would touch 1,463 call sites, some dynamic; the new
   invariant covers the literal ones instead. Recorded, not scheduled.
@@ -95,8 +95,9 @@ It now reads `AGENTS.md`, a 10 KB STATUS.md and the one spec the task needs.**
    as "not selling" (which date is the floor?); the dashboard's old `stock < 10` banner — delete it or
    feed it from the low-stock signal.
 6. **`fix/otp-bypass-production`**: rebase, PR, merge.
-7. ~~Is `.kiro/specs/` live?~~ **Answered 2026-11-18: dead, removed in `ad17c6d`.** What remains
-   is whether `.kiro/steering/` and `.kiro/hooks/` (114 KB, same dead tool) go the same way.
+7. ~~Is `.kiro/` live?~~ **Answered 2026-11-18: dead. All of it removed** — `specs/` in `ad17c6d`,
+   `steering/` and `hooks/` after it. Open successor: `ltm/` (4 files) is a Kiro-hook memory tool
+   whose hook and steering targets are now gone. Delete it too, or keep?
 
 ### Still open, ordered by what blocks what
 

@@ -1,6 +1,6 @@
 ---
 name: doc-finder
-description: Given a question, returns the 2-3 relevant paths from docs/, prompts/ and .kiro/ with a short summary of each. Use instead of globbing or reading whole audit files; docs/audits alone is 642 KB across 50 files with no index.
+description: Given a question, returns the 2-3 relevant paths from docs/ and prompts/ with a short summary of each. Use instead of globbing or reading whole audit files; docs/audits alone is 642 KB across 50 files with no index.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -23,10 +23,10 @@ paste.
 
 Where an `INDEX.md` exists, read it first — it is generated from the files' own headings.
 
-`.kiro/specs` was removed on 2026-11-18 (1.2 MB, 77 files, last touched 2026-07-01). Test files
-carry comments like `Spec: .kiro/specs/supabase-rls-security-fixes`; that path no longer exists in
-`HEAD`. Recover one with
-`git show 9d885f7:.kiro/specs/<name>/requirements.md` — the content is in git history, not lost.
+All of `.kiro/` was removed on 2026-11-18. Test files carry comments like
+`Spec: .kiro/specs/supabase-rls-security-fixes`; that path no longer exists in `HEAD`. Recover a
+spec with `git show 9d885f7:.kiro/specs/<name>/requirements.md` and a steering file with
+`git show 4b59f51:.kiro/steering/<name>.md` — the content is in git history, not lost.
 
 ## Method
 

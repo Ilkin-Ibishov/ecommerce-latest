@@ -55,9 +55,6 @@ Thumbs.db
 !.env.example
 !.env.test.example
 
-# Kiro — ignore MCP config (may contain access tokens); keep steering & specs tracked
-.kiro/settings/mcp.json
-
 # Replit agent artifacts (legacy)
 # Keep the agent configuration tracked - it must travel with the repo. Claude Code reads
 # .claude/skills and .claude/agents; worktrees live under .claude/worktrees and must never be
