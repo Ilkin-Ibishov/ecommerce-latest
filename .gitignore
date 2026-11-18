@@ -73,3 +73,6 @@ test-results/
 **/coverage/
 
 supabase/.temp/ 
+
+# Playwright saved sessions (live tokens) — tests/helpers/admin-auth.ts
+.auth/

@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { ADMIN_STATE, loginAsAdmin } from "../helpers/admin-auth";
 
 /**
  * E2E: Admin Panel
@@ -14,39 +15,11 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 test.describe("Admin Panel", () => {
+  // The session saved by auth.setup.ts: no OTP sign-in per test.
+  test.use({ storageState: ADMIN_STATE });
+
   test.beforeEach(async ({ page }) => {
-    await page.goto("/admin");
-
-    // Wait for the admin shell to settle into EITHER the auth gate or the
-    // dashboard, rather than networkidle.
-    const authGate = page.getByText("Admin Access Required");
-    const dashboard = page.getByRole("heading", { name: "Dashboard" });
-    await expect(authGate.or(dashboard).first()).toBeVisible({ timeout: 30000 });
-
-    const needsAuth = await authGate.isVisible().catch(() => false);
-    if (needsAuth) {
-      await page.getByRole("button", { name: "Sign In with Phone" }).click();
-
-      // Locale-agnostic selectors: the admin panel renders in its stored locale
-      // (defaults to "en" in a fresh browser, e.g. CI), so the LoginModal button
-      // labels are NOT Azerbaijani. The phone/OTP inputs use fixed placeholders
-      // and each modal step has exactly one `button[type="submit"]`, so we drive
-      // the flow by submit button rather than by translated text.
-      const phoneInput = page.getByPlaceholder("+994 XX XXX XX XX");
-      await expect(phoneInput).toBeVisible({ timeout: 15000 });
-      await phoneInput.fill("+994550000001");
-
-      await page.locator('button[type="submit"]').click();
-
-      // Wait for the OTP step to render instead of a fixed timeout.
-      const otpInput = page.getByPlaceholder("------");
-      await expect(otpInput).toBeVisible({ timeout: 15000 });
-      await otpInput.fill("999999");
-
-      await page.locator('button[type="submit"]').click();
-
-      await expect(dashboard).toBeVisible({ timeout: 20000 });
-    }
+    await loginAsAdmin(page);
   });
 
   test.describe("Dashboard", () => {
