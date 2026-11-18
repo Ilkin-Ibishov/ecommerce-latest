@@ -220,7 +220,8 @@ router.post("/admin/users", requireAdmin, async (req: Request, res: Response): P
         phone: canonicalPhone,
         full_name: trimmedName,
       },
-      { onConflict: "id" },
+      // DO NOTHING on conflict (design note §3): an existing profile keeps its name and phone.
+      { onConflict: "id", ignoreDuplicates: true },
     );
 
   if (upsertErr) {

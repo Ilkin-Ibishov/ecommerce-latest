@@ -12,6 +12,7 @@ import { SearchInput } from "@/components/admin/SearchInput";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useConfirm } from "@/lib/hooks/useConfirm";
 import { AddStaffModal } from "@/components/admin/AddStaffModal";
+import { userErrorKey } from "@/components/admin/user-error-key";
 import { type AdminUser, createUsersColumns } from "@/components/admin/UserRoleControl";
 
 export default function AdminUsersPage() {
@@ -60,7 +61,7 @@ export default function AdminUsersPage() {
         if (res.ok) setRoleOverrides((prev) => ({ ...prev, [u.id]: newRole }));
         else {
           const data = await res.json().catch(() => ({}));
-          setActionError(t((data.error ? `Admin.Users.error.${data.error}` : "Admin.Common.error") as any) || t("Admin.Common.error"));
+          setActionError(t(userErrorKey(data.error)));
         }
         setRoleSaving(null);
       },

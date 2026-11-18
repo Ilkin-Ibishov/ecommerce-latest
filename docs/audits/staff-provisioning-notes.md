@@ -310,3 +310,27 @@ All invariant checks passed.
    Start at  19:23:44
    Duration  28.03s (transform 18.28s, setup 0ms, collect 57.68s, tests 37.15s, environment 20.32s, prepare 85.04s)
 ```
+
+---
+
+## Architect acceptance — 2026-11-18 (checked against the diff, not these notes)
+
+- Files: as the prompt named, plus `docs/audits/INDEX.md` and `prompts/INDEX.md` (regenerated).
+- Tests removed: 0 (`git diff origin/main...HEAD -- '*.test.ts' '*.spec.ts' | grep -c '^-.*\bit('`).
+- **Fixed by the architect (commit after this round):**
+  1. Two new `as any` in the screen (`AddStaffModal.tsx:53`, `UsersPage.tsx:63`), casting a
+     runtime-built key into `t()`. Replaced by `components/admin/user-error-key.ts`: a code→key map
+     typed `MessageKey` (not `TranslationKey`, which admits any string), so a missing dictionary key
+     fails typecheck. An unknown code falls back to `Admin.Common.error`.
+  2. `POST /admin/users` fallback path upserted the profile `ON CONFLICT (id)` with
+     `full_name: null`, wiping an existing customer's name. Now `ignoreDuplicates: true`
+     (`DO NOTHING`, note §3).
+- Accepted: the `bootstrap.ts` exemption in `role-written-only-by-users-route` (first-run endpoint,
+  refuses once an admin exists). Two new test files over 200 lines (`tests/admin-users.test.ts`
+  401, `tests/serial/staff-provisioning.test.ts` 250): test tables, accepted.
+- Correction to *Assumptions* above: CI does **not** apply migrations. The architect applies them
+  to the test project (owner's yes, 2026-11-18).
+- Minor, not changed: `PATCH /admin/users/:id/role` answers a malformed body with `not_found`.
+- Local, on this branch after the fixes: `pnpm run typecheck` (api-server, store: Done),
+  `pnpm run audit:invariants:strict` ("All invariant checks passed."), `pnpm test:unit`
+  ("Test Files 73 passed (73)", "Tests 774 passed (774)"). Integration, serial and E2E: CI only.

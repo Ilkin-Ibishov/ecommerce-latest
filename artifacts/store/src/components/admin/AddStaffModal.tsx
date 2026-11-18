@@ -2,6 +2,7 @@ import { useState } from "react";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useI18n } from "@/lib/i18n/context";
+import { userErrorKey } from "./user-error-key";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 
 interface Props {
@@ -49,8 +50,7 @@ export function AddStaffModal({ open, onClose, onCreated }: Props) {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const errKey = data.error ? `Admin.Users.error.${data.error}` : "Admin.Common.error";
-        setError(t(errKey as any) || data.error || t("Admin.Common.error"));
+        setError(t(userErrorKey(data.error)));
         return;
       }
       resetForm();
