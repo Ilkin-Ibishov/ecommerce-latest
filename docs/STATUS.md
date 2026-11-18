@@ -122,6 +122,10 @@ plus the one spec the task needs — is in `docs/archive/status/2026-11-18-morni
    (PR #16), but `m4-stock-signals` test 2 reads `GET /admin/inventory/signals/reorder`, which
    has no filter: 694 rows on 2026-11-18, roughly 90 runs from the cap. Any other test that
    searches a whole list for its own row has the same flaw.
+   **CI on 2026-11-18** (PRs #16-#18): `integration-e2e` now queues on one concurrency group,
+   because overlapping runs deleted each other's fixtures; `orders.test` names `test-product-1`,
+   the only seeded product with a variant (`-2`/`-3` have none — why is not established). The
+   admin-panel E2E sign-in failures seen while runs overlapped did not recur in a solo run.
 3. **`product_variants.track_stock` is declared and read by nothing.** The ledger
    (`20261102100000_m1_variants_ledger.sql`) and the counter path
    (`20261111120400_m3_post_counter_sale.sql`) never check it, so a `track_stock = false` variant
