@@ -359,3 +359,11 @@ All invariant checks passed.
   every admin (ST040, nothing changes) and by two concurrent halves (exactly one ST040), with an
   `afterAll` that restores any admin changed; the demotion test signs the staff member in and sees
   200 then 403 on `GET /admin/counter/bundles`. Not run locally (needs the test project).
+- **CI round 3: E2E `staff-access.spec.ts` failed 2 of 4** (run 44340668579). The failure
+  screenshots showed the feature working: the panel reads "This section is for administrators only",
+  which the test's `/access denied|…/` never matched; the other failure was a staff sign-in that
+  had not completed, because every test signed the same phone in again across parallel workers.
+  Fixed the test the way admin E2E was fixed in #19: `auth.setup.ts` saves a staff session once
+  (`STAFF_STATE`, `loginAsStaff` in `tests/helpers/admin-auth.ts`) and the spec reuses it. Also the
+  "no Users entry" check looked for "Users" while the entry is labelled "Customers" — it now
+  matches `/customers|users/i`. No assertion weakened.

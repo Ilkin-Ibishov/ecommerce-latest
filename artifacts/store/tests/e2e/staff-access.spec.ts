@@ -1,4 +1,5 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect } from "@playwright/test";
+import { STAFF_STATE } from "../helpers/admin-auth";
 
 /**
  * E2E: Staff Access and Permission Boundaries
@@ -11,34 +12,14 @@ import { test, expect, type Page } from "@playwright/test";
  * - Is blocked by the access guard when attempting to reach admin-only routes directly
  */
 
-async function loginAsStaff(page: Page): Promise<void> {
-  await page.goto("/admin");
-
-  const authGate = page.getByText("Admin Access Required");
-  const counterPage = page.locator("main, [role='main']");
-  await expect(authGate.or(counterPage).first()).toBeVisible({ timeout: 30000 });
-
-  if (!(await authGate.isVisible().catch(() => false))) return;
-
-  await page.getByRole("button", { name: "Sign In with Phone" }).click();
-
-  const phoneInput = page.getByPlaceholder("+994 XX XXX XX XX");
-  await expect(phoneInput).toBeVisible({ timeout: 15000 });
-  await phoneInput.fill("+994550000002");
-  await page.locator('button[type="submit"]').click();
-
-  const otpInput = page.getByPlaceholder("------");
-  await expect(otpInput).toBeVisible({ timeout: 15000 });
-  await otpInput.fill("999999");
-  await page.locator('button[type="submit"]').click();
-
-  // /admin automatically redirects staff users to /admin/counter
-  await expect(page).toHaveURL(/\/admin\/counter/, { timeout: 20000 });
-}
+// The staff session saved by auth.setup.ts: one OTP sign-in per run, not one per test (parallel
+// sign-ins of the same phone were flaky).
+test.use({ storageState: STAFF_STATE });
 
 test.describe("Staff Access Controls", () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsStaff(page);
+    await page.goto("/admin/counter");
+    await expect(page.locator("nav").getByRole("link", { name: /counter/i })).toBeVisible({ timeout: 30000 });
   });
 
   test("/admin lands on the counter page", async ({ page }) => {
@@ -54,7 +35,7 @@ test.describe("Staff Access Controls", () => {
 
   test("does not show Users, Orders, or Settings in navigation", async ({ page }) => {
     const nav = page.locator("nav");
-    await expect(nav.getByRole("link", { name: /users|istifadəçilər/i })).not.toBeVisible();
+    await expect(nav.getByRole("link", { name: /customers|users/i })).not.toBeVisible();
     await expect(nav.getByRole("link", { name: /orders|sifarişlər/i })).not.toBeVisible();
     await expect(nav.getByRole("link", { name: /settings|tənzimləmələr/i })).not.toBeVisible();
   });
@@ -62,7 +43,7 @@ test.describe("Staff Access Controls", () => {
   test("shows access denied panel when navigating directly to admin-only pages", async ({ page }) => {
     await page.goto("/admin/users");
     // Should display access denied panel rather than the users table
-    await expect(page.getByText(/access denied|icazə verilmir|dostup zapreshchen/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("This section is for administrators only")).toBeVisible({ timeout: 10000 });
     await expect(page.locator("table")).not.toBeVisible();
   });
 });

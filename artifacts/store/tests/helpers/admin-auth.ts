@@ -41,3 +41,21 @@ export async function loginAsAdmin(page: Page): Promise<void> {
 
   await expect(dashboard).toBeVisible({ timeout: 20000 });
 }
+
+/** Saved staff session (`+994550000002`, `staff` on the test project), written by auth.setup.ts. */
+export const STAFF_STATE = path.join(import.meta.dirname, "..", "e2e", ".auth", "staff.json");
+
+/** Sign in as the test staff member; a staff user opening /admin lands on the counter. */
+export async function loginAsStaff(page: Page): Promise<void> {
+  await page.goto("/admin");
+  await page.getByRole("button", { name: "Sign In with Phone" }).click();
+  const phoneInput = page.getByPlaceholder("+994 XX XXX XX XX");
+  await expect(phoneInput).toBeVisible({ timeout: 15000 });
+  await phoneInput.fill("+994550000002");
+  await page.locator('button[type="submit"]').click();
+  const otpInput = page.getByPlaceholder("------");
+  await expect(otpInput).toBeVisible({ timeout: 15000 });
+  await otpInput.fill("999999");
+  await page.locator('button[type="submit"]').click();
+  await expect(page).toHaveURL(/\/admin\/counter/, { timeout: 20000 });
+}
