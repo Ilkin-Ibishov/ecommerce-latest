@@ -815,7 +815,6 @@ const ru: MessageSchema = {
         deliveryReceipt: "Квитанция доставки",
         notifTypeOrderConfirmed: "Подтверждение заказа",
         notifTypeStatusChanged: "Изменение статуса",
-        notifTypeLowStock: "Низкий запас",
         sent: "Отправлено",
       },
       Products: {
@@ -1130,6 +1129,7 @@ const ru: MessageSchema = {
         lookupAriaLabel: "Штрихкод или название товара",
         clearSearch: "Очистить поиск",
         notFound: "Не найдено",
+        lookupFailed: "Не удалось выполнить поиск — попробуйте ещё раз",
         cartEmpty: "Корзина пуста",
         bundleBadge: "комплект",
         quantity: "Количество",

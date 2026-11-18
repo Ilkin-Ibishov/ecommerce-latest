@@ -1,8 +1,9 @@
 /**
- * Notifications proxy route — called BY the store frontend (user-authed).
+ * Notifications proxy route — called BY the store admin panel (admin-authed).
  *
- * The store frontend calls `GET /platform/notifications` with the user's JWT.
- * This proxy validates the user, then forwards to the Control_Plane store-feed
+ * The admin Notification Center calls `GET /platform/notifications` with the
+ * admin's JWT. This proxy checks the caller is a store admin (a signed-in
+ * shopper gets 403), then forwards to the Control_Plane store-feed
  * using the server-side STORE_PLATFORM_SECRET — the secret never reaches the
  * client bundle.
  *
@@ -10,13 +11,13 @@
  * Requirements: 2.1, 2.2, 2.3, 2.4, 2.5
  */
 import { Router, type IRouter } from "express";
-import { requireUser } from "../../middlewares/requireUser";
+import { requireAdmin } from "../../middlewares/requireAdmin";
 
 const router: IRouter = Router();
 
 router.get(
   "/platform/notifications",
-  requireUser,
+  requireAdmin,
   async (req, res): Promise<void> => {
     const secret = process.env.STORE_PLATFORM_SECRET;
     if (!secret) {

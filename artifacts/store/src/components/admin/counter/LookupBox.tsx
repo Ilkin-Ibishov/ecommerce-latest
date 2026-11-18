@@ -15,7 +15,8 @@ export function LookupBox({ onResults, disabled, resetSignal }: {
   const { t } = useI18n();
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [notFound, setNotFound] = useState(false);
+  // A failed request (401/429/500, network) is not "no such product": keep the two apart.
+  const [miss, setMiss] = useState<"Admin.Counter.notFound" | "Admin.Counter.lookupFailed" | null>(null);
   const input = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -39,7 +40,7 @@ export function LookupBox({ onResults, disabled, resetSignal }: {
   useEffect(() => {
     if (resetSignal !== undefined) {
       setText("");
-      setNotFound(false);
+      setMiss(null);
       if (!disabled) input.current?.focus();
     }
   }, [resetSignal, disabled]);
@@ -48,16 +49,22 @@ export function LookupBox({ onResults, disabled, resetSignal }: {
     const q = text.trim();
     if (!q) return;
     setBusy(true);
-    setNotFound(false);
+    setMiss(null);
     try {
       const res = await adminFetch(apiUrl(`/admin/counter/lookup?q=${encodeURIComponent(q)}`));
-      const data = res.ok ? await res.json() : { items: [] };
+      if (!res.ok) {
+        setMiss("Admin.Counter.lookupFailed"); // keep the text so the cashier can retry
+        return;
+      }
+      const data = await res.json();
       if (data.items.length === 0) {
-        setNotFound(true); // keep the text so the cashier can correct it
+        setMiss("Admin.Counter.notFound"); // keep the text so the cashier can correct it
       } else {
         setText("");
         onResults(data.items);
       }
+    } catch {
+      setMiss("Admin.Counter.lookupFailed");
     } finally {
       setBusy(false);
     }
@@ -65,7 +72,7 @@ export function LookupBox({ onResults, disabled, resetSignal }: {
 
   const handleClear = () => {
     setText("");
-    setNotFound(false);
+    setMiss(null);
     input.current?.focus();
   };
 
@@ -77,7 +84,7 @@ export function LookupBox({ onResults, disabled, resetSignal }: {
           ref={input}
           value={text}
           disabled={disabled}
-          onChange={(e) => { setText(e.target.value); setNotFound(false); }}
+          onChange={(e) => { setText(e.target.value); setMiss(null); }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -108,7 +115,7 @@ export function LookupBox({ onResults, disabled, resetSignal }: {
           </button>
         )}
       </div>
-      {notFound && <p role="status" className="mt-1 text-sm text-destructive">{t("Admin.Counter.notFound")}</p>}
+      {miss && <p role="status" className="mt-1 text-sm text-destructive">{t(miss)}</p>}
     </div>
   );
 }

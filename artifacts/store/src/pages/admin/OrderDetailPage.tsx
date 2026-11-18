@@ -36,7 +36,6 @@ const NOTIF_STATUS_COLORS: Record<string, string> = {
 const NOTIF_TYPE_KEY_MAP: Record<string, string> = {
   order_confirmed: "notifTypeOrderConfirmed",
   status_changed: "notifTypeStatusChanged",
-  low_stock: "notifTypeLowStock",
 };
 
 const ALL_STATUSES = ["pending", "phone_verified", "courier_assigned", "shipped", "delivered", "refused_at_delivery", "cancelled"];

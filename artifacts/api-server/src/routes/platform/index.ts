@@ -31,7 +31,7 @@ router.use(authRouter);
 // Audit read route (literal path: /platform/audit)
 router.use(auditRouter);
 
-// Notifications proxy for store frontend (GET /platform/notifications, requireUser — NOT requireSuperAdmin)
+// Notifications proxy for the store admin panel (GET /platform/notifications, requireAdmin — NOT requireSuperAdmin)
 router.use(notificationsProxyRouter);
 
 // Notification compose route (literal path: POST /platform/notifications, /platform/stores/:id/notification-preferences)

@@ -811,7 +811,6 @@ const az = {
         deliveryReceipt: "Çatdırılma Qaiməsi",
         notifTypeOrderConfirmed: "Sifariş təsdiqi",
         notifTypeStatusChanged: "Status dəyişikliyi",
-        notifTypeLowStock: "Az stok",
         sent: "Göndərildi",
       },
       Products: {
@@ -1126,6 +1125,7 @@ const az = {
         lookupAriaLabel: "Barkod və ya məhsul adı",
         clearSearch: "Axtarışı təmizlə",
         notFound: "Tapılmadı",
+        lookupFailed: "Axtarış alınmadı — yenidən cəhd edin",
         cartEmpty: "Səbət boşdur",
         bundleBadge: "dəst",
         quantity: "Miqdar",
