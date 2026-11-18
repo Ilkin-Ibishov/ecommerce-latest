@@ -8,10 +8,10 @@ repository; nothing important is only in a chat transcript.
 
 ## Start here — first thing to do in a new session (2026-11-18, morning)
 
-**`main` is green at `e702e33`: CI runs 44252825193 (`Architectural invariants`: 21 checks,
-indexes current) and 44252825131 (`Test`: 69 unit files, 54 component, 110 integration files,
-42 E2E passed and 1 skipped, no flaky).** Those runs are from `d9f7bf3`; the two commits above it
-are documentation only. Nothing is in flight: no builder, no sub-agent, no other work queued.
+**`main` is green at `ce61f7c`: CI runs 44286363216 (`Architectural invariants`: 21 checks,
+indexes current) and 44286363317 (`Test`: `unit` and `integration-e2e` both success — 69 unit
+files, 54 component, 110 integration files, 42 E2E passed and 1 skipped, no flaky).** Nothing is
+in flight: no builder, no sub-agent, no other work queued.
 
 ```bash
 gh run list -b main -L 2 --json databaseId,name,conclusion   # expect success on both
