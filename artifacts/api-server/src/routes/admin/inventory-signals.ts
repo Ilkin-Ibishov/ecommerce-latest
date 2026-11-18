@@ -68,9 +68,14 @@ const availabilityRowSchema = z.object({
 });
 type AvailabilityRow = z.infer<typeof availabilityRowSchema>;
 
+type RpcResult = { data: unknown; error: { message: string } | null };
+interface FilterableRpc extends PromiseLike<RpcResult> {
+  in(column: "variant_id", values: string[]): PromiseLike<RpcResult>;
+}
+
 interface SignalsRpcClient {
   rpc(fn: "get_low_stock_signals", args: { p_search: string | null; p_status: string | null }): Promise<{ data: unknown; error: { message: string } | null }>;
-  rpc(fn: "get_dead_stock_signals", args: { p_days: number }): Promise<{ data: unknown; error: { message: string } | null }>;
+  rpc(fn: "get_dead_stock_signals", args: { p_days: number }): FilterableRpc;
   rpc(fn: "get_reorder_suggestions", args: { p_window_days: number; p_target_days: number; p_min_sales: number }): Promise<{ data: unknown; error: { message: string } | null }>;
 }
 
@@ -127,6 +132,12 @@ function parseQueryPositiveInt(param: unknown): number | null {
   const num = Number(param);
   return Number.isInteger(num) && num >= 1 ? num : null;
 }
+
+// Comma-separated variant uuids, at most 100.
+const variantIdsQuerySchema = z
+  .string()
+  .transform((s) => s.split(","))
+  .pipe(z.array(z.string().uuid()).min(1).max(100));
 
 async function getSignalSettings(req: Request): Promise<SignalSettings> {
   try {
@@ -221,7 +232,18 @@ router.get("/admin/inventory/signals/dead-stock", requireStaffOrAdmin, async (re
   const days = parseQueryPositiveInt(req.query.days) ?? settings.deadStockDays;
   const isAdmin = req.userRole === "admin";
 
-  const { data, error } = await getSignalsClient(admin).rpc("get_dead_stock_signals", { p_days: days });
+  let variantIds: string[] | null = null;
+  if (req.query.variant_ids !== undefined) {
+    const parsedIds = variantIdsQuerySchema.safeParse(req.query.variant_ids);
+    if (!parsedIds.success) {
+      res.status(400).json({ error: "invalid_variant_ids" });
+      return;
+    }
+    variantIds = parsedIds.data;
+  }
+
+  const query = getSignalsClient(admin).rpc("get_dead_stock_signals", { p_days: days });
+  const { data, error } = await (variantIds ? query.in("variant_id", variantIds) : query);
   if (error) {
     res.status(500).json({ error: error.message });
     return;
