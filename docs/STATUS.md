@@ -48,28 +48,25 @@ the owner's. On 2026-11-18 the owner **delegated design-note review to the archi
 
 ### Branches
 
-The repository holds ~50 remote and ~90 local branches and 29 worktrees; only a handful carry
-live work. The analysis and the cleanup plan are in `docs/agent-workflow.md` "Branches".
-**Cleanup waits on the owner's yes** (deleting remote branches is outward-facing).
-
-| Branch | State |
-|---|---|
-| `fix/otp-bypass-production` | **Keep.** The production launch gate above |
-| `feat/staff-provisioning` | Evidence for the phase (note §8 says which files are kept); delete after the phase merges |
-| `design/staff-provisioning`, `design/m4b-store-notifications`, `design/delivery-fee`, `draft/delivery-fee-subagent` | Notes now on `main` via the review PR; deletable after it merges |
+**Cleaned up 2026-11-18 (owner's yes).** Remote: 51 → 3 branches — `main`,
+`fix/otp-bypass-production` (**keep**: the production launch gate) and `feat/staff-provisioning`
+(evidence for the phase; delete when it merges). Six audit/prompt branches whose records never
+reached `main` are kept as tags `archive/audit/*` and `archive/prompts/m4-audit`.
+Local: 15 orphan worktrees unregistered, 59 local branches whose commits are all on the remote
+deleted. Left on purpose, see `docs/agent-workflow.md` "Branches": session-owned worktrees and the
+local branches with unpushed commits.
 
 ### Waiting on the owner
 
-1. **Branch cleanup** — yes/no on the plan in `docs/agent-workflow.md` "Branches".
-2. **`AnnouncementBar`** content once its 100 AZN message goes. Recommendation on record: text
+1. **`AnnouncementBar`** content once its 100 AZN message goes. Recommendation on record: text
    from the existing unread setting (`20260606110418_create_store_settings.sql:18-20`), empty
    means not rendered, dismissal kept in `localStorage`. Its own small change.
-3. **Three M4 minors that need migrations on the test project** (9: reservation guard for
+2. **Three M4 minors that need migrations on the test project** (9: reservation guard for
    non-tracked variants; 10: `FOR UPDATE` on the `track_stock` read in `trg_apply_stock_movement`;
    13: `'in_progress'` is not a stocktake status). Applying them needs a yes.
-4. **Two product decisions**: M4 minor 7 (which date floors "not selling" after a long stock-out);
+3. **Two product decisions**: M4 minor 7 (which date floors "not selling" after a long stock-out);
    the dashboard's `stock < 10` banner — delete, or feed it from the low-stock signal.
-5. **A city/region field on orders** before any delivery-zone work (`schema.sql:741` is free text).
+4. **A city/region field on orders** before any delivery-zone work (`schema.sql:741` is free text).
 
 ### Still open, ordered by what blocks what
 
