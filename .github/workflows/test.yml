@@ -42,6 +42,13 @@ jobs:
     # support yet (playwright install --with-deps chromium fails outright).
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # One shared Supabase test project: two runs at once delete each other's fixtures
+    # (orders.test "Variant not found", 2026-11-18). Queue them instead.
+    # ponytail: GitHub keeps one pending run per group, so a third queued run replaces the
+    # second; a per-run database (Supabase branch) would remove the queue if that ever hurts.
+    concurrency:
+      group: supabase-test-project
+      cancel-in-progress: false
     needs: unit
 
     env:
