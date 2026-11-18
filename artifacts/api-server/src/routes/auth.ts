@@ -94,11 +94,12 @@ router.post("/auth/otp/verify", authRateLimit, async (req, res): Promise<void> =
       isNew = true;
     }
 
-    // Ensure public.users row exists
+    // Ensure public.users row exists. No `role` here: a new row gets the column
+    // default ('customer'), and an existing row stored under a legacy phone format
+    // (which the lookup above misses) must keep its staff/admin role.
     await (admin as any).from("users").upsert({
       id: userId,
       phone: normalizedPhone,
-      role: "customer",
     }, { onConflict: "id" });
   }
 
