@@ -9,8 +9,8 @@ history before touching it.
 
 The one project that's actually related to this codebase. This is the project all three
 `SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` GitHub secrets point at, and the
-one `.github/workflows/test.yml`'s `integration-e2e` job runs against. CI is fully green against
-it as of 2026-11-10 (run 42864949947) — see `docs/STATUS.md` for the full history.
+one `.github/workflows/test.yml`'s `integration-e2e` job runs against. CI has been green against
+it since 2026-11-10 (run 42864949947).
 
 - Schema was originally applied by direct SQL / some tool other than `supabase db push` from this
   repo, so its migration-history tracking table does **not** match `supabase/migrations/`
@@ -23,7 +23,7 @@ it as of 2026-11-10 (run 42864949947) — see `docs/STATUS.md` for the full hist
   incomplete**, independent of the live project — this was the single biggest source of CI
   failures this session, not a mismatch between the repo and the live DB. Confirmed gaps found
   and fixed this session: `products.brand`, `products.original_price` (used across the *entire*
-  storefront for sale pricing — see `docs/STATUS.md` round 13), `comments.rating`, 8 of 11 M2a
+  storefront for sale pricing), `comments.rating`, 8 of 11 M2a
   cost-engine/receipt-posting objects (`post_goods_receipt`, `reverse_goods_receipt`,
   `get_margin_report`, etc. — `supabase/migrations/20261104110000_m2a_functions_triggers.sql`),
   and a real `comments_public_read` RLS policy gap. **Assume this list is not exhaustive** — when
@@ -35,16 +35,10 @@ it as of 2026-11-10 (run 42864949947) — see `docs/STATUS.md` for the full hist
   alone stop test/CI use, but do treat it as the thing `AGENTS.md`'s "never migrate against
   production" rule is about — see the harness-restrictions note below.
 - Has real seed data used by tests: `test-product-1/2/3` (slugs), each with real in-stock variants
-  and `az`+`en` `product_translations` rows as of 2026-11-10 (added this session — originally the
-  3 seeded products had **zero variants at all**, so the storefront's add-to-cart button could
-  never render anywhere; see `docs/STATUS.md` round 11).
-- **`goods-receipts-post-route.integration.test.ts` leaves a permanent orphan product/variant on
-  every CI run that reaches posting the receipt for real**, by design of the architecture, not a
-  bug: `stock_movements` is append-only (`trg_stock_movements_immutable` forbids UPDATE/DELETE),
-  so nothing can delete a variant or product a ledger movement still points to once posted. The
-  test now gives its product a translation at creation time so these permanent orphans are
-  harmless (no longer break storefront pages that list/link to them) — don't try to "fix" this by
-  weakening the ledger's append-only invariant.
+  and `az`+`en` `product_translations` rows as of 2026-11-10. Without variants the
+  storefront's add-to-cart button never renders.
+- Integration runs leave permanent orphan products by design — see
+  `docs/knowledgebase/ci-testing-gotchas.md`.
 - The default storefront product listing orders only by `sort_order` (0 for every row here), which
   had no secondary tiebreaker until this session — `ProductsPage.tsx` now also orders by `id`.
   Watch for the same missing-tiebreaker pattern on other listing queries in this codebase; it's a
@@ -67,8 +61,8 @@ blocked attempt means the whole tool is unusable:
 - `apply_migration` — **always declined**, for any migration, however small (even a 3-line RLS
   policy fix). Never bothered retrying this tool a second time; it hasn't worked once.
 - `execute_sql` running `CREATE TRIGGER` — **declined every time tried**, even as a single
-  isolated statement with no other DDL alongside it. The `product_variants_guard_uom` trigger is
-  still missing live as a direct result (see `docs/STATUS.md` open item 10).
+  isolated statement with no other DDL alongside it. The `product_variants_guard_uom` trigger was
+  missing live as a result (2026-11-10; not rechecked since).
 - `execute_sql` running a bulk/multi-table `DELETE` (even read-only-adjacent cleanup like removing
   stray orphaned test rows) — **declined** ("Cloud Storage Mass Delete" / similar classifier
   reason), including when split into smaller per-table statements.
@@ -111,7 +105,7 @@ above), which makes it a poor branching parent; a separate project keeps CI's te
 seeded admin user away from real customers; and branching adds nothing at the size of this product.
 Revisit branching only if per-PR preview databases become useful.
 
-**Postponed (2026-11-11, owner's decision):** no production and no Pro plan until development is
+**Postponed (2026-11-11, owner's decision; reconfirmed 2026-11-18 — still not created):** no production and no Pro plan until development is
 mature and the product data is in hand. Until then everything runs on the Free `ecommerce-warehouse`.
 Consequences to keep in mind:
 

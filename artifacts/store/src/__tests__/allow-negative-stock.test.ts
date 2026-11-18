@@ -5,7 +5,7 @@ import path from "node:path";
 /**
  * M2a F2 — allow_negative_stock Tenant Setting & Movement Override Tests
  *
- * Spec: docs/tasks/warehouse-m2a-receiving-cost.md (§10 item 4)
+ * Spec: docs/archive/tasks/warehouse-m2a-receiving-cost.md (§10 item 4)
  * Prompt Finding: F2 — allow_negative_stock was inert; trg_apply_stock_movement
  * unconditionally blocked negative on-hand.
  *

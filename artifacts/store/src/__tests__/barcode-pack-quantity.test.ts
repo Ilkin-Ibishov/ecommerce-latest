@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * A3 Barcode Pack Quantity Tests (prompts/m1-schema-additions.md § A3)
+ * A3 Barcode Pack Quantity Tests (docs/archive/prompts/m1-schema-additions.md § A3)
  *
  * Verifies that scanning an outer packaging code (e.g. a case of 12)
  * generates a movement representing the full pack quantity (12 units).

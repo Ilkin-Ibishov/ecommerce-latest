@@ -1,0 +1,4 @@
+# ripgrep (and the agent's Grep/Glob, which use it) skips this in a project-wide search.
+# Finished-phase records and superseded handoffs, not live guidance. Search them by passing the
+# path explicitly (`rg term docs/archive`), or start from docs/archive/*/INDEX.md.
+docs/archive/

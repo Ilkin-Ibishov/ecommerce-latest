@@ -1,5 +1,7 @@
 # Product identification — scenario matrix
 
+Status: active — reference. The model shipped with M1 (`20261103201000_create_variant_barcodes.sql`); four customer questions below are open.
+
 How a shop tells one product from another. This is the dimension where customers differ most, so it
 gets an explicit matrix rather than per-customer guesswork.
 

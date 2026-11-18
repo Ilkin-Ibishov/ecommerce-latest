@@ -1,5 +1,7 @@
 # Native Mobile Shopping App (Expo)
 
+Status: deferred — not scheduled.
+
 ## What & Why
 Azerbaijan is a mobile-first market — over 75% of e-commerce browsing happens on phones. A native app gives ILK Electronics a permanent home screen presence, faster load times, and a premium feel that mobile browsers can't match. The entire backend API and Supabase database are already production-ready; this creates the Expo/React Native companion app that plugs into them.
 

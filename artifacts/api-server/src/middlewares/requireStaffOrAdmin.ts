@@ -3,7 +3,7 @@ import { getAdminSupabase, getSupabase } from "../lib/supabase";
 
 // Staff or owner session. Attaches req.user, req.admin (service-role client) and req.userRole.
 // Six M2 route files still carry their own copy of this check; migrating them is listed as
-// debt in docs/audits/m3-implementation-notes.md (M3a design note §3, audit A9).
+// debt in docs/archive/audits/m3-implementation-notes.md (M3a design note §3, audit A9).
 export async function requireStaffOrAdmin(req: Request, res: Response, next: NextFunction): Promise<void> {
   const token = req.headers.authorization?.replace("Bearer ", "");
   if (!token) {
