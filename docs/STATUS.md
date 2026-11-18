@@ -9,8 +9,7 @@ repository; nothing important is only in a chat transcript.
 ## Start here — first thing to do in a new session (2026-11-18, evening)
 
 **`main` is green at `ab4afaa`** (runs 44315381897 `Architectural invariants`, 44315381868 `Test`).
-Open PRs from this session: **#21** `fix/sign-in-keeps-role` and the docs PR carrying this file.
-Merge each when its CI is green, then check `main`'s own run.
+Merged this session: #21, #23, and the docs PR carrying this file. Check `main`'s own run.
 
 ```bash
 gh run list -b main -L 2 --json databaseId,name,conclusion   # expect success on both
@@ -45,6 +44,7 @@ the owner's. On 2026-11-18 the owner **delegated design-note review to the archi
   launch gate — merge `fix/otp-bypass-production` (`fef34e1`) and run with `NODE_ENV=production`
   — is recorded in `docs/knowledgebase/supabase-projects.md`. Do not merge it before then.
 - **Closed PR #12** (the 2026-11-11 handoff, superseded).
+- **#23 — CI lifts the global API rate limit** (`E2E_DISABLE_GLOBAL_RATELIMIT`, CI server only). `main` went red on `95c0392`: since #19 three Playwright workers share one IP past 100 req/min, the limiter runs before logging, and the till shows any non-OK lookup as "Not found". Inferred from evidence, confirmed by #23 going green. **Open defect:** the till reports a server error or 429 as "Not found" (`LookupBox.tsx`), which would mislead a cashier.
 
 ### Branches
 
