@@ -169,6 +169,10 @@ const EXPECTED_ROUTES = [
   "GET /admin/inventory/signals/dead-stock",
   "GET /admin/inventory/signals/reorder",
   "GET /admin/inventory/availability",
+  // inbox.ts (M4b)
+  "GET /admin/inbox/count",
+  "GET /admin/inbox",
+  "POST /admin/inbox/seen",
 ] as const;
 
 describe("admin router registration parity (R9.4, design §13)", () => {

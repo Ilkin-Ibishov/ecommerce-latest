@@ -1,3 +1,5 @@
+import { z } from "zod";
+
 /**
  * Inbox pure logic: role-based needs_you items and event unread calculation.
  *
@@ -21,11 +23,48 @@ export type NeedsYouKey =
   | (typeof ADMIN_NEEDS_YOU_KEYS)[number]
   | (typeof STAFF_NEEDS_YOU_KEYS)[number];
 
-/**
- * Returns the list of 'needs you' item keys accessible to the given user role.
- * Staff members can only view low_stock and holds_overdue.
- * Administrators view all 5 items. Other roles receive an empty list.
- */
+export const countResponseSchema = z.object({
+  count: z.number().int().nonnegative(),
+});
+
+export const inboxEventSchema = z.object({
+  id: z.string(),
+  kind: z.enum([
+    "order_created",
+    "counter_sale_voided",
+    "counter_sale_mismatch",
+    "stocktake_posted",
+  ]),
+  time: z.string(),
+  actor_id: z.string().nullable(),
+  actor_name: z.string().nullable(),
+  unread: z.boolean(),
+  order_id: z.string().optional().nullable(),
+  customer_name: z.string().optional().nullable(),
+  sale_number: z.number().int().optional().nullable(),
+  void_reason: z.string().optional().nullable(),
+  total_mismatch: z.boolean().optional().nullable(),
+  price_mismatch: z.boolean().optional().nullable(),
+  reservation_override: z.boolean().optional().nullable(),
+  mismatch_flags: z.array(z.string()).optional().nullable(),
+  stocktake_number: z.string().optional().nullable(),
+  title: z.string().optional().nullable(),
+  link: z.string().optional().nullable(),
+});
+
+export const inboxResponseSchema = z.object({
+  needs_you: z.array(
+    z.object({
+      key: z.string(),
+      count: z.number().int().nonnegative(),
+    })
+  ),
+  events: z.array(inboxEventSchema).nullable(),
+  seen_at: z.string().nullable(),
+});
+
+export type RawInboxEvent = z.infer<typeof inboxEventSchema>;
+
 export function itemsForRole(role: string | null | undefined): NeedsYouKey[] {
   if (role === "admin") {
     return [...ADMIN_NEEDS_YOU_KEYS];
@@ -43,13 +82,6 @@ export interface BaseInboxEvent {
   [key: string]: unknown;
 }
 
-/**
- * Annotates each event with an `unread` boolean flag.
- *
- * An event is unread when:
- * 1. `time > marker` (where no marker defaults to `now - 14 days`); and
- * 2. The actor is NOT the current session user (NULL actor counts as someone else).
- */
 export function markUnread<T extends BaseInboxEvent>(
   events: T[],
   marker: string | Date | null | undefined,
