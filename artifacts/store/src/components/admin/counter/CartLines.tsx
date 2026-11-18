@@ -1,17 +1,21 @@
 import { useState, useEffect } from "react";
 import { Minus, Plus, Trash2, AlertTriangle } from "lucide-react";
 import type { CartLine } from "./types";
-import { parseQuantity } from "./counter-input";
+import { MAX_QUANTITY, resolveQuantityInput } from "./counter-input";
 import { useI18n } from "@/lib/i18n/context";
 
 function QuantityCell({
   quantity,
   disabled,
   onChange,
+  invalidMessageId,
+  onInvalid,
 }: {
   quantity: number;
   disabled: boolean;
   onChange: (q: number) => void;
+  invalidMessageId?: string; // set while the line's "not a valid quantity" message shows
+  onInvalid: (invalid: boolean) => void;
 }) {
   const { t } = useI18n();
   const [val, setVal] = useState<string>(String(quantity));
@@ -20,26 +24,27 @@ function QuantityCell({
     setVal(String(quantity));
   }, [quantity]);
 
+  // An invalid entry still snaps back to the line's quantity, but now says why.
   const commit = () => {
-    const q = parseQuantity(val);
-    if (q !== null) {
-      setVal(String(q));
-      if (q !== quantity) {
-        onChange(q);
-      }
-    } else {
-      setVal(String(quantity));
+    const { quantity: q, rejected } = resolveQuantityInput(val, quantity);
+    onInvalid(rejected);
+    setVal(String(q));
+    if (q !== quantity) {
+      onChange(q);
     }
   };
 
   return (
     <input
       type="number"
-      min="1"
+      min={1}
+      max={MAX_QUANTITY}
+      step={1}
       disabled={disabled}
       value={val}
       aria-label={t("Admin.Counter.quantity")}
-      onChange={(e) => setVal(e.target.value)}
+      aria-describedby={invalidMessageId}
+      onChange={(e) => { setVal(e.target.value); onInvalid(false); }}
       onBlur={commit}
       onKeyDown={(e) => {
         if (e.key === "Enter") {
@@ -63,6 +68,8 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
   onRemove: (key: string) => void;
 }) {
   const { t } = useI18n();
+  // One quantity is edited at a time, so one line at most shows the invalid-quantity message.
+  const [invalidKey, setInvalidKey] = useState<string | null>(null);
   if (lines.length === 0) {
     return <p className="py-10 text-center text-muted-foreground">{t("Admin.Counter.cartEmpty")}</p>;
   }
@@ -75,6 +82,8 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
         const total = qtyByVariant.get(line.variant_id) ?? line.quantity;
         const overOnHand = line.available !== null && total > line.on_hand;
         const overAvailable = !overOnHand && line.available !== null && total > line.available && line.reservations.length > 0;
+        const invalid = invalidKey === line.key;
+        const invalidId = `qty-invalid-${line.key}`;
         return (
           <li key={line.key} className="py-3">
             <div className="flex items-center gap-3">
@@ -93,8 +102,10 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
                   quantity={line.quantity}
                   disabled={locked}
                   onChange={(q) => onQuantity(line.key, q)}
+                  invalidMessageId={invalid ? invalidId : undefined}
+                  onInvalid={(bad) => setInvalidKey((k) => (bad ? line.key : k === line.key ? null : k))}
                 />
-                <button type="button" aria-label={t("Admin.Counter.increase")} disabled={locked || line.quantity >= 9999}
+                <button type="button" aria-label={t("Admin.Counter.increase")} disabled={locked || line.quantity >= MAX_QUANTITY}
                   onClick={() => onQuantity(line.key, line.quantity + 1)}
                   className="rounded-md border border-border p-2 disabled:opacity-40"><Plus className="h-4 w-4" /></button>
               </div>
@@ -104,6 +115,10 @@ export function CartLines({ lines, nets, locked, onQuantity, onRemove }: {
                 <Trash2 className="h-4 w-4" />
               </button>
             </div>
+            {/* Always rendered so a screen reader hears the text change, not a node appear. */}
+            <p id={invalidId} role="status" className={invalid ? "mt-1 text-sm text-destructive" : undefined}>
+              {invalid && t("Admin.Counter.quantityInvalid").replace("{max}", String(MAX_QUANTITY))}
+            </p>
             {overOnHand && (
               <p className="mt-1 flex items-center gap-1 text-sm text-amber-700">
                 <AlertTriangle className="h-4 w-4" aria-hidden />

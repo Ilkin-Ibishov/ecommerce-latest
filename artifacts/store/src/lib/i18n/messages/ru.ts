@@ -1133,6 +1133,7 @@ const ru: MessageSchema = {
         cartEmpty: "Корзина пуста",
         bundleBadge: "комплект",
         quantity: "Количество",
+        quantityInvalid: "Введите целое число от 1 до {max}",
         decrease: "Уменьшить",
         increase: "Увеличить",
         remove: "Удалить",
