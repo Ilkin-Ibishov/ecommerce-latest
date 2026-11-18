@@ -920,6 +920,147 @@ checks.push(
       return hits;
     },
   },
+  {
+    id: 'delivery-fee-azn-writers',
+    why: 'delivery_fee_azn on orders must be written only by set_order_delivery_fee RPC and the order insert in routes/orders.ts.',
+    run: (files) => {
+      const hits = [];
+      const orderFeeWritePat = /\.from\(\s*['"]orders['"]\s*\)[\s\S]{0,400}?\.(?:update|upsert|insert)\s*\(\s*\{[\s\S]{0,400}?\bdelivery_fee_azn\b/;
+      for (const { file, text } of files) {
+        if (!isCode(file)) continue;
+        const r = rel(file);
+        if (!r.startsWith('artifacts/api-server/src/') && !r.startsWith('artifacts/store/src/')) continue;
+        if (r === 'artifacts/api-server/src/routes/orders.ts') continue;
+        if (/\/__tests__\//.test(r) || /\.(test|spec)\.tsx?$/.test(r)) continue;
+
+        let m;
+        const re = new RegExp(orderFeeWritePat.source, 'g');
+        while ((m = re.exec(text)) !== null) {
+          const line = text.slice(0, m.index).split('\n').length;
+          hits.push({ file: r, line, text: m[0].replace(/\s+/g, ' ').slice(0, 140) });
+        }
+      }
+      return hits;
+    },
+  },
+  {
+    id: 'total-azn-writers',
+    why: 'total_azn on orders must be written by no code under artifacts/ except the order insert in routes/orders.ts.',
+    run: (files) => {
+      const hits = [];
+      const totalWritePat = /\.from\(\s*['"]orders['"]\s*\)[\s\S]{0,400}?\.(?:update|upsert|insert)\s*\(\s*\{[\s\S]{0,400}?\btotal_azn\b/;
+      for (const { file, text } of files) {
+        if (!isCode(file)) continue;
+        const r = rel(file);
+        if (!r.startsWith('artifacts/')) continue;
+        if (r === 'artifacts/api-server/src/routes/orders.ts') continue;
+        if (/\/__tests__\//.test(r) || /\.(test|spec)\.tsx?$/.test(r)) continue;
+
+        let m;
+        const re = new RegExp(totalWritePat.source, 'g');
+        while ((m = re.exec(text)) !== null) {
+          const line = text.slice(0, m.index).split('\n').length;
+          hits.push({ file: r, line, text: m[0].replace(/\s+/g, ' ').slice(0, 140) });
+        }
+      }
+      return hits;
+    },
+  },
+  {
+    id: 'no-coalesce-delivery-fee',
+    why: 'NULL delivery_fee_azn means fee not yet agreed; COALESCE or ?? 0 silently turns unknown fee into free delivery.',
+    run: (files) => {
+      const hits = [];
+      const coalescePat = /\bCOALESCE\s*\(\s*delivery_fee_azn\b/i;
+      const nullishZeroPat = /\bdelivery_fee_azn\s*\?\?\s*0\b/;
+      for (const { file, text } of files) {
+        if (!isCode(file) && !isSql(file)) continue;
+        const r = rel(file);
+        if (!r.startsWith('artifacts/') && !r.startsWith('supabase/migrations/')) continue;
+        if (/\/__tests__\//.test(r) || /\.(test|spec)\.tsx?$/.test(r)) continue;
+
+        text.split('\n').forEach((line, i) => {
+          if (/^\s*(\/\/|\/\*|\*|--)/.test(line)) return;
+          if (coalescePat.test(line) || nullishZeroPat.test(line)) {
+            hits.push({ file: r, line: i + 1, text: line.trim().slice(0, 140) });
+          }
+        });
+      }
+      return hits;
+    },
+  },
+  {
+    id: 'delivery-fee-single-source',
+    why: 'No numeric literal assigned to a delivery identifier under store/src; no digit under a deliver dictionary key; quoteDelivery and orderTotal defined only in lib/order-pricing.',
+    run: (files) => {
+      const hits = [];
+      const assignLiteralPat = /\b([a-zA-Z0-9_]*delivery[a-zA-Z0-9_]*)\s*(?::\s*number\s*)?=\s*\d+(?:\.\d+)?\b/i;
+
+      for (const { file, text } of files) {
+        if (!isCode(file)) continue;
+        const r = rel(file);
+
+        // 1. In artifacts/store/src (excluding tests): no numeric literal assigned to an identifier containing 'delivery'
+        if (r.startsWith('artifacts/store/src/')) {
+          if (!/\/__tests__\//.test(r) && !/\.(test|spec)\.tsx?$/.test(r)) {
+            text.split('\n').forEach((line, i) => {
+              if (/^\s*(\/\/|\/\*|\*)/.test(line)) return;
+              if (assignLiteralPat.test(line)) {
+                hits.push({ file: r, line: i + 1, text: `Numeric literal assigned to delivery identifier: ${line.trim().slice(0, 120)}` });
+              }
+            });
+          }
+        }
+
+        // 2. Dictionary strings under deliver keys cannot hold digits (except estimatedDelivery)
+        if (r.startsWith('artifacts/store/src/lib/i18n/messages/')) {
+          text.split('\n').forEach((line, i) => {
+            const m = /^\s*([a-zA-Z0-9_]+)\s*:\s*["'`]/.exec(line);
+            if (m) {
+              const k = m[1];
+              if (/deliver/i.test(k) && k !== 'estimatedDelivery' && /\d/.test(line)) {
+                hits.push({ file: r, line: i + 1, text: `Digit found under deliver key "${k}": ${line.trim().slice(0, 120)}` });
+              }
+            }
+          });
+        }
+
+        // 3. quoteDelivery and orderTotal defined only in lib/order-pricing
+        if (r.startsWith('artifacts/')) {
+          if (/(?:function\s+quoteDelivery\b|const\s+quoteDelivery\s*=)/.test(text)) {
+            hits.push({ file: r, line: 0, text: `quoteDelivery defined outside lib/order-pricing in ${r}` });
+          }
+          if (/(?:function\s+orderTotal\b|const\s+orderTotal\s*=)/.test(text)) {
+            hits.push({ file: r, line: 0, text: `orderTotal defined outside lib/order-pricing in ${r}` });
+          }
+        }
+      }
+      return hits;
+    },
+  },
+  {
+    id: 'orders-status-writers',
+    why: 'orders.status must be written only by routes/admin/orders.ts and the cancel-restock path.',
+    run: (files) => {
+      const hits = [];
+      const statusWritePat = /\.from\(\s*['"]orders['"]\s*\)[\s\S]{0,300}?\.(?:update|upsert)\s*\(\s*\{[\s\S]{0,300}?\bstatus\b/;
+      for (const { file, text } of files) {
+        if (!isCode(file)) continue;
+        const r = rel(file);
+        if (!r.startsWith('artifacts/api-server/src/') && !r.startsWith('artifacts/store/src/')) continue;
+        if (r === 'artifacts/api-server/src/routes/admin/orders.ts') continue;
+        if (/\/__tests__\//.test(r) || /\.(test|spec)\.tsx?$/.test(r)) continue;
+
+        let m;
+        const re = new RegExp(statusWritePat.source, 'g');
+        while ((m = re.exec(text)) !== null) {
+          const line = text.slice(0, m.index).split('\n').length;
+          hits.push({ file: r, line, text: m[0].replace(/\s+/g, ' ').slice(0, 140) });
+        }
+      }
+      return hits;
+    },
+  },
 );
 
 /* ------------------------------------------------------------------- main */
