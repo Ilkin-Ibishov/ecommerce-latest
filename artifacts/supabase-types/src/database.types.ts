@@ -34,6 +34,29 @@ export type Database = {
   };
   public: {
     Tables: {
+      admin_inbox_seen: {
+        Row: {
+          seen_at: string;
+          user_id: string;
+        };
+        Insert: {
+          seen_at: string;
+          user_id: string;
+        };
+        Update: {
+          seen_at?: string;
+          user_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "admin_inbox_seen_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       audit_log: {
         Row: {
           action: string;
