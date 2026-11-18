@@ -46,4 +46,22 @@ test.describe("Staff Access Controls", () => {
     await expect(page.getByText("This section is for administrators only")).toBeVisible({ timeout: 10000 });
     await expect(page.locator("table")).not.toBeVisible();
   });
+
+  test("shows Notifications entry in navigation and staff links resolve to pages staff can open", async ({ page }) => {
+    const nav = page.locator("nav");
+    const notifLink = nav.getByRole("link", { name: /notifications|bildirişlər|уведомления/i });
+    await expect(notifLink).toBeVisible({ timeout: 10000 });
+
+    await notifLink.click();
+    await expect(page).toHaveURL(/\/admin\/notifications/, { timeout: 10000 });
+
+    // Verify both staff links resolve to pages staff can open
+    await page.goto("/admin/inventory?filter=low_stock");
+    await expect(page).toHaveURL(/\/admin\/inventory\?filter=low_stock/, { timeout: 10000 });
+    await expect(page.getByText("This section is for administrators only")).not.toBeVisible();
+
+    await page.goto("/admin/reservations");
+    await expect(page).toHaveURL(/\/admin\/reservations/, { timeout: 10000 });
+    await expect(page.getByText("This section is for administrators only")).not.toBeVisible();
+  });
 });
