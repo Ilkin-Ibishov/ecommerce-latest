@@ -1,80 +1,67 @@
-import { useCallback, useEffect, useState } from "react";
-import { Link } from "wouter";
-import { ShieldCheck, User } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { UserPlus } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { adminFetch } from "@/lib/admin-fetch";
 import { useAdminList } from "@/lib/hooks/useAdminList";
 import { useI18n } from "@/lib/i18n/context";
-import { DataTable, type Column } from "@/components/admin/DataTable";
+import { DataTable } from "@/components/admin/DataTable";
 import { Pagination } from "@/components/admin/Pagination";
 import { TableEmptyState } from "@/components/admin/TableEmptyState";
 import { SearchInput } from "@/components/admin/SearchInput";
 import { ConfirmDialog } from "@/components/admin/ConfirmDialog";
 import { useConfirm } from "@/lib/hooks/useConfirm";
+import { AddStaffModal } from "@/components/admin/AddStaffModal";
+import { userErrorKey } from "@/components/admin/user-error-key";
+import { type AdminUser, createUsersColumns } from "@/components/admin/UserRoleControl";
 
-interface AdminUser {
-  id: string;
-  phone: string;
-  full_name: string | null;
-  role: "admin" | "customer";
-  created_at: string;
-  order_count: number;
-}
-
-const PAGE_SIZE = 30;
-
-/**
- * Customers (admin users) list. The bespoke useState/useEffect/debounce/
- * buildHref/pagination blocks are replaced by `useAdminList` (URL-driven
- * pagination + 350 ms debounced search) + `<DataTable>`/`<Pagination>`/
- * `<TableEmptyState>` + the existing `<SearchInput>` (R6.4). The role-toggle
- * action, its `window.confirm` gate, optimistic role update, and `roleSaving`
- * spinner are preserved. Columns/labels/cell markup reproduce the prior
- * hand-rolled table (R6.3, R6.5, R6.6).
- */
 export default function AdminUsersPage() {
   const { t } = useI18n();
-  // Fetcher runs the existing /admin/users API query unchanged; the server
-  // paginates by page (PAGE_SIZE 30) and returns { users, total }.
+  const [addStaffOpen, setAddStaffOpen] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [roleFilter, setRoleFilter] = useState("all");
+  const [callerId, setCallerId] = useState<string | null>(null);
+  const [roleOverrides, setRoleOverrides] = useState<Record<string, "admin" | "staff" | "customer">>({});
+  const [roleSaving, setRoleSaving] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const { confirm, dialogProps } = useConfirm();
+
+  useEffect(() => {
+    createClient().auth.getUser().then(({ data }) => setCallerId(data.user?.id ?? null));
+  }, []);
+
   const fetcher = useCallback(
     async (args: { offset: number; limit: number; search: string; signal: AbortSignal }) => {
-      const p = new URLSearchParams();
-      p.set("page", String(args.offset / args.limit + 1));
+      const p = new URLSearchParams({ page: String(args.offset / args.limit + 1) });
       if (args.search) p.set("q", args.search);
+      if (roleFilter !== "all") p.set("role", roleFilter);
       const res = await adminFetch(`${apiUrl("/admin/users")}?${p.toString()}`, { signal: args.signal });
       if (!res.ok) throw new Error(`Request failed (${res.status})`);
       const data = await res.json();
       return { rows: (data.users ?? []) as AdminUser[], count: (data.total ?? 0) as number };
     },
-    [],
+    [roleFilter, refreshKey],
   );
 
   const { rows: users, count, loading, page, totalPages, search, searchInput, setSearchInput } =
-    useAdminList<AdminUser>({ fetcher, basePath: "/admin/users", pageSize: PAGE_SIZE });
+    useAdminList<AdminUser>({ fetcher, basePath: "/admin/users", pageSize: 30 });
 
-  // Optimistic role overrides: a successful toggle reflects immediately without
-  // a refetch; overrides reset whenever the hook delivers a fresh page (matching
-  // the prior load()-replaces-list behavior).
-  const [roleOverrides, setRoleOverrides] = useState<Record<string, "admin" | "customer">>({});
-  const [roleSaving, setRoleSaving] = useState<string | null>(null);
   useEffect(() => { setRoleOverrides({}); }, [users]);
 
-  const { confirm, dialogProps } = useConfirm();
-
-  const handleRoleToggle = (user: AdminUser) => {
-    const current = roleOverrides[user.id] ?? user.role;
-    const newRole = current === "admin" ? "customer" : "admin";
+  const handleRoleChange = (u: AdminUser, newRole: "admin" | "staff" | "customer") => {
+    if (newRole === (roleOverrides[u.id] ?? u.role)) return;
+    setActionError(null);
+    const roleLabel = t(newRole === "admin" ? "Admin.Users.roleAdmin" : newRole === "staff" ? "Admin.Users.roleStaff" : "Admin.Users.roleCustomer");
     confirm({
       title: t("Admin.Users.changeRoleTitle"),
-      message: t("Admin.Users.changeRoleMessage").replace("{name}", user.full_name ?? user.phone).replace("{role}", newRole),
+      message: t("Admin.Users.changeRoleMessage").replace("{name}", u.full_name ?? u.phone).replace("{role}", roleLabel),
       onConfirm: async () => {
-        setRoleSaving(user.id);
-        const res = await adminFetch(apiUrl(`/admin/users/${user.id}/role`), {
-          method: "PATCH",
-          body: JSON.stringify({ role: newRole }),
-        });
-        if (res.ok) {
-          setRoleOverrides((prev) => ({ ...prev, [user.id]: newRole }));
+        setRoleSaving(u.id);
+        const res = await adminFetch(apiUrl(`/admin/users/${u.id}/role`), { method: "PATCH", body: JSON.stringify({ role: newRole }) });
+        if (res.ok) setRoleOverrides((prev) => ({ ...prev, [u.id]: newRole }));
+        else {
+          const data = await res.json().catch(() => ({}));
+          setActionError(t(userErrorKey(data.error)));
         }
         setRoleSaving(null);
       },
@@ -88,137 +75,43 @@ export default function AdminUsersPage() {
     return `/admin/users${ps.toString() ? `?${ps.toString()}` : ""}`;
   };
 
-  // Columns reference component state (effective role, roleSaving, handler), so
-  // they are built per-render rather than at module scope.
-  const columns: Column<AdminUser>[] = [
-    {
-      key: "customer",
-      header: t("Admin.Users.columnCustomer"),
-      align: "left",
-      cell: (u) => {
-        const role = roleOverrides[u.id] ?? u.role;
-        return (
-          <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
-              {role === "admin"
-                ? <ShieldCheck size={14} className="text-purple-400" />
-                : <User size={14} className="text-muted-foreground" />}
-            </div>
-            <div>
-              <div className="font-medium">{u.full_name ?? <span className="text-muted-foreground italic">{t("Admin.Users.noName")}</span>}</div>
-              <div className="text-xs text-muted-foreground font-mono">{u.id.slice(0, 8)}</div>
-            </div>
-          </div>
-        );
-      },
-    },
-    {
-      key: "phone",
-      header: t("Admin.Users.columnPhone"),
-      align: "left",
-      className: "font-mono text-xs",
-      cell: (u) => u.phone,
-    },
-    {
-      key: "orders",
-      header: t("Admin.Users.columnOrders"),
-      align: "right",
-      cell: (u) =>
-        u.order_count > 0 ? (
-          <Link
-            href={`/admin/orders?q=${encodeURIComponent(u.phone)}`}
-            className="text-primary hover:underline font-medium"
-          >
-            {u.order_count}
-          </Link>
-        ) : (
-          <span className="text-muted-foreground">0</span>
-        ),
-    },
-    {
-      key: "joined",
-      header: t("Admin.Users.columnJoined"),
-      align: "left",
-      className: "text-xs text-muted-foreground",
-      cell: (u) => new Date(u.created_at).toLocaleDateString(),
-    },
-    {
-      key: "role",
-      header: t("Admin.Users.columnRole"),
-      align: "left",
-      cell: (u) => {
-        const role = roleOverrides[u.id] ?? u.role;
-        return (
-          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-            role === "admin"
-              ? "bg-purple-500/20 text-purple-400"
-              : "bg-muted text-muted-foreground"
-          }`}>
-            {role === "admin" ? t("Admin.Users.roleAdmin") : t("Admin.Users.roleCustomer")}
-          </span>
-        );
-      },
-    },
-    {
-      key: "actions",
-      header: t("Admin.Users.columnActions"),
-      align: "right",
-      cell: (u) => {
-        const role = roleOverrides[u.id] ?? u.role;
-        return (
-          <button
-            onClick={() => handleRoleToggle(u)}
-            disabled={roleSaving === u.id}
-            className={`px-2.5 py-1 rounded-lg text-xs font-medium transition disabled:opacity-50 ${
-              role === "admin"
-                ? "bg-muted text-muted-foreground hover:bg-muted/70"
-                : "bg-purple-500/10 text-purple-400 hover:bg-purple-500/20"
-            }`}
-          >
-            {roleSaving === u.id ? "…" : role === "admin" ? t("Admin.Users.demote") : t("Admin.Users.makeAdmin")}
-          </button>
-        );
-      },
-    },
-  ];
+  const columns = useMemo(
+    () => createUsersColumns({ t, callerId, roleOverrides, roleSaving, onRoleChange: handleRoleChange }),
+    [t, callerId, roleOverrides, roleSaving],
+  );
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-2xl font-bold">{t("Admin.Users.title")}</h1>
-        <span className="text-sm text-muted-foreground">
-          {search
-            ? t("Admin.Users.resultCount").replace("{count}", String(count)).replace("{query}", search)
-            : t("Admin.Users.registeredCount").replace("{count}", String(count))}
-        </span>
+      <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold">{t("Admin.Users.title")}</h1>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {search ? t("Admin.Users.resultCount").replace("{count}", String(count)).replace("{query}", search) : t("Admin.Users.registeredCount").replace("{count}", String(count))}
+          </p>
+        </div>
+        <button type="button" onClick={() => setAddStaffOpen(true)} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-xs font-semibold transition shadow-sm">
+          <UserPlus size={14} />{t("Admin.Users.addStaff")}
+        </button>
       </div>
-
-      {/* Search — debounce owned by useAdminList (350 ms); SearchInput forwards
-          keystrokes immediately so the committed-search timing is preserved (R6.4). */}
-      <SearchInput
-        value={searchInput}
-        onChange={setSearchInput}
-        placeholder={t("Admin.Users.searchPlaceholder")}
-        debounceMs={0}
-      />
-
-      <DataTable<AdminUser>
-        columns={columns}
-        rows={users}
-        loading={loading}
-        getRowKey={(u) => u.id}
-        empty={
-          <TableEmptyState
-            colSpan={6}
-            message={search ? t("Admin.Users.emptySearchState").replace("{query}", search) : t("Admin.Users.emptyState")}
-          />
-        }
-      />
-
+      {actionError && (
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive text-xs p-3 rounded-lg flex items-center justify-between">
+          <span>{actionError}</span>
+          <button type="button" onClick={() => setActionError(null)} className="text-xs underline ml-2">✕</button>
+        </div>
+      )}
+      <div className="flex items-center gap-3">
+        <div className="flex-1"><SearchInput value={searchInput} onChange={setSearchInput} placeholder={t("Admin.Users.searchPlaceholder")} debounceMs={0} /></div>
+        <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value)} aria-label={t("Admin.Users.filterRole")} className="h-9 px-3 text-xs rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-1 focus:ring-ring">
+          <option value="all">{t("Admin.Users.allRoles")}</option>
+          <option value="admin">{t("Admin.Users.roleAdmin")}</option>
+          <option value="staff">{t("Admin.Users.roleStaff")}</option>
+          <option value="customer">{t("Admin.Users.roleCustomer")}</option>
+        </select>
+      </div>
+      <DataTable<AdminUser> columns={columns} rows={users} loading={loading} getRowKey={(u) => u.id} empty={<TableEmptyState colSpan={5} message={search ? t("Admin.Users.emptySearchState").replace("{query}", search) : t("Admin.Users.emptyState")} />} />
       <Pagination page={page} totalPages={totalPages} buildHref={buildHref} />
-
       <ConfirmDialog {...dialogProps} confirmLabel={t("Admin.Common.confirm")} cancelLabel={t("Admin.Common.cancel")} />
+      <AddStaffModal open={addStaffOpen} onClose={() => setAddStaffOpen(false)} onCreated={() => setRefreshKey((k) => k + 1)} />
     </div>
   );
 }

@@ -26,6 +26,10 @@ export function validateAzPhone(phone: string): boolean {
   return /^\+994\d{9}$/.test(phone);
 }
 
+export function isBypassPhone(phone: string): boolean {
+  return TEST_PHONES.has(normalizePhone(phone));
+}
+
 /**
  * Normalize a phone number to the canonical Azerbaijan form `+994XXXXXXXXX`
  * (consistent with `validateAzPhone`). Pure and idempotent: applying it twice

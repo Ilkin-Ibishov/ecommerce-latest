@@ -2155,6 +2155,14 @@ export type Database = {
       };
       show_limit: { Args: never; Returns: number };
       show_trgm: { Args: { "": string }; Returns: string[] };
+      find_auth_user_by_phone: {
+        Args: { p_phone: string };
+        Returns: string;
+      };
+      set_user_role: {
+        Args: { p_actor: string; p_user: string; p_role: string };
+        Returns: string;
+      };
     };
     Enums: {
       stock_movement_reason:
