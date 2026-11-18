@@ -1,5 +1,7 @@
 # SEO & Open Graph Optimization
 
+Status: deferred — not scheduled.
+
 ## What & Why
 The store currently has no per-page meta tags, no structured data, and no sitemap. Search engines index it poorly, and sharing a product link on WhatsApp or social media shows a blank preview. For an Azerbaijan electronics store competing on Google.az, this is a critical gap — competitor Kontakt.az has full SEO. This adds dynamic meta tags, Open Graph images, structured data (Product schema), and a sitemap.
 

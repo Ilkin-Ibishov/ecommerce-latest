@@ -16,7 +16,8 @@ Layout: `artifacts/store` (UI), `artifacts/api-server` (API), `lib/*` (shared, g
 - `pnpm run typecheck` — full typecheck, must pass before any commit
 - `pnpm test:unit` — offline unit tests (runs without database or server)
 - `pnpm run audit:invariants` — architectural invariant checks (see skill `audit-invariants`)
-- `pnpm run docs:index` — regenerate `INDEX.md` for `docs/` and `prompts/`; CI fails on a stale one
+- `pnpm run docs:index` — regenerate `INDEX.md` for `docs/` and `prompts/`; CI fails on a stale one.
+  Merged phases' docs live in `docs/archive/`, hidden from search by `.ignore`; search it by path
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks/schemas (see skill `openapi-codegen`)
 - `pnpm --filter @workspace/api-server run dev` — API on port 5000
 
@@ -40,6 +41,9 @@ design note and explain the trade-off — do not silently deviate during impleme
 ## Deny
 - Never commit to `main`. Work only on the phase branch you were given.
 - Never edit a spec under `docs/tasks/` — specs are written by the architect, not the implementer.
+  The `Status: active|deferred` line under each title is the orchestrator's to keep current; when
+  a phase merges, its spec moves to `docs/archive/tasks/` (`docs:index` fails on a missing status
+  or a live `shipped` one).
   A task may explicitly ask you to add a status header to a non-spec document there; that is the
   only exception, and only for what the task names.
 - Never run migrations against a production Supabase project. Local or branch database only.
@@ -64,10 +68,10 @@ design note and explain the trade-off — do not silently deviate during impleme
 ## Handoff
 
 `docs/STATUS.md` is current state only, and stays near 10 KB. A new handoff **replaces** its
-"Start here" block; the block it replaces moves to `docs/status/archive/<date>-<slot>.md` with a
+"Start here" block; the block it replaces moves to `docs/archive/status/<date>-<slot>.md` with a
 row in that file's History table, in the same commit. Durable process goes to
-`docs/agent-workflow.md`, never into STATUS.md. The file reached 80 KB once, 45% of it under
-headings telling the reader to skip them — about 19,000 tokens read and discarded per session.
+`docs/agent-workflow.md`, never into STATUS.md — it once grew to 80 KB without this rule.
+One fact lives in one file; elsewhere, point to it instead of copying it.
 
 ## Audit interface
 Your work is reviewed from git, not from chat. Anything that matters must end up in a file:

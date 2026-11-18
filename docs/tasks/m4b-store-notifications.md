@@ -1,8 +1,9 @@
 # M4b — Notifications: the admin's inbox
 
+Status: active — design note on `design/m4b-store-notifications`, waiting for the owner's review.
+
 Spec, 2026-11-15. Written by the architect after the owner asked for a notification system in the
-product (recorded in `docs/audits/m4-design-note-review.md`, "Owner's decision on D1").
-Status: **ready for a design note. Starts after M4 merges.**
+product (recorded in `docs/archive/audits/m4-design-note-review.md`, "Owner's decision on D1").
 
 ## 1. Why this exists
 

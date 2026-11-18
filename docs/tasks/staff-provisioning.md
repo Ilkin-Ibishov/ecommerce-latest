@@ -1,9 +1,11 @@
 # Staff provisioning: the owner gives a person a role
 
-Spec, 2026-11-15. Written by the architect. Status: **ready for a design note.**
+Status: active — design note on `design/staff-provisioning`, waiting for the owner's review. Blocks M4b.
+
+Spec, 2026-11-15. Written by the architect.
 
 Code for this already exists on `feat/staff-provisioning` (`29fc841..e85745d`, five commits split off
-the M4 branch; see `docs/audits/m4-architect-audit.md`, "Split of the non-M4 work"). It was written
+the M4 branch; see `docs/archive/audits/m4-architect-audit.md`, "Split of the non-M4 work"). It was written
 without a spec and is **not mergeable as it stands** (§9). Treat it as evidence of what is wanted,
 not as a starting commitment: the design note says, per file, what is kept, changed and removed.
 

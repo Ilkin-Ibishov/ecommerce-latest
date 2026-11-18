@@ -2,7 +2,7 @@
 
 Last updated: 2026-11-18 (the 2026-11-17 session, which ran past midnight). The entry point for
 a new session: what is true now,
-what is open, and what waits on the owner. Superseded handoffs live in `docs/status/archive/`;
+what is open, and what waits on the owner. Superseded handoffs live in `docs/archive/status/`;
 how work runs here lives in `docs/agent-workflow.md`. Everything referenced lives in this
 repository; nothing important is only in a chat transcript.
 
@@ -27,35 +27,29 @@ process detail and the lessons; read it when you need it, not up front.
 
 ### Do this first, in this order
 
-1. **`fix/otp-bypass-production` (`fef34e1`) — security, and it is first for a reason.**
+**There is no production project** (owner, 2026-11-18: not created yet; the `vercel.json` hosts
+are gone — `docs/knowledgebase/supabase-projects.md`). `ecommerce-warehouse` is the only database.
+Older notes and specs that ask about "production" describe a database that does not exist yet.
+
+1. **`fix/otp-bypass-production` (`fef34e1`) — security; must merge before anything is hosted.**
    `artifacts/api-server/src/lib/otp.ts:13-18` hardcodes three phones and the code `999999`, and
    its own comment says they "accept TEST_CODE in any environment". In `verifyOTP` the bypass is
-   checked at `:120`, **before** the `IS_DEV` branch, so it is live in production; `checkRateLimit`
-   (`:71`) also exempts those phones everywhere. Scope is three numbers, not every number — but
-   `docs/design-notes/staff-provisioning.md` §1 records that on the test project **two of those
-   three hold `admin` and `staff`**. If production carries the same rows with the same roles, that
-   is an admin account whose password is in the repository.
-   **Nobody has checked which it is.** So: (a) read production's `public.users` for
-   `+994550000001`, `+994550000002`, `+994550000003` and their `role`; (b) rebase the branch onto
-   `main` — it is far behind — open a PR and merge it. It turns the bypass and the rate-limit
-   exemption off where `NODE_ENV=production`.
-2. **One read-only query on production, which the agent may not run.** It unblocks three
-   documents at once:
-   ```sql
-   select column_name, is_nullable, column_default from information_schema.columns where table_name = 'orders';
-   ```
-   It decides whether `database.types.ts` can be regenerated (hand-patched for `subtotal_azn`
-   today), and whether the `NOT VALID` check constraint in
-   `docs/tasks/delivery-cost-at-confirmation.md` §9.3 can ever be validated.
-3. **Review `docs/design-notes/staff-provisioning.md`** (`design/staff-provisioning`, `d471185`).
+   checked at `:120`, **before** the `IS_DEV` branch, so it would be live on any deployment;
+   `checkRateLimit` (`:71`) also exempts those phones everywhere. On the test project **two of
+   those three hold `admin` and `staff`** (`docs/design-notes/staff-provisioning.md` §1). Not
+   exposed today, because nothing is hosted. Rebase the branch onto `main` (far behind), open a
+   PR, merge. It turns the bypass and the rate-limit exemption off where `NODE_ENV=production`.
+2. **Review `docs/design-notes/staff-provisioning.md`** (`design/staff-provisioning`, `d471185`).
    It blocks M4b: `AdminLayout.tsx:105-107` admits `role === "admin"` only, so staff cannot enter
    the admin UI at all and M4b's staff filter would be unreachable code. It also found a live
    defect on `main` — `routes/auth.ts:98-102` upserts `role: "customer"` when the lookup by
    canonical phone misses, which **demotes a legacy-format staff or admin row on sign-in**. One
    line fixes it.
-4. **Write the design note for `docs/tasks/delivery-cost-at-confirmation.md`.** The spec is
-   complete and has no open questions; the pipeline is spec → design note → owner approval →
-   implementation, so the note is the next artifact. New work, so it waits behind 1-3.
+3. **Write the design note for `docs/tasks/delivery-cost-at-confirmation.md`.** The spec is
+   complete; the note is the next artifact. Its §9.3 (`NOT VALID` constraint for existing
+   production rows) and §9's backfill question assume a production database — with none, the note
+   should say so and propose the constraint for the test project and a fresh production. New
+   work, so it waits behind 1-2.
 
 ### What this session put on `main`
 
@@ -70,13 +64,13 @@ the owner's yes. Recovery refs in `docs/agent-workflow.md`.
 
 The earlier part of this session — the agent-context-modularization note implemented in full,
 items A-F, which cut session start from ~133 KB / ~37,000 tokens to `AGENTS.md` plus this file
-plus the one spec the task needs — is in `docs/status/archive/2026-11-18-morning.md`.
+plus the one spec the task needs — is in `docs/archive/status/2026-11-18-morning.md`.
 
 ### Branches still open
 
 | Branch | Tip | State |
 |---|---|---|
-| `fix/otp-bypass-production` | `fef34e1` | **The security fix. Start here (item 1).** Turns the `999999` bypass and the rate-limit exemption off where `NODE_ENV=production`. Pushed, **not merged**, far behind `main`: needs a rebase, a PR and the owner's merge |
+| `fix/otp-bypass-production` | `fef34e1` | **The security fix. Start here (item 1); merge before anything is hosted.** Turns the `999999` bypass and the rate-limit exemption off where `NODE_ENV=production`. Pushed, **not merged**, far behind `main`: needs a rebase, a PR and the owner's merge |
 | `design/staff-provisioning` | `d471185` | Design note. **Waiting for the owner's review.** Blocks M4b; also carries the `routes/auth.ts` sign-in demotion defect |
 | `design/m4b-store-notifications` | `c29f55d` | Design note. **Waiting for the owner's review. No implementation before approval** |
 | `design/delivery-fee` | `bc754b6` | Design note. Partly superseded by `docs/tasks/delivery-cost-at-confirmation.md`, which names the sections it replaces. Review what is left of it, or review the new spec's note when it exists |
@@ -85,12 +79,9 @@ plus the one spec the task needs — is in `docs/status/archive/2026-11-18-morni
 
 ### Waiting on the owner — in this order
 
-1. **Production database**, which the agent may not touch. (a) Apply the nine M4 migrations.
-   (b) Run the `orders` column query in the Start here block — it blocks the
-   `database.types.ts` regeneration (hand-patched for `subtotal_azn` today; the route itself was
-   fixed on `main` in `24022d0`) and the constraint validation in
-   `docs/tasks/delivery-cost-at-confirmation.md` §9.3. (c) Read those three bypass phones' roles,
-   per Start here item 1.
+1. **Merge `fix/otp-bypass-production`** after its rebase and PR (Start here item 1).
+   With no production, `database.types.ts` (hand-patched for `subtotal_azn`; the route was fixed
+   in `24022d0`) can be regenerated from the test project — not yet done.
 2. **Review `docs/design-notes/staff-provisioning.md`.** First of the three, because it blocks
    M4b and carries a live defect.
 3. **Review `docs/design-notes/m4b-store-notifications.md`.**
@@ -128,7 +119,7 @@ plus the one spec the task needs — is in `docs/status/archive/2026-11-18-morni
    (`20261102100000_m1_variants_ledger.sql`) and the counter path
    (`20261111120400_m3_post_counter_sale.sql`) never check it, so a `track_stock = false` variant
    set from the admin UI today still goes through the ledger and still has its on-hand
-   decremented, silently. `docs/tasks/warehouse-m3-section-16-decisions.md` §16.11 records it;
+   decremented, silently. `docs/archive/tasks/warehouse-m3-section-16-decisions.md` §16.11 records it;
    M4 minor 9 is the closest scheduled item. It needs an invariant asserting no such variant
    appears in `stock_movements`. Independent of whether the shop ever sells services.
 4. **Four defects `docs/design-notes/m4b-store-notifications.md` §9 found on `main`**, none fixed:
@@ -151,8 +142,8 @@ plus the one spec the task needs — is in `docs/status/archive/2026-11-18-morni
    200-line limit is for new files) but it is the obvious next extraction, as its own change.
 7. After M4b approval: write the build prompt. The builder must confirm the §10 columns against the
    test project before writing a query.
-8. Recorded, not scheduled: `database.types.ts` hand-patch vs regeneration (blocked on item 1b);
-   print CSS of the in-page receipt (needs a browser); no automated test for the till's retry path or
+8. Recorded, not scheduled: regenerate `database.types.ts` from the test project (no longer
+   blocked — there is no production to compare against); print CSS of the in-page receipt (needs a browser); no automated test for the till's retry path or
    for the new discard-and-start-over path; mobile filter panel stays open after "apply".
 
 ## Open — business, blocking go-live, not engineering
@@ -167,7 +158,7 @@ engineering phases shipped and a sixth was specced.**
    price from a finished product is harder than from an unfinished one, because the other side
    can see it was built anyway.
 3. **Do you charge for gift wrapping, a gift card/message or engraving?** From the M3 §16 rework
-   (`docs/tasks/warehouse-m3-section-16-decisions.md` §16.11). Delivery is covered by its own
+   (`docs/archive/tasks/warehouse-m3-section-16-decisions.md` §16.11). Delivery is covered by its own
    spec now. A yes means a `track_stock = false` variant — sells, prints on the receipt, earns
    revenue, writes no stock movement. Cheap either way, and the `track_stock` defect behind it
    (item 3 of the list above) needs fixing whatever the answer is.
@@ -180,7 +171,7 @@ engineering phases shipped and a sixth was specced.**
    writing (2026-11-13) and should be filed under `docs/knowledgebase/`.
 
 The numbered technical open items from earlier phases are in
-`docs/status/archive/phase-state-m1-m4.md`.
+`docs/archive/status/phase-state-m1-m4.md`.
 
 ## History
 
@@ -188,22 +179,11 @@ Superseded handoffs, archived verbatim. Nothing here is read at session start.
 
 | File | Session |
 |---|---|
-| `docs/status/archive/2026-11-18-morning.md` | 2026-11-18 morning — agent-context modularization items A-F, `.kiro/` and `ltm/` removed |
-| `docs/status/archive/2026-11-17-evening.md` | 2026-11-17 evening — the orders subtotal_azn fix and the reservations locale key |
-| `docs/status/archive/2026-11-16-evening.md` | 2026-11-16 evening — three merges (storefront, counter sale, M4 follow-ups) |
-| `docs/status/archive/2026-11-16-afternoon.md` | 2026-11-16 afternoon |
-| `docs/status/archive/2026-11-16-morning.md` | 2026-11-16 morning |
-| `docs/status/archive/2026-11-15.md` | 2026-11-15 — M4 |
-| `docs/status/archive/2026-11-13.md` | 2026-11-13, and the 2026-11-10 first fully green CI |
-| `docs/status/archive/phase-state-m1-m4.md` | M1-M4 phase state and the long numbered technical open list |
-
-**How work runs here — the phase pipeline, the builder, the model quota, the failure modes this
-project has produced, and the lessons worth keeping — moved to `docs/agent-workflow.md`.**
-
-## The rule that keeps this file small
-
-A new handoff **replaces** the "Start here" block; the one it replaces moves to
-`docs/status/archive/<date>-<slot>.md` in the same commit, with a row added to the History table
-above. Nothing superseded stays in this file. Without this rule the file grows back: it reached
-80 KB, 45% of it under headings that told the reader to skip them, which is about 19,000 tokens
-read and discarded at every session start.
+| `docs/archive/status/2026-11-18-morning.md` | 2026-11-18 morning — agent-context modularization items A-F, `.kiro/` and `ltm/` removed |
+| `docs/archive/status/2026-11-17-evening.md` | 2026-11-17 evening — the orders subtotal_azn fix and the reservations locale key |
+| `docs/archive/status/2026-11-16-evening.md` | 2026-11-16 evening — three merges (storefront, counter sale, M4 follow-ups) |
+| `docs/archive/status/2026-11-16-afternoon.md` | 2026-11-16 afternoon |
+| `docs/archive/status/2026-11-16-morning.md` | 2026-11-16 morning |
+| `docs/archive/status/2026-11-15.md` | 2026-11-15 — M4 |
+| `docs/archive/status/2026-11-13.md` | 2026-11-13, and the 2026-11-10 first fully green CI |
+| `docs/archive/status/phase-state-m1-m4.md` | M1-M4 phase state and the long numbered technical open list |

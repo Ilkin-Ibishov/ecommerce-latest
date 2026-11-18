@@ -2,13 +2,14 @@
 name: inventory-domain
 description: >-
   Use when working on stock, quantities, variants, the movement ledger, reservations, bundles,
-  stocktakes or anything that changes how much of something exists. The rules that survive
-  docs/tasks/warehouse-architecture.md.
+  stocktakes or anything that changes how much of something exists.
 ---
 
 # Inventory domain rules
 
-Full reasoning: `docs/tasks/warehouse-architecture.md`. These are the rules that survive it.
+The warehouse architecture ADR these rules came from was never committed (no
+`warehouse-architecture.md` exists in any branch's history), so this file is the source. The
+per-phase reasoning is in the M1–M4 specs under `docs/archive/tasks/`.
 
 ## The unit of inventory
 - Stock exists **only** on variants. No quantity column on `products`.

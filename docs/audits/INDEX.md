@@ -2,51 +2,11 @@
 
 # docs/audits — index
 
-Reviews, verdicts and every agent's own notes, as written.
+Reviews, verdicts and every agent's own notes for work still open. Move them to docs/archive/audits/ when the phase merges.
 
-41 files. The subject column is the file's own first sentence, so a
+0 files. The subject column is the file's own first sentence, so a
 file that opens with a banner reads as one — fix the file, not the index.
 
 | File | Title | Subject | Size |
 |---|---|---|---|
-| [`chore-01-notes.md`](chore-01-notes.md) | Chore Batch 01 — Implementation Notes | The prompt stated that "SEC-001, SEC-002, SEC-003, SEC-004 and the RLS findings are already remediated". | 4 KB |
-| [`chore-02-notes.md`](chore-02-notes.md) | Chore Batch 02 — Implementation Notes | `const reactAct = typeof React.act === 'function' ? | 6 KB |
-| [`chore-03-notes.md`](chore-03-notes.md) | Chore Batch 03 — Implementation Notes | (no prose) | 5 KB |
-| [`chore-ci-first-run-fixes-notes.md`](chore-ci-first-run-fixes-notes.md) | Chore CI First Run Fixes — Implementation Notes | The `integration-e2e` CI job ran against a real Supabase project (`ecommerce-warehouse`, ref `jcvsnoiacrknzejouxah`) for the first time, passing 1119 of 1146 tests with 8 failures across 6 files. | 11 KB |
-| [`chore-ci-repair-notes.md`](chore-ci-repair-notes.md) | Chore CI Repair — Implementation Notes | to: Per `AGENTS.md` and prompt instructions: | 11 KB |
-| [`chore-ci-round4-fixes-notes.md`](chore-ci-round4-fixes-notes.md) | Chore CI Round 4 Fixes — Implementation Notes | Round 4 of the `integration-e2e` job (run 42272107493, branch `claude/davam-840a9f`) ran 1146 tests: 1132 passed, 1 failed, and 1 suite errored in `beforeAll` ( | 6 KB |
-| [`chore-counter-sale-payments-audit.md`](chore-counter-sale-payments-audit.md) | Audit — chore `counter_sale_payments` | 2026-11-14, architect pass. | 13 KB |
-| [`chore-counter-sale-payments-notes.md`](chore-counter-sale-payments-notes.md) | Implementation Notes — Chore `counter_sale_payments` Fix Round | `database.types.ts` was **not regenerated**. | 5 KB |
-| [`chore-e2e-round10-fixes-notes.md`](chore-e2e-round10-fixes-notes.md) | Chore E2E Round 10 Fixes — Implementation Notes | Round 10 of the `integration-e2e` CI job (run 42396485221, branch `claude/davam-840a9f`) saw `unit` and `api-integration` fully green for the first time. | 8 KB |
-| [`fix-counter-sale-confirmation-round-1-notes.md`](fix-counter-sale-confirmation-round-1-notes.md) | Audit Notes — fix/counter-sale-confirmation Round 1 | None. None. None. None. | 49 KB |
-| [`fix-counter-sale-confirmation-round-2-audit.md`](fix-counter-sale-confirmation-round-2-audit.md) | Re-audit — fix/counter-sale-confirmation, round 2 | Date: 2026-11-16. Branch tip audited: `1be07df`. | 7 KB |
-| [`fix-counter-sale-confirmation-round-3-audit.md`](fix-counter-sale-confirmation-round-3-audit.md) | Audit — fix/counter-sale-confirmation, round 3 | Date: 2026-11-16. Audited by the architect against `prompts/fix-counter-sale-confirmation-round-3.md`. | 7 KB |
-| [`fix-m4-follow-ups-notes.md`](fix-m4-follow-ups-notes.md) | Audit & Implementation Notes — M4 Follow-ups Fix Round | (no prose) | 15 KB |
-| [`fix-storefront-mobile-spa-round-1-notes.md`](fix-storefront-mobile-spa-round-1-notes.md) | Implementation Notes — fix/storefront-mobile-spa Fix Round 1 | None. None. | 25 KB |
-| [`fix-storefront-mobile-spa-round-2-audit.md`](fix-storefront-mobile-spa-round-2-audit.md) | Re-audit — fix/storefront-mobile-spa, round 2 | Date: 2026-11-16. Branch tip audited: `14ad31e`. | 5 KB |
-| [`m1-design-note-review.md`](m1-design-note-review.md) | Architecture review — M1 design note | Reviewing `docs/design-notes/m1-variants-ledger.md` against `docs/tasks/warehouse-m1-variants-ledger.md` and `.agents/rules/inventory.md`. | 6 KB |
-| [`m1-fix-2-notes.md`](m1-fix-2-notes.md) | M1 Defect Fixes (Fix-2) & Branch Completion Notes | Branch: `m1/variants-ledger` Task: `prompts/m1-fix-2.md` Date: 2026-11-03 This document verifies the resolution of the final two defects identified on the `m1/v | 6 KB |
-| [`m1-fix-notes.md`](m1-fix-notes.md) | M1 Fix Notes & Audit Resolution | Branch: `m1/variants-ledger` Task: `prompts/m1-fix.md` Date: 2026-11-03 Per `AGENTS.md` §4: | 17 KB |
-| [`m1-implementation-notes.md`](m1-implementation-notes.md) | Phase M1 — Implementation Notes | Phase M1 introduces the product variant layer, immutable stock movement ledger, and staff role enforcement to eliminate split-brain inventory anomalies and esta | 7 KB |
-| [`m1-schema-additions-notes.md`](m1-schema-additions-notes.md) | M1 Schema Additions Notes & Verification | Branch: `m1/variants-ledger` Task: `prompts/m1-schema-additions.md` Date: 2026-11-03 The stock movement ledger is initially empty; adding non-backfill-sensitive | 11 KB |
-| [`m1-variants-ledger-audit.md`](m1-variants-ledger-audit.md) | Audit: m1/variants-ledger | Spec: `docs/tasks/warehouse-m1-variants-ledger.md` Reviewed: 398dbe5afea850523a808d73f7b5530969579440 Date: 2026-11-03 FIX — The ledger and its database-level enforcement are sound. | 10 KB |
-| [`m2a-fix-notes.md`](m2a-fix-notes.md) | M2a Fix Notes & Audit Resolution | Branch: `m2/receiving-cost` Task: `prompts/m2a-fix.md` Audit Document: `docs/audits/m2a-receiving-cost-audit.md` Date: 2026-11-04 `public.is_admin()` checks `auth.uid()` against `public.users`. | 18 KB |
-| [`m2a-implementation-notes.md`](m2a-implementation-notes.md) | Phase M2a — Implementation Notes | Phase M2a implements supplier management, goods receipts with barcode-driven intake, landed cost distribution, weighted-average costing via idempotent replay, and owner-only gross margin reporting. | 10 KB |
-| [`m2a-receiving-cost-audit.md`](m2a-receiving-cost-audit.md) | Audit: m2/receiving-cost | Spec: `docs/tasks/warehouse-m2a-receiving-cost.md` Reviewed: b7c6a13c Date: 2026-11-04 `is_admin()` calls `auth.uid()`. | 15 KB |
-| [`m2b-fix-2-notes.md`](m2b-fix-2-notes.md) | Phase M2b — Second Fix Pass Notes: Stocktake Posting Arithmetic & Staleness Guards | An adversarial review of `post_stocktake` identified four critical defects in posting arithmetic and multi-counter resolution lifecycle: All four defects were r | 16 KB |
-| [`m2b-fix-3-notes.md`](m2b-fix-3-notes.md) | Phase M2b — Third Fix Pass Notes: Stocktake Integrity, Resolution Override & Cost Replay | Following the adversarial review in `docs/audits/m2b-stocktake-audit.md`, this fix pass resolves seven critical findings (F1 through F7) spanning posting date d | 19 KB |
-| [`m2b-fix-notes.md`](m2b-fix-notes.md) | Phase M2b — Fix Notes & Invariant Scoping Verification | In `artifacts/api-server/src/lib/stocktake-variance.ts` (line 36), the variance service previously queried the entire `stocktake_line_snapshots` table without a | 7 KB |
-| [`m2b-implementation-notes.md`](m2b-implementation-notes.md) | Phase M2b — Implementation Notes | Phase M2b implements physical stocktaking, the store-wide opening count, blind counting security boundaries, multi-counter reconciliation algebra, and weighted-average shrinkage valuation. | 12 KB |
-| [`m2b-stocktake-audit.md`](m2b-stocktake-audit.md) | Audit: m2b/stocktake | Spec: docs/tasks/warehouse-m2b-stocktake.md Reviewed: b1e5473bd6a4858e87843add2aaa4177df59d5bb Date: 2026-11-04 BLOCK — Stocktakes created via the UI cannot be | 13 KB |
-| [`m2c-fix-views-notes.md`](m2c-fix-views-notes.md) | M2c View Security Fix Notes & Invariant Verification | Branch: `m2c/reservations` Task: `prompts/m2c-fix-views.md` Date: 2026-11-05 Applying Supabase's security checklist to the M2c schema identified two critical Po | 13 KB |
-| [`m2c-implementation-notes.md`](m2c-implementation-notes.md) | Phase M2c — Implementation Notes | Phase M2c implements the reservations (deposits) ledger, concurrency control for competing cart sales, unified availability computation with deficit exposure, a | 18 KB |
-| [`m3-implementation-notes.md`](m3-implementation-notes.md) | M3a implementation notes | Branch `m3a/counter-sale`. | 4 KB |
-| [`m3-spec-audit.md`](m3-spec-audit.md) | M3 spec audit — `docs/tasks/warehouse-m3-counter-sale.md` | `.agents/rules/inventory.md`; M1/M2a/M2b/M2c specs and design notes; `identification-scenario-matrix.md`; `m2a-fix-notes.md`, `m2c-implementation-notes.md`, `m2 | 26 KB |
-| [`m3a-design-note-audit.md`](m3a-design-note-audit.md) | M3a design note audit: `docs/design-notes/m3-counter-sale.md` | `AGENTS.md`; `.agents/rules/inventory.md`, `migrations.md`; migrations `20261102100000`, `20261103210000`, `20261104100000`, `20261104110000`, `20261104130000`, | 16 KB |
-| [`m3a-test-gaps-notes.md`](m3a-test-gaps-notes.md) | M3a test gaps implementation notes | Branch `m3a/test-gaps`. | 12 KB |
-| [`m4-architect-audit.md`](m4-architect-audit.md) | Audit — M4 stock signals | 2026-11-14, architect pass. | 35 KB |
-| [`m4-design-note-review.md`](m4-design-note-review.md) | Review — M4 design note, revision 2 | 2026-11-15, architect. | 7 KB |
-| [`m4-implementation-notes.md`](m4-implementation-notes.md) | Implementation Notes — M4 Stock Signals Fix Round | Per `prompts/m4-fix-round.md` §0 & §8 and `AGENTS.md`: Does `post_stocktake` touch tracked variants that are absent from the count sheet, and does it need to skip non-tracked variants? | 61 KB |
-| [`m4-qa-blackbox-results.md`](m4-qa-blackbox-results.md) | M4 Stock Signals: Müstəqil Black-Box QA Yoxlama və Defekt Hesabatı | M4 fazası çərçivəsində tətbiq olunmuş bütün ehtiyat siqnalları — **Az qalan ehtiyat (Low Stock)**, **Bitmiş ehtiyat (Out of Stock)**, **Satılmayan mallar və don | 18 KB |
-| [`m4-stock-signals-test-plan.md`](m4-stock-signals-test-plan.md) | M4 Stock Signals: Hərtərəfli Black-Box QA Test Planı və Test Keysləri | Bu sənəd M4 fazasında tətbiq olunan bütün funksionallıqların, riyazi düsturların, təhlükəsizlik/RBAC qaydalarının və istifadəçi təcrübəsinin (UX) hərtərəfli və | 14 KB |
-| [`test-supabase-project-bootstrap.md`](test-supabase-project-bootstrap.md) | Test Supabase project bootstrap — notes | 2026-11-06. Addresses `docs/STATUS.md` open item 5: a dedicated test Supabase project now exists and carries the full schema. | 5 KB |
+

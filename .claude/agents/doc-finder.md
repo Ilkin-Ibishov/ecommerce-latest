@@ -1,6 +1,6 @@
 ---
 name: doc-finder
-description: Given a question, returns the 2-3 relevant paths from docs/ and prompts/ with a short summary of each. Use instead of globbing or reading whole audit files; docs/audits alone is 642 KB across 50 files with no index.
+description: Given a question, returns the 2-3 relevant paths from docs/ (including docs/archive/) and prompts/ with a short summary of each. Use instead of globbing or reading whole audit files.
 tools: Read, Grep, Glob, Bash
 ---
 
@@ -12,16 +12,19 @@ paste.
 
 ## The corpus
 
-| Directory | Size | What |
-|---|---|---|
-| `docs/audits` | 642 KB, 50 files | every review and every agent's own notes |
-| `docs/tasks` | 300 KB, 39 files | specs, architect-owned |
-| `prompts` | 262 KB, 44 files | the launch prompt each builder round was given |
-| `docs/design-notes` | 250 KB | the implementer's proposals, written before code |
-| `docs/status/archive` | ~60 KB | superseded handoffs, newest first |
-| `docs/knowledgebase` | — | cross-cutting operational lessons; has its own README index |
+| Directory | What |
+|---|---|
+| `docs/tasks`, `docs/design-notes`, `docs/audits`, `prompts` | live: specs, proposals, reviews and launch prompts for work still open |
+| `docs/archive/{tasks,design-notes,audits,prompts,planning}` | the same for merged phases (M1–M4, the counter-sale chores, the admin improvements, the May–June storefront plans) |
+| `docs/archive/status` | superseded handoffs, newest first |
+| `docs/knowledgebase` | cross-cutting operational lessons; has its own README index |
 
 Where an `INDEX.md` exists, read it first — it is generated from the files' own headings.
+
+`.ignore` hides `docs/archive/` from project-wide Grep. History
+questions are usually answered there, so pass the path explicitly: Grep with
+`path: docs/archive`. Migrations and older notes cite pre-archive paths such as
+`docs/tasks/warehouse-m2a-receiving-cost.md`; the file is under `docs/archive/` with the same name.
 
 All of `.kiro/` was removed on 2026-11-18. Test files carry comments like
 `Spec: .kiro/specs/supabase-rls-security-fixes`; that path no longer exists in `HEAD`. Recover a
