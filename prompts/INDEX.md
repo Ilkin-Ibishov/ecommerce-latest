@@ -4,10 +4,11 @@
 
 The launch prompt each builder round was given. A record, not live configuration.
 
-2 files. The subject column is the file's own first sentence, so a
+3 files. The subject column is the file's own first sentence, so a
 file that opens with a banner reads as one — fix the file, not the index.
 
 | File | Title | Subject | Size |
 |---|---|---|---|
+| [`delivery-cost-resume.md`](delivery-cost-resume.md) | Delivery cost — build round 1, resumed | Round 1 (`prompts/delivery-cost.md`) stopped on a network error. | 1 KB |
 | [`delivery-cost.md`](delivery-cost.md) | Delivery cost agreed at confirmation — build round 1 | Read `AGENTS.md`, `artifacts/api-server/AGENTS.md`, `artifacts/store/AGENTS.md`, `supabase/AGENTS.md`, the spec `docs/tasks/delivery-cost-at-confirmation.md` an | 7 KB |
 | [`staff-provisioning.md`](staff-provisioning.md) | Staff provisioning — build round 1 | Read `AGENTS.md`, `artifacts/api-server/AGENTS.md`, `artifacts/store/AGENTS.md`, `supabase/AGENTS.md`, the spec `docs/tasks/staff-provisioning.md` and the appro | 9 KB |
