@@ -348,3 +348,14 @@ All invariant checks passed.
   uuid before the self-demotion check. Both were fixture errors; fixed (`ACTOR_ID` is a real uuid,
   the mock gains an insert-if-absent `upsert`). No assertion changed. Run locally with dummy env:
   "Test Files 1 passed (1)", "Tests 17 passed (17)".
+- **CI round 2: `tests/serial/staff-provisioning.test.ts` failed 4 of 6** (run 44339729160) and two
+  of its passes were vacuous. Causes: `users` rows inserted with random ids violate
+  `users.id → auth.users` (23503, then ST041 / a 0-row count downstream); the order insert used a
+  non-existent `total_amount` (PGRST204); with 55 admins on the test project the "only admin" and
+  "concurrent demotion" tests never reached the guard. **Rewritten by the architect, same six test
+  names:** users created through `auth.admin.createUser`; the order uses `subtotal_azn`/`total_azn`;
+  promotion and the format duplicate go through `POST /admin/users` as the bypass admin
+  (409 `already_staff` for the `0…` form); the guard is hit by one service-role `UPDATE` demoting
+  every admin (ST040, nothing changes) and by two concurrent halves (exactly one ST040), with an
+  `afterAll` that restores any admin changed; the demotion test signs the staff member in and sees
+  200 then 403 on `GET /admin/counter/bundles`. Not run locally (needs the test project).

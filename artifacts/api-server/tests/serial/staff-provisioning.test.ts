@@ -1,250 +1,184 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createClient } from "@supabase/supabase-js";
-import { randomUUID } from "node:crypto";
 import type { Database } from "@workspace/supabase-types";
+import { loginTestUser, type AuthSession } from "../helpers/auth";
+import { generatePhone } from "../helpers/isolation";
 
 /**
- * Staff provisioning serial integration tests.
+ * Staff provisioning, against the real test project and the running API (CI serial step).
  *
- * Verifies end-to-end database trigger and RPC behavior for staff/admin role mutations.
- * Runs in CI with real Supabase credentials.
+ * `users.id` references `auth.users`, so every user is created through the auth admin API
+ * (the `trg_new_user` trigger adds the `users` row). The project holds many admins, so the
+ * last-admin guard is exercised by demoting *all* of them at once — one statement for the
+ * service-role case, two concurrent halves for the race — and anything changed is restored.
  */
-const url = process.env.SUPABASE_URL ?? "http://localhost:54321";
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? "dummy-key-for-offline";
-const db = createClient<Database>(url, serviceRoleKey, { auth: { persistSession: false } });
+const ORIGIN = `http://localhost:${process.env.PORT || "5000"}`;
+const db = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  auth: { persistSession: false },
+});
 
-// Generate random phone outside reserved bypass numbers (+994550000001..3)
-function generateRandomPhone(): string {
-  const prefix = "50";
-  const suffix = Math.floor(1000000 + Math.random() * 9000000).toString();
-  return `+994${prefix}${suffix}`;
+let adminSession: AuthSession;
+let actorId: string;
+let adminIdsBefore: string[] = [];
+
+async function createUser(phone: string, fullName: string): Promise<string> {
+  const { data, error } = await db.auth.admin.createUser({ phone, phone_confirm: true });
+  if (error || !data.user) throw new Error(`auth createUser: ${error?.message}`);
+  const { error: upErr } = await db.from("users").upsert({ id: data.user.id, phone, full_name: fullName }, { onConflict: "id" });
+  if (upErr) throw new Error(`users upsert: ${upErr.message}`);
+  return data.user.id;
+}
+
+async function setRole(userId: string, role: "customer" | "staff" | "admin"): Promise<void> {
+  const { error } = await db.rpc("set_user_role", { p_actor: actorId, p_user: userId, p_role: role });
+  if (error) throw new Error(`set_user_role: ${error.message}`);
+}
+
+async function adminIds(): Promise<string[]> {
+  const { data, error } = await db.from("users").select("id").eq("role", "admin");
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((u) => u.id);
+}
+
+function api(path: string, token: string, init: RequestInit = {}) {
+  return fetch(`${ORIGIN}/api${path}`, {
+    ...init,
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, ...(init.headers ?? {}) },
+  });
 }
 
 describe("Staff provisioning serial integration suite", () => {
-  let initialAdminId: string;
-
   beforeAll(async () => {
-    // Lookup an existing admin to act as actor
-    const { data: adminUser } = await db
-      .from("users")
-      .select("id")
-      .eq("role", "admin")
-      .limit(1)
-      .maybeSingle();
+    adminSession = await loginTestUser(ORIGIN, "+994550000001");
+    actorId = adminSession.userId;
+    adminIdsBefore = await adminIds();
+    expect(adminIdsBefore).toContain(actorId);
+  });
 
-    if (adminUser) {
-      initialAdminId = adminUser.id;
-    }
+  afterAll(async () => {
+    // Safety net: if the guard ever failed, put every admin back (promotion is not guarded).
+    const now = new Set(await adminIds());
+    const lost = adminIdsBefore.filter((id) => !now.has(id));
+    if (lost.length) await db.from("users").update({ role: "admin" }).in("id", lost);
   });
 
   it("provisions new phone as staff and records audit log", async () => {
-    const phone = generateRandomPhone();
-    const newUserId = randomUUID();
+    const newUserId = await createUser(generatePhone(), "Test Staff Member");
 
-    // Insert user row
-    const { error: insertErr } = await db.from("users").insert({
-      id: newUserId,
-      phone,
-      full_name: "Test Staff Member",
-      role: "customer",
-    });
-    expect(insertErr).toBeNull();
-
-    // Promote to staff via RPC
     const { data: oldRole, error: rpcErr } = await db.rpc("set_user_role", {
-      p_actor: initialAdminId || newUserId,
+      p_actor: actorId,
       p_user: newUserId,
       p_role: "staff",
     });
     expect(rpcErr).toBeNull();
     expect(oldRole).toBe("customer");
 
-    // Verify role in database
-    const { data: user } = await db
-      .from("users")
-      .select("role")
-      .eq("id", newUserId)
-      .single();
+    const { data: user } = await db.from("users").select("role").eq("id", newUserId).single();
     expect(user?.role).toBe("staff");
 
-    // Verify audit log row
     const { data: auditLogs } = await db
       .from("audit_log")
-      .select("action, entity, entity_id, changes")
+      .select("actor_id, changes")
       .eq("entity_id", newUserId)
       .eq("action", "change_user_role");
-    expect(auditLogs).toBeDefined();
-    expect(auditLogs!.length).toBeGreaterThanOrEqual(1);
+    expect(auditLogs).toHaveLength(1);
+    expect(auditLogs![0].actor_id).toBe(actorId);
     expect(auditLogs![0].changes).toMatchObject({ old_role: "customer", new_role: "staff" });
   });
 
   it("promotes customer to staff while keeping existing orders intact", async () => {
-    const phone = generateRandomPhone();
-    const custId = randomUUID();
+    const phone = generatePhone();
+    const custId = await createUser(phone, "Customer With Orders");
 
-    // Create customer
-    await db.from("users").insert({
-      id: custId,
-      phone,
-      full_name: "Customer With Orders",
-      role: "customer",
-    });
-
-    // Create an order for this customer
-    const orderId = randomUUID();
-    const { error: orderErr } = await db.from("orders").insert({
-      id: orderId,
-      user_id: custId,
-      customer_name: "Customer With Orders",
-      customer_phone: phone,
-      delivery_address: "123 Main St",
-      total_amount: 50.0,
-      status: "pending",
-    });
+    const { data: order, error: orderErr } = await db
+      .from("orders")
+      .insert({
+        user_id: custId,
+        customer_name: "Customer With Orders",
+        customer_phone: phone,
+        delivery_address: "123 Main St",
+        subtotal_azn: 50,
+        discount_azn: 0,
+        total_azn: 50,
+        status: "pending",
+      })
+      .select("id")
+      .single();
     expect(orderErr).toBeNull();
 
-    // Promote customer to staff
-    const { error: rpcErr } = await db.rpc("set_user_role", {
-      p_actor: initialAdminId || custId,
-      p_user: custId,
-      p_role: "staff",
+    const res = await api("/admin/users", adminSession.accessToken, {
+      method: "POST",
+      body: JSON.stringify({ phone, role: "staff" }),
     });
-    expect(rpcErr).toBeNull();
+    expect(res.status).toBe(200);
+    expect(((await res.json()) as { user: { id: string } }).user.id).toBe(custId);
 
-    // Verify role updated to staff
-    const { data: user } = await db
-      .from("users")
-      .select("role")
-      .eq("id", custId)
-      .single();
+    const { data: user } = await db.from("users").select("role").eq("id", custId).single();
     expect(user?.role).toBe("staff");
 
-    // Verify orders are intact
-    const { data: orders } = await db
-      .from("orders")
-      .select("id, user_id, status")
-      .eq("user_id", custId);
-    expect(orders).toBeDefined();
-    expect(orders!.length).toBe(1);
-    expect(orders![0].id).toBe(orderId);
+    const { data: orders } = await db.from("orders").select("id").eq("user_id", custId);
+    expect(orders).toEqual([{ id: order!.id }]);
   });
 
   it("refuses duplicate creation when same phone provided in alternate format", async () => {
-    const phone = generateRandomPhone();
-    const uId = randomUUID();
-
-    await db.from("users").insert({
-      id: uId,
-      phone,
-      full_name: "Staff Alternate Format",
-      role: "customer",
+    const phone = generatePhone();
+    const first = await api("/admin/users", adminSession.accessToken, {
+      method: "POST",
+      body: JSON.stringify({ phone, full_name: "Staff Alternate Format", role: "staff" }),
     });
+    expect(first.status).toBe(201);
 
-    await db.rpc("set_user_role", {
-      p_actor: initialAdminId || uId,
-      p_user: uId,
-      p_role: "staff",
+    // Same number in the national 0-prefixed form: normalized to the same account.
+    const national = "0" + phone.slice(4);
+    const second = await api("/admin/users", adminSession.accessToken, {
+      method: "POST",
+      body: JSON.stringify({ phone: national, role: "staff" }),
     });
+    expect(second.status).toBe(409);
+    expect(((await second.json()) as { error: string }).error).toBe("already_staff");
 
-    // Query with normalized form and alternate formats (e.g. without '+')
-    const alternatePhone = phone.replace(/^\+/, "");
-    const { data: foundUsers } = await db
-      .from("users")
-      .select("id, phone, role")
-      .in("phone", [phone, alternatePhone]);
-
-    expect(foundUsers).toBeDefined();
-    expect(foundUsers!.length).toBe(1);
-    expect(foundUsers![0].role).toBe("staff");
+    const { data: rows } = await db.from("users").select("id").in("phone", [phone, phone.slice(1)]);
+    expect(rows).toHaveLength(1);
   });
 
   it("demoting the only admin is refused by the database trigger ST040 for service role", async () => {
-    // Count existing admins
-    const { data: admins } = await db
-      .from("users")
-      .select("id")
-      .eq("role", "admin");
-
-    expect(admins).toBeDefined();
-    const adminCount = admins!.length;
-
-    // Create a temporary isolated admin if multiple exist
-    const soloAdminId = randomUUID();
-    await db.from("users").insert({
-      id: soloAdminId,
-      phone: generateRandomPhone(),
-      full_name: "Sole Admin Candidate",
-      role: "admin",
-    });
-
-    // If there were existing admins, temporarily set their roles to staff in a transaction or test context
-    // Directly demoting when only one admin remains must trigger ST040
-    if (adminCount === 0) {
-      // soloAdminId is the only admin
-      const { error } = await db.rpc("set_user_role", {
-        p_actor: soloAdminId,
-        p_user: soloAdminId,
-        p_role: "customer",
-      });
-      expect(error).toBeDefined();
-      expect(error?.message).toContain("ST040");
-    } else {
-      // Verify trigger behavior directly via raw update or function
-      const { data: allAdmins } = await db.from("users").select("id").eq("role", "admin");
-      expect(allAdmins!.length).toBeGreaterThanOrEqual(1);
-    }
+    // One service-role statement that would leave zero admins: the AFTER trigger raises and the
+    // whole statement rolls back, so nothing changes.
+    const { error } = await db.from("users").update({ role: "customer" }).eq("role", "admin");
+    expect(error?.code).toBe("ST040");
+    expect((await adminIds()).sort()).toEqual([...adminIdsBefore].sort());
   });
 
   it("two concurrent cross-demotions via Promise.all leave at least one admin", async () => {
-    const admin1 = randomUUID();
-    const admin2 = randomUUID();
+    // Two halves, each harmless alone, together leaving zero admins. The advisory lock serialises
+    // the checks, so exactly one of the two statements is refused.
+    const ids = await adminIds();
+    expect(ids.length).toBeGreaterThanOrEqual(2);
+    const half = Math.ceil(ids.length / 2);
+    const [a, b] = [ids.slice(0, half), ids.slice(half)];
 
-    await db.from("users").insert([
-      { id: admin1, phone: generateRandomPhone(), full_name: "Admin One", role: "admin" },
-      { id: admin2, phone: generateRandomPhone(), full_name: "Admin Two", role: "admin" },
+    const [r1, r2] = await Promise.all([
+      db.from("users").update({ role: "customer" }).in("id", a),
+      db.from("users").update({ role: "customer" }).in("id", b),
     ]);
+    const refused = [r1.error?.code, r2.error?.code].filter((c) => c === "ST040");
+    expect(refused).toHaveLength(1);
+    expect((await adminIds()).length).toBeGreaterThanOrEqual(1);
 
-    // Concurrently try to demote both admins to staff
-    const [res1, res2] = await Promise.allSettled([
-      db.rpc("set_user_role", { p_actor: admin1, p_user: admin1, p_role: "staff" }),
-      db.rpc("set_user_role", { p_actor: admin2, p_user: admin2, p_role: "staff" }),
-    ]);
-
-    // Check how many admins remain
-    const { data: remainingAdmins } = await db
-      .from("users")
-      .select("id")
-      .eq("role", "admin");
-
-    expect(remainingAdmins).toBeDefined();
-    expect(remainingAdmins!.length).toBeGreaterThanOrEqual(1);
+    // Restore the half that was demoted (promotion is not guarded).
+    const demoted = r1.error ? b : a;
+    const { error: restoreErr } = await db.from("users").update({ role: "admin" }).in("id", demoted);
+    expect(restoreErr).toBeNull();
   });
 
   it("demoted staff member's next admin request returns 403", async () => {
-    const staffId = randomUUID();
-    const phone = generateRandomPhone();
+    const phone = generatePhone();
+    const staffId = await createUser(phone, "Demoted Staff");
+    await setRole(staffId, "staff");
+    const staff = await loginTestUser(ORIGIN, phone);
 
-    await db.from("users").insert({
-      id: staffId,
-      phone,
-      full_name: "Demoted Staff",
-      role: "staff",
-    });
-
-    // Demote staff to customer
-    const { error: demoteErr } = await db.rpc("set_user_role", {
-      p_actor: initialAdminId || staffId,
-      p_user: staffId,
-      p_role: "customer",
-    });
-    expect(demoteErr).toBeNull();
-
-    // Verify role in database is customer
-    const { data: user } = await db
-      .from("users")
-      .select("role")
-      .eq("id", staffId)
-      .single();
-    expect(user?.role).toBe("customer");
+    expect((await api("/admin/counter/bundles", staff.accessToken)).status).toBe(200);
+    await setRole(staffId, "customer");
+    expect((await api("/admin/counter/bundles", staff.accessToken)).status).toBe(403);
   });
 });

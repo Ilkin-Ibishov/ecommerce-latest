@@ -9,4 +9,4 @@ file that opens with a banner reads as one — fix the file, not the index.
 
 | File | Title | Subject | Size |
 |---|---|---|---|
-| [`staff-provisioning-notes.md`](staff-provisioning-notes.md) | Staff Provisioning Build Round 1 Audit Notes | Every admin page, the API routes it interacts with, their server guard (`requireAdmin` vs `requireStaffOrAdmin`), and visibility to staff: runtime-built key into `t()`. | 28 KB |
+| [`staff-provisioning-notes.md`](staff-provisioning-notes.md) | Staff Provisioning Build Round 1 Audit Notes | Every admin page, the API routes it interacts with, their server guard (`requireAdmin` vs `requireStaffOrAdmin`), and visibility to staff: runtime-built key into `t()`. | 30 KB |
