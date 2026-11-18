@@ -88,6 +88,15 @@ It now reads `AGENTS.md`, a 10 KB STATUS.md and the one spec the task needs.**
    `database.types.ts` regeneration (it is hand-patched for this column today).
 2. **Review `docs/design-notes/m4b-store-notifications.md`** (`design/m4b-store-notifications`).
 3. **Review the two older design notes** (`design/delivery-fee`, `design/staff-provisioning`).
+   Two of `delivery-fee`'s three owner questions are answered (2026-11-18): the `PoliciesPage`
+   flat-rate sentence is **deleted**, not reworded, in all three languages — it is false today
+   while the fee is off; and the 100 AZN threshold must not stay a literal anywhere, which the
+   note's invariant already enforces. Still open: what the `AnnouncementBar` says once its only
+   message goes, and whether the fee model stays one flat amount while the regional tariffs are
+   unknown. The regional question does not block the phase — an order stores its resolved
+   `delivery_fee_azn`, so zones later touch the quote function, not the schema. What a zone
+   model would lack is an address to key on: `orders.delivery_address` is one free-text column
+   (`schema.sql:741`), with no city or region field anywhere.
 4. **Three M4 minors that need new migrations on the test project** (9: reservation guard for
    non-tracked variants in the database; 10: `FOR UPDATE` on the `track_stock` read in
    `trg_apply_stock_movement`; 13: `'in_progress'` is not a stocktake status). Applying them needs a yes.
