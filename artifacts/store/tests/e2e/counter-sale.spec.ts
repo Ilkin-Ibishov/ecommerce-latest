@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { createStockedVariant } from "../../../api-server/tests/helpers/stocked-variant";
+import { ADMIN_STATE, loginAsAdmin } from "../helpers/admin-auth";
 
 /**
  * Counter screen E2E test at phone and desktop width with a keyboard-wedge scanner.
@@ -14,28 +15,8 @@ function getServiceClient(): SupabaseClient {
   return createClient(url, key, { auth: { persistSession: false } });
 }
 
-async function loginAsAdmin(page: Page) {
-  await page.goto("/admin");
-  const authGate = page.getByText("Admin Access Required");
-  const dashboard = page.getByRole("heading", { name: "Dashboard" });
-  await expect(authGate.or(dashboard).first()).toBeVisible({ timeout: 30000 });
-
-  const needsAuth = await authGate.isVisible().catch(() => false);
-  if (needsAuth) {
-    await page.getByRole("button", { name: "Sign In with Phone" }).click();
-    const phoneInput = page.getByPlaceholder("+994 XX XXX XX XX");
-    await expect(phoneInput).toBeVisible({ timeout: 15000 });
-    await phoneInput.fill("+994550000001");
-    await page.locator('button[type="submit"]').click();
-
-    const otpInput = page.getByPlaceholder("------");
-    await expect(otpInput).toBeVisible({ timeout: 15000 });
-    await otpInput.fill("999999");
-    await page.locator('button[type="submit"]').click();
-
-    await expect(dashboard).toBeVisible({ timeout: 20000 });
-  }
-}
+// The admin session saved by auth.setup.ts: no OTP sign-in per test.
+test.use({ storageState: ADMIN_STATE });
 
 async function createVariantWithBarcode(db: SupabaseClient, actor: string) {
   const variantId = await createStockedVariant(db, actor, 5, 4);

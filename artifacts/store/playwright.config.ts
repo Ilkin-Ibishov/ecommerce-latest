@@ -16,7 +16,9 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  // Public-repo runners have 4 vCPUs. Was 1, when every admin test signed in by OTP and
+  // parallel sign-ins timed out; the admin session is now created once by the setup project.
+  workers: process.env.CI ? 3 : undefined,
   reporter: process.env.CI ? "github" : "list",
   timeout: 60_000,
 
@@ -27,9 +29,12 @@ export default defineConfig({
   },
 
   projects: [
+    // Signs in as admin once and saves the session (tests/helpers/admin-auth.ts).
+    { name: "setup", testMatch: /auth\.setup\.ts/ },
     {
       name: "chromium",
       use: { ...devices["Desktop Chrome"] },
+      dependencies: ["setup"],
     },
   ],
 });
