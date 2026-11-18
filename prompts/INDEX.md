@@ -4,9 +4,10 @@
 
 The launch prompt each builder round was given. A record, not live configuration.
 
-1 file. The subject column is the file's own first sentence, so a
+2 files. The subject column is the file's own first sentence, so a
 file that opens with a banner reads as one — fix the file, not the index.
 
 | File | Title | Subject | Size |
 |---|---|---|---|
+| [`m4b-store-notifications.md`](m4b-store-notifications.md) | M4b — Notifications: the admin's inbox — build round 1 | Read `AGENTS.md`, `artifacts/api-server/AGENTS.md`, `artifacts/store/AGENTS.md`, `supabase/AGENTS.md`, the spec `docs/tasks/m4b-store-notifications.md` and the | 6 KB |
 | [`staff-provisioning.md`](staff-provisioning.md) | Staff provisioning — build round 1 | Read `AGENTS.md`, `artifacts/api-server/AGENTS.md`, `artifacts/store/AGENTS.md`, `supabase/AGENTS.md`, the spec `docs/tasks/staff-provisioning.md` and the appro | 9 KB |
