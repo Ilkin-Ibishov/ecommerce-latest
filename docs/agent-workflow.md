@@ -81,6 +81,13 @@ log under `.agent-runs/` and a completion marker to `.agent-runs/LAST-RUN.done` 
   attempts silently matched nothing while reporting success. Use a short Node script that finds the
   line by an ASCII anchor and prints before and after.
 - **CI triggers itself on a push to `main`.** Check that run too — merging is not the end.
+- **`integration-e2e` runs one at a time** (concurrency group `supabase-test-project`), and
+  GitHub keeps only one *pending* run per group: a newer queued run cancels the older pending one.
+  After several merges or pushes in a row, check `main`'s latest run and rerun it if cancelled.
+- **A session in a worktree cannot write another worktree's files** (a hook refuses). For a
+  second branch, `git switch -c <branch> origin/main` in the same worktree with a clean tree.
+- **`git revert -q <sha>` once made no commit and printed nothing**, and the `--amend` that
+  followed rewrote the previous commit's message instead. Check `git log -1` before amending.
 - **Read-only audit sub-agents are worth it** (clean context, own worktree, 60–130 s each). Check
   their top findings against the code before repeating them.
 - E2E failures: skill `e2e-diagnose`. Locale assertions: skill `locale-key-add`. Locator and SPA
