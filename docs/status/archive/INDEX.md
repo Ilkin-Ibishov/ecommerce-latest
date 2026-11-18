@@ -4,7 +4,7 @@
 
 Superseded handoffs. Nothing here is read at session start.
 
-7 files. The subject column is the file's own first sentence, so a
+8 files. The subject column is the file's own first sentence, so a
 file that opens with a banner reads as one — fix the file, not the index.
 
 | File | Title | Subject | Size |
@@ -15,4 +15,5 @@ file that opens with a banner reads as one — fix the file, not the index.
 | [`2026-11-16-evening.md`](2026-11-16-evening.md) | Archived from docs/STATUS.md — 2026-11-16 evening (ran past midnight) | Verbatim. The merge record of that session. | 1 KB |
 | [`2026-11-16-morning.md`](2026-11-16-morning.md) | Archived from docs/STATUS.md — 2026-11-16 morning | Verbatim. That session's full handoff. | 8 KB |
 | [`2026-11-17-evening.md`](2026-11-17-evening.md) | Archived from docs/STATUS.md — 2026-11-17 evening | Verbatim. The session that merged the orders subtotal_azn fix and the reservations locale key, and that was handed the agent-context-modularization design note. | 3 KB |
+| [`2026-11-18-morning.md`](2026-11-18-morning.md) | Archived from docs/STATUS.md — 2026-11-18 morning | Verbatim. The session that implemented the agent-context-modularization note in full (items A-F), removed all of `.kiro/` and `ltm/`, answered the gift-certific | 5 KB |
 | [`phase-state-m1-m4.md`](phase-state-m1-m4.md) | Archived from docs/STATUS.md — M1-M4 phase state and the long technical open list | Verbatim. The phase-by-phase State/Next blocks and the numbered technical open items, as they stood on 2026-11-16. | 25 KB |
