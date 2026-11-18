@@ -20,6 +20,9 @@
     },
     {
       "path": "../../lib/counter-pricing"
+    },
+    {
+      "path": "../../lib/order-pricing"
     }
   ]
 }

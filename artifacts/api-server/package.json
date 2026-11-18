@@ -16,6 +16,7 @@
     "@workspace/api-zod": "workspace:*",
     "@workspace/counter-pricing": "workspace:*",
     "@workspace/db": "workspace:*",
+    "@workspace/order-pricing": "workspace:*",
     "@workspace/supabase-types": "workspace:*",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",

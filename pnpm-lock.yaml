@@ -202,6 +202,9 @@ importers:
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
+      '@workspace/order-pricing':
+        specifier: workspace:*
+        version: link:../../lib/order-pricing
       '@workspace/supabase-types':
         specifier: workspace:*
         version: link:../supabase-types
@@ -488,6 +491,9 @@ importers:
       '@workspace/counter-pricing':
         specifier: workspace:*
         version: link:../../lib/counter-pricing
+      '@workspace/order-pricing':
+        specifier: workspace:*
+        version: link:../../lib/order-pricing
       bcryptjs:
         specifier: ^3.0.3
         version: 3.0.3
@@ -774,6 +780,8 @@ importers:
       drizzle-kit:
         specifier: ^0.31.10
         version: 0.31.10
+
+  lib/order-pricing: {}
 
   scripts:
     dependencies:
