@@ -92,3 +92,36 @@ log under `.agent-runs/` and a completion marker to `.agent-runs/LAST-RUN.done` 
   their top findings against the code before repeating them.
 - E2E failures: skill `e2e-diagnose`. Locale assertions: skill `locale-key-add`. Locator and SPA
   timing traps: `docs/knowledgebase/ci-testing-gotchas.md`.
+
+## Branches
+
+Measured 2026-11-18 at `main` `ab4afaa`: 51 remote branches, ~90 local, 29 worktrees. Only four
+remote branches carry live work. How the sprawl happened, and the rules that stop it:
+
+- **Merged branches are never deleted.** 25 remote branches are fully merged (`git branch -r
+  --merged origin/main`). Rule: delete the head branch when its PR merges.
+- **`main` is unprotected, and most of its history is direct pushes.** 46 of the last 60
+  first-parent commits on `main` are not PR merges (handoffs, `merge:` commits made locally), so
+  CI ran after the fact. Rule: every change reaches `main` through a PR whose checks are green.
+- **Audit and prompt branches never merge.** `audit/*` and `prompts/*` were cut beside the phase
+  branch, so six audits exist only on unmerged branches. Rule: an audit's notes are committed to
+  the phase branch (or a docs PR) and merge with it.
+- **Design notes waited on side branches** until 167 commits behind. Rule: open the design-note
+  PR as soon as the note is written; review happens on the PR and it merges with its verdict.
+- **Each session leaves a worktree and branch** (`claude/*`, `worktree-agent-*`, `swarm-*`).
+  Rule: a session that ends merged removes its worktree (`git worktree remove`) and local branch.
+
+Cleanup plan (waits on the owner's yes — deleting remote branches is outward-facing):
+
+| Group | Branches | Action |
+|---|---|---|
+| Merged | the 25 in `git branch -r --merged origin/main` | Delete — lossless |
+| Superseded, content on `main` in another form | `chore/agent-skills`, `chore/agent-subagents`, `chore/docs-index`, `chore/i18n-key-invariant`, `chore/native-agent-context`, `docs/status-split`, `docs/handoff-2026-11-11`, `docs/handoff-2026-11-16b`, `docs/handoff-2026-11-17`, `docs/handoff-2026-11-17-evening`, `fix/main-live-defects`, `feat/testing-and-i18n`, `fix/scoutqa-accessibility-and-page-creation` | Delete |
+| Records not on `main` | `audit/counter-sale-confirmation`, `audit/counter-sale-confirmation-round-1`, `audit/m4-stock-signals-core`, `audit/storefront-mobile-spa`, `audit/storefront-mobile-spa-round-1`, `prompts/m4-audit` | Tag `archive/<name>`, then delete the branch |
+| Live | `fix/otp-bypass-production` (production gate), `feat/staff-provisioning` (until that phase merges), `design/*` and `draft/delivery-fee-subagent` (until the review PR merges) | Keep |
+
+Local: remove worktrees whose branch is merged or superseded (check `git status` first — two had
+uncommitted files on 2026-11-18), then `git worktree prune` and delete their local branches. The
+main checkout sits on a stale `m4/stock-signals`; put it back on `main`. Repository settings worth
+turning on (owner's call): *Automatically delete head branches*, and a `main` ruleset requiring a
+PR with the `Architectural invariants` and `Test` checks green.

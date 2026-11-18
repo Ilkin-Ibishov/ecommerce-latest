@@ -1,6 +1,6 @@
 # Delivery fee: a setting the shop owns
 
-Status: active — ready for a design note; partly superseded by `delivery-cost-at-confirmation.md`. Its note is on `design/delivery-fee`, under review.
+Status: active — superseded in part by `delivery-cost-at-confirmation.md`; its note is reviewed and folded into that spec's note, not implemented on its own.
 
 Spec, 2026-11-15. Written by the architect after the owner's decision of the same day: a delivery
 fee can exist, and it must be something each shop can change or switch off.

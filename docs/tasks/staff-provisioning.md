@@ -1,6 +1,6 @@
 # Staff provisioning: the owner gives a person a role
 
-Status: active — design note on `design/staff-provisioning`, waiting for the owner's review. Blocks M4b.
+Status: active — design note approved with amendments (2026-11-18); ready for implementation. Blocks M4b.
 
 Spec, 2026-11-15. Written by the architect.
 

@@ -4,9 +4,11 @@
 
 The implementer's proposal for a phase, written and reviewed before any code.
 
-0 files. The subject column is the file's own first sentence, so a
+3 files. The subject column is the file's own first sentence, so a
 file that opens with a banner reads as one — fix the file, not the index.
 
 | File | Title | Subject | Size |
 |---|---|---|---|
-
+| [`delivery-fee.md`](delivery-fee.md) | Design note: delivery fee as a shop setting | `discount_azn`, `total_azn` and **no `subtotal_azn`**. | 16 KB |
+| [`m4b-store-notifications.md`](m4b-store-notifications.md) | M4b design note — Notifications: the admin's inbox | Every name below was read in the file cited. | 17 KB |
+| [`staff-provisioning.md`](staff-provisioning.md) | Design note: staff provisioning | One proposal beyond the spec: **the role change and its audit line are one database call**, a function `set_user_role`, instead of an update followed by the fir | 17 KB |
