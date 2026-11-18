@@ -202,8 +202,10 @@ describe("[3.2] size_guides preservation: public read + service-role write (Prop
     // size_guides_read is `for select using (true)` for the {public} role group,
     // so the unauthenticated anon client reads rows with no RLS error. SEC-002
     // retains this read policy, so this assertion stays green after the fix.
+    // Filtered to this row server-side: an unfiltered read is capped at PostgREST's 1000 rows,
+    // and past that cap the inserted row can be missing from the response.
     const anon = anonClient();
-    const { data, error } = await anon.from("size_guides").select("id, category_id");
+    const { data, error } = await anon.from("size_guides").select("id, category_id").eq("id", insertedId);
 
     expect(error).toBeNull();
     expect(Array.isArray(data)).toBe(true);

@@ -25,8 +25,7 @@ export function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
 
   const fetchSuggestions = (q: string) => {
     if (q.length < 2) {
-      setSuggestions({ products: [], categories: [] });
-      setShowSuggestions(false);
+      closeSuggestions();
       return;
     }
     const requestId = ++requestRef.current;
@@ -79,14 +78,17 @@ export function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
       closeSuggestions();
       onClose();
     } else if (e.key === "Escape") {
-      setShowSuggestions(false);
+      closeSuggestions();
     }
   };
 
+  // Invalidates any in-flight request (its handlers drop themselves) and resets the dropdown,
+  // so a late response can never re-open stale suggestions.
   const closeSuggestions = () => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     requestRef.current++;
     setLoading(false);
+    setSuggestions({ products: [], categories: [] });
     setShowSuggestions(false);
     setActiveIndex(-1);
   };
@@ -115,7 +117,7 @@ export function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
               value={query}
               onChange={handleChange}
               onKeyDown={handleKeyDown}
-              onFocus={() => { if (query.trim().length >= 2) setShowSuggestions(true); }}
+              onFocus={() => { if (query.trim().length >= 2) fetchSuggestions(query.trim()); }}
               placeholder={t("Header.searchPlaceholder")}
               className="w-full pl-9 pr-4 py-2 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.1)] text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted))] text-sm focus:outline-none focus:ring-2 focus:ring-[hsl(var(--primary))] focus:border-[hsl(var(--primary))] transition"
               autoComplete="off"
@@ -149,7 +151,7 @@ export function SearchBar({ locale, onClose, inline, autoFocus, dark }: {
           value={query}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          onFocus={() => { if (query.trim().length >= 2) setShowSuggestions(true); }}
+          onFocus={() => { if (query.trim().length >= 2) fetchSuggestions(query.trim()); }}
           placeholder={t("Header.searchPlaceholder")}
           className={`flex-1 px-4 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 transition ${dark ? "border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.1)] text-[hsl(var(--foreground))] placeholder-[hsl(var(--muted))] focus:ring-[hsl(var(--primary))]" : "border-border bg-background focus:ring-ring"}`}
           autoComplete="off"

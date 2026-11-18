@@ -174,10 +174,11 @@ describe("Phase M4 Track Stock Integration Tests", () => {
 
     const from = new Date(Date.now() - 3600_000).toISOString();
     const to = new Date(Date.now() + 3600_000).toISOString();
-    const { data: report, error: reportErr } = await (db as any).rpc("get_margin_report", {
-      p_start_date: from,
-      p_end_date: to,
-    });
+    // Filter server-side: the shared test project can exceed PostgREST's 1000-row cap, and a
+    // client-side search past the cap misses this test's rows.
+    const { data: report, error: reportErr } = await (db as any)
+      .rpc("get_margin_report", { p_start_date: from, p_end_date: to })
+      .in("variant_id", [nonTrackedId, trackedId]);
     expect(reportErr).toBeNull();
 
     const ntRow = (report ?? []).find((r: { variant_id: string }) => r.variant_id === nonTrackedId);

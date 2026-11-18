@@ -12,7 +12,7 @@ import { CounterCheckoutPanel } from "@/components/admin/counter/CounterCheckout
 import { PaymentConfirmationModal } from "@/components/admin/counter/PaymentConfirmationModal";
 import { ReceiptModal } from "@/components/admin/counter/ReceiptModal";
 import { optionLabel, type CartLine, type CounterBundle, type LookupItem, type Outcome } from "@/components/admin/counter/types";
-import { computeChange } from "@/components/admin/counter/counter-input";
+import { addQuantity, computeChange } from "@/components/admin/counter/counter-input";
 import { useI18n } from "@/lib/i18n/context";
 
 // The till (M3a). The cart lives here until Complete; after Complete it is frozen until the
@@ -22,6 +22,10 @@ export default function CounterPage() {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [bundles, setBundles] = useState<CounterBundle[]>([]);
   const [picker, setPicker] = useState<LookupItem[] | null>(null);
+  // A scan still in flight holds Complete. The onResults guard below reads the state of the
+  // render the scan was sent from, so it cannot drop a late result: one landing after Complete
+  // went into the already-sent cart and was cleared with it on success.
+  const [lookupBusy, setLookupBusy] = useState(false);
   const [payment, setPayment] = useState<"cash" | "card" | "other">("cash");
   const [ownerDiscount, setOwnerDiscount] = useState("");
   const [tenderedAmount, setTenderedAmount] = useState("");
@@ -67,10 +71,10 @@ export default function CounterPage() {
     setOutcome(null);
     setLines((cur) => {
       const existing = cur.find((l) => l.variant_id === item.variant_id && !l.bundle_id);
-      if (existing) return cur.map((l) => (l === existing ? { ...l, quantity: l.quantity + item.pack_quantity } : l));
+      if (existing) return cur.map((l) => (l === existing ? { ...l, quantity: addQuantity(l.quantity, item.pack_quantity) } : l));
       return [...cur, {
         key: crypto.randomUUID(), variant_id: item.variant_id, title: item.title, options: optionLabel(item.options),
-        quantity: item.pack_quantity, unit_price: item.price, on_hand: item.on_hand, available: item.available,
+        quantity: addQuantity(0, item.pack_quantity), unit_price: item.price, on_hand: item.on_hand, available: item.available,
         reservations: item.reservations, bundle_id: null,
       }];
     });
@@ -180,6 +184,7 @@ export default function CounterPage() {
         <LookupBox
           disabled={pending || !!picker || showConfirm || !!completedReceipt}
           resetSignal={saleId}
+          onBusyChange={setLookupBusy}
           onResults={(items) => {
             if (pending || showConfirm) return;
             items.length === 1 ? addItem(items[0]) : setPicker(items);
@@ -215,6 +220,7 @@ export default function CounterPage() {
           pending={pending}
           outcome={outcome}
           hasLines={lines.length > 0}
+          lookupBusy={lookupBusy}
           onCompleteClick={handleOpenConfirm}
           onViewReceipt={(id) => setCompletedReceipt({ id })}
           onDiscard={discardAttempt}

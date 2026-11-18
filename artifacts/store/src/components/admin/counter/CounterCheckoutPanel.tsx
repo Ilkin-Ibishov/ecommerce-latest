@@ -15,6 +15,7 @@ export function CounterCheckoutPanel({
   pending,
   outcome,
   hasLines,
+  lookupBusy,
   onCompleteClick,
   onViewReceipt,
   canDiscard,
@@ -33,6 +34,7 @@ export function CounterCheckoutPanel({
   pending: boolean;
   outcome: Outcome | null;
   hasLines: boolean;
+  lookupBusy?: boolean;
   onCompleteClick: () => void;
   onViewReceipt: (saleId: string) => void;
   canDiscard?: boolean;
@@ -115,7 +117,7 @@ export function CounterCheckoutPanel({
       <button
         type="button"
         onClick={onCompleteClick}
-        disabled={!hasLines || (pending && outcome?.kind !== "error")}
+        disabled={!hasLines || lookupBusy || (pending && outcome?.kind !== "error")}
         className="w-full rounded-lg bg-primary py-3 text-lg font-semibold text-primary-foreground disabled:opacity-50"
       >
         {pending && outcome?.kind === "error" ? t("Admin.Counter.resend") : t("Admin.Counter.complete")}
