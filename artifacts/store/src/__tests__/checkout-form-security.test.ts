@@ -20,6 +20,7 @@ vi.mock("@/lib/cart/context", () => ({
     removeItem: vi.fn(),
     clearCart: vi.fn(),
     updateQty: vi.fn(),
+    setPrice: vi.fn(),
   }),
 }));
 

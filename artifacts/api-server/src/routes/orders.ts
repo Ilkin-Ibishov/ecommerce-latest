@@ -8,6 +8,7 @@ import { queueNotification } from "../lib/notifications";
 import { calculateDiscount } from "../lib/coupon-calc";
 import { decrementOrderStock, decrementStockSafe, incrementStock } from "../lib/rpc";
 import { orderRateLimit } from "../middlewares/rateLimits";
+import { quoteDelivery, goodsTotal, orderTotal } from "@workspace/order-pricing";
 import { OrderBodySchema } from "./admin/schemas";
 
 const router = Router();
@@ -21,7 +22,16 @@ interface OrderItemInput {
 router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLimit, validate(OrderBodySchema), async (req, res) => {
   const user = { id: req.authUser!.id };
 
-  const { items, customer_name, customer_phone, delivery_address, notes, coupon_code } = req.body;
+  const {
+    items,
+    customer_name,
+    customer_phone,
+    delivery_address,
+    notes,
+    coupon_code,
+    displayed_total,
+    displayed_delivery_fee,
+  } = req.body;
 
   const admin = getAdminSupabase();
   const productIds = (items as OrderItemInput[]).map((i) => i.product_id);
@@ -113,7 +123,48 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
     }
   }
 
-  const totalAzn = subtotal - discountAmount;
+  const { data: siteSettings } = await admin
+    .from("site_settings")
+    .select("delivery_fee_azn, free_delivery_threshold_azn")
+    .maybeSingle();
+
+  const settings = {
+    delivery_fee_azn: siteSettings?.delivery_fee_azn !== undefined ? siteSettings.delivery_fee_azn : null,
+    free_delivery_threshold_azn:
+      siteSettings?.free_delivery_threshold_azn !== undefined ? siteSettings.free_delivery_threshold_azn : null,
+  };
+
+  const quote = quoteDelivery(subtotal, settings);
+  const deliveryFee = quote !== null ? quote.fee : null;
+  const netGoods = goodsTotal(subtotal, discountAmount);
+  const totalAzn = deliveryFee !== null ? orderTotal(subtotal, discountAmount, deliveryFee) : netGoods;
+
+  // Verify displayed_total (and optional displayed_delivery_fee) before mutating stock
+  const displayedTotalQ = Math.round(Number(displayed_total) * 100);
+  const expectedGoodsTotalQ = Math.round(netGoods * 100);
+  const isTotalMismatch = displayedTotalQ !== expectedGoodsTotalQ;
+  const isDeliveryFeeMismatch =
+    typeof displayed_delivery_fee === "number" &&
+    (deliveryFee === null || Math.round(displayed_delivery_fee * 100) !== Math.round(deliveryFee * 100));
+
+  if (isTotalMismatch || isDeliveryFeeMismatch) {
+    const prices: Record<string, number> = {};
+    for (const p of products) {
+      const variants = ((p as any).product_variants ?? []) as any[];
+      const defaultVariant = variants.find((v: any) => v.is_default) ?? variants[0];
+      prices[p.id] = defaultVariant ? Number(defaultVariant.price) : Number(p.price);
+    }
+
+    res.status(409).json({
+      error: "total_changed",
+      subtotal,
+      discount: discountAmount,
+      delivery_fee: deliveryFee,
+      total: totalAzn,
+      prices,
+    });
+    return;
+  }
 
   // M2c C1: Atomically lock variants in ascending order and decrement stock in one DB call
   const orderId = crypto.randomUUID();
@@ -144,6 +195,7 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
         notes: notes ?? null,
         subtotal_azn: subtotal,
         discount_azn: discountAmount,
+        delivery_fee_azn: deliveryFee,
         total_azn: totalAzn,
         coupon_id: couponId,
       })
@@ -249,7 +301,13 @@ router.post("/orders", platformStatus("order_submit"), requireUser, orderRateLim
     },
   }).catch(() => {});
 
-  return res.status(201).json({ success: true, orderId: order.id });
+  res.status(201).json({
+    success: true,
+    orderId: order.id,
+    total: totalAzn,
+    delivery_fee: deliveryFee,
+  });
+  return;
 });
 
 router.get("/profile/orders", requireUser, async (req, res) => {

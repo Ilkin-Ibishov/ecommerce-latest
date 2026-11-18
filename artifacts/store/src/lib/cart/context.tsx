@@ -27,6 +27,7 @@ type CartAction =
   | { type: "ADD"; item: CartItem }
   | { type: "REMOVE"; product_id: string }
   | { type: "UPDATE_QTY"; product_id: string; quantity: number }
+  | { type: "SET_PRICE"; product_id: string; price: number }
   | { type: "CLEAR" };
 
 function generateSessionId(): string {
@@ -65,6 +66,13 @@ function cartReducer(state: CartState, action: CartAction): CartState {
           i.product_id === action.product_id ? { ...i, quantity: action.quantity } : i
         ),
       };
+    case "SET_PRICE":
+      return {
+        ...state,
+        items: state.items.map((i) =>
+          i.product_id === action.product_id ? { ...i, price: action.price } : i
+        ),
+      };
     case "CLEAR":
       return { ...state, items: [] };
     default:
@@ -80,6 +88,7 @@ interface CartContextValue {
   addItem: (item: Omit<CartItem, "quantity">, quantity?: number) => void;
   removeItem: (product_id: string) => void;
   updateQty: (product_id: string, quantity: number) => void;
+  setPrice: (product_id: string, price: number) => void;
   getItemQty: (product_id: string) => number;
   clearCart: () => void;
 }
@@ -137,6 +146,10 @@ export function CartProvider({ children }: { children: ReactNode }) {
     dispatch({ type: "UPDATE_QTY", product_id, quantity });
   }, []);
 
+  const setPrice = useCallback((product_id: string, price: number) => {
+    dispatch({ type: "SET_PRICE", product_id, price });
+  }, []);
+
   const clearCart = useCallback(() => {
     dispatch({ type: "CLEAR" });
   }, []);
@@ -157,6 +170,7 @@ export function CartProvider({ children }: { children: ReactNode }) {
       addItem,
       removeItem,
       updateQty,
+      setPrice,
       getItemQty,
       clearCart,
     }}>

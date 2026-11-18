@@ -19,7 +19,7 @@ router.post("/products/prices", platformStatus("storefront_read"), async (req, r
   const admin = getAdminSupabase();
   const { data } = await admin
     .from("products")
-    .select("id, price, stock, slug")
+    .select("id, price, stock, slug, product_variants(id, price, is_default)")
     .in("id", product_ids);
 
   const { data: availRows } = await (admin as any)
@@ -40,7 +40,10 @@ router.post("/products/prices", platformStatus("storefront_read"), async (req, r
   const priceMap: Record<string, { price: number; stock: number; available: number | null; slug: string }> = {};
   for (const p of data ?? []) {
     const available = availMap.has(p.id) ? availMap.get(p.id)! : Number(p.stock);
-    priceMap[p.id] = { price: Number(p.price), stock: available === null ? (Number(p.stock) || 0) : available, available, slug: p.slug };
+    const variants = ((p as any).product_variants ?? []) as any[];
+    const defaultVariant = variants.find((v: any) => v.is_default) ?? variants[0];
+    const chargedPrice = defaultVariant ? Number(defaultVariant.price) : Number(p.price);
+    priceMap[p.id] = { price: chargedPrice, stock: available === null ? (Number(p.stock) || 0) : available, available, slug: p.slug };
   }
 
   res.json(priceMap);

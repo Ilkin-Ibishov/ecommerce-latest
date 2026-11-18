@@ -112,6 +112,8 @@ export const OrderBodySchema = z.object({
   delivery_address: z.string().min(1).max(500),
   notes: z.string().max(1000).nullable().optional(),
   coupon_code: z.string().max(50).optional(),
+  displayed_total: z.number().nonnegative(),
+  displayed_delivery_fee: z.number().nonnegative().nullable().optional(),
 });
 
 // --- Brands ---------------------------------------------------------------

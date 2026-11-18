@@ -9,6 +9,7 @@ const TEST_PHONE = "+994501234003";
 describe("Orders Integration Tests", () => {
   let session: AuthSession;
   let testProductId: string;
+  let testProductPrice = 0;
   let createdOrderId: string;
   let setupFailed = false;
 
@@ -29,7 +30,7 @@ describe("Orders Integration Tests", () => {
       // Previous CI runs may have depleted stock, so it is topped up below.
       const { data: product } = await admin
         .from("products")
-        .select("id, stock")
+        .select("id, stock, price, product_variants(price, is_default)")
         .eq("slug", "test-product-1")
         .single();
 
@@ -80,6 +81,9 @@ describe("Orders Integration Tests", () => {
       await (admin as any).rpc("increment_stock", { p_product_id: product.id, p_qty: 1 });
 
       testProductId = product.id;
+      const variants = ((product as any).product_variants ?? []) as any[];
+      const defaultVariant = variants.find((v: any) => v.is_default) ?? variants[0];
+      testProductPrice = defaultVariant ? Number(defaultVariant.price) : Number(product.price);
       console.log(`[orders.test] Using product ${product.id} (verified stock: ${availableStock})`);
     } catch (err) {
       // Only the documented "infrastructure is not deployed" case may skip. Any other error is a
@@ -121,6 +125,7 @@ describe("Orders Integration Tests", () => {
         customer_name: "Test User",
         customer_phone: TEST_PHONE,
         delivery_address: "123 Test Street, Baku",
+        displayed_total: testProductPrice,
       }),
     });
 
@@ -199,6 +204,7 @@ describe("Orders Integration Tests", () => {
         customer_name: "Test User",
         customer_phone: TEST_PHONE,
         delivery_address: "123 Test Street, Baku",
+        displayed_total: testProductPrice,
       }),
     });
 

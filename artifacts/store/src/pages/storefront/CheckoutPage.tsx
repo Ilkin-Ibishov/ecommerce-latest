@@ -29,7 +29,7 @@ function loadCheckoutDraft() {
 }
 
 export default function CheckoutPage({ locale }: { locale: string }) {
-  const { items, subtotal, removeItem, clearCart, updateQty } = useCart();
+  const { items, subtotal, removeItem, clearCart, updateQty, setPrice } = useCart();
   const supabase = createClient();
   const { profile } = useProfile();
   const { t } = useI18n();
@@ -82,16 +82,19 @@ export default function CheckoutPage({ locale }: { locale: string }) {
           } else if (server.available === null) {
             // Non-tracked item is unlimited — do not remove and do not clamp its quantity; still apply a price change
             if (server.price !== item.price) {
-              item.price = server.price;
-              updateQty(item.product_id, item.quantity);
+              setPrice(item.product_id, server.price);
             }
           } else {
             const serverStock = typeof server.available === "number" ? server.available : server.stock;
             if (serverStock <= 0) {
               removeItem(item.product_id);
-            } else if (server.price !== item.price || item.quantity > serverStock) {
-              item.price = server.price;
-              updateQty(item.product_id, Math.min(item.quantity, serverStock));
+            } else {
+              if (server.price !== item.price) {
+                setPrice(item.product_id, server.price);
+              }
+              if (item.quantity > serverStock) {
+                updateQty(item.product_id, serverStock);
+              }
             }
           }
         }
@@ -190,12 +193,27 @@ export default function CheckoutPage({ locale }: { locale: string }) {
           items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
           ...form,
           coupon_code: coupon ? couponCode : undefined,
+          displayed_total: total,
         }),
       });
       const data = await res.json();
-      if (!res.ok) { setError(data.error ?? "Failed to place order"); return; }
+      if (!res.ok) {
+        if (res.status === 409 && data.error === "total_changed") {
+          if (data.prices) {
+            for (const item of items) {
+              if (data.prices[item.product_id] !== undefined) {
+                setPrice(item.product_id, data.prices[item.product_id]);
+              }
+            }
+          }
+          setError(data.message || `Total updated to ${data.total} AZN. Please review and confirm.`);
+          return;
+        }
+        setError(data.error ?? "Failed to place order");
+        return;
+      }
       setOrderId(data.orderId);
-      setPlacedTotal(total);
+      setPlacedTotal(data.total ?? total);
       setPlaced(true);
       clearCart();
       localStorage.removeItem(PROMO_STORAGE_KEY);
