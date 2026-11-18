@@ -8,10 +8,16 @@ repository; nothing important is only in a chat transcript.
 
 ## Start here — first thing to do in a new session (2026-11-18, the 2026-11-17 session past midnight)
 
-**`main` is at `ee498c4` and green: CI runs 44174185233 (`Test`: 69 unit files, 54 component,
+**`main` is at `ad17c6d`.** Its `Architectural invariants` run 44231212027 is green (21 checks,
+indexes current, typecheck and the unit tier inside that job); its `Test` run 44231212049 was
+still going when this was written — **confirm it**, though `ad17c6d` only deletes `.kiro/specs`
+and two `.md` files, so nothing it covers can have changed.
+
+The merge under it, `ee498c4`, is green end to end: CI runs 44174185233 (`Test`: 69 unit files, 54 component,
 110 integration files, 42 E2E, no skips, no flaky) and 44174185297 (`Architectural invariants`:
-21 checks, indexes current). It carries the whole agent-context-modularization change. Nothing is
-in flight: no builder, no sub-agent, no other CI run.**
+21 checks, indexes current). It carries the whole agent-context-modularization change.
+
+**Nothing is in flight: no builder, no sub-agent, no other work queued.**
 
 ```bash
 gh run list -b main -L 2 --json databaseId,name,conclusion   # expect success on both
@@ -47,9 +53,13 @@ It now reads `AGENTS.md`, a 10 KB STATUS.md and the one spec the task needs.**
 
 ### What was deliberately not done
 
-- **`.kiro/specs/` (~500 KB) is untouched and unindexed.** Nothing in `AGENTS.md` or the role skill
-  references it, so it may be dead weight from an earlier tool. **One question for the owner**
-  before anyone indexes it: is it live?
+- **`.kiro/specs/` was removed** in `ad17c6d`, the owner confirming it dead: 77 files, 1.2 MB,
+  last touched 2026-07-01, referenced by nothing but provenance comments in the SEC-00x test
+  files. Recover any of it with `git show 9d885f7:.kiro/specs/<name>/requirements.md`.
+  **`.kiro/steering/` (19 files) and `.kiro/hooks/` (4) are still there, 114 KB, and are the same
+  dead tool** — `steering/` includes a Drizzle ORM guide for a project that uses Supabase. Left
+  in place because the question asked and answered was about `specs/`. One more owner yes removes
+  them.
 - **`TranslationKey = MessageKey | (string & {})`** in `messages/index.ts` still lets any string
   compile as a `t()` key. Tightening it would touch 1,463 call sites, some dynamic; the new
   invariant covers the literal ones instead. Recorded, not scheduled.
@@ -85,8 +95,8 @@ It now reads `AGENTS.md`, a 10 KB STATUS.md and the one spec the task needs.**
    as "not selling" (which date is the floor?); the dashboard's old `stock < 10` banner — delete it or
    feed it from the low-stock signal.
 6. **`fix/otp-bypass-production`**: rebase, PR, merge.
-7. **Is `.kiro/specs/` (~500 KB) live?** Nothing in `AGENTS.md` or the role skill references it.
-   If it is dead weight from an earlier tool, say so and it goes; if it is live, it wants an index.
+7. ~~Is `.kiro/specs/` live?~~ **Answered 2026-11-18: dead, removed in `ad17c6d`.** What remains
+   is whether `.kiro/steering/` and `.kiro/hooks/` (114 KB, same dead tool) go the same way.
 
 ### Still open, ordered by what blocks what
 
