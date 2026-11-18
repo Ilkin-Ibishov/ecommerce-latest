@@ -40,7 +40,7 @@ The implementation is yours to propose. The invariants in §3, §6 and §10 are 
 
 | State | Meaning |
 |---|---|
-| `NULL` | Not yet determined. The shop has not spoken to the customer, or the region's tariff is not known |
+| `NULL` | Not yet determined. Allowed only while the order is `pending`, `phone_verified`, `cancelled` or `refused_at_delivery` — never once the goods are moving; see §5 |
 | `0` | There is no delivery fee for this order — free delivery, or the shop does not charge one |
 | `> 0` | The amount agreed for this order, fixed for its lifetime |
 
@@ -84,11 +84,17 @@ The flow already has the step: `order_status` runs
 (`supabase/schema.sql:12-20`), and `phone_verified` is the call to the customer. That call is
 where the region is known and the amount is agreed.
 
-- `PATCH /admin/orders/:id/status` (`routes/admin/orders.ts:48`) accepts an optional delivery
-  amount alongside the status. Setting it is allowed with any status change and on its own; it is
-  **not** forced on `phone_verified`, because a shop that charges nothing should not have to type
-  a zero. An order may reach `delivered` with the fee still `NULL` — that is a real state, and
-  §10's invariants do not forbid it. It is the reporting in §6 that makes it visible.
+- `PATCH /admin/orders/:id/status` (`routes/admin/orders.ts:48`) accepts a delivery amount
+  alongside the status, and accepts it on its own.
+- **The fee must be recorded before the goods move. Owner's decision, 2026-11-18.** The
+  transition to `courier_assigned`, `shipped` or `delivered` is refused while
+  `delivery_fee_azn IS NULL`: `409`, with an error code the screen turns into "record the
+  delivery amount first". The courier collects cash at the door, so an order cannot leave with
+  the amount unknown — to anyone. A shop that charges nothing records `0`; that is one keystroke
+  and it is a statement, where `NULL` is the absence of one.
+- `NULL` stays legal on `pending` and `phone_verified` — the order exists before the call — and
+  on `cancelled` and `refused_at_delivery`, which may be reached without any fee ever being
+  agreed. Those four are the only statuses that tolerate it.
 - Validation: `>= 0`, two decimals, and a refusal once the order is `delivered`, `cancelled` or
   `refused_at_delivery` — the money question is closed by then. Changing an already-set fee on an
   open order is allowed and is an audited event.
@@ -99,12 +105,20 @@ where the region is known and the amount is agreed.
   reader can find. `order_status_history`
   (`20260624151313_create_order_status_history.sql`) records status only and is not extended.
 - The customer is told. `sendWhatsAppStatusUpdate` (`lib/whatsapp.ts:76`) sends
-  `statusMessages.phone_verified`, which today says only that the order is confirmed. When a fee
-  above 0 was set, that message states the delivery amount and the new total. A fee set without
-  the customer hearing it is the failure this spec exists to prevent.
+  `statusMessages.phone_verified`, which today says only that the order is confirmed. That
+  message states the delivery amount and the new total — owner's decision, 2026-11-18. A fee set
+  without the customer hearing it is the failure this spec exists to prevent. Text in §13.
 - `sendWhatsAppOrderConfirmed(phone, orderId, itemCount, totalAzn)` (`:59`) is sent at order
   time, when the fee is `NULL`. Its `totalAzn` is the goods amount, and its text must not call it
-  the total.
+  the total. Text in §13.
+
+**Who records it.** The owner's words were that staff record the amount. Today they cannot:
+`PATCH /admin/orders/:id/status` is `requireAdmin` (`routes/admin/orders.ts:48`), and the admin
+shell admits `role === "admin"` only (`AdminLayout.tsx:105-107`, as
+`docs/design-notes/m4b-store-notifications.md` §2 records). So this phase builds the field for the
+admin, and staff reach it when `docs/tasks/staff-provisioning.md` lands — at which point the route
+becomes `requireStaffOrAdmin` and nothing else changes. Do not widen the guard here as a
+side-effect: that is staff provisioning's decision to make, with its own tests.
 
 ## 6. The fee is money, and it is not revenue
 
@@ -153,6 +167,13 @@ One migration per concern, timestamped after the newest file in `supabase/migrat
 2. Whatever the implementation needs to keep `total_azn` and the fee written together. A trigger
    is acceptable and so is one statement in the route; what is not acceptable is two writes that
    can land apart.
+3. The §5 rule in the database, not only in the route:
+   `CHECK (status NOT IN ('courier_assigned','shipped','delivered') OR delivery_fee_azn IS NOT NULL)`.
+   Add it **`NOT VALID`**: it then binds every future write and does not reject rows that already
+   exist. That matters — the test project held 0 orders when
+   `docs/design-notes/delivery-fee.md` §1 queried it, but production is unknown and may hold
+   delivered orders that predate the column. Validating it later is a separate, deliberate step
+   once production is known, and it needs a backfill decision the owner has not been asked for.
 
 `database.types.ts` gains the column. The orders reconcile migration for `subtotal_azn` from the
 design note's §8 is **already on `main`** (`24022d0`; the insert at `routes/orders.ts:137-149`
@@ -171,6 +192,9 @@ New checks in `scripts/audit/check-invariants.mjs`, in the same commit as the co
    `FREE_DELIVERY_THRESHOLD = 100`), and no digit in a dictionary string under a key containing
    `deliver` — which is what `freeDeliverySubtitle` (`:88`), `freeDeliveryOver` (`:114`) and
    `AnnouncementBar.message` (`:143`) violate today.
+5. No code path sets `status` to `courier_assigned`, `shipped` or `delivered` without the fee
+   check of §5 — the route is the only writer of `orders.status` outside the cancel-restock path
+   it already has.
 
 ## 11. Tests
 
@@ -183,6 +207,12 @@ Integration, in the tier that has a database:
   it with the `NULL` ones.
 - A fee is refused on a `delivered` order and on a `cancelled` one.
 - A fee is refused below 0 and at three decimals.
+- `courier_assigned`, `shipped` and `delivered` are each refused while the fee is `NULL`, and
+  accepted once it is `0`. Both halves matter: the first is the rule, the second proves a shop
+  that charges nothing is not blocked.
+- The database refuses the same transition when the route is bypassed — the service client moves
+  a `NULL`-fee order straight to `shipped` and the `CHECK` raises.
+- `cancelled` and `refused_at_delivery` are reachable with the fee still `NULL`.
 - Raising the shop-wide setting later does not move any stored order's fee or total.
 - Revenue and the margin report are unchanged by a fee, and a `NULL` fee is not read as 0.
 
@@ -192,16 +222,73 @@ above and below it, and the `NULL` answer.
 E2E: a checkout whose summary carries no total it cannot support, and whose stored `subtotal_azn`
 equals what the page showed.
 
-## 12. For the owner
+## 12. Owner's answers — all three, 2026-11-18
 
-1. What the checkout delivery row should say in Azerbaijani, Russian and English. The meaning is
-   "the amount is told to you when we confirm the order"; the wording is yours.
-2. Whether the confirmation WhatsApp message states the amount and the new total, or only that
-   the order is confirmed. This spec assumes it states them.
-3. Whether an order may be delivered with the fee never set. This spec allows it and makes it
-   visible rather than refusing it.
+1. ~~What the checkout delivery row should say in three languages.~~ The architect writes it: §13.
+2. ~~Whether the confirmation message states the amount and the new total.~~ **It states them.**
+3. ~~Whether an order may be delivered with the fee never set.~~ **No.** The fee is recorded
+   before the goods move, enforced in the route and in the database (§5, §9.3, §10.5). This
+   reversed the spec's first draft, which allowed it and only reported it.
 
-## 13. Not verified
+Nothing is open for the owner. The §14 caveat still stands.
+
+## 13. The strings
+
+Fixed text, so three dictionaries cannot drift. Keys are the implementer's to place under the
+existing `Checkout` namespace; `deliver`-keyed strings may hold no digits (§10.4), and these
+hold none.
+
+**Checkout delivery row** (replaces `Checkout.free` on `CheckoutPage.tsx:330` when the order's
+fee is not known at checkout):
+
+| | |
+|---|---|
+| az | Təsdiq zamanı bildirilir |
+| ru | Сообщается при подтверждении |
+| en | Told to you at confirmation |
+
+**The goods-amount label** (replaces `Checkout.total` on `:332`, and the submit button's label
+on `:299`, in that same case — the figure is the goods amount, not a total):
+
+| | |
+|---|---|
+| az | Məhsulların məbləği |
+| ru | Сумма товаров |
+| en | Goods total |
+
+**The one explaining sentence**, under the summary. This is where the honesty lives: it says why
+there is no number and when there will be one.
+
+| | |
+|---|---|
+| az | Çatdırılma haqqı ünvanınıza görə dəyişir. Sifarişi təsdiqləyərkən dəqiq məbləği bildiririk. |
+| ru | Стоимость доставки зависит от вашего адреса. Точную сумму сообщим при подтверждении заказа. |
+| en | The delivery fee depends on your address. We tell you the exact amount when we confirm your order. |
+
+**WhatsApp, Azerbaijani only** — `lib/whatsapp.ts` sends one language, as
+`docs/design-notes/delivery-fee.md` §10 records.
+
+At order time, `sendWhatsAppOrderConfirmed` (`:59`). Its `📦 ${itemCount} məhsul ·
+${totalAzn.toFixed(2)} ₼` line (`:70`) names the goods, and one line is added:
+
+```
+📦 ${itemCount} məhsul · ${goodsAzn} ₼
+🚚 Çatdırılma: təsdiq zamanı bildirilir
+💵 Ödəniş: Çatdırılmada nağd
+```
+
+At confirmation, `statusMessages.phone_verified` (`:84-86`), when the fee is above 0:
+
+```
+Sifarişiniz təsdiqləndi və hazırlanmağa başlandı.
+🚚 Çatdırılma: ${feeAzn} ₼
+💵 Yekun: ${totalAzn} ₼ — çatdırılmada nağd
+```
+
+When the fee is `0`, the delivery line reads `🚚 Çatdırılma: pulsuz` and the total line stays.
+The amounts are formatted by the same helper the rest of the file uses, not by a second one.
+
+## 14. Not verified
 
 `site_settings`, its context and `PATCH` validation, the revenue readers in `store-metrics.ts` and
 `DashboardPage.tsx`, the CSV export and `get_margin_report` are cited from
