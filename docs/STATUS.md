@@ -8,10 +8,9 @@ repository; nothing important is only in a chat transcript.
 
 ## Start here — first thing to do in a new session (2026-11-18, the 2026-11-17 session past midnight)
 
-**`main` is green at `ad17c6d`: CI runs 44231212027 (`Architectural invariants`: 21 checks,
-indexes current) and 44231212049 (`Test`: 69 unit files, 54 component, 110 integration files,
-42 E2E, no skips, no flaky).** Any commit above it is documentation only; confirm its runs the
-usual way if you want them.
+**`main` is green at `7092a8a`: CI runs 44243543213 (`Architectural invariants`: 21 checks,
+indexes current) and 44243543236 (`Test`: 69 unit files, 54 component, 110 integration files,
+42 E2E, no skips, no flaky).** It is the tip; nothing is in flight.
 
 The merge under it, `ee498c4`, is green end to end: CI runs 44174185233 (`Test`: 69 unit files, 54 component,
 110 integration files, 42 E2E, no skips, no flaky) and 44174185297 (`Architectural invariants`:
