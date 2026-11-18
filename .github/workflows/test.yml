@@ -35,12 +35,16 @@ jobs:
         run: pnpm exec vitest --run --project store-unit
 
   # ─── Integration + E2E: requires Supabase secrets and running servers ─────
-  # Runs only after the unit gate passes. Needs repo secrets:
-  # SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
+  # Runs in parallel with `unit` (both must pass; waiting for unit cost ~45s). Needs repo
+  # secrets: SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
   integration-e2e:
-    # Pinned: ubuntu-latest moved to 26.04, which Playwright 1.60.0 does not
-    # support yet (playwright install --with-deps chromium fails outright).
     runs-on: ubuntu-24.04
+    # Chromium and its system libraries come preinstalled. `playwright install --with-deps`
+    # took 45-270s, mostly apt downloading 32 MB at ~140 kB/s (2026-11-18).
+    # The tag MUST match @playwright/test in pnpm-lock.yaml (1.60.0); a mismatch fails loudly
+    # with "Executable doesn't exist".
+    container:
+      image: mcr.microsoft.com/playwright:v1.60.0-noble
     timeout-minutes: 20
     # One shared Supabase test project: two runs at once delete each other's fixtures
     # (orders.test "Variant not found", 2026-11-18). Queue them instead.
@@ -49,7 +53,6 @@ jobs:
     concurrency:
       group: supabase-test-project
       cancel-in-progress: false
-    needs: unit
 
     env:
       SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -82,9 +85,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Install Playwright browsers
-        run: pnpm --filter @workspace/store exec playwright install --with-deps chromium
 
       - name: Run component tests
         run: pnpm --filter @workspace/store run test:ct:ci
