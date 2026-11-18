@@ -371,7 +371,7 @@ export default function AdminInventoryPage() {
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div data-testid="inventory-summary" className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <SummaryCard
             label={t("Admin.Inventory.outOfStock")}
             value={outOfStock}

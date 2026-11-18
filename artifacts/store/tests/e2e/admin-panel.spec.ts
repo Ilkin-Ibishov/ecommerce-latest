@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 
 /**
  * E2E: Admin Panel
@@ -109,15 +109,24 @@ test.describe("Admin Panel", () => {
   });
 
   test.describe("Inventory Page", () => {
+    // The summary cards and the filter chips carry the same words: the chip
+    // "Out of Stock" is identical to the card label and "Low Stock (<10)"
+    // contains "Low Stock". The chips render while the data is still loading,
+    // so a page-wide getByText was satisfied by a chip and this block ran
+    // against the loading skeleton; once the cards arrived the same locator
+    // matched two elements. Both assertions are scoped to the cards' own
+    // container instead, which exists only in the loaded branch.
+    const summary = (page: Page) => page.getByTestId("inventory-summary");
+
     test.beforeEach(async ({ page }) => {
       await page.goto("/admin/inventory");
-      await expect(page.getByText("Out of Stock")).toBeVisible({ timeout: 20000 });
+      await expect(summary(page)).toBeVisible({ timeout: 20000 });
     });
 
     test("displays summary cards", async ({ page }) => {
-      await expect(page.getByText("Out of Stock")).toBeVisible();
-      await expect(page.getByText("Low Stock")).toBeVisible();
-      await expect(page.getByText("Healthy Stock")).toBeVisible();
+      await expect(summary(page).getByText("Out of Stock")).toBeVisible();
+      await expect(summary(page).getByText("Low Stock")).toBeVisible();
+      await expect(summary(page).getByText("Healthy Stock")).toBeVisible();
     });
 
     test("search filters inventory", async ({ page }) => {
