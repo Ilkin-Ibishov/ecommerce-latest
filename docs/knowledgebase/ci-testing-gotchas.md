@@ -3,6 +3,18 @@
 Patterns that each cost a session to find. Diagnosing a failed run: skill `e2e-diagnose`. Locale
 assertions: skill `locale-key-add`.
 
+## How `integration-e2e` is set up (2026-11-18, #17 and #19)
+
+- Runs in the `mcr.microsoft.com/playwright:v1.60.0-noble` container. The tag must match
+  `@playwright/test` in `pnpm-lock.yaml`; bump both together.
+- The API and store dev servers start with `nohup … > /tmp/*.log &`; a bare `&` died in the
+  container. The logs print in "Server logs on failure".
+- E2E admin specs reuse one session: `tests/e2e/auth.setup.ts` signs in once and saves
+  `tests/e2e/.auth/admin.json` (git-ignored, live tokens); specs use
+  `test.use({ storageState: ADMIN_STATE })` from `tests/helpers/admin-auth.ts`. A new admin spec
+  should do the same rather than sign in per test. CI runs 3 Playwright workers.
+- Runs queue on one concurrency group because every run shares the one test project.
+
 ## Unchecked Supabase client errors
 
 The most common bug pattern in this codebase, found in at least three unrelated places:
