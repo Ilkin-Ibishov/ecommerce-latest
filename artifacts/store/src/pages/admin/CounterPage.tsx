@@ -22,6 +22,10 @@ export default function CounterPage() {
   const [lines, setLines] = useState<CartLine[]>([]);
   const [bundles, setBundles] = useState<CounterBundle[]>([]);
   const [picker, setPicker] = useState<LookupItem[] | null>(null);
+  // A scan still in flight holds Complete. The onResults guard below reads the state of the
+  // render the scan was sent from, so it cannot drop a late result: one landing after Complete
+  // went into the already-sent cart and was cleared with it on success.
+  const [lookupBusy, setLookupBusy] = useState(false);
   const [payment, setPayment] = useState<"cash" | "card" | "other">("cash");
   const [ownerDiscount, setOwnerDiscount] = useState("");
   const [tenderedAmount, setTenderedAmount] = useState("");
@@ -180,6 +184,7 @@ export default function CounterPage() {
         <LookupBox
           disabled={pending || !!picker || showConfirm || !!completedReceipt}
           resetSignal={saleId}
+          onBusyChange={setLookupBusy}
           onResults={(items) => {
             if (pending || showConfirm) return;
             items.length === 1 ? addItem(items[0]) : setPicker(items);
@@ -215,6 +220,7 @@ export default function CounterPage() {
           pending={pending}
           outcome={outcome}
           hasLines={lines.length > 0}
+          lookupBusy={lookupBusy}
           onCompleteClick={handleOpenConfirm}
           onViewReceipt={(id) => setCompletedReceipt({ id })}
           onDiscard={discardAttempt}
