@@ -501,6 +501,7 @@ export type Database = {
           customer_name: string;
           customer_phone: string;
           delivery_address: string;
+          delivery_fee_azn: number | null;
           discount_azn: number;
           id: string;
           notes: string | null;
@@ -517,6 +518,7 @@ export type Database = {
           customer_name: string;
           customer_phone: string;
           delivery_address: string;
+          delivery_fee_azn?: number | null;
           discount_azn?: number;
           id?: string;
           notes?: string | null;
@@ -533,6 +535,7 @@ export type Database = {
           customer_name?: string;
           customer_phone?: string;
           delivery_address?: string;
+          delivery_fee_azn?: number | null;
           discount_azn?: number;
           id?: string;
           notes?: string | null;
@@ -1179,6 +1182,8 @@ export type Database = {
           updated_at: string;
           working_hours: Json;
           allow_negative_stock: boolean;
+          delivery_fee_azn: number | null;
+          free_delivery_threshold_azn: number | null;
         };
         Insert: {
           colors?: Json;
@@ -1193,6 +1198,8 @@ export type Database = {
           updated_at?: string;
           working_hours?: Json;
           allow_negative_stock?: boolean;
+          delivery_fee_azn?: number | null;
+          free_delivery_threshold_azn?: number | null;
         };
         Update: {
           colors?: Json;
@@ -1207,6 +1214,8 @@ export type Database = {
           updated_at?: string;
           working_hours?: Json;
           allow_negative_stock?: boolean;
+          delivery_fee_azn?: number | null;
+          free_delivery_threshold_azn?: number | null;
         };
         Relationships: [];
       };
@@ -2162,6 +2171,19 @@ export type Database = {
       set_user_role: {
         Args: { p_actor: string; p_user: string; p_role: string };
         Returns: string;
+      };
+      set_order_delivery_fee: {
+        Args: {
+          p_actor: string;
+          p_order: string;
+          p_fee: number;
+        };
+        Returns: {
+          new_fee: number;
+          old_fee: number | null;
+          status: string;
+          total_azn: number;
+        }[];
       };
     };
     Enums: {
