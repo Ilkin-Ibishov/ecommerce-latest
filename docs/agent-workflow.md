@@ -178,6 +178,36 @@ Three lessons worth keeping:
   `fix/m4-follow-ups`, but that branch carried the *untranslated* till, so it matched the literals and
   failed on timing. Two unrelated bugs, one name.
 
+### A locator two things answer — read this before trusting a green E2E run
+
+The admin Inventory block in `admin-panel.spec.ts` was green for months **by accident**, and only
+a slow CI runner showed it (runs 44245021110 and 44246337058, 2026-11-18).
+
+Its `beforeEach` waited for `getByText("Out of Stock")`. Two different things render that text:
+the summary card label, and the filter chip `Admin.Inventory.filterOutOfStock`, whose English
+value is the same string. The chips render outside the loading branch; the cards exist only once
+`loading` is false (`InventoryPage.tsx:402-404` against `:374`). So the wait was satisfied by a
+chip while the data was still in flight, and the whole block ran against the loading skeleton.
+"Low Stock" behaved the same way — `getByText` matches substrings, and the chip reads
+"Low Stock (<10)". "Healthy Stock" has no chip twin, so it was the only assertion that actually
+needed the cards, and it failed the moment a runner was slow enough.
+
+The other half is worse: once the cards did arrive, `getByText("Out of Stock")` matched **two**
+elements, and Playwright's strict mode would have failed it from the other side. The test could
+only pass in the loading window.
+
+Fixed in `bf9e7bc` with a `data-testid` on the loaded cards' own grid, the wait pointed at it and
+the three assertions scoped inside it.
+
+- **A wait that can be satisfied by something other than what you are testing is not a wait.**
+  Prefer a locator that exists only in the state you need — a testid on the loaded container, not
+  a word that appears in it.
+- **Suspect a test that only ever passed quickly.** Timing did not break this test; timing
+  revealed it. The 4.3m run was green and the 7.0m run was red with identical code.
+- **Chips, badges, filters and headings reuse label strings by design.** In a translated UI the
+  same dictionary value legitimately appears in several roles, so page-wide text locators get
+  less reliable as the dictionary grows, not more.
+
 ### Operational notes from this session
 
 - **A force-push is refused by the permission classifier** until the owner approves it in chat. The

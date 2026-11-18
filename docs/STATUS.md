@@ -16,20 +16,11 @@ That skip is permanent and declared: `tests/e2e/super-admin-platform.spec.ts:4` 
 unless `SUPER_ADMIN_E2E` is set, so a green E2E run is **43 tests, 42 passed, 1 skipped**. Earlier
 "no skips" wording in this file was wrong about that one.
 
-Two runs before this one were red (44245021110, 44246337058), from an E2E defect this commit
-range fixes in `bf9e7bc`: the admin Inventory block was green by accident. The filter chips carry
-the same words as the summary cards — the chip "Out of Stock" is identical to the card label and
-"Low Stock (<10)" contains "Low Stock" — and the chips render outside the loading branch while
-the cards exist only once loading is false, so the page-wide `getByText` in `beforeEach` was
-satisfied by a chip and the block ran against the loading skeleton. "Healthy Stock" has no chip
-twin, so it was the one that failed when a slow runner (7.0m against this run's 4.3m) pushed the
-data past the default 5s. Fixed with a `data-testid` on the loaded cards' own grid; the
-assertions are scoped inside it.
-
-**One known fragility, not fixed:** `admin-panel.spec.ts` signs in with phone + OTP in **every**
-`beforeEach`, 40-odd times a run, with no `storageState` reuse. The other failures in those two
-red runs were that 20s login wait timing out. Raising the timeout would be hiding it; the fix is
-one sign-in reused across the file. Not scheduled.
+Two runs before this one were red (44245021110, 44246337058) from an E2E defect `bf9e7bc` fixes —
+the admin Inventory block had been asserting against the loading skeleton. Why, and the three
+lessons from it, are in `docs/agent-workflow.md`. **Still open there, not fixed:**
+`admin-panel.spec.ts` signs in with phone + OTP in every `beforeEach`, 40-odd times a run, with no
+`storageState` reuse; that 20s login wait is what produced the rest of those two runs' failures.
 
 The merge under it, `ee498c4`, is green end to end: CI runs 44174185233 (`Test`: 69 unit files, 54 component,
 110 integration files, 42 E2E, no skips, no flaky) and 44174185297 (`Architectural invariants`:
