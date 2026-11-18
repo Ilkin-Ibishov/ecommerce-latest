@@ -22,20 +22,20 @@ describe("Orders Integration Tests", () => {
       // Authenticate a test user
       session = await loginTestUser(BASE_URL, TEST_PHONE);
 
-      // Find a test-seeded product and ensure its stock is sufficient.
-      // The seed creates products with slug prefix "test-product-" and stock 20,
-      // but previous CI runs or parallel tests may have depleted stock. We reset
-      // the stock here to guarantee the order can succeed.
+      // Use test-product-1: on the test project it is the only seeded product with a
+      // variant (test-product-2/3 have none, and stock lives on variants). Picking
+      // "any test-product-%" with no ORDER BY returned whichever row Postgres saw first,
+      // which changed as the seed re-upserts them and broke this setup on 2026-11-18.
+      // Previous CI runs may have depleted stock, so it is topped up below.
       const { data: product } = await admin
         .from("products")
         .select("id, stock")
-        .like("slug", "test-product-%")
-        .limit(1)
+        .eq("slug", "test-product-1")
         .single();
 
       if (!product) {
         throw new Error(
-          "No test products found in the database. Seed products before running orders tests."
+          "test-product-1 not found in the database. Seed products before running orders tests."
         );
       }
 
