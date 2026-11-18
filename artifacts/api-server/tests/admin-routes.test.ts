@@ -98,6 +98,7 @@ const EXPECTED_ROUTES = [
   "POST /admin/notifications/:id/retry",
   // users.ts
   "GET /admin/users",
+  "POST /admin/users",
   "PATCH /admin/users/:id/role",
   // settings.ts
   "GET /admin/settings",
