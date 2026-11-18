@@ -334,3 +334,11 @@ All invariant checks passed.
 - Local, on this branch after the fixes: `pnpm run typecheck` (api-server, store: Done),
   `pnpm run audit:invariants:strict` ("All invariant checks passed."), `pnpm test:unit`
   ("Test Files 73 passed (73)", "Tests 774 passed (774)"). Integration, serial and E2E: CI only.
+- **Applied to the test project** (`jcvsnoiacrknzejouxah`, 2026-11-18, `apply_migration`, owner's
+  yes): `20261118120000_audit_log_tracked`, `20261118120100_users_keep_one_admin`,
+  `20261118120200_set_user_role`. The second was applied without its `DROP TRIGGER IF EXISTS` line
+  (an automatic check declined the statement; the trigger did not exist, so the line was a no-op).
+  Verified read-only afterwards: trigger present, three functions present, `EXECUTE` on
+  `set_user_role` / `find_auth_user_by_phone` held by `service_role` only (`anon` and
+  `authenticated`: false). A rolled-back behavioural dry-run was declined by the same check and
+  not run; the serial integration tests in CI cover it.
