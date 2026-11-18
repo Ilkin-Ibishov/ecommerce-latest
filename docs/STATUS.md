@@ -137,13 +137,21 @@ that is now sixteen days across four sessions, while five engineering phases shi
    2026-11-13:** a plain non-fiscal receipt is enough, confirmed in writing. Outstanding only:
    whether the receipt must carry named fields (VÖEN, address) — one change to M3 spec §11,
    blocks nothing. File the written answer under `docs/knowledgebase/`.
-13. **New (2026-11-13).** Two questions still with the customer, both from the M3 §16 rework in
+13. **New (2026-11-13), half answered 2026-11-18.** Both from the M3 §16 rework in
     `docs/tasks/warehouse-m3-section-16-decisions.md`:
-    - Do you charge for gift wrapping, a gift card/message, engraving or delivery?
-    - **Do you sell gift certificates or store credit?** This is the one that matters and the
-      original §16.11 wording hid it: a certificate is a liability until redeemed, not a
-      product, and retrofitting it touches the ledger, the receipt and the day-end
-      reconciliation at once. If yes, it is its own phase.
+    - ~~Do you sell gift certificates or store credit?~~ **No** — the owner, 2026-11-18. The
+      deferred row in `docs/tasks/warehouse-roadmap.md` stands: re-open only if that changes,
+      and then as its own phase, because a certificate is a liability until redeemed, not a
+      product, and it touches the ledger, the receipt and the day-end reconciliation at once.
+      The spec file itself is architect-owned and was not edited.
+    - **Still open: do you charge for gift wrapping, a gift card/message, engraving or
+      delivery?** Delivery is answered by `docs/tasks/delivery-fee.md` already. A yes on any of
+      the other three means a `track_stock = false` variant: it sells, prints on the receipt
+      and earns revenue, but writes no stock movement. The flag exists
+      (`20261103210000_m1_schema_additions.sql`) and **is read by nothing** — the ledger and the
+      counter path still decrement such a variant, silently. So the latent defect is worth
+      closing either way; the answer only decides whether the shop needs the service variants
+      on top of it.
 14. **New (2026-11-13).** The second shop (no barcode device) has not been asked about internet
     reliability. §16.5 was answered for one shop only, and M3b was dropped on that answer.
 
