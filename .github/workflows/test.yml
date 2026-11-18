@@ -109,6 +109,8 @@ jobs:
           # > 30s test timeout, so retry can't recover). NEVER set this in prod
           # (Vercel / Railway) — it disables OTP brute-force protection.
           E2E_DISABLE_AUTH_RATELIMIT: "1"
+          # Same rule for the global 100 req/min limit: 3 Playwright workers share one IP.
+          E2E_DISABLE_GLOBAL_RATELIMIT: "1"
 
       - name: Wait for API health endpoint
         run: |

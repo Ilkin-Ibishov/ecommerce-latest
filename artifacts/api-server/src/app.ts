@@ -33,9 +33,14 @@ app.use(
   }),
 );
 
-// SEC-004: Global rate limit (100 req/min per IP)
+// SEC-004: Global rate limit (100 req/min per IP).
+// CI only: E2E_DISABLE_GLOBAL_RATELIMIT=1 lifts it, because parallel Playwright workers all reach
+// the API from 127.0.0.1 and a 429 surfaces as a wrong UI state (the till shows "Not found").
+// NEVER set it in production — same rule as E2E_DISABLE_AUTH_RATELIMIT (middlewares/rateLimits.ts).
+const globalRateLimitDisabled = process.env.E2E_DISABLE_GLOBAL_RATELIMIT === "1";
 app.use(
   rateLimit({
+    skip: () => globalRateLimitDisabled,
     windowMs: 60_000,
     max: 100,
     standardHeaders: true,
