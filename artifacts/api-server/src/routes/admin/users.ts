@@ -211,22 +211,34 @@ router.post("/admin/users", requireAdmin, async (req: Request, res: Response): P
     userId = createdAuth.user.id;
   }
 
+  // The auth user may already have a profile: the auth trigger (handle_new_user) creates one with
+  // the digits-only phone, and a found auth user can own a row whose phone is in a format the lookup
+  // above missed. Re-check its role (never re-role a staff member or admin through "add"), then
+  // store the canonical phone so sign-in finds the account by it.
   const trimmedName = full_name?.trim() || null;
-  const { error: upsertErr } = await ctx.admin
+  const { data: profile, error: profileErr } = await ctx.admin
     .from("users")
-    .upsert(
-      {
-        id: userId,
-        phone: canonicalPhone,
-        full_name: trimmedName,
-      },
-      // DO NOTHING on conflict (design note §3): an existing profile keeps its name and phone.
-      { onConflict: "id", ignoreDuplicates: true },
-    );
-
-  if (upsertErr) {
-    req.log.error({ err: upsertErr }, "Failed to insert user profile");
-    res.status(500).json({ error: upsertErr.message });
+    .select("id, role")
+    .eq("id", userId)
+    .maybeSingle();
+  if (profileErr) {
+    req.log.error({ err: profileErr }, "Failed to read user profile");
+    res.status(500).json({ error: "profile_read_failed" });
+    return;
+  }
+  if (profile && (profile.role === "staff" || profile.role === "admin")) {
+    res.status(409).json({ error: "already_staff" });
+    return;
+  }
+  const { error: writeErr } = profile
+    ? await ctx.admin
+        .from("users")
+        .update(trimmedName ? { phone: canonicalPhone, full_name: trimmedName } : { phone: canonicalPhone })
+        .eq("id", userId)
+    : await ctx.admin.from("users").insert({ id: userId, phone: canonicalPhone, full_name: trimmedName });
+  if (writeErr) {
+    req.log.error({ err: writeErr }, "Failed to write user profile");
+    res.status(500).json({ error: "profile_write_failed" });
     return;
   }
 
@@ -270,7 +282,8 @@ router.patch("/admin/users/:id/role", requireAdmin, async (req: Request, res: Re
   const { role: newRole } = parsed.data;
   const ctx = { admin: req.admin!, user: req.user! };
 
-  if (rawId === ctx.user.id && newRole !== "admin") {
+  // uuids compare case-insensitively in Postgres; compare them the same way here.
+  if (rawId.toLowerCase() === ctx.user.id.toLowerCase() && newRole !== "admin") {
     res.status(400).json({ error: "cannot_demote_self" });
     return;
   }

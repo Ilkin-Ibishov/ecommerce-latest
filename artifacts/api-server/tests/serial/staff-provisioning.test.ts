@@ -171,6 +171,25 @@ describe("Staff provisioning serial integration suite", () => {
     expect(restoreErr).toBeNull();
   });
 
+  it("a new phone added through the route is stored canonically and can sign in as staff", async () => {
+    const phone = generatePhone();
+    const res = await api("/admin/users", adminSession.accessToken, {
+      method: "POST",
+      body: JSON.stringify({ phone, full_name: "Brand New Staff", role: "staff" }),
+    });
+    expect(res.status).toBe(201);
+    const { user } = (await res.json()) as { user: { id: string } };
+
+    // The auth trigger creates the row with the digits-only phone; the route must store the
+    // canonical one, which is what sign-in looks the account up by.
+    const { data: row } = await db.from("users").select("phone, full_name, role").eq("id", user.id).single();
+    expect(row).toEqual({ phone, full_name: "Brand New Staff", role: "staff" });
+
+    const session = await loginTestUser(ORIGIN, phone);
+    expect(session.userId).toBe(user.id);
+    expect((await api("/admin/counter/bundles", session.accessToken)).status).toBe(200);
+  });
+
   it("demoted staff member's next admin request returns 403", async () => {
     const phone = generatePhone();
     const staffId = await createUser(phone, "Demoted Staff");
