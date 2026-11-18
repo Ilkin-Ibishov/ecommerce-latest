@@ -479,6 +479,8 @@ const ru: MessageSchema = {
         signInDescription: "Войдите с помощью телефона администратора, чтобы продолжить.",
         loading: "Загрузка...",
         mobileAdmin: "Админ",
+        notAvailable: "Этот раздел доступен только администраторам",
+        notAvailableDescription: "У вас нет прав для доступа к этой странице.",
       },
       Common: {
         confirm: "Подтвердить",

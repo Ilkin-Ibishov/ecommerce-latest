@@ -23,24 +23,36 @@ export function getStoredLocale(): string {
   return DEFAULT_LOCALE;
 }
 
+export function isStaffAllowedAdminPath(path: string): boolean {
+  if (path === "/admin/inventory/reorder" || path.startsWith("/admin/inventory/reorder/")) {
+    return false;
+  }
+  return (
+    path === "/admin/inventory" ||
+    path.startsWith("/admin/counter") ||
+    path.startsWith("/admin/reservations") ||
+    path.startsWith("/admin/stocktakes")
+  );
+}
+
 const navItems = [
-  { href: "/admin", labelKey: "Admin.Nav.dashboard", icon: LayoutDashboard },
-  { href: "/admin/products", labelKey: "Admin.Nav.products", icon: Package },
+  { href: "/admin", labelKey: "Admin.Nav.dashboard", icon: LayoutDashboard, adminOnly: true },
+  { href: "/admin/products", labelKey: "Admin.Nav.products", icon: Package, adminOnly: true },
   { href: "/admin/inventory", labelKey: "Admin.Nav.inventory", icon: Boxes },
   { href: "/admin/counter", labelKey: "Admin.Nav.counter", icon: ScanLine },
   { href: "/admin/reservations", labelKey: "Admin.Nav.reservations", icon: BookmarkCheck },
   { href: "/admin/bundles", labelKey: "Admin.Nav.bundles", icon: PackagePlus, adminOnly: true },
   { href: "/admin/stocktakes", labelKey: "Admin.Nav.stocktakes", icon: ClipboardCheck },
-  { href: "/admin/orders", labelKey: "Admin.Nav.orders", icon: ShoppingCart },
-  { href: "/admin/users", labelKey: "Admin.Nav.customers", icon: Users },
-  { href: "/admin/coupons", labelKey: "Admin.Nav.coupons", icon: Tag },
-  { href: "/admin/banners", labelKey: "Admin.Nav.banners", icon: Image },
-  { href: "/admin/brands", labelKey: "Admin.Nav.brands", icon: Award },
-  { href: "/admin/categories", labelKey: "Admin.Nav.categories", icon: FolderOpen },
-  { href: "/admin/comments", labelKey: "Admin.Nav.comments", icon: MessageSquare },
-  { href: "/admin/audit", labelKey: "Admin.Nav.audit", icon: FileText },
-  { href: "/admin/pages", labelKey: "Admin.Nav.pages", icon: BookOpen },
-  { href: "/admin/settings", labelKey: "Admin.Nav.settings", icon: Settings2 },
+  { href: "/admin/orders", labelKey: "Admin.Nav.orders", icon: ShoppingCart, adminOnly: true },
+  { href: "/admin/users", labelKey: "Admin.Nav.customers", icon: Users, adminOnly: true },
+  { href: "/admin/coupons", labelKey: "Admin.Nav.coupons", icon: Tag, adminOnly: true },
+  { href: "/admin/banners", labelKey: "Admin.Nav.banners", icon: Image, adminOnly: true },
+  { href: "/admin/brands", labelKey: "Admin.Nav.brands", icon: Award, adminOnly: true },
+  { href: "/admin/categories", labelKey: "Admin.Nav.categories", icon: FolderOpen, adminOnly: true },
+  { href: "/admin/comments", labelKey: "Admin.Nav.comments", icon: MessageSquare, adminOnly: true },
+  { href: "/admin/audit", labelKey: "Admin.Nav.audit", icon: FileText, adminOnly: true },
+  { href: "/admin/pages", labelKey: "Admin.Nav.pages", icon: BookOpen, adminOnly: true },
+  { href: "/admin/settings", labelKey: "Admin.Nav.settings", icon: Settings2, adminOnly: true },
 ];
 
 export default function AdminLayout({ children }: { children: ReactNode }) {
@@ -75,7 +87,7 @@ function AdminLayoutInner({
   setAdminLocale: (locale: string) => void;
 }) {
   const { t } = useI18n();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [checking, setChecking] = useState(true);
   const [authed, setAuthed] = useState(false);
   const [userRole, setUserRole] = useState<string | null>(null);
@@ -88,6 +100,13 @@ function AdminLayoutInner({
   useEffect(() => {
     setSidebarOpen(false);
   }, [location]);
+
+  // A staff user opening /admin is sent to /admin/counter
+  useEffect(() => {
+    if (userRole === "staff" && (location === "/admin" || location === "/admin/")) {
+      setLocation("/admin/counter");
+    }
+  }, [userRole, location, setLocation]);
 
   useEffect(() => {
     const supabase = createClient();
@@ -103,8 +122,9 @@ function AdminLayoutInner({
         return;
       }
       const { data } = await supabase.from("users").select("role").eq("id", user.id).single();
-      if (data?.role === "admin") {
+      if (data?.role === "admin" || data?.role === "staff") {
         setAuthed(true);
+        setUserRole(data.role);
       } else {
         try {
           const res = await fetch(apiUrl("/bootstrap/status"));
@@ -259,7 +279,20 @@ function AdminLayoutInner({
           </header>
 
           <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-            {children}
+            {userRole === "staff" && (location === "/admin" || location === "/admin/") ? null :
+             userRole === "staff" && !isStaffAllowedAdminPath(location) ? (
+              <div className="flex flex-col items-center justify-center p-12 text-center min-h-[350px]">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-muted mb-4">
+                  <ShieldCheck size={24} className="text-muted-foreground" />
+                </div>
+                <h2 className="text-lg font-semibold mb-2">{t("Admin.Layout.notAvailable")}</h2>
+                <p className="text-sm text-muted-foreground max-w-md">
+                  {t("Admin.Layout.notAvailableDescription")}
+                </p>
+              </div>
+            ) : (
+              children
+            )}
           </main>
         </div>
       </div>

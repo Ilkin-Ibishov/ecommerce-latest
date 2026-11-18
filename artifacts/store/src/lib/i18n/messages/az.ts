@@ -475,6 +475,8 @@ const az = {
         signInDescription: "Davam etmək üçün admin telefon nömrənizlə daxil olun.",
         loading: "Yüklənir...",
         mobileAdmin: "Admin",
+        notAvailable: "Bu bölmə yalnız adminlər üçündür",
+        notAvailableDescription: "Sizin bu səhifəyə daxil olmaq üçün icazəniz yoxdur.",
       },
       Common: {
         confirm: "Təsdiq et",

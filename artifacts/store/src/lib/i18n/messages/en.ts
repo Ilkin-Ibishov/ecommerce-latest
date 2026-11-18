@@ -479,6 +479,8 @@ const en: MessageSchema = {
         signInDescription: "Sign in with your admin phone number to continue.",
         loading: "Loading...",
         mobileAdmin: "Admin",
+        notAvailable: "This section is for administrators only",
+        notAvailableDescription: "You do not have permission to access this page.",
       },
       Common: {
         confirm: "Confirm",
