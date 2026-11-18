@@ -5,7 +5,7 @@ import path from "node:path";
 /**
  * M2c V1 / V2 — View Security and Customer Isolation Tests
  *
- * Requirements (prompts/m2c-fix-views.md):
+ * Requirements (docs/archive/prompts/m2c-fix-views.md):
  * - V1: reservations_view must evaluate underlying reservations RLS as security_invoker.
  *   - A customer (non-staff, non-admin) token returns zero rows.
  *   - A staff token returns seeded reservation rows.

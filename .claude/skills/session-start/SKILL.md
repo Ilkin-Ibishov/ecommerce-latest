@@ -3,8 +3,7 @@ name: session-start
 description: >-
   Use at the start of a session on this repository, or when asked to pick up where the last
   session stopped, continue the handoff, or act as architect/orchestrator. Gives the role, the
-  read-first order, and the rules this project learned the hard way. Replaces pasting
-  prompts/session-start-orchestrator.md by hand.
+  read-first order, and the rules this project learned the hard way.
 ---
 
 # Session start — the orchestrator role
@@ -22,13 +21,11 @@ Simple tasks with no spec — a bug, a test, a docs fix — you resolve directly
 
 1. `docs/STATUS.md` — current state only, about 10 KB. Its "Start here" block is the entry point.
 2. `AGENTS.md` — house rules, the deny list, the design-note gate. Already in context.
-3. The spec in `docs/tasks/` named by the work in front of you. **Only that one.** The read-first
-   list used to name three specs unconditionally; that was ~11,000 tokens of spec per session
-   whatever the task was.
+3. The spec in `docs/tasks/` named by the work in front of you. **Only that one.**
 
-`docs/agent-workflow.md` holds the process detail — the phase pipeline, the builder's quirks, the
-model quota, the failure modes this project has produced. Read it when you need it, not up front.
-Superseded handoffs are in `docs/status/archive/`; nothing there is worth reading at session start.
+`docs/agent-workflow.md` holds the process detail — where docs live, the builder's quirks, the
+model quota, operational notes. Read it when you need it, not up front. Superseded handoffs
+(`docs/archive/status/`) and merged phases (`docs/archive/`) are not read at session start.
 
 Do not ask for any of these to be pasted. Do not re-derive what they already say.
 

@@ -1,5 +1,7 @@
 # Delivery cost when the amount is not known at checkout
 
+Status: active — complete; the design note is next.
+
 Spec, 2026-11-18. Written by the architect after the owner's decision of the same day: the
 delivery amount is not a fixed number, it varies by region, and the shop does not know it when
 the customer places the order.

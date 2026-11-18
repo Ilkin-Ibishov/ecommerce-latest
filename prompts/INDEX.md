@@ -4,52 +4,9 @@
 
 The launch prompt each builder round was given. A record, not live configuration.
 
-44 files. The subject column is the file's own first sentence, so a
+0 files. The subject column is the file's own first sentence, so a
 file that opens with a banner reads as one — fix the file, not the index.
 
 | File | Title | Subject | Size |
 |---|---|---|---|
-| [`chore-01.md`](chore-01.md) | Chore batch 01 — security fix, dead tree removal, stale document headers | Read `AGENTS.md` first. | 5 KB |
-| [`chore-02.md`](chore-02.md) | Chore batch 02 — make the test suite runnable | Read `AGENTS.md` and `.agents/rules/testing.md` first. | 4 KB |
-| [`chore-03.md`](chore-03.md) | Chore batch 03 — flaky property test, and run-log hygiene | Read `AGENTS.md` and `.agents/rules/testing.md` first. | 2 KB |
-| [`chore-ci-first-run-fixes.md`](chore-ci-first-run-fixes.md) | Chore — fix the 8 real failures from the first-ever integration run | The `integration-e2e` CI job has now run against a real Supabase project (`ecommerce-warehouse`, ref `jcvsnoiacrknzejouxah`) for the first time ever. | 7 KB |
-| [`chore-ci-repair.md`](chore-ci-repair.md) | Chore — make the CI integration tier able to run again | Two small, exact changes. | 2 KB |
-| [`chore-ci-round4-fixes.md`](chore-ci-round4-fixes.md) | Chore — fix the 2 real failures from CI round 4 | Round 4 of the `integration-e2e` job (run 42272107493, branch `claude/davam-840a9f`) ran 1146 tests: 1132 passed, 1 failed, and 1 suite errored in `beforeAll` ( | 6 KB |
-| [`chore-counter-sale-payments-fix.md`](chore-counter-sale-payments-fix.md) | Chore — counter_sale_payments, fix round | Read `AGENTS.md`, then `docs/audits/chore-counter-sale-payments-audit.md`, then the spec `docs/tasks/chore-counter-sale-payments.md`. | 2 KB |
-| [`chore-counter-sale-payments.md`](chore-counter-sale-payments.md) | Chore — counter_sale_payments, design note first | Read `AGENTS.md`, then the spec `docs/tasks/chore-counter-sale-payments.md`, then `docs/tasks/warehouse-m3-section-16-decisions.md` §16.4, `.agents/rules/migrat | 2 KB |
-| [`chore-e2e-round10-fixes.md`](chore-e2e-round10-fixes.md) | Chore — fix the 8 real failures from CI round 10's first-ever E2E run | Round 10 of the `integration-e2e` job (run 42396485221, branch `claude/davam-840a9f`) got `unit` and `api-integration` fully green for the first time ever. | 9 KB |
-| [`fix-counter-sale-confirmation-round-1.md`](fix-counter-sale-confirmation-round-1.md) | fix/counter-sale-confirmation — fix round 1 | Read `AGENTS.md`, `.agents/rules/frontend.md` and `.agents/rules/testing.md`. | 10 KB |
-| [`fix-counter-sale-confirmation-round-2.md`](fix-counter-sale-confirmation-round-2.md) | fix/counter-sale-confirmation — fix round 2 | Read `AGENTS.md`, `.agents/rules/frontend.md` and `.agents/rules/testing.md`. | 7 KB |
-| [`fix-counter-sale-confirmation-round-3.md`](fix-counter-sale-confirmation-round-3.md) | fix/counter-sale-confirmation — fix round 3 | Read `AGENTS.md`, `.agents/rules/frontend.md` and `.agents/rules/testing.md`. | 8 KB |
-| [`fix-m4-follow-ups.md`](fix-m4-follow-ups.md) | M4 follow-ups — three recorded minors | Read `AGENTS.md`, `.agents/rules/express5-api.md`, `.agents/rules/frontend.md` and `.agents/rules/testing.md`. | 7 KB |
-| [`fix-storefront-mobile-spa-round-1.md`](fix-storefront-mobile-spa-round-1.md) | fix/storefront-mobile-spa — fix round 1 | Read `AGENTS.md` and `.agents/rules/frontend.md` (run `modern-web-guidance` `search` before item 4). | 7 KB |
-| [`fix-storefront-mobile-spa-round-2.md`](fix-storefront-mobile-spa-round-2.md) | fix/storefront-mobile-spa — fix round 2 | Read `AGENTS.md` and `.agents/rules/frontend.md`. | 4 KB |
-| [`m1-audit.md`](m1-audit.md) | Launch prompt — M1 audit | Act as the `auditor` agent defined in `.agents/agents/auditor.md`. | 3 KB |
-| [`m1-build.md`](m1-build.md) | Launch prompt — M1 build | You are implementing phase M1 of an inventory module in this repository. | 3 KB |
-| [`m1-design-revise.md`](m1-design-revise.md) | M1 — revise the design note | Your design note was reviewed. | 2 KB |
-| [`m1-fix-2.md`](m1-fix-2.md) | M1 — two fixes, then the branch is done | The schema additions are otherwise correct and verified: `audit:invariants:strict` is green with an empty baseline, typecheck passes, 546 unit tests pass, the A | 3 KB |
-| [`m1-fix.md`](m1-fix.md) | M1 — fixes before merge | The branch was reviewed twice: an adversarial audit (`docs/audits/m1-variants-ledger-audit.md`) and an architecture pass. | 6 KB |
-| [`m1-implement.md`](m1-implement.md) | M1 — implement | The revised design note is **approved**. | 4 KB |
-| [`m1-schema-additions.md`](m1-schema-additions.md) | M1 — schema additions that cannot be backfilled | Run this **after** `prompts/m1-fix.md` is complete and committed. | 6 KB |
-| [`m2a-audit.md`](m2a-audit.md) | Launch prompt — M2a audit | Act as the `auditor` agent defined in `.agents/agents/auditor.md`. | 6 KB |
-| [`m2a-design-revise.md`](m2a-design-revise.md) | M2a design note — revise. Still no migrations, no application code. | Revise `docs/design-notes/m2a-receiving-cost.md` in place and commit. | 11 KB |
-| [`m2a-design.md`](m2a-design.md) | M2a — design note only. Write no migrations and no application code. | Read, in this order: you are extending on-hand triggers, `product_variants`, and `variant_costs` Then write `docs/design-notes/m2a-receiving-cost.md` and commit it. | 3 KB |
-| [`m2a-fix.md`](m2a-fix.md) | M2a — fixes after the adversarial audit | `docs/audits/m2a-receiving-cost-audit.md` is the audit. | 9 KB |
-| [`m2a-implement.md`](m2a-implement.md) | M2a — implement | The revised design note is **approved**. | 7 KB |
-| [`m2b-audit.md`](m2b-audit.md) | Launch prompt — M2b audit | Act as the `auditor` agent defined in `.agents/agents/auditor.md`. | 7 KB |
-| [`m2b-design.md`](m2b-design.md) | M2b — design note only. Write no migrations and no application code. | Read, in this order: in particular the replay algorithm, its scoping by `posting_date`, and the `variant_costs.opening_cost` carrier this project actually produ | 3 KB |
-| [`m2b-fix-2.md`](m2b-fix-2.md) | M2b — four defects in the posting arithmetic | From my own adversarial pass over `post_stocktake`. | 8 KB |
-| [`m2b-fix-3.md`](m2b-fix-3.md) | M2b — fixes after the adversarial audit | `docs/audits/m2b-stocktake-audit.md` is the audit. | 9 KB |
-| [`m2b-fix.md`](m2b-fix.md) | M2b — one defect, and the status doc | The adversarial audit did not complete: the `claude-opus-4-6-thinking` run hit an account quota and died partway through, committing nothing. | 5 KB |
-| [`m2b-implement.md`](m2b-implement.md) | M2b — implement | The design note is **approved**, and your §7 disagreements are accepted — three of the four are defects in my work order, not in your reading of it. | 9 KB |
-| [`m2c-design.md`](m2c-design.md) | M2c — design note only. Write no migrations and no application code. | Read, in this order: shipped and why. | 3 KB |
-| [`m2c-fix-views.md`](m2c-fix-views.md) | M2c — a view leaks every deposit customer's name and phone to any logged-in shopper | Found by applying Supabase's own security checklist to the M2c schema. | 5 KB |
-| [`m2c-implement.md`](m2c-implement.md) | M2c — implement | The design note is **approved**. | 9 KB |
-| [`m3a-test-gaps.md`](m3a-test-gaps.md) | M3a — close the three untested gaps | M3a (counter sale) is merged. | 11 KB |
-| [`m4-design-revision.md`](m4-design-revision.md) | Phase M4 — design note revision, then stop | Read `AGENTS.md`, then `docs/audits/m4-architect-audit.md` (all of it, including "Split"), then the spec `docs/tasks/warehouse-m4-stock-signals.md` §6.4, §9 and §12. | 6 KB |
-| [`m4-design.md`](m4-design.md) | Phase M4 — Stock Signals, design note first | Read `AGENTS.md`, then the spec `docs/tasks/warehouse-m4-stock-signals.md`, `.agents/rules/inventory.md`, `.agents/rules/migrations.md`, and `.agents/rules/frontend.md`. | 2 KB |
-| [`m4-fix-round-2.md`](m4-fix-round-2.md) | Phase M4 — fix round 2 | Read `AGENTS.md`, then `docs/audits/m4-architect-audit.md` section "Fix round 1 — verification". | 4 KB |
-| [`m4-fix-round-3.md`](m4-fix-round-3.md) | Phase M4 — fix round 3 | Read `AGENTS.md`, then `docs/audits/m4-architect-audit.md` section "CI — run 43682778875". | 5 KB |
-| [`m4-fix-round-4.md`](m4-fix-round-4.md) | Phase M4 — fix round 4 | Read `AGENTS.md`, `.agents/rules/migrations.md` and `.agents/rules/testing.md`. | 8 KB |
-| [`m4-fix-round.md`](m4-fix-round.md) | Phase M4 — fix round on the split branch | Read, in this order: `AGENTS.md`; the spec `docs/tasks/warehouse-m4-stock-signals.md`; `docs/audits/m4-architect-audit.md` (all of it, including both "Split" se | 9 KB |
-| [`session-start-orchestrator.md`](session-start-orchestrator.md) | Session start — orchestrator role (superseded) | which loads on demand instead of being pasted into every session. | 9 KB |
+

@@ -1,5 +1,7 @@
 # Warehouse roadmap — what remains after M3a
 
+Status: active — reference for what remains of the warehouse work.
+
 Written 2026-11-13, after the §16 answers closed M3b and the assembly question.
 Supersedes the milestone table in the architecture ADR §7, which was written before any
 phase shipped and no longer matches what was built.
@@ -37,7 +39,7 @@ because M1–M3a built the data to answer them.
 
 **Low stock, reorder suggestions, dead stock, and making `track_stock` mean what it says.**
 
-Full spec: `docs/tasks/warehouse-m4-stock-signals.md`.
+Full spec: `docs/archive/tasks/warehouse-m4-stock-signals.md`.
 
 Why here: it is the first phase whose output is a decision rather than a record; its data
 already exists (`low_stock_threshold` per variant and a global default both shipped in M1);

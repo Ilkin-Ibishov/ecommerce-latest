@@ -8,7 +8,7 @@ import { generatePhone } from "./helpers/isolation.js";
 /**
  * Goods Receipts Post Route Integration Test (M2a F1 Fix Verification).
  *
- * Spec: docs/tasks/warehouse-m2a-receiving-cost.md (§12)
+ * Spec: docs/archive/tasks/warehouse-m2a-receiving-cost.md (§12)
  * Finding: F1 — Express route POST /admin/receipts/:id/post calling post_goods_receipt
  *          via getAdminSupabase() (service role) must succeed without 42501 Forbidden.
  *

@@ -1,5 +1,7 @@
 # Product Comparison Tool
 
+Status: deferred — not scheduled.
+
 ## What & Why
 Major Azerbaijani electronics competitors (Kontakt, Texnomart) all have product comparison. Shoppers buying phones, TVs, or appliances want to compare 2–3 models side-by-side before committing. Without it, they leave the site to compare elsewhere and often don't return. This is a P3 competitor gap feature.
 
