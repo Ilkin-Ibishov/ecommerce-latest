@@ -342,3 +342,9 @@ All invariant checks passed.
   `set_user_role` / `find_auth_user_by_phone` held by `service_role` only (`anon` and
   `authenticated`: false). A rolled-back behavioural dry-run was declined by the same check and
   not run; the serial integration tests in CI cover it.
+- **CI round 1 failed 2 mocked tests in `tests/admin-users.test.ts`** (run 44338832690): the mock
+  client had `insert().select().single()` while the route calls `upsert(..., { ignoreDuplicates })`,
+  and the acting admin's id was the string `"admin-actor-id"`, which the route rejects as a malformed
+  uuid before the self-demotion check. Both were fixture errors; fixed (`ACTOR_ID` is a real uuid,
+  the mock gains an insert-if-absent `upsert`). No assertion changed. Run locally with dummy env:
+  "Test Files 1 passed (1)", "Tests 17 passed (17)".

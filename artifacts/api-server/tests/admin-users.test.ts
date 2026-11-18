@@ -18,9 +18,11 @@ interface RpcCall {
 }
 
 const h = vi.hoisted(() => {
+  // A real uuid: the route rejects a malformed id before any other check.
+  const ACTOR_ID = "00000000-0000-4000-8000-000000000001";
   const state = {
     authRole: "admin" as "admin" | "staff" | "shopper" | "none",
-    actingUserId: "admin-actor-id",
+    actingUserId: ACTOR_ID,
     users: new Map<string, MockUser>(),
     authCreated: [] as Array<{ id: string; phone: string; phone_confirm: boolean }>,
     rpcCalls: [] as RpcCall[],
@@ -28,12 +30,12 @@ const h = vi.hoisted(() => {
 
   function reset() {
     state.authRole = "admin";
-    state.actingUserId = "admin-actor-id";
+    state.actingUserId = ACTOR_ID;
     state.users.clear();
     state.authCreated.length = 0;
     state.rpcCalls.length = 0;
-    state.users.set("admin-actor-id", {
-      id: "admin-actor-id",
+    state.users.set(ACTOR_ID, {
+      id: ACTOR_ID,
       phone: "+994509990001",
       full_name: "Admin",
       role: "admin",
@@ -41,8 +43,9 @@ const h = vi.hoisted(() => {
     });
   }
 
-  return { state, reset };
+  return { state, reset, ACTOR_ID };
 });
+const ACTOR_ID = h.ACTOR_ID;
 
 vi.mock("../src/middlewares/requireAdmin", () => ({
   requireAdmin: (req: Request, res: Response, next: NextFunction): void => {
@@ -104,6 +107,20 @@ vi.mock("../src/middlewares/requireAdmin", () => ({
               },
             };
             return builder;
+          },
+          // The route writes the profile with upsert(..., { onConflict: "id", ignoreDuplicates: true }):
+          // insert when absent, leave an existing row untouched.
+          upsert: (payload: { id: string; phone: string; full_name: string | null }) => {
+            if (!h.state.users.has(payload.id)) {
+              h.state.users.set(payload.id, {
+                id: payload.id,
+                phone: payload.phone,
+                full_name: payload.full_name,
+                role: "customer",
+                created_at: new Date().toISOString(),
+              });
+            }
+            return Promise.resolve({ data: null, error: null });
           },
           insert: (payload: { id: string; phone: string; full_name: string | null }) => ({
             select: () => ({
@@ -292,7 +309,7 @@ describe("Admin Users & Staff Management API", () => {
       const setRoleCall = h.state.rpcCalls.find((c) => c.fn === "set_user_role");
       expect(setRoleCall).toBeDefined();
       expect(setRoleCall?.args.p_role).toBe("staff");
-      expect(setRoleCall?.args.p_actor).toBe("admin-actor-id");
+      expect(setRoleCall?.args.p_actor).toBe(ACTOR_ID);
     });
 
     it("promotes an existing customer to staff without re-creating auth user", async () => {
@@ -341,7 +358,7 @@ describe("Admin Users & Staff Management API", () => {
     });
 
     it("prevents self-demotion on PATCH /admin/users/:id/role", async () => {
-      const res = await fetch(`${baseUrl}/admin/users/admin-actor-id/role`, {
+      const res = await fetch(`${baseUrl}/admin/users/${ACTOR_ID}/role`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ role: "staff" }),
@@ -349,7 +366,7 @@ describe("Admin Users & Staff Management API", () => {
       expect(res.status).toBe(400);
       const body = (await res.json()) as { error: string };
       expect(body.error).toBe("cannot_demote_self");
-      expect(h.state.users.get("admin-actor-id")?.role).toBe("admin");
+      expect(h.state.users.get(ACTOR_ID)?.role).toBe("admin");
     });
 
     it("prevents demoting the last admin with 409 last_admin", async () => {
@@ -362,7 +379,7 @@ describe("Admin Users & Staff Management API", () => {
       });
 
       // Remove acting admin so otherAdminId is the sole admin
-      h.state.users.delete("admin-actor-id");
+      h.state.users.delete(ACTOR_ID);
 
       const res = await fetch(`${baseUrl}/admin/users/${otherAdminId}/role`, {
         method: "PATCH",
