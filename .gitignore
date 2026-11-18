@@ -72,10 +72,4 @@ Thumbs.db
 test-results/
 **/coverage/
 
-# --- ltm-power ---
-ltm/store/*.jsonl
-ltm/runtime/*
-ltm/reports/*
-ltm/snapshots/*
-# --- /ltm-power ---
 supabase/.temp/ 

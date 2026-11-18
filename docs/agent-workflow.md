@@ -10,9 +10,14 @@ rarely. Moved out of STATUS.md on 2026-11-17 so that a session start no longer r
 files) in `ad17c6d`, then `steering/` (19 files) and `hooks/` (4) in the commit after it. Nothing
 in a Claude session ever read any of it; the only references left were provenance comments in the
 SEC-00x test files. Recover a spec with `git show 9d885f7:.kiro/specs/<name>/requirements.md`, a
-steering file with `git show 4b59f51:.kiro/steering/<name>.md`. `ltm/` is the one thing that still
-names those paths — it is a Kiro-hook-driven memory capture tool, so it has not run since Kiro
-went away; left in place, unasked.
+steering file with `git show 4b59f51:.kiro/steering/<name>.md`.
+
+`ltm/` went with it: a 951-line Python tool that logged file-touch events and "checkpoints" to
+JSONL under `ltm/store/`, driven by the Kiro post-turn hook. Its store was never committed, so
+only the empty machinery was in the repo, and the hook that fed it has been gone since Kiro.
+What it recorded is better read from `git log` (structural) and from this file plus STATUS.md
+(semantic). Recover it with `git show 506ebe4:ltm/bin/ltm.py`. Do not reinstate the hook —
+AGENTS.md forbids external pre-invocation hooks for the latency they add.
 
 
 
