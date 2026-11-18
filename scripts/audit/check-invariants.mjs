@@ -867,6 +867,59 @@ checks.push(
       return hits;
     },
   },
+  {
+    id: 'no-auth-metadata-role-reads',
+    why: 'user_metadata is writable by the user themselves, so a role read from auth metadata is a privilege escalation. public.users.role is the only source of authority in the API; writing a role into metadata is not flagged, reading it is.',
+    run: (files) => {
+      const hits = [];
+      // metadata.role, metadata?.role, metadata["role"], metadata?.["role"]
+      const readRe = /\b(?:user_metadata|app_metadata)\s*(?:\??\.\s*role\b|(?:\?\.)?\s*\[\s*['"`]role['"`]\s*\])/;
+      for (const { file, text } of files) {
+        if (!isCode(file)) continue;
+        const r = rel(file);
+        if (!r.startsWith('artifacts/api-server/src/')) continue;
+        text.split('\n').forEach((line, i) => {
+          if (/^\s*(\/\/|\/\*|\*)/.test(line)) return;
+          if (readRe.test(line)) hits.push({ file: r, line: i + 1, text: line.trim().slice(0, 140) });
+        });
+      }
+      return hits;
+    },
+  },
+  {
+    id: 'role-written-only-by-users-route',
+    why: 'Role mutations must go through set_user_role so audit_log records the actor and old role, and trg_users_keep_one_admin enforces that at least one admin remains. No file in the API may write role to users directly, and set_user_role may only be called by the admin users route.',
+    run: (files) => {
+      const hits = [];
+      const setRolePat = /\bset_user_role\b/;
+      const roleWritePat = /\.from\(\s*['"]users['"]\s*\)[\s\S]{0,300}?\.(?:update|upsert|insert)\s*\(\s*\{[\s\S]{0,300}?\brole\b/;
+      for (const { file, text } of files) {
+        if (!isCode(file)) continue;
+        const r = rel(file);
+        if (!r.startsWith('artifacts/api-server/src/')) continue;
+
+        if (r !== 'artifacts/api-server/src/routes/admin/users.ts') {
+          text.split('\n').forEach((line, i) => {
+            if (/^\s*(\/\/|\/\*|\*)/.test(line)) return;
+            if (setRolePat.test(line)) {
+              hits.push({ file: r, line: i + 1, text: line.trim().slice(0, 140) });
+            }
+          });
+        }
+
+        // bootstrap.ts is the first-run zero-admin bootstrap endpoint (refuses once any admin exists)
+        if (r === 'artifacts/api-server/src/routes/bootstrap.ts') continue;
+
+        let m;
+        const re = new RegExp(roleWritePat.source, 'g');
+        while ((m = re.exec(text)) !== null) {
+          const line = text.slice(0, m.index).split('\n').length;
+          hits.push({ file: r, line, text: m[0].replace(/\s+/g, ' ').slice(0, 140) });
+        }
+      }
+      return hits;
+    },
+  },
 );
 
 /* ------------------------------------------------------------------- main */
