@@ -207,4 +207,4 @@ that places an order) → `docs/audits/delivery-cost-notes.md`.
   against the test project schema dump before writing SQL and stops on a mismatch. The WhatsApp
   provider accepting the longer message was not checked.
 
-Files over 200 lines: none planned. Tests deleted: none; one i18n case replaced as the spec allows.
+Files over 200 lines: none planned in code. This note itself is just over 200 lines because it absorbs the delivery-fee note; splitting it would put one decision in two files. Tests deleted: none; one i18n case replaced as the spec allows.
