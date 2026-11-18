@@ -24,6 +24,16 @@ vi.mock("@/lib/cart/context", () => ({
   }),
 }));
 
+vi.mock("@/lib/settings/context", () => ({
+  useSettings: () => ({
+    settings: {
+      delivery_fee_azn: null,
+      free_delivery_threshold_azn: null,
+    },
+    updateSettings: vi.fn(),
+  }),
+}));
+
 vi.mock("@/lib/hooks/useProfile", () => ({
   useProfile: () => ({
     profile: null,

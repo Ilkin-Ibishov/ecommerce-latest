@@ -79,22 +79,29 @@ describe("i18n Consistency", () => {
   });
 
   describe("free delivery threshold consistency", () => {
-    it("all freeDelivery references mention 100 AZN consistently", () => {
+    it("no string under a key containing deliver holds a digit", () => {
+      function collectDeliverLeaves(obj: Record<string, unknown>, prefix = ""): Array<{ path: string; val: string }> {
+        const leaves: Array<{ path: string; val: string }> = [];
+        for (const [k, v] of Object.entries(obj)) {
+          const path = prefix ? `${prefix}.${k}` : k;
+          if (typeof v === "string") {
+            if (/deliver/i.test(k) && k !== "estimatedDelivery") {
+              leaves.push({ path, val: v });
+            }
+          } else if (v && typeof v === "object") {
+            leaves.push(...collectDeliverLeaves(v as Record<string, unknown>, path));
+          }
+        }
+        return leaves;
+      }
+
       for (const locale of LOCALES) {
         const msgs = messages[locale] as Record<string, unknown>;
-
-        // Check TrustBadges subtitle
-        const trustSubtitle = getAtPath(msgs, "TrustBadges.freeDeliverySubtitle") as string;
-        expect(trustSubtitle).toMatch(/100/);
-
-        // Check ProductDetail.freeDeliveryOver
-        const productDetail = getAtPath(msgs, "ProductDetail.freeDeliveryOver") as string;
-        expect(productDetail).toMatch(/100/);
-        expect(productDetail).not.toMatch(/50/);
-
-        // Check AnnouncementBar.message
-        const announcement = getAtPath(msgs, "AnnouncementBar.message") as string;
-        expect(announcement).toMatch(/100/);
+        const deliverLeaves = collectDeliverLeaves(msgs);
+        expect(deliverLeaves.length).toBeGreaterThan(0);
+        for (const { path, val } of deliverLeaves) {
+          expect(val, `Key ${path} in ${locale} contains a digit: ${val}`).not.toMatch(/\d/);
+        }
       }
     });
   });
