@@ -367,3 +367,23 @@ All invariant checks passed.
   (`STAFF_STATE`, `loginAsStaff` in `tests/helpers/admin-auth.ts`) and the spec reuses it. Also the
   "no Users entry" check looked for "Users" while the entry is labelled "Customers" — it now
   matches `/customers|users/i`. No assertion weakened.
+
+---
+
+## Adversarial audit after merge — 2026-11-18 (clean-context auditor: spec + diff + invariants)
+
+Seven findings; resolution of each, checked against the code by the architect:
+
+| # | Finding | Resolution |
+|---|---|---|
+| 1 major | E2E sessions use test phones holding `admin`/`staff` on the test project | **Accepted.** Owner's decision 2026-11-18: the bypass stays in the test environment; the production gate is in `docs/knowledgebase/supabase-projects.md` |
+| 2 major | `POST /admin/users` auth-fallback path re-roled an existing staff/admin whose profile phone the lookup missed (no 409) | **Fixed:** the fallback reads the found profile's role and answers 409 `already_staff`; mocked test `refuses to re-role an admin found only through the auth fallback` |
+| 3 minor | Self-demotion check bypassed with the caller's uuid in upper case | **Fixed:** case-insensitive compare; mocked test `refuses self-demotion when the caller id is sent in upper case` |
+| 4 minor | `bootstrap.ts` wrote `role` directly, no test-phone refusal, no audit line; invariant exempted it | **Fixed:** canonical phone + `validateAzPhone`, `phone_reserved` for test phones, `find_auth_user_by_phone` instead of `listUsers`, role via `set_user_role` (actor = the new admin). The invariant no longer exempts the file; bootstrap is allow-listed only as a second caller of `set_user_role` |
+| 5 minor | Guard beatable by two `REPEATABLE READ` writers | **Fixed:** migration `20261118150000_users_keep_one_admin_hardening.sql` refuses admin demotion/deletion outside READ COMMITTED (`ST042`). (Locking admin rows instead would deadlock against the advisory lock under concurrent demotions.) Applied to the test project 2026-11-18 |
+| 6 minor | `TRUNCATE public.users` bypasses the row trigger | **Fixed:** same migration, `BEFORE TRUNCATE` statement trigger raising `ST040` |
+| 7 minor | New-phone route path untested against the database; the auth trigger leaves the profile with the digits-only phone, so the new staff member's first sign-in depended on the 1000-user `listUsers` scan | **Fixed:** the route now writes the canonical phone (and name) onto the trigger-created profile; serial test `a new phone added through the route is stored canonically and can sign in as staff` |
+
+Also noted by the auditor, outside this phase: `StocktakeCountPage` reads `res.matches` while
+`/inventory/scan` returns an array — counting by scan cannot find items. Recorded in STATUS.
+Mocked route tests locally (dummy env): "Tests 19 passed (19)". Serial tier: CI.

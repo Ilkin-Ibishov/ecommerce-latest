@@ -26,6 +26,8 @@ const h = vi.hoisted(() => {
     users: new Map<string, MockUser>(),
     authCreated: [] as Array<{ id: string; phone: string; phone_confirm: boolean }>,
     rpcCalls: [] as RpcCall[],
+    // Set to an id: createUser fails as "already registered" and the phone lookup finds this auth user.
+    existingAuthUserId: null as string | null,
   };
 
   function reset() {
@@ -34,6 +36,7 @@ const h = vi.hoisted(() => {
     state.users.clear();
     state.authCreated.length = 0;
     state.rpcCalls.length = 0;
+    state.existingAuthUserId = null;
     state.users.set(ACTOR_ID, {
       id: ACTOR_ID,
       phone: "+994509990001",
@@ -108,6 +111,13 @@ vi.mock("../src/middlewares/requireAdmin", () => ({
             };
             return builder;
           },
+          update: (patch: Partial<MockUser>) => ({
+            eq: (_col: string, id: string) => {
+              const u = h.state.users.get(id);
+              if (u) h.state.users.set(id, { ...u, ...patch });
+              return Promise.resolve({ data: null, error: null });
+            },
+          }),
           // The route writes the profile with upsert(..., { onConflict: "id", ignoreDuplicates: true }):
           // insert when absent, leave an existing row untouched.
           upsert: (payload: { id: string; phone: string; full_name: string | null }) => {
@@ -123,6 +133,16 @@ vi.mock("../src/middlewares/requireAdmin", () => ({
             return Promise.resolve({ data: null, error: null });
           },
           insert: (payload: { id: string; phone: string; full_name: string | null }) => ({
+            then: (resolve: (val: unknown) => void) => {
+              h.state.users.set(payload.id, {
+                id: payload.id,
+                phone: payload.phone,
+                full_name: payload.full_name,
+                role: "customer",
+                created_at: new Date().toISOString(),
+              });
+              resolve({ data: null, error: null });
+            },
             select: () => ({
               single: () => {
                 const created: MockUser = {
@@ -162,13 +182,16 @@ vi.mock("../src/middlewares/requireAdmin", () => ({
           return Promise.resolve({ data: oldRole, error: null });
         }
         if (fn === "find_auth_user_by_phone") {
-          return Promise.resolve({ data: null, error: null });
+          return Promise.resolve({ data: h.state.existingAuthUserId, error: null });
         }
         return Promise.resolve({ data: null, error: null });
       },
       auth: {
         admin: {
           createUser: ({ phone, phone_confirm }: { phone: string; phone_confirm: boolean }) => {
+            if (h.state.existingAuthUserId) {
+              return Promise.resolve({ data: { user: null }, error: { message: "already registered" } });
+            }
             const id = randomUUID();
             h.state.authCreated.push({ id, phone, phone_confirm });
             return Promise.resolve({ data: { user: { id } }, error: null });
@@ -188,6 +211,11 @@ beforeAll(async () => {
   const usersRouter = (await import("../src/routes/admin/users")).default;
   const app = express();
   app.use(express.json());
+  // pino-http is absent here; routes only call req.log.{error,warn,info}.
+  app.use((req, _res, next) => {
+    (req as unknown as { log: Record<string, () => void> }).log = { error: () => {}, warn: () => {}, info: () => {}, debug: () => {} };
+    next();
+  });
   app.use(usersRouter);
   await new Promise<void>((r) => {
     server = app.listen(0, () => r());
@@ -355,6 +383,39 @@ describe("Admin Users & Staff Management API", () => {
       expect(res.status).toBe(409);
       const body = (await res.json()) as { error: string };
       expect(body.error).toBe("already_staff");
+    });
+
+    it("refuses to re-role an admin found only through the auth fallback", async () => {
+      // An admin whose profile phone is in a format the phone lookup misses.
+      const otherAdmin = randomUUID();
+      h.state.users.set(otherAdmin, {
+        id: otherAdmin,
+        phone: "+994 50 777 66 55",
+        full_name: "Other Admin",
+        role: "admin",
+        created_at: new Date().toISOString(),
+      });
+      h.state.existingAuthUserId = otherAdmin;
+      const res = await fetch(`${baseUrl}/admin/users`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: "+994507776655", role: "staff" }),
+      });
+      expect(res.status).toBe(409);
+      expect(((await res.json()) as { error: string }).error).toBe("already_staff");
+      expect(h.state.users.get(otherAdmin)?.role).toBe("admin");
+      expect(h.state.rpcCalls.some((c) => c.fn === "set_user_role")).toBe(false);
+    });
+
+    it("refuses self-demotion when the caller id is sent in upper case", async () => {
+      const res = await fetch(`${baseUrl}/admin/users/${ACTOR_ID.toUpperCase()}/role`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: "customer" }),
+      });
+      expect(res.status).toBe(400);
+      expect(((await res.json()) as { error: string }).error).toBe("cannot_demote_self");
+      expect(h.state.users.get(ACTOR_ID)?.role).toBe("admin");
     });
 
     it("prevents self-demotion on PATCH /admin/users/:id/role", async () => {
