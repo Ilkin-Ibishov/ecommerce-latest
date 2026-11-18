@@ -196,22 +196,26 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
   it("3. none of the three RPCs returns a non-tracked variant; anon and authenticated cannot execute them", async () => {
     const ntId = await createVariant(db, { track: false });
 
-    // Service role execution: verify ntId is never returned
-    const { data: lowRows, error: lowErr } = await (db as any).rpc("get_low_stock_signals", { p_search: null, p_status: null });
+    // Service role execution: verify ntId is never returned.
+    // Filter server-side: the shared test project returns more than PostgREST's 1000-row cap, so a
+    // client-side search over the full result misses rows past the cap and passes vacuously.
+    const { data: lowRows, error: lowErr } = await (db as any)
+      .rpc("get_low_stock_signals", { p_search: null, p_status: null })
+      .eq("variant_id", ntId);
     expect(lowErr).toBeNull();
-    expect((lowRows ?? []).some((r: { variant_id: string }) => r.variant_id === ntId)).toBe(false);
+    expect(lowRows ?? []).toHaveLength(0);
 
-    const { data: deadRows, error: deadErr } = await (db as any).rpc("get_dead_stock_signals", { p_days: 1 });
+    const { data: deadRows, error: deadErr } = await (db as any)
+      .rpc("get_dead_stock_signals", { p_days: 1 })
+      .eq("variant_id", ntId);
     expect(deadErr).toBeNull();
-    expect((deadRows ?? []).some((r: { variant_id: string }) => r.variant_id === ntId)).toBe(false);
+    expect(deadRows ?? []).toHaveLength(0);
 
-    const { data: reorderRows, error: reorderErr } = await (db as any).rpc("get_reorder_suggestions", {
-      p_window_days: 28,
-      p_target_days: 60,
-      p_min_sales: 1,
-    });
+    const { data: reorderRows, error: reorderErr } = await (db as any)
+      .rpc("get_reorder_suggestions", { p_window_days: 28, p_target_days: 60, p_min_sales: 1 })
+      .eq("variant_id", ntId);
     expect(reorderErr).toBeNull();
-    expect((reorderRows ?? []).some((r: { variant_id: string }) => r.variant_id === ntId)).toBe(false);
+    expect(reorderRows ?? []).toHaveLength(0);
 
     // anon execution denied
     const anonClient = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!, { auth: { persistSession: false } });
@@ -257,15 +261,13 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
     const { error: v3Err } = await db.rpc("void_counter_sale", { p_id: s3.id, p_reason: "voided", p_session_user: actorId });
     expect(v3Err).toBeNull();
 
-    // Call RPC with min_sales = 3
-    const { data: rows, error: rpcErr } = await (db as any).rpc("get_reorder_suggestions", {
-      p_window_days: 28,
-      p_target_days: 100000,
-      p_min_sales: 3,
-    });
+    // Call RPC with min_sales = 3, filtered server-side (the 1000-row cap, see test 3)
+    const { data: rows, error: rpcErr } = await (db as any)
+      .rpc("get_reorder_suggestions", { p_window_days: 28, p_target_days: 100000, p_min_sales: 3 })
+      .eq("variant_id", varId);
     expect(rpcErr).toBeNull();
-    const item = (rows ?? []).find((r: { variant_id: string }) => r.variant_id === varId);
-    expect(item).toBeDefined();
+    expect(rows ?? []).toHaveLength(1);
+    const item = rows[0];
     // Only 1 real non-voided transaction exists -> has_enough_data must be false
     expect(item?.has_enough_data).toBe(false);
     expect(item?.sales_count).toBe(1);
@@ -289,13 +291,11 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
     });
     expect(incErr).toBeNull();
 
-    const { data: rows, error: rpcErr } = await (db as any).rpc("get_reorder_suggestions", {
-      p_window_days: 28,
-      p_target_days: 100000,
-      p_min_sales: 1,
-    });
+    // Filtered server-side: past the 1000-row cap an absence check would pass vacuously (see test 3)
+    const { data: rows, error: rpcErr } = await (db as any)
+      .rpc("get_reorder_suggestions", { p_window_days: 28, p_target_days: 100000, p_min_sales: 1 })
+      .eq("variant_id", varId);
     expect(rpcErr).toBeNull();
-    const item = (rows ?? []).find((r: { variant_id: string }) => r.variant_id === varId);
-    expect(item).toBeUndefined();
+    expect(rows ?? []).toHaveLength(0);
   });
 });
