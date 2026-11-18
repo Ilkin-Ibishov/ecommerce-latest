@@ -111,7 +111,7 @@ remote branches carry live work. How the sprawl happened, and the rules that sto
 - **Each session leaves a worktree and branch** (`claude/*`, `worktree-agent-*`, `swarm-*`).
   Rule: a session that ends merged removes its worktree (`git worktree remove`) and local branch.
 
-Cleanup plan (waits on the owner's yes — deleting remote branches is outward-facing):
+Cleanup **done 2026-11-18** with the owner's yes, as planned below (the design branches went once the review PR merged):
 
 | Group | Branches | Action |
 |---|---|---|
@@ -125,3 +125,15 @@ uncommitted files on 2026-11-18), then `git worktree prune` and delete their loc
 main checkout sits on a stale `m4/stock-signals`; put it back on `main`. Repository settings worth
 turning on (owner's call): *Automatically delete head branches*, and a `main` ruleset requiring a
 PR with the `Architectural invariants` and `Test` checks green.
+
+Left after the cleanup, deliberately:
+- **Session-owned worktrees** (the `cwd` of an unarchived Claude session) — removing one breaks
+  that session. Archive the session first, then remove its worktree.
+- **Local branches with commits on no remote** — `audit/m4-stock-signals` (+30), `audit-ro` (+10),
+  the five `swarm-*` branches (+6 to +13), and the local copies of branches deleted remotely as
+  superseded (`chore/*`, `design/*`, `docs/handoff-2026-11-16b`, `docs/status-split`,
+  `draft/delivery-fee-subagent`, `fix/main-live-defects`). Last copies of those commits; delete
+  only on purpose.
+- **Eleven orphan directories** under `.claude/worktrees/` (`agent-*`, `fix-*`) that git no longer
+  tracks: `git worktree remove` failed to delete them on Windows and a session cannot write another
+  worktree. Delete them from a plain shell with `rmdir /s /q` — it does not follow pnpm's junctions.
