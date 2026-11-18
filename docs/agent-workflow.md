@@ -6,6 +6,13 @@ rarely. Moved out of STATUS.md on 2026-11-17 so that a session start no longer r
 
 ## Where to start
 
+`.kiro/` was an earlier tool's configuration. Its `specs/` tree was removed on 2026-11-18 as dead
+weight: 1.2 MB across 77 files, last touched 2026-07-01, referenced by nothing but provenance
+comments in the SEC-00x test files. `git show 9d885f7:.kiro/specs/<name>/requirements.md` recovers
+any of it. `steering/` and `hooks/` are still there and are the same dead tool — `steering/`
+includes a Drizzle ORM guide for a project that uses Supabase.
+
+
 
 1. `AGENTS.md` — house rules for every agent session
 2. `docs/tasks/` — specs, architect-owned. Agents read, never edit

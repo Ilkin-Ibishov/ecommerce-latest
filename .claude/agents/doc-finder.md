@@ -20,9 +20,13 @@ paste.
 | `docs/design-notes` | 250 KB | the implementer's proposals, written before code |
 | `docs/status/archive` | ~60 KB | superseded handoffs, newest first |
 | `docs/knowledgebase` | — | cross-cutting operational lessons; has its own README index |
-| `.kiro/specs` | ~500 KB | unreferenced by AGENTS.md; may be dead weight from an earlier tool |
 
 Where an `INDEX.md` exists, read it first — it is generated from the files' own headings.
+
+`.kiro/specs` was removed on 2026-11-18 (1.2 MB, 77 files, last touched 2026-07-01). Test files
+carry comments like `Spec: .kiro/specs/supabase-rls-security-fixes`; that path no longer exists in
+`HEAD`. Recover one with
+`git show 9d885f7:.kiro/specs/<name>/requirements.md` — the content is in git history, not lost.
 
 ## Method
 
