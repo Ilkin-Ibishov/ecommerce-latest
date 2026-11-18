@@ -122,7 +122,11 @@ describe("M3a counter ledger", () => {
 
     const from = new Date(Date.now() - 3600_000).toISOString();
     const to = new Date(Date.now() + 3600_000).toISOString();
-    const { data: report, error: reportErr } = await db.rpc("get_margin_report", { p_start_date: from, p_end_date: to });
+    // Filter server-side: the shared test project can exceed PostgREST's 1000-row cap, and a
+    // client-side search past the cap misses rows (an absence check then passes vacuously).
+    const { data: report, error: reportErr } = await db
+      .rpc("get_margin_report", { p_start_date: from, p_end_date: to })
+      .eq("variant_id", v);
     expect(reportErr).toBeNull();
     expect((report ?? []).find((r: { variant_id: string }) => r.variant_id === v)).toBeUndefined();
   });
@@ -132,7 +136,9 @@ describe("M3a counter ledger", () => {
     await post(sale([{ variant_id: v, quantity: 3, price: 3.33 }]));
     const from = new Date(Date.now() - 3600_000).toISOString();
     const to = new Date(Date.now() + 3600_000).toISOString();
-    const { data: report, error: reportErr } = await db.rpc("get_margin_report", { p_start_date: from, p_end_date: to });
+    const { data: report, error: reportErr } = await db
+      .rpc("get_margin_report", { p_start_date: from, p_end_date: to })
+      .eq("variant_id", v);
     expect(reportErr).toBeNull();
     const row = (report ?? []).find((r: { variant_id: string }) => r.variant_id === v);
     expect(row).toMatchObject({ units_sold: 3, revenue: 9.99, unpriced_units_out: 0 });

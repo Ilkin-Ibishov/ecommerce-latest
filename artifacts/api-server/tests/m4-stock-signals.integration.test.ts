@@ -11,6 +11,10 @@ const BASE = `http://localhost:${process.env.PORT || "5000"}/api`;
 const db = createClient<Database>(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
   auth: { persistSession: false },
 });
+// Untyped service client for the signal RPCs, which the generated Database types do not list.
+const rpcDb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
+  auth: { persistSession: false },
+});
 
 let session: AuthSession;
 let actorId: string;
@@ -162,6 +166,12 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
 
     const res = await call("GET", "/admin/inventory/signals/reorder?windowDays=28&targetDays=60&minSales=3");
     expect(res.status).toBe(200);
+    const body = (await res.json()) as { suggestions: unknown };
+    expect(Array.isArray(body.suggestions)).toBe(true);
+
+    // The route has no variant filter and returns every candidate in the shared test project,
+    // past PostgREST's 1000-row cap. Read this test's two rows from the RPC the route calls,
+    // with the same arguments, filtered server-side (as test 3 does).
     interface ReorderItem {
       variant_id: string;
       has_enough_data: boolean;
@@ -170,7 +180,12 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
       units_sold_window: number;
       velocity: number;
     }
-    const { suggestions } = (await res.json()) as { suggestions: ReorderItem[] };
+    const { data: rows, error: rpcErr } = await rpcDb
+      .rpc("get_reorder_suggestions", { p_window_days: 28, p_target_days: 60, p_min_sales: 3 })
+      .in("variant_id", [vFew, vEnough]);
+    expect(rpcErr).toBeNull();
+    const suggestions = (rows ?? []) as ReorderItem[];
+    expect(suggestions).toHaveLength(2);
 
     const cand1 = suggestions.find((s) => s.variant_id === vFew);
     expect(cand1).toBeDefined();
