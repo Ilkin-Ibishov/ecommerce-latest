@@ -811,7 +811,6 @@ const az = {
         deliveryReceipt: "Çatdırılma Qaiməsi",
         notifTypeOrderConfirmed: "Sifariş təsdiqi",
         notifTypeStatusChanged: "Status dəyişikliyi",
-        notifTypeLowStock: "Az stok",
         sent: "Göndərildi",
       },
       Products: {

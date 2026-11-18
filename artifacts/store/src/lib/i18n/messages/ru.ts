@@ -815,7 +815,6 @@ const ru: MessageSchema = {
         deliveryReceipt: "Квитанция доставки",
         notifTypeOrderConfirmed: "Подтверждение заказа",
         notifTypeStatusChanged: "Изменение статуса",
-        notifTypeLowStock: "Низкий запас",
         sent: "Отправлено",
       },
       Products: {

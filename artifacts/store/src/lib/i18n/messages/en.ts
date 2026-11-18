@@ -937,7 +937,6 @@ const en: MessageSchema = {
         deliveryReceipt: "Delivery Receipt",
         notifTypeOrderConfirmed: "Order confirmation",
         notifTypeStatusChanged: "Status change",
-        notifTypeLowStock: "Low stock",
         sent: "Sent",
       },
       BulkBar: {
