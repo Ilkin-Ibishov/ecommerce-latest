@@ -3,10 +3,10 @@ import { Link } from "wouter";
 import { X, Minus, Plus, ShoppingBag, Trash2, Truck, Tag, ChevronDown, CheckCircle } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
 import { useI18n } from "@/lib/i18n/context";
+import { useSettings } from "@/lib/settings/context";
 import { apiUrl } from "@/lib/api";
 import { Shimmer } from "@/components/ui/shimmer";
 
-const FREE_DELIVERY_THRESHOLD = 100;
 const PROMO_STORAGE_KEY = "ilk_promo";
 
 interface CartDrawerProps {
@@ -49,9 +49,15 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
     return () => { document.body.style.overflow = ""; };
   }, [open]);
 
-  const deliveryProgress = Math.min(100, (subtotal / FREE_DELIVERY_THRESHOLD) * 100);
-  const remaining = Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal);
-  const freeDelivery = subtotal >= FREE_DELIVERY_THRESHOLD;
+  const { settings } = useSettings();
+  const threshold =
+    settings.delivery_fee_azn !== null && settings.free_delivery_threshold_azn !== null
+      ? Number(settings.free_delivery_threshold_azn)
+      : null;
+  const hasThreshold = threshold !== null && threshold > 0;
+  const progressPct = hasThreshold ? Math.min(100, (subtotal / threshold) * 100) : 0;
+  const remaining = hasThreshold ? Math.max(0, threshold - subtotal) : 0;
+  const freeDelivery = hasThreshold ? subtotal >= threshold : false;
   const discountAmount = promo?.discount_amount ?? 0;
   const total = Math.max(0, subtotal - discountAmount);
 
@@ -110,7 +116,7 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
         </div>
 
         {/* Free delivery progress bar */}
-        {items.length > 0 && (
+        {items.length > 0 && hasThreshold && threshold !== null && (
           <div className="px-5 py-3 bg-muted/40 border-b border-border">
             <div className="flex items-center justify-between text-xs mb-1.5">
               <span className="flex items-center gap-1 font-medium">
@@ -120,12 +126,12 @@ export default function CartDrawer({ open, onClose, locale }: CartDrawerProps) {
                   : <span><strong>{remaining.toFixed(2)} AZN</strong> {t("CartDrawer.addMoreForFreeDelivery")}</span>
                 }
               </span>
-              <span className="text-muted-foreground">{FREE_DELIVERY_THRESHOLD} AZN</span>
+              <span className="text-muted-foreground">{threshold} AZN</span>
             </div>
             <div className="w-full bg-border rounded-full h-2">
               <div
                 className={`h-2 rounded-full transition-all duration-500 ${freeDelivery ? "bg-green-500" : "bg-primary"}`}
-                style={{ width: `${deliveryProgress}%` }}
+                style={{ width: `${progressPct}%` }}
               />
             </div>
           </div>

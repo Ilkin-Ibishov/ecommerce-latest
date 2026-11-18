@@ -26,6 +26,8 @@ const VALID_FIELDS = [
   "working_hours",
   "footer_text",
   "allow_negative_stock",
+  "delivery_fee_azn",
+  "free_delivery_threshold_azn",
 ] as const;
 
 /**
@@ -154,6 +156,8 @@ const DEFAULT_SETTINGS = {
   working_hours: { az: "", ru: "", en: "" },
   footer_text: { az: "", ru: "", en: "" },
   allow_negative_stock: false,
+  delivery_fee_azn: null,
+  free_delivery_threshold_azn: null,
   created_at: null,
   updated_at: null,
 };
@@ -231,6 +235,26 @@ router.patch("/site-settings", requireAdmin, async (req, res): Promise<void> => 
   if ("allow_negative_stock" in updates) {
     if (typeof updates.allow_negative_stock !== "boolean") {
       allErrors.allow_negative_stock = "allow_negative_stock must be a boolean";
+    }
+  }
+
+  // Validate delivery_fee_azn if provided (non-negative, at most 2 decimals, or null)
+  if ("delivery_fee_azn" in updates) {
+    const val = updates.delivery_fee_azn;
+    if (val !== null) {
+      if (typeof val !== "number" || isNaN(val) || val < 0 || !/^\d+(\.\d{1,2})?$/.test(String(val))) {
+        allErrors.delivery_fee_azn = "delivery_fee_azn must be a non-negative number with at most 2 decimals, or null";
+      }
+    }
+  }
+
+  // Validate free_delivery_threshold_azn if provided (positive, at most 2 decimals, or null)
+  if ("free_delivery_threshold_azn" in updates) {
+    const val = updates.free_delivery_threshold_azn;
+    if (val !== null) {
+      if (typeof val !== "number" || isNaN(val) || val <= 0 || !/^\d+(\.\d{1,2})?$/.test(String(val))) {
+        allErrors.free_delivery_threshold_azn = "free_delivery_threshold_azn must be a positive number with at most 2 decimals, or null";
+      }
     }
   }
 

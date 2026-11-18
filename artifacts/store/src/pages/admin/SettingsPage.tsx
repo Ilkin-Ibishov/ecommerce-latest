@@ -5,12 +5,13 @@ import { hexToHsl, hslToHex } from "@/lib/settings/color-utils";
 import type { SiteSettings, ColorPalette } from "@/lib/settings/context";
 import TypographyTabComponent from "./settings/TypographyTab";
 import IdentityContactTab from "./settings/IdentityContactTab";
+import DeliveryTab from "./settings/DeliveryTab";
 import { validateSettings, getFirstErrorField, type ValidationErrors } from "./settings/validate-settings";
 import { useI18n } from "@/lib/i18n/context";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "branding" | "identity" | "typography";
+type Tab = "branding" | "identity" | "typography" | "delivery";
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -223,6 +224,7 @@ export default function AdminSettingsPage() {
         <TabButton active={activeTab === "branding"} label={t("Admin.Settings.tabBranding")} onClick={() => setActiveTab("branding")} />
         <TabButton active={activeTab === "identity"} label={t("Admin.Settings.tabIdentity")} onClick={() => setActiveTab("identity")} />
         <TabButton active={activeTab === "typography"} label={t("Admin.Settings.tabTypography")} onClick={() => setActiveTab("typography")} />
+        <TabButton active={activeTab === "delivery"} label={t("Admin.Settings.tabDelivery")} onClick={() => setActiveTab("delivery")} />
       </div>
 
       {/* Branding Tab */}
@@ -255,6 +257,14 @@ export default function AdminSettingsPage() {
       {/* Typography Tab */}
       {activeTab === "typography" && settings && (
         <TypographyTabComponent
+          settings={settings}
+          onChange={handleSettingsChange}
+        />
+      )}
+
+      {/* Delivery Tab */}
+      {activeTab === "delivery" && settings && (
+        <DeliveryTab
           settings={settings}
           onChange={handleSettingsChange}
         />

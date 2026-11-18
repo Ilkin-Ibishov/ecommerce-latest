@@ -1,15 +1,29 @@
 import { Truck, CreditCard, RotateCcw, ShieldCheck } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
+import { useSettings } from "@/lib/settings/context";
 
 export default function TrustBadges() {
   const { t } = useI18n();
+  const { settings } = useSettings();
+
+  const hasThreshold =
+    settings.delivery_fee_azn !== null &&
+    settings.free_delivery_threshold_azn !== null &&
+    Number(settings.free_delivery_threshold_azn) > 0;
 
   const badges = [
-    {
-      icon: Truck,
-      title: t("TrustBadges.freeDelivery"),
-      subtitle: t("TrustBadges.freeDeliverySubtitle"),
-    },
+    ...(hasThreshold
+      ? [
+          {
+            icon: Truck,
+            title: t("TrustBadges.freeDelivery"),
+            subtitle: t("TrustBadges.freeDeliverySubtitle").replace(
+              "{amount}",
+              String(settings.free_delivery_threshold_azn),
+            ),
+          },
+        ]
+      : []),
     {
       icon: CreditCard,
       title: t("TrustBadges.payOnDelivery"),

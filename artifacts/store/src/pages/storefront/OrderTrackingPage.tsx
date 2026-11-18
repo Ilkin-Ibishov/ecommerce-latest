@@ -28,6 +28,7 @@ interface OrderData {
   delivery_address: string;
   total_azn: number;
   discount_azn: number;
+  delivery_fee_azn?: number | null;
   created_at: string;
   order_items: OrderItem[];
   status_history: StatusHistoryEntry[];
@@ -257,6 +258,18 @@ export default function OrderTrackingPage({ locale, shortId }: OrderTrackingPage
             <span>-{formatCurrency(order.discount_azn)}</span>
           </div>
         )}
+
+        {/* Delivery line */}
+        <div className="flex items-center justify-between text-sm mt-3">
+          <span>{t("OrderTracking.delivery")}</span>
+          <span>
+            {order.delivery_fee_azn === null || order.delivery_fee_azn === undefined
+              ? t("OrderTracking.deliveryToldAtConfirmation")
+              : Number(order.delivery_fee_azn) === 0
+              ? t("OrderTracking.free")
+              : formatCurrency(Number(order.delivery_fee_azn))}
+          </span>
+        </div>
 
         {/* Order total */}
         <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">

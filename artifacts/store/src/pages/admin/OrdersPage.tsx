@@ -110,9 +110,16 @@ function OrdersListView({ status }: { status: string }) {
       header: t("Admin.Orders.columnStatus"),
       align: "left",
       cell: (o) => (
-        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[o.status] ?? "bg-muted text-muted-foreground"}`}>
-          {STATUS_KEYS[o.status] ? t(STATUS_KEYS[o.status]) : String(o.status).replace(/_/g, " ")}
-        </span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[o.status] ?? "bg-muted text-muted-foreground"}`}>
+            {STATUS_KEYS[o.status] ? t(STATUS_KEYS[o.status]) : String(o.status).replace(/_/g, " ")}
+          </span>
+          {o.delivery_fee_azn === null && o.status !== "pending" && (
+            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/20 text-amber-600 dark:text-amber-400">
+              {t("Admin.Orders.feeNotSet")}
+            </span>
+          )}
+        </div>
       ),
     },
     {

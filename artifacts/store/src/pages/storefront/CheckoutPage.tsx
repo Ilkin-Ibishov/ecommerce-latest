@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { Link } from "wouter";
 import { Trash2, Tag, CheckCircle, ShoppingBag } from "lucide-react";
 import { useCart } from "@/lib/cart/context";
+import { useSettings } from "@/lib/settings/context";
+import { quoteDelivery, goodsTotal, orderTotal } from "@workspace/order-pricing";
 import { createClient } from "@/lib/supabase/client";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { apiUrl } from "@/lib/api";
@@ -32,6 +34,7 @@ export default function CheckoutPage({ locale }: { locale: string }) {
   const { items, subtotal, removeItem, clearCart, updateQty, setPrice } = useCart();
   const supabase = createClient();
   const { profile } = useProfile();
+  const { settings } = useSettings();
   const { t } = useI18n();
 
   const [user, setUser] = useState<any>(null);
@@ -137,7 +140,12 @@ export default function CheckoutPage({ locale }: { locale: string }) {
   }, []);
 
   const discountAmount = coupon?.discount_amount ?? 0;
-  const total = Math.max(0, subtotal - discountAmount);
+  const goodsAmt = goodsTotal(subtotal, discountAmount);
+  const deliveryQuote = quoteDelivery(subtotal, {
+    delivery_fee_azn: settings.delivery_fee_azn,
+    free_delivery_threshold_azn: settings.free_delivery_threshold_azn,
+  });
+  const total = deliveryQuote !== null ? orderTotal(subtotal, discountAmount, deliveryQuote.fee) : goodsAmt;
 
   const applyCoupon = async (code?: string) => {
     const codeToApply = (code ?? couponCode).trim();
@@ -193,7 +201,8 @@ export default function CheckoutPage({ locale }: { locale: string }) {
           items: items.map((i) => ({ product_id: i.product_id, quantity: i.quantity })),
           ...form,
           coupon_code: coupon ? couponCode : undefined,
-          displayed_total: total,
+          displayed_total: goodsAmt,
+          displayed_delivery_fee: deliveryQuote !== null ? deliveryQuote.fee : undefined,
         }),
       });
       const data = await res.json();
@@ -314,7 +323,11 @@ export default function CheckoutPage({ locale }: { locale: string }) {
 
           <button type="submit" disabled={loading}
             className="w-full bg-primary text-primary-foreground font-bold py-4 rounded-xl hover:bg-primary/90 transition disabled:opacity-60 text-lg">
-            {loading ? t("Checkout.placingOrder") : `${t("Checkout.placeOrder")} · ${total.toFixed(2)} AZN`}
+            {loading
+              ? t("Checkout.placingOrder")
+              : deliveryQuote === null
+              ? `${t("Checkout.goodsTotal")} · ${goodsAmt.toFixed(2)} AZN`
+              : `${t("Checkout.placeOrder")} · ${total.toFixed(2)} AZN`}
           </button>
           <p className="text-xs text-center text-muted-foreground">{t("Checkout.cashPayment")}</p>
         </form>
@@ -345,11 +358,28 @@ export default function CheckoutPage({ locale }: { locale: string }) {
             <div className="border-t border-border mt-4 pt-4 space-y-2">
               <div className="flex justify-between text-sm"><span>{t("Checkout.subtotal")}</span><span>{subtotal.toFixed(2)} AZN</span></div>
               {coupon && <div className="flex justify-between text-sm text-green-600"><span>{t("Checkout.discount")}</span><span>-{discountAmount.toFixed(2)} AZN</span></div>}
-              <div className="flex justify-between text-sm"><span>{t("Checkout.delivery")}</span><span className="text-green-600">{t("Checkout.free")}</span></div>
+              <div className="flex justify-between text-sm">
+                <span>{t("Checkout.delivery")}</span>
+                <span>
+                  {deliveryQuote === null ? (
+                    <span className="text-muted-foreground">{t("Checkout.deliveryToldAtConfirmation")}</span>
+                  ) : deliveryQuote.fee === 0 ? (
+                    <span className="text-green-600">{t("Checkout.free")}</span>
+                  ) : (
+                    <span>{deliveryQuote.fee.toFixed(2)} AZN</span>
+                  )}
+                </span>
+              </div>
               <div className="flex justify-between font-bold text-lg border-t border-border pt-3 mt-1">
-                <span>{t("Checkout.total")}</span><span className="text-primary">{total.toFixed(2)} AZN</span>
+                <span>{deliveryQuote === null ? t("Checkout.goodsTotal") : t("Checkout.total")}</span>
+                <span className="text-primary">{(deliveryQuote === null ? goodsAmt : total).toFixed(2)} AZN</span>
               </div>
             </div>
+            {deliveryQuote === null && (
+              <p className="text-xs text-muted-foreground mt-3 pt-3 border-t border-border">
+                {t("Checkout.deliveryExplanation")}
+              </p>
+            )}
           </div>
         </div>
       </div>

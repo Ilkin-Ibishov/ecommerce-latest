@@ -19,7 +19,7 @@ router.get("/admin/orders/export", requireAdmin, async (req, res) => {
   const { status, from, to } = req.query as Record<string, string>;
   let query = (ctx.admin as any)
     .from("orders")
-    .select("id, status, total_azn, discount_azn, customer_name, customer_phone, delivery_address, notes, created_at")
+    .select("id, status, total_azn, discount_azn, delivery_fee_azn, customer_name, customer_phone, delivery_address, notes, created_at")
     .order("created_at", { ascending: false });
   if (status) query = query.eq("status", status);
   if (from) query = query.gte("created_at", new Date(from).toISOString());
@@ -27,7 +27,7 @@ router.get("/admin/orders/export", requireAdmin, async (req, res) => {
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: error.message });
   const orders: any[] = data ?? [];
-  const headers = ["Order ID", "Status", "Customer Name", "Phone", "Address", "Notes", "Total (AZN)", "Discount (AZN)", "Date"];
+  const headers = ["Order ID", "Status", "Customer Name", "Phone", "Address", "Notes", "Total (AZN)", "Discount (AZN)", "Delivery (AZN)", "Date"];
   const rows = orders.map((o: any) => [
     o.id.slice(0, 8).toUpperCase(),
     o.status,
@@ -37,6 +37,7 @@ router.get("/admin/orders/export", requireAdmin, async (req, res) => {
     `"${(o.notes ?? "").replace(/"/g, '""')}"`,
     Number(o.total_azn).toFixed(2),
     Number(o.discount_azn ?? 0).toFixed(2),
+    o.delivery_fee_azn == null ? "" : Number(o.delivery_fee_azn).toFixed(2),
     new Date(o.created_at).toLocaleString("az-AZ"),
   ]);
   const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");

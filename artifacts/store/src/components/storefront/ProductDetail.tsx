@@ -3,6 +3,7 @@ import { Minus, Plus, MessageSquare, Send, Star, ZoomIn, Ruler } from "lucide-re
 import { useQuery } from "@tanstack/react-query";
 import { useCart } from "@/lib/cart/context";
 import { useI18n } from "@/lib/i18n/context";
+import { useSettings } from "@/lib/settings/context";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
 import { getTranslatedField } from "@/lib/utils";
@@ -31,6 +32,7 @@ interface Props {
 const INSTALLMENT_MONTHS = 12;
 
 export default function ProductDetail({ product, images, translation, comments: initialComments, locale, specs, related }: Props) {
+  const { settings } = useSettings();
   const [mainImage, setMainImage] = useState(images[0] ?? null);
   const [mainImageIdx, setMainImageIdx] = useState(0);
   const [qty, setQty] = useState(1);
@@ -302,7 +304,16 @@ export default function ProductDetail({ product, images, translation, comments: 
           <div className="bg-secondary rounded-xl p-4 text-sm space-y-1.5">
             <p className="font-medium">{t("ProductDetail.payOnDelivery")}</p>
             <p className="text-muted-foreground">{t("ProductDetail.payOnDeliveryDesc")}</p>
-            <p className="font-medium mt-1">{t("ProductDetail.freeDeliveryOver")}</p>
+            {settings.delivery_fee_azn !== null &&
+              settings.free_delivery_threshold_azn !== null &&
+              Number(settings.free_delivery_threshold_azn) > 0 && (
+                <p className="font-medium mt-1">
+                  {t("ProductDetail.freeDeliveryOver").replace(
+                    "{amount}",
+                    String(settings.free_delivery_threshold_azn),
+                  )}
+                </p>
+              )}
           </div>
 
           {/* Description */}

@@ -47,6 +47,8 @@ export interface SiteSettings {
   contact: ContactInfo;
   working_hours: Record<string, string>;
   footer_text: Record<string, string>;
+  delivery_fee_azn: number | null;
+  free_delivery_threshold_azn: number | null;
   updated_at: string;
 }
 
@@ -69,6 +71,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   contact: { phone: "", email: "", address: "", social_links: {} },
   working_hours: { az: "", ru: "", en: "" },
   footer_text: { az: "", ru: "", en: "" },
+  delivery_fee_azn: null,
+  free_delivery_threshold_azn: null,
   updated_at: "",
 };
 

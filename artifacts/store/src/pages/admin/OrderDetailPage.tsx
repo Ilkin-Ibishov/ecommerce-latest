@@ -61,6 +61,11 @@ export default function OrderDetailPage({ id }: { id: string }) {
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState("");
 
+  // Delivery fee state
+  const [deliveryFeeInput, setDeliveryFeeInput] = useState("");
+  const [feeSaving, setFeeSaving] = useState(false);
+  const [feeSaved, setFeeSaved] = useState(false);
+
   // Admin notes state
   const [adminNotes, setAdminNotes] = useState("");
   const [notesSaving, setNotesSaving] = useState(false);
@@ -91,6 +96,11 @@ export default function OrderDetailPage({ id }: { id: string }) {
       .then(({ data }) => {
         setOrder(data);
         setNewStatus(data?.status ?? "");
+        setDeliveryFeeInput(
+          data?.delivery_fee_azn !== null && data?.delivery_fee_azn !== undefined
+            ? String(data.delivery_fee_azn)
+            : ""
+        );
         setAdminNotes(data?.admin_notes ?? "");
         setLoading(false);
       });
@@ -102,7 +112,7 @@ export default function OrderDetailPage({ id }: { id: string }) {
       .then((r) => r.ok ? r.json() : [])
       .then(setNotifications)
       .catch(() => {});
-  }, [id, saved]);
+  }, [id, saved, feeSaved]);
 
   const handleSaveStatus = async () => {
     if (newStatus === order.status) return;
@@ -112,11 +122,16 @@ export default function OrderDetailPage({ id }: { id: string }) {
         method: "PATCH",
         body: JSON.stringify({ status: newStatus }),
       });
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
         setError(data.error ?? t("Admin.OrderDetail.failedToUpdate"));
       } else {
-        setOrder((prev: any) => ({ ...prev, status: newStatus }));
+        setOrder((prev: any) => ({
+          ...prev,
+          status: newStatus,
+          delivery_fee_azn: data.delivery_fee !== undefined ? data.delivery_fee : prev.delivery_fee_azn,
+          total_azn: data.total !== undefined ? data.total : prev.total_azn,
+        }));
         setSaved(true);
         setTimeout(() => setSaved(false), 2000);
       }
@@ -124,6 +139,33 @@ export default function OrderDetailPage({ id }: { id: string }) {
       setError(t("Admin.Common.networkError"));
     }
     setSaving(false);
+  };
+
+  const handleSaveFee = async () => {
+    if (deliveryFeeInput.trim() === "") return;
+    setFeeSaving(true);
+    setError("");
+    try {
+      const res = await adminFetch(apiUrl(`/admin/orders/${id}/status`), {
+        method: "PATCH",
+        body: JSON.stringify({ delivery_fee_azn: deliveryFeeInput.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? t("Admin.OrderDetail.failedToUpdate"));
+      } else {
+        setOrder((prev: any) => ({
+          ...prev,
+          delivery_fee_azn: data.delivery_fee !== undefined ? data.delivery_fee : Number(deliveryFeeInput),
+          total_azn: data.total !== undefined ? data.total : prev.total_azn,
+        }));
+        setFeeSaved(true);
+        setTimeout(() => setFeeSaved(false), 2000);
+      }
+    } catch {
+      setError(t("Admin.Common.networkError"));
+    }
+    setFeeSaving(false);
   };
 
   const handleSaveNotes = async () => {
@@ -208,6 +250,16 @@ export default function OrderDetailPage({ id }: { id: string }) {
             {Number(order.discount_azn) > 0 && (
               <p><span className="text-muted-foreground">{t("Admin.OrderDetail.fieldDiscount")}</span> -{Number(order.discount_azn).toFixed(2)} AZN {order.coupons?.code && `(${order.coupons.code})`}</p>
             )}
+            <p>
+              <span className="text-muted-foreground">{t("Admin.OrderDetail.fieldDelivery")}</span>{" "}
+              {order.delivery_fee_azn === null || order.delivery_fee_azn === undefined ? (
+                <span className="text-amber-500 font-medium">{t("Admin.OrderDetail.deliveryNotSet")}</span>
+              ) : Number(order.delivery_fee_azn) === 0 ? (
+                t("Admin.OrderDetail.free")
+              ) : (
+                `${Number(order.delivery_fee_azn).toFixed(2)} AZN`
+              )}
+            </p>
             <p className="font-bold"><span className="text-muted-foreground font-normal">{t("Admin.OrderDetail.fieldTotal")}</span> {Number(order.total_azn).toFixed(2)} AZN</p>
           </div>
         </div>
@@ -228,14 +280,39 @@ export default function OrderDetailPage({ id }: { id: string }) {
         </div>
       </div>
 
-      {/* Update Status — hidden on print */}
-      <div className="bg-card border border-border rounded-xl p-5 space-y-3 no-print">
+      {/* Update Delivery Fee & Status — hidden on print */}
+      <div className="bg-card border border-border rounded-xl p-5 space-y-4 no-print">
         <h2 className="font-semibold text-sm">{t("Admin.OrderDetail.sectionUpdateStatus")}</h2>
         {newStatus === "cancelled" && order.status !== "cancelled" && (
           <div className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-2 rounded-lg">
             ⚠ {t("Admin.OrderDetail.cancelWarning")}
           </div>
         )}
+
+        {/* Set delivery fee */}
+        <div className="flex gap-3 items-center flex-wrap pb-3 border-b border-border">
+          <label className="text-xs font-medium text-muted-foreground min-w-[120px]">
+            {t("Admin.OrderDetail.fieldDelivery")}
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={deliveryFeeInput}
+            onChange={(e) => setDeliveryFeeInput(e.target.value)}
+            placeholder="0.00"
+            className="px-3 py-2 rounded-lg border border-border bg-background text-sm w-32 focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button
+            onClick={handleSaveFee}
+            disabled={feeSaving || deliveryFeeInput.trim() === ""}
+            className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg text-sm font-medium hover:bg-secondary/80 transition disabled:opacity-50"
+          >
+            {feeSaving ? t("Admin.Common.saving") : feeSaved ? t("Admin.OrderDetail.saved") : t("Admin.OrderDetail.setFee")}
+          </button>
+        </div>
+
+        {/* Status update */}
         <div className="flex gap-3 flex-wrap">
           <select value={newStatus} onChange={(e) => setNewStatus(e.target.value)}
             className="px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring">

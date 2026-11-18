@@ -88,10 +88,10 @@ router.get(
       return;
     }
 
-    // revenue_total: sum of orders.total_azn for same range
+    // revenue_total: sum of goods revenue (subtotal_azn - discount_azn) for same range
     const { data: revenueRows, error: revenueError } = await db
       .from("orders")
-      .select("total_azn")
+      .select("subtotal_azn, discount_azn")
       .gte("created_at", from)
       .lte("created_at", to);
 
@@ -102,7 +102,7 @@ router.get(
     }
 
     const revenueSum = (revenueRows ?? []).reduce(
-      (acc, row) => acc + (Number(row.total_azn) || 0),
+      (acc, row) => acc + (Number(row.subtotal_azn) - Number(row.discount_azn || 0)),
       0,
     );
     const revenueTotal = revenueSum.toFixed(2);

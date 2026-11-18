@@ -1,7 +1,7 @@
 const DELIVERY_CONTENT: Record<string, { title: string; points: string[] }> = {
-  az: { title: "Çatdırılma Məlumatı", points: ["Çatdırılma yalnız Azərbaycan ərazisini əhatə edir.", "Çatdırılma müddəti: adətən 1-3 iş günü.", "Ödəniş çatdırılma zamanı nağd şəkildə həyata keçirilir (AZN).", "Minimum sifariş məbləği yoxdur.", "Çatdırılma haqqı sabit tariflə hesablanır.", "Sifarişin statusunu WhatsApp vasitəsilə izləmək olar."] },
-  ru: { title: "Информация о доставке", points: ["Доставка осуществляется только по территории Азербайджана.", "Срок доставки: обычно 1-3 рабочих дня.", "Оплата производится наличными при доставке (AZN).", "Минимальная сумма заказа отсутствует.", "Стоимость доставки рассчитывается по фиксированному тарифу.", "Статус заказа можно отслеживать через WhatsApp."] },
-  en: { title: "Delivery Information", points: ["Delivery covers Azerbaijan territory only.", "Delivery time: usually 1-3 business days.", "Payment is made in cash upon delivery (AZN).", "No minimum order amount.", "Delivery fee is calculated at a flat rate.", "Order status can be tracked via WhatsApp."] },
+  az: { title: "Çatdırılma Məlumatı", points: ["Çatdırılma yalnız Azərbaycan ərazisini əhatə edir.", "Çatdırılma müddəti: adətən 1-3 iş günü.", "Ödəniş çatdırılma zamanı nağd şəkildə həyata keçirilir (AZN).", "Minimum sifariş məbləği yoxdur.", "Sifarişin statusunu WhatsApp vasitəsilə izləmək olar."] },
+  ru: { title: "Информация о доставке", points: ["Доставка осуществляется только по территории Азербайджана.", "Срок доставки: обычно 1-3 рабочих дня.", "Оплата производится наличными при доставке (AZN).", "Минимальная сумма заказа отсутствует.", "Статус заказа можно отслеживать через WhatsApp."] },
+  en: { title: "Delivery Information", points: ["Delivery covers Azerbaijan territory only.", "Delivery time: usually 1-3 business days.", "Payment is made in cash upon delivery (AZN).", "No minimum order amount.", "Order status can be tracked via WhatsApp."] },
 };
 
 const RETURNS_CONTENT: Record<string, { title: string; points: string[] }> = {

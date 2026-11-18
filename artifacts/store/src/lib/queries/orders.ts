@@ -4,7 +4,7 @@ import type { Database, Tables } from "@workspace/supabase-types";
 // The orders list select string, reproduced exactly from the inline admin query
 // so the returned column set is unchanged.
 const ORDERS_SELECT =
-  "id, status, total_azn, discount_azn, customer_name, customer_phone, delivery_address, created_at";
+  "id, status, total_azn, discount_azn, customer_name, customer_phone, delivery_address, delivery_fee_azn, created_at";
 
 /**
  * An order row as selected by the admin orders list — the subset of columns the
@@ -19,6 +19,7 @@ export type OrderRow = Pick<
   | "customer_name"
   | "customer_phone"
   | "delivery_address"
+  | "delivery_fee_azn"
   | "created_at"
 >;
 

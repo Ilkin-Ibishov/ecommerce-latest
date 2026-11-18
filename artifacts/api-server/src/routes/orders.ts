@@ -332,7 +332,7 @@ router.get("/profile/orders/:id", requireUser, async (req, res) => {
   // Fetch order — support full UUID (36 chars) or short ID (prefix match)
   let orderQuery = admin
     .from("orders")
-    .select("id, status, customer_name, customer_phone, delivery_address, total_azn, discount_azn, created_at, user_id");
+    .select("id, status, customer_name, customer_phone, delivery_address, total_azn, discount_azn, subtotal_azn, delivery_fee_azn, created_at, user_id");
 
   if (id.length === 36) {
     orderQuery = orderQuery.eq("id", id);
@@ -379,6 +379,8 @@ router.get("/profile/orders/:id", requireUser, async (req, res) => {
     delivery_address: order.delivery_address,
     total_azn: order.total_azn,
     discount_azn: order.discount_azn,
+    subtotal_azn: order.subtotal_azn,
+    delivery_fee_azn: order.delivery_fee_azn,
     created_at: order.created_at,
     order_items,
     status_history: history ?? [],

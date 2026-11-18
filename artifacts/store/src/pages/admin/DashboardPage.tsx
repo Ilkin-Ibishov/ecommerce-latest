@@ -107,10 +107,10 @@ export default function DashboardPage() {
       lowStockRes,
     ] = await Promise.all([
       // Orders in selected range
-      supabase.from("orders").select("id, status, total_azn, created_at")
+      supabase.from("orders").select("id, status, subtotal_azn, discount_azn, created_at")
         .gte("created_at", fromISO).lte("created_at", toISO),
       // Orders in comparison range
-      supabase.from("orders").select("id, status, total_azn, created_at")
+      supabase.from("orders").select("id, status, subtotal_azn, discount_azn, created_at")
         .gte("created_at", compareFromISO).lte("created_at", compareToISO),
       // Recent orders (last 10 — always latest regardless of range)
       supabase.from("orders")
@@ -119,7 +119,7 @@ export default function DashboardPage() {
       // All orders for status breakdown (all-time)
       supabase.from("orders").select("status"),
       // Orders in range for daily chart
-      supabase.from("orders").select("total_azn, created_at")
+      supabase.from("orders").select("subtotal_azn, discount_azn, created_at")
         .gte("created_at", fromISO).lte("created_at", toISO)
         .order("created_at", { ascending: true }),
       // New customers in range
@@ -149,8 +149,8 @@ export default function DashboardPage() {
     const thisOrders = ordersThisRes.data ?? [];
     const prevOrders = ordersPrevRes.data ?? [];
 
-    const revCur = thisOrders.reduce((s, o) => s + Number(o.total_azn), 0);
-    const revPrev = prevOrders.reduce((s, o) => s + Number(o.total_azn), 0);
+    const revCur = thisOrders.reduce((s, o) => s + (Number(o.subtotal_azn) - Number(o.discount_azn || 0)), 0);
+    const revPrev = prevOrders.reduce((s, o) => s + (Number(o.subtotal_azn) - Number(o.discount_azn || 0)), 0);
     const ordCur = thisOrders.length;
     const ordPrev = prevOrders.length;
     const aovCur = ordCur > 0 ? revCur / ordCur : 0;
@@ -191,7 +191,7 @@ export default function DashboardPage() {
     for (const o of rangeOrders) {
       const d = new Date(o.created_at);
       const key = `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
-      byDate.set(key, (byDate.get(key) ?? 0) + Number(o.total_azn));
+      byDate.set(key, (byDate.get(key) ?? 0) + (Number(o.subtotal_azn) - Number(o.discount_azn || 0)));
     }
     setDailyRevenue(Array.from(byDate.entries()).map(([date, revenue]) => ({ date, revenue })));
 
