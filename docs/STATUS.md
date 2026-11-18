@@ -32,14 +32,10 @@ mechanics to the architect; product decisions stay the owner's.
    yes for this phase's migrations was given 2026-11-18), open the PR, get CI green, merge, and run a
    clean-context adversarial audit (spec + diff + invariants only — it found 2 majors in staff
    provisioning *after* merge).
-2. **Delivery cost** — `phase/delivery-cost`, AGY round 1 (resumed once). **Check first whether it
-   is still running:** it ran in `…\scratchpad\wt-delivery` of the session that started it, a temp
-   folder the next session may not have. If `.agent-runs/LAST-RUN.done` is not reachable, treat the
-   pushed branch as the state: commits for migrations (4), `lib/order-pricing`, order creation;
-   items 4–7 of `prompts/delivery-cost.md` (confirmation route + WhatsApp, screens, invariants,
-   tests) were in progress with **uncommitted** edits to `lib/notifications.ts`, `lib/whatsapp.ts`,
-   `routes/admin/orders.ts` at handoff. Resume with a prompt like `prompts/delivery-cost-resume.md`
-   naming what is done. Then accept, apply its four `20261118140*` migrations, PR, merge, audit.
+2. **Accept delivery cost** — `phase/delivery-cost` at `dc6e312`, AGY round 1 (resumed once) finished
+   with exit 0, every item committed and pushed; builder's notes `docs/audits/delivery-cost-notes.md`,
+   unchecked. Accept it the same way, apply its four `supabase/migrations/20261118140*` migrations,
+   PR, merge, audit. Read every new test closely (see `docs/agent-workflow.md` operational notes).
    Merge M4b first; both edit the three dictionaries.
 
 ### What this session put on `main` (#21–#34)
