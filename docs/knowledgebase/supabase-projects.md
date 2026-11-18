@@ -34,8 +34,10 @@ it since 2026-11-10 (run 42864949947).
   project a "production" branch even when nothing else distinguishes it). Don't let that label
   alone stop test/CI use, but do treat it as the thing `AGENTS.md`'s "never migrate against
   production" rule is about — see the harness-restrictions note below.
-- Has real seed data used by tests: `test-product-1/2/3` (slugs), each with real in-stock variants
-  and `az`+`en` `product_translations` rows as of 2026-11-10. Without variants the
+- Seed data used by tests: `test-product-1/2/3` (slugs, upserted by `scripts/seed-test-data.ts`
+  every CI run, with `az`+`en` translations). **Only `test-product-1` has a variant** (checked
+  2026-11-18); `-2` and `-3` have none, and the seed script creates no variants. Tests that need
+  stock must name `test-product-1`, never "any `test-product-%`". Without a variant the
   storefront's add-to-cart button never renders.
 - Integration runs leave permanent orphan products by design — see
   `docs/knowledgebase/ci-testing-gotchas.md`.
