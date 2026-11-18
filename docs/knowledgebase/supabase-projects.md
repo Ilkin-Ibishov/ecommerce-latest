@@ -117,6 +117,13 @@ Consequences to keep in mind:
   app away from a developer's machine — a customer demo, or M3's till on the shop's own device.
   If one is created, the OTP test bypass (`+994550000001` / `999999`, an admin on this project) must
   be off there, or anyone with the URL can sign in as admin.
+- **The OTP bypass is kept on purpose in the test environment** (owner, 2026-11-18): E2E and
+  manual testing sign in with it. It **must never reach production.** Today `lib/otp.ts` accepts
+  it "in any environment" and exempts those phones from rate limits. The ready fix is branch
+  `fix/otp-bypass-production` (`fef34e1`, unmerged): it turns both off where
+  `NODE_ENV=production` and leaves the test environment as it is. **Production launch gate:**
+  rebase and merge that branch (or an equivalent) and run the production API with
+  `NODE_ENV=production` before the first production deploy.
 - Product data imported now goes into `ecommerce-warehouse`, so the import script must be re-runnable
   against the future production project.
 
