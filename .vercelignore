@@ -1,0 +1,14 @@
+node_modules
+.git
+.github
+.agents
+tmp
+coverage
+docs
+playwright-report
+test-results
+*.png
+*.jpg
+*.jpeg
+*.mp4
+*.webm

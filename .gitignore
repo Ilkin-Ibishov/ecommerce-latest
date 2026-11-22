@@ -81,3 +81,4 @@ ltm/reports/*
 ltm/snapshots/*
 # --- /ltm-power ---
 supabase/.temp/ 
+.vercel
