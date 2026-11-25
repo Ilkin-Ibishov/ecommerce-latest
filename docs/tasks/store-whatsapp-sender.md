@@ -1,6 +1,6 @@
 # The shop's own WhatsApp number, set from the admin screen
 
-Status: deferred — backlog (owner request, 2026-11-25). Starts after the auth-hardening slice S1; owner decisions in §9 first.
+Status: deferred — backlog (owner request, 2026-11-25). Starts after the auth-hardening slice S1; owner decisions taken (§9).
 
 Spec, 2026-11-25. Written by the architect.
 
@@ -109,14 +109,13 @@ rejects (mocked) stores nothing; `GET` after `PUT` never contains the token; Pos
 authenticated keys cannot select from `messaging_credentials`; the test route sends only to the
 caller's phone and ignores a `phone` in the body.
 
-## 9. Owner decisions needed before launch
+## 9. Owner decisions — taken 2026-11-25
 
-1. **Whose UltraMsg account?** Recommendation: each shop owner opens and pays for his own UltraMsg
-   instance, so the number, the bill and the ban risk are his. The alternative (the platform pays and
-   resells) makes you responsible for every shop's WhatsApp number.
-2. **A dedicated number, not the owner's personal one.** UltraMsg drives WhatsApp Web; it is not
-   Meta's official API, and WhatsApp can ban numbers that send automated messages. The help text will
-   say "use a separate business number". Confirm you want that wording shown to owners.
+1. **Each shop owner opens and pays for his own UltraMsg instance.** The number, the bill and the ban
+   risk are his; the platform does not resell WhatsApp sending.
+2. **A dedicated business number, not a personal one.** UltraMsg drives WhatsApp Web; it is not Meta's
+   official API, and WhatsApp can ban numbers that send automated messages. The settings help text says
+   so in all three languages: use a separate business number.
 
 ## 10. Not in this phase
 

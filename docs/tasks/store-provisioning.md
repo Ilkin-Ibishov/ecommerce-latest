@@ -1,6 +1,6 @@
 # One command creates a new store
 
-Status: deferred — backlog (owner request, 2026-11-25). Hard prerequisite: the reproducible-database work (auth-hardening slice S3). Owner decisions in §10 first.
+Status: deferred — backlog (owner request, 2026-11-25). Hard prerequisite: the reproducible-database work (auth-hardening slice S3). Owner decisions taken (§10).
 
 Spec, 2026-11-25. Written by the architect.
 
@@ -139,18 +139,29 @@ the notes, then deleted by hand. Never in CI on every push (it creates billable 
 | Shared multi-tenancy (`store_id` columns) | Roadmap item 26: about 8–10 stores |
 | Custom domain purchase and DNS automation | Owners stop bringing their own domain |
 
-## 10. Owner decisions needed before launch
+## 10. Owner decisions — taken 2026-11-25
 
-1. **Supabase plan and org.** Each store is a Supabase project; on Pro the plan fee is per organization and
-   compute is billed per project (about $10/month for the smallest size, the first one covered by the
-   plan's credit). Confirm one organization for all stores, on Pro.
-2. **Region.** The current test project is in `ap-south-1` (Mumbai). For shops in Azerbaijan an EU region
-   (e.g. Frankfurt) is likely closer. Pick one default.
-3. **Who owns the accounts.** Recommendation: the platform (you) owns Supabase, Railway and Vercel for
-   every store and charges a monthly fee that covers them; the shop owner owns only his domain and his
-   WhatsApp number. Confirm, because it decides what the monthly price must cover.
-4. **Hosting plans.** Check that the Railway and Vercel plans you use allow commercial use and several
-   projects; their current terms were not verified for this spec.
+1. **One Supabase organization for all stores, on Pro.** The plan fee is per organization; compute is
+   billed per project (about $10/month for the smallest size, the first covered by the plan's credit).
+2. **Default region: EU, Frankfurt (`eu-central-1`).** It is closer to Azerbaijan than the test project's
+   `ap-south-1` (Mumbai). `--region` stays an input, defaulting to this.
+3. **The platform owns the provider accounts.** Supabase, Railway and Vercel are the platform owner's,
+   for every store; the monthly store fee covers them. The shop owner owns only his domain and his
+   WhatsApp number.
+4. **Hosting plans: Pro on both Vercel and Railway** (checked 2026-11-25):
+   - Vercel Hobby is restricted to non-commercial personal use; commercial use requires Pro or
+     Enterprise (vercel.com/docs/limits/fair-use-guidelines). Store storefronts are commercial, so
+     Vercel Pro.
+   - Railway positions Hobby for personal projects and Pro ($20/month per workspace) for production;
+     its FAQ recommends Pro for commercial applications. Railway Pro. Project count is not a
+     constraint on either Pro plan.
+   - Consequence the CLI must respect: every store is created in the platform's Pro team/workspace,
+     never in a personal Hobby scope. `--dry-run` checks the plan of the target team and refuses a
+     Hobby one.
+
+**Cost floor this implies** (list prices, before usage): Supabase Pro $25 + Vercel Pro $20 + Railway
+Pro $20 ≈ $65/month for the platform, then roughly +$10/month Supabase compute and a few dollars of
+Railway usage per additional store. The store price has to cover this from the first paying store.
 
 ## 11. Definition of done
 
@@ -163,6 +174,6 @@ changes nothing. A run interrupted after step 3 completes on re-run.
 
 The exact Supabase Management, Railway and Vercel API endpoints and their rate limits. Whether Supabase's
 auth settings for sign-ups and the phone provider are all settable through the Management API (if one is
-not, the CLI must stop and print the single manual step, not skip it silently). Current Railway and
-Vercel pricing and terms. Whether the platform console pages in the storefront bundle need
+not, the CLI must stop and print the single manual step, not skip it silently). Railway and Vercel
+terms were read from their public docs on 2026-11-25, not from a contract; recheck at launch. Whether the platform console pages in the storefront bundle need
 `VITE_CONTROL_PLANE_*` at build time; if they do, store builds must exclude those pages.
