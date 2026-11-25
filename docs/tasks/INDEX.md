@@ -4,7 +4,7 @@
 
 Specs. Architect-owned: agents read them, never edit them. Each carries a `Status:` line under its title (active | deferred); a shipped spec moves to docs/archive/tasks/.
 
-12 files. The subject column is the file's own first sentence, so a
+13 files. The subject column is the file's own first sentence, so a
 file that opens with a banner reads as one — fix the file, not the index.
 
 | File | Status | Title | Subject | Size |
@@ -18,6 +18,7 @@ file that opens with a banner reads as one — fix the file, not the index.
 | [`product-comparison.md`](product-comparison.md) | deferred | Product Comparison Tool | Major Azerbaijani electronics competitors (Kontakt, Texnomart) all have product comparison. | 3 KB |
 | [`seo-optimization.md`](seo-optimization.md) | deferred | SEO & Open Graph Optimization | The store currently has no per-page meta tags, no structured data, and no sitemap. | 3 KB |
 | [`staff-provisioning.md`](staff-provisioning.md) | active | Staff provisioning: the owner gives a person a role | Spec, 2026-11-15. Written by the architect. | 10 KB |
+| [`store-provisioning.md`](store-provisioning.md) | deferred | One command creates a new store | Spec, 2026-11-25. Written by the architect. | 12 KB |
 | [`store-whatsapp-sender.md`](store-whatsapp-sender.md) | deferred | The shop's own WhatsApp number, set from the admin screen | Spec, 2026-11-25. Written by the architect. | 9 KB |
 | [`telegram-staff-otp.md`](telegram-staff-otp.md) | deferred | Staff and owner sign-in codes through Telegram | Spec, 2026-11-25. Written by the architect. | 9 KB |
 | [`warehouse-roadmap.md`](warehouse-roadmap.md) | active | Warehouse roadmap — what remains after M3a | Written 2026-11-13, after the §16 answers closed M3b and the assembly question. | 5 KB |
