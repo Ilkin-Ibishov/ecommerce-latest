@@ -1,8 +1,7 @@
 import { useState, useRef } from "react";
 import { Barcode, Plus } from "lucide-react";
 import { useI18n } from "@/lib/i18n/context";
-import { adminJson } from "@/lib/admin-fetch";
-import { apiUrl } from "@/lib/api";
+import { scanBarcode } from "@/lib/barcode-scan";
 import { BarcodeVariantPicker } from "@/components/admin/BarcodeVariantPicker";
 import type { BarcodeScanMatch } from "@workspace/api-client-react";
 
@@ -30,8 +29,7 @@ export function ReceiptScannerBar({ isAdmin, disabled, onAddLine }: ReceiptScann
     setLoading(true);
     setErrorMsg(null);
     try {
-      const data = await adminJson(apiUrl(`/inventory/scan/${encodeURIComponent(cleanBarcode)}`));
-      const matches: BarcodeScanMatch[] = data.matches ?? [];
+      const matches = await scanBarcode(cleanBarcode);
       if (matches.length === 0) {
         setErrorMsg(`Barcode "${cleanBarcode}" not found`);
       } else if (matches.length === 1) {
