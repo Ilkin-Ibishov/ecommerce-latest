@@ -80,33 +80,26 @@ export async function fetchAdminEvents(
 ): Promise<{ events: RawInboxEvent[]; seenAt: string | null }> {
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
 
-  const [ordersRes, voidsRes, linesRes, stocktakesRes, markerRes] = await Promise.all([
+  const [ordersRes, voidsRes, salesRes, stocktakesRes, markerRes] = await Promise.all([
     admin.from("orders").select("id, created_at, customer_name").gte("created_at", fourteenDaysAgo).order("created_at", { ascending: false }).limit(50),
     admin.from("counter_sales").select("id, sale_number, voided_at, voided_by, void_reason").eq("status", "voided").gte("voided_at", fourteenDaysAgo).order("voided_at", { ascending: false }).limit(50),
-    admin.from("counter_sale_lines").select("sale_id, price_mismatch, reservation_override").or("price_mismatch.eq.true,reservation_override.eq.true").limit(200),
+    // A held sale is not "posted"; lines carry the per-line flags, so one query sees both kinds.
+    admin.from("counter_sales").select("id, sale_number, posting_date, cashier_id, total_mismatch, counter_sale_lines(price_mismatch, reservation_override)").neq("status", "needs_owner").gte("posting_date", fourteenDaysAgo).order("posting_date", { ascending: false }),
     admin.from("stocktakes").select("id, stocktake_number, title, posted_at, posted_by").eq("status", "posted").gte("posted_at", fourteenDaysAgo).order("posted_at", { ascending: false }).limit(50),
     admin.from("admin_inbox_seen").select("seen_at").eq("user_id", userId).maybeSingle(),
   ]);
 
-  const lineFlags = new Map<string, { price: boolean; res: boolean }>();
-  for (const l of linesRes.data ?? []) {
-    const prev = lineFlags.get(l.sale_id) ?? { price: false, res: false };
-    if (l.price_mismatch) prev.price = true;
-    if (l.reservation_override) prev.res = true;
-    lineFlags.set(l.sale_id, prev);
-  }
-
-  const lineSaleIds = Array.from(lineFlags.keys());
-  let mismatchQuery = admin.from("counter_sales")
-    .select("id, sale_number, posting_date, cashier_id, total_mismatch")
-    .gte("posting_date", fourteenDaysAgo);
-
-  if (lineSaleIds.length > 0) {
-    mismatchQuery = mismatchQuery.or(`total_mismatch.eq.true,id.in.(${lineSaleIds.join(",")})`);
-  } else {
-    mismatchQuery = mismatchQuery.eq("total_mismatch", true);
-  }
-  const { data: mismatchSales } = await mismatchQuery.order("posting_date", { ascending: false }).limit(50);
+  type SaleRow = {
+    id: string; sale_number: number; posting_date: string; cashier_id: string | null; total_mismatch: boolean | null;
+    counter_sale_lines: { price_mismatch: boolean; reservation_override: boolean }[] | null;
+  };
+  const flaggedSales = ((salesRes.data ?? []) as SaleRow[])
+    .map((m) => {
+      const lines = m.counter_sale_lines ?? [];
+      return { m, price: lines.some((l) => l.price_mismatch), res: lines.some((l) => l.reservation_override) };
+    })
+    .filter((x) => x.m.total_mismatch || x.price || x.res)
+    .slice(0, 50);
 
   const rawEvents: RawInboxEvent[] = [];
 
@@ -138,12 +131,11 @@ export async function fetchAdminEvents(
     });
   }
 
-  for (const m of mismatchSales ?? []) {
-    const flags = lineFlags.get(m.id);
+  for (const { m, price, res } of flaggedSales) {
     const flagsList: string[] = [];
     if (m.total_mismatch) flagsList.push("total_mismatch");
-    if (flags?.price) flagsList.push("price_mismatch");
-    if (flags?.res) flagsList.push("reservation_override");
+    if (price) flagsList.push("price_mismatch");
+    if (res) flagsList.push("reservation_override");
 
     rawEvents.push({
       id: `mismatch-${m.id}`,
@@ -154,8 +146,8 @@ export async function fetchAdminEvents(
       unread: false,
       sale_number: m.sale_number,
       total_mismatch: Boolean(m.total_mismatch),
-      price_mismatch: Boolean(flags?.price),
-      reservation_override: Boolean(flags?.res),
+      price_mismatch: price,
+      reservation_override: res,
       mismatch_flags: flagsList,
       link: "/admin/counter/sales",
     });
