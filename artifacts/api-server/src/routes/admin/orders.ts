@@ -120,14 +120,14 @@ router.get("/admin/orders/:id/notifications", requireAdmin, async (req, res): Pr
 
   try {
     const { data, error } = await (ctx.admin as any)
-      .from("notification_queue")
+      .from("notifications")
       .select("*")
-      .eq("order_id", req.params.id)
+      .eq("payload->>order_id", req.params.id)
       .order("created_at", { ascending: false });
     if (error) throw error;
     res.json(data ?? []);
   } catch (err) {
-    req.log.warn({ err, orderId: req.params.id }, "Failed to fetch notifications — table may not exist");
+    req.log.warn({ err, orderId: req.params.id }, "Failed to fetch notifications");
     res.json([]);
   }
 });
