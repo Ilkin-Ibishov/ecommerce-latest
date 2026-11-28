@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import { loginTestUser, type AuthSession } from "./helpers/auth.js";
 import { cleanupTestUser } from "./helpers/cleanup.js";
 import { generatePhone } from "./helpers/isolation.js";
+import { createStockedVariant } from "./helpers/stocked-variant.js";
 
 /**
  * M4b inbox integration tests:
@@ -37,6 +38,14 @@ const call = (session: AuthSession, method: string, path: string, body?: unknown
 const setRole = (userId: string, role: string) =>
   db.from("users").update({ role }).eq("id", userId);
 
+// Sales go through the API (post_counter_sale), as in m3a-counter-routes: the table needs a
+// payload hash, payment rows and a reason that only the function fills in.
+const saleBody = (variantId: string, quantity: number) => ({
+  id: randomUUID(), sold_at: new Date().toISOString(), payment_method: "cash",
+  displayed_total: quantity * 10,
+  lines: [{ variant_id: variantId, quantity, charged_unit_price: 10 }],
+});
+
 beforeAll(async () => {
   const host = `http://localhost:${process.env.PORT || "5000"}`;
   adminSessionA = await loginTestUser(host, generatePhone());
@@ -69,19 +78,13 @@ describe("M4b admin inbox integration", () => {
     expect(resBefore.status).toBe(200);
     const countBefore = (await resBefore.json()).count;
 
-    // 2. Insert a held sale (needs_owner)
-    const saleId = randomUUID();
-    const { error: insertErr } = await db.from("counter_sales").insert({
-      id: saleId,
-      status: "needs_owner",
-      sale_number: Math.floor(100000 + Math.random() * 900000),
-      cashier_id: adminSessionA.userId,
-      total_amount: 10,
-      displayed_total: 10,
-      payment_method: "cash",
-      sold_at: new Date().toISOString(),
-    });
-    expect(insertErr).toBeNull();
+    // 2. Sell more than is on hand through the API: post_counter_sale holds it as needs_owner
+    const variantId = await createStockedVariant(db, adminSessionA.userId, 1, 10);
+    const body = saleBody(variantId, 2);
+    const saleId = body.id;
+    const created = await call(adminSessionA, "POST", "/admin/counter/sales", body);
+    expect(created.status).toBe(201);
+    expect((await created.json()).status).toBe("needs_owner");
 
     try {
       const resHeld = await call(adminSessionA, "GET", "/admin/inbox/count");
@@ -89,12 +92,13 @@ describe("M4b admin inbox integration", () => {
       const countHeld = (await resHeld.json()).count;
       expect(countHeld).toBe(countBefore + 1);
 
-      // 3. Post the sale
-      const { error: updateErr } = await db
-        .from("counter_sales")
-        .update({ status: "posted" })
-        .eq("id", saleId);
-      expect(updateErr).toBeNull();
+      // 3. Fix the stock, then post the held sale
+      const { error: stockErr } = await db.from("stock_movements").insert({
+        variant_id: variantId, quantity_delta: 10, reason: "opening_balance", reference_type: "manual", actor_id: adminSessionA.userId,
+      });
+      expect(stockErr).toBeNull();
+      const postRes = await call(adminSessionA, "POST", `/admin/counter/sales/${saleId}/post-pending`);
+      expect(postRes.status).toBe(200);
 
       // 4. Verify count dropped back
       const resAfter = await call(adminSessionA, "GET", "/admin/inbox/count");
@@ -110,7 +114,8 @@ describe("M4b admin inbox integration", () => {
         .single();
       expect(markerRow?.seen_at).toBe(initialSeenAt);
     } finally {
-      await db.from("counter_sales").delete().eq("id", saleId);
+      // Posted sales have ledger rows and cannot be deleted; void so no needs_owner row lingers.
+      await call(adminSessionA, "POST", `/admin/counter/sales/${saleId}/void`, { reason: "test cleanup" });
     }
   });
 
@@ -126,23 +131,14 @@ describe("M4b admin inbox integration", () => {
       seen_at: oneHourAgo,
     });
 
-    // Create a voided sale voided by adminSessionA now
-    const saleId = randomUUID();
-    const saleNumber = Math.floor(100000 + Math.random() * 900000);
-    const { error: insertErr } = await db.from("counter_sales").insert({
-      id: saleId,
-      status: "voided",
-      sale_number: saleNumber,
-      cashier_id: adminSessionA.userId,
-      voided_by: adminSessionA.userId,
-      voided_at: new Date().toISOString(),
-      void_reason: "Customer changed mind",
-      total_amount: 15,
-      displayed_total: 15,
-      payment_method: "cash",
-      sold_at: new Date().toISOString(),
-    });
-    expect(insertErr).toBeNull();
+    // Create a voided sale voided by adminSessionA now, through the API
+    const variantId = await createStockedVariant(db, adminSessionA.userId, 5, 10);
+    const body = saleBody(variantId, 1);
+    const saleId = body.id;
+    expect((await call(adminSessionA, "POST", "/admin/counter/sales", body)).status).toBe(201);
+    const voidRes = await call(adminSessionA, "POST", `/admin/counter/sales/${saleId}/void`, { reason: "Customer changed mind" });
+    expect(voidRes.status).toBe(200);
+    const saleNumber = (await voidRes.json()).sale_number;
 
     try {
       // Admin A (actor) views inbox: void event should NOT be unread
@@ -161,7 +157,7 @@ describe("M4b admin inbox integration", () => {
       expect(eventB).toBeDefined();
       expect(eventB.unread).toBe(true);
     } finally {
-      await db.from("counter_sales").delete().eq("id", saleId);
+      // The voided sale is a ledger record and stays, as in the m3a tests.
     }
   });
 
