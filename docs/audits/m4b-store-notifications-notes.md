@@ -131,3 +131,54 @@ artifacts/store typecheck: Done
  Test Files  75 passed (75)
       Tests  786 passed (786)
 ```
+
+## Fix round 1
+
+Branch `agent/m4b-fix-1`, one commit per item. Integration tier (`api-integration`) NOT run: it needs
+Supabase credentials and a running API server. None of the integration changes below were executed.
+
+1. **Integration tests create sales through the API.** `m4b-inbox.integration.test.ts`: held sale = sell 2
+   of a variant with 1 on hand (`post_counter_sale` holds it `needs_owner`, ST001), then top up stock by a
+   `stock_movements` opening_balance row and `POST .../post-pending`; voided sale = post then
+   `POST .../void`. Assertions unchanged. Cleanup: ledger-linked sales cannot be deleted, so the held-sale
+   test voids in `finally` and the void test leaves its sale (as the m3a tests do). Not verified: the
+   `countAfter === countBefore` check could shift if the fixture variant crosses a low-stock threshold
+   when stock goes from 1 to 9.
+2. **Mismatch events.** `fetchAdminEvents` now reads `counter_sales` (14 days, `status <> needs_owner`,
+   embedded `counter_sale_lines` flags, newest first), filters flagged sales in JS, takes 50. The event
+   building is inline, not a pure function, so no unit test was added.
+3. **Errors and types.** Every query in `inbox-queries.ts` throws on `error`; the three routes answer
+   `500 {error:"Failed to load inbox"}`; `/seen` answers 500 on upsert failure. Low stock uses
+   `rpc(..., { count: "exact", head: true })` (postgrest-js 2.105.4 accepts the third argument). The RPC
+   is absent from the generated `Database` types, so it goes through a small local interface cast
+   (`as unknown as`, the pattern in `inventory-signals.ts`), not `as any`. `admin` is
+   `SupabaseClient<Database>`. Two `as string` casts for `voided_at`/`posted_at` (nullable columns,
+   already filtered non-null by the query). Item 2's commit still has `admin: any`, as it was.
+4. **Seen marker.** Client sends `seen_through` (newest rendered event time, ISO); route validates with
+   `z.string().datetime().optional()` (400 if invalid), stores it unless in the future by the server
+   clock, else server now. `NotificationCenterPage` dispatches `admin-inbox-changed`; `AdminLayout`
+   listens (removed on unmount) and refreshes the badge. Added integration case
+   "seen_through older than an event leaves that event unread" (not run).
+5. **i18n.** `Notifications.unknownCustomer` / `unknownStaff` in az/en/ru; times use `toLocaleString(locale)`
+   from `useI18n()`, as `CounterSalesPage` does.
+
+Tests deleted, renamed, moved or weakened: none. Tests added: the seen_through integration case above.
+
+### Commands run (last lines)
+
+`pnpm run typecheck`:
+```
+artifacts/api-server typecheck: Done
+artifacts/store typecheck: Done
+```
+`pnpm test:unit`:
+```
+ Test Files  75 passed (75)
+      Tests  786 passed (786)
+```
+`pnpm run audit:invariants`:
+```
+ok    no-client-grants-on-admin-inbox-seen 0 total, 0 new
+
+All invariant checks passed.
+```
