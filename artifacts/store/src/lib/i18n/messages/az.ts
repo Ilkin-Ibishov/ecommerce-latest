@@ -450,6 +450,8 @@ const az = {
       happenedTitle: "Baş verənlər",
       happenedEmpty: "Son 14 gündə heç bir hadisə yoxdur",
       markAllSeen: "Hamısını oxunmuş işarələ",
+      unknownCustomer: "Müştəri",
+      unknownStaff: "İşçi",
       eventOrder: "{name} tərəfindən #{id} nömrəli sifariş verildi",
       eventVoid: "{name} tərəfindən #{number} nömrəli satış ləğv edildi ({reason})",
       eventMismatch: "{name} tərəfindən #{number} nömrəli satış fərqlə qeydə alındı ({flags})",

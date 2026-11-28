@@ -454,6 +454,8 @@ const ru: MessageSchema = {
       happenedTitle: "События",
       happenedEmpty: "Нет событий за последние 14 дней",
       markAllSeen: "Отметить все как прочитанные",
+      unknownCustomer: "Покупатель",
+      unknownStaff: "Сотрудник",
       eventOrder: "Заказ #{id} оформлен: {name}",
       eventVoid: "Продажа #{number} аннулирована ({reason}): {name}",
       eventMismatch: "Продажа #{number} проведена с отклонением ({flags}): {name}",

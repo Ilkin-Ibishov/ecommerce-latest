@@ -12,14 +12,14 @@ interface HappenedSectionProps {
 function renderEventText(event: InboxEvent, t: (key: MessageKey) => string): string {
   switch (event.kind) {
     case "order_created": {
-      const name = event.customer_name || "Customer";
+      const name = event.customer_name || t("Notifications.unknownCustomer");
       const id = event.order_id || "";
       return t("Notifications.eventOrder")
         .replace("{name}", name)
         .replace("{id}", id);
     }
     case "counter_sale_voided": {
-      const name = event.actor_name || "Staff";
+      const name = event.actor_name || t("Notifications.unknownStaff");
       const number =
         event.sale_number !== undefined && event.sale_number !== null
           ? String(event.sale_number)
@@ -31,7 +31,7 @@ function renderEventText(event: InboxEvent, t: (key: MessageKey) => string): str
         .replace("{reason}", reason);
     }
     case "counter_sale_mismatch": {
-      const name = event.actor_name || "Staff";
+      const name = event.actor_name || t("Notifications.unknownStaff");
       const number =
         event.sale_number !== undefined && event.sale_number !== null
           ? String(event.sale_number)
@@ -48,7 +48,7 @@ function renderEventText(event: InboxEvent, t: (key: MessageKey) => string): str
         .replace("{flags}", flagLabels.join(", "));
     }
     case "stocktake_posted": {
-      const name = event.actor_name || "Staff";
+      const name = event.actor_name || t("Notifications.unknownStaff");
       const number = event.stocktake_number || "-";
       const title = event.title || "";
       return t("Notifications.eventStocktake")
@@ -62,7 +62,7 @@ function renderEventText(event: InboxEvent, t: (key: MessageKey) => string): str
 }
 
 export function HappenedSection({ events, onMarkSeen, isMarkingSeen }: HappenedSectionProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
 
   return (
     <section className="space-y-3" aria-labelledby="happened-heading">
@@ -107,7 +107,7 @@ export function HappenedSection({ events, onMarkSeen, isMarkingSeen }: HappenedS
                         </span>
                       )}
                       <time className="text-xs text-muted-foreground" dateTime={event.time}>
-                        {new Date(event.time).toLocaleString()}
+                        {new Date(event.time).toLocaleString(locale)}
                       </time>
                     </div>
                     <p className="text-sm font-medium leading-snug">{text}</p>

@@ -454,6 +454,8 @@ const en: MessageSchema = {
       happenedTitle: "Happened",
       happenedEmpty: "No events in the last 14 days",
       markAllSeen: "Mark all as seen",
+      unknownCustomer: "Customer",
+      unknownStaff: "Staff member",
       eventOrder: "Order #{id} placed by {name}",
       eventVoid: "Sale #{number} voided ({reason}) by {name}",
       eventMismatch: "Sale #{number} posted with flag ({flags}) by {name}",
