@@ -4,6 +4,7 @@ import { adminFetch } from "@/lib/admin-fetch";
 import { useI18n } from "@/lib/i18n/context";
 import type { CartLine, Outcome } from "@/components/admin/counter/types";
 import { computeChange } from "@/components/admin/counter/counter-input";
+import { counterSaleErrorKey } from "@/components/admin/counter/counterSaleError";
 
 interface SaleInput {
   lines: CartLine[];
@@ -72,7 +73,8 @@ export function useCounterSale({ lines, displayedTotal, payment, isOwner, ownerD
         soldAtRef.current = null;
         setPending(false);
         setShowConfirm(false);
-        setOutcome({ kind: "error", text: data.error ?? t("Admin.Counter.errorFallback") });
+        console.error(data.error);
+        setOutcome({ kind: "error", text: t(counterSaleErrorKey(res.status, data.code, data.error)) });
         return;
       }
       if (!data.sale_number || !data.id) {
