@@ -1,3 +1,5 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@workspace/supabase-types";
 import { itemsForRole, markUnread, type NeedsYouKey, type RawInboxEvent } from "./inbox";
 
 /**
@@ -5,8 +7,21 @@ import { itemsForRole, markUnread, type NeedsYouKey, type RawInboxEvent } from "
  * Implements M4b spec §3–§6 and design note §3–§5.
  */
 
+// get_low_stock_signals is not in the generated Database types (same cast as inventory-signals.ts).
+interface LowStockCountClient {
+  rpc(
+    fn: "get_low_stock_signals",
+    args: { p_search: null; p_status: null },
+    options: { count: "exact"; head: true }
+  ): PromiseLike<{ count: number | null; error: { message: string } | null }>;
+}
+
+function check(error: { message: string } | null): void {
+  if (error) throw new Error(error.message);
+}
+
 export async function fetchNeedsYouCounts(
-  admin: any,
+  admin: SupabaseClient<Database>,
   role: string | null | undefined
 ): Promise<Record<NeedsYouKey, number>> {
   const allowed = new Set(itemsForRole(role));
@@ -18,13 +33,17 @@ export async function fetchNeedsYouCounts(
     reviews_pending: 0,
   };
 
-  const tasks: Promise<void>[] = [];
+  const tasks: PromiseLike<void>[] = [];
 
   if (allowed.has("low_stock")) {
+    // head + count: data.length would stop at PostgREST's row limit.
     tasks.push(
-      admin.rpc("get_low_stock_signals", { p_search: null, p_status: null }).then(({ data }: any) => {
-        result.low_stock = Array.isArray(data) ? data.length : 0;
-      })
+      (admin as unknown as LowStockCountClient)
+        .rpc("get_low_stock_signals", { p_search: null, p_status: null }, { count: "exact", head: true })
+        .then(({ count, error }) => {
+          check(error);
+          result.low_stock = count ?? 0;
+        })
     );
   }
   if (allowed.has("holds_overdue")) {
@@ -34,7 +53,8 @@ export async function fetchNeedsYouCounts(
         .eq("status", "active")
         .not("expires_at", "is", null)
         .lt("expires_at", new Date().toISOString())
-        .then(({ count }: any) => {
+        .then(({ count, error }) => {
+          check(error);
           result.holds_overdue = count ?? 0;
         })
     );
@@ -44,7 +64,8 @@ export async function fetchNeedsYouCounts(
       admin.from("counter_sales")
         .select("id", { count: "exact", head: true })
         .eq("status", "needs_owner")
-        .then(({ count }: any) => {
+        .then(({ count, error }) => {
+          check(error);
           result.counter_needs_owner = count ?? 0;
         })
     );
@@ -54,7 +75,8 @@ export async function fetchNeedsYouCounts(
       admin.from("orders")
         .select("id", { count: "exact", head: true })
         .eq("status", "pending")
-        .then(({ count }: any) => {
+        .then(({ count, error }) => {
+          check(error);
           result.orders_pending = count ?? 0;
         })
     );
@@ -64,7 +86,8 @@ export async function fetchNeedsYouCounts(
       admin.from("comments")
         .select("id", { count: "exact", head: true })
         .eq("approved", false)
-        .then(({ count }: any) => {
+        .then(({ count, error }) => {
+          check(error);
           result.reviews_pending = count ?? 0;
         })
     );
@@ -75,7 +98,7 @@ export async function fetchNeedsYouCounts(
 }
 
 export async function fetchAdminEvents(
-  admin: any,
+  admin: SupabaseClient<Database>,
   userId: string
 ): Promise<{ events: RawInboxEvent[]; seenAt: string | null }> {
   const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString();
@@ -89,11 +112,9 @@ export async function fetchAdminEvents(
     admin.from("admin_inbox_seen").select("seen_at").eq("user_id", userId).maybeSingle(),
   ]);
 
-  type SaleRow = {
-    id: string; sale_number: number; posting_date: string; cashier_id: string | null; total_mismatch: boolean | null;
-    counter_sale_lines: { price_mismatch: boolean; reservation_override: boolean }[] | null;
-  };
-  const flaggedSales = ((salesRes.data ?? []) as SaleRow[])
+  for (const r of [ordersRes, voidsRes, salesRes, stocktakesRes, markerRes]) check(r.error);
+
+  const flaggedSales = (salesRes.data ?? [])
     .map((m) => {
       const lines = m.counter_sale_lines ?? [];
       return { m, price: lines.some((l) => l.price_mismatch), res: lines.some((l) => l.reservation_override) };
@@ -121,7 +142,7 @@ export async function fetchAdminEvents(
     rawEvents.push({
       id: `void-${v.id}`,
       kind: "counter_sale_voided",
-      time: v.voided_at,
+      time: v.voided_at as string, // filtered by status and voided_at
       actor_id: v.voided_by,
       actor_name: null,
       unread: false,
@@ -157,7 +178,7 @@ export async function fetchAdminEvents(
     rawEvents.push({
       id: `stocktake-${st.id}`,
       kind: "stocktake_posted",
-      time: st.posted_at,
+      time: st.posted_at as string, // filtered by status and posted_at
       actor_id: st.posted_by,
       actor_name: null,
       unread: false,
@@ -169,8 +190,9 @@ export async function fetchAdminEvents(
 
   const actorIds = Array.from(new Set(rawEvents.map((e) => e.actor_id).filter((id): id is string => Boolean(id))));
   if (actorIds.length > 0) {
-    const { data: users } = await admin.from("users").select("id, full_name").in("id", actorIds);
-    const userMap = new Map<string, string | null>((users ?? []).map((u: any) => [u.id, u.full_name ?? null]));
+    const { data: users, error: usersErr } = await admin.from("users").select("id, full_name").in("id", actorIds);
+    check(usersErr);
+    const userMap = new Map<string, string | null>((users ?? []).map((u) => [u.id, u.full_name ?? null]));
     for (const event of rawEvents) {
       if (event.actor_id) {
         event.actor_name = userMap.get(event.actor_id) ?? null;
@@ -178,7 +200,7 @@ export async function fetchAdminEvents(
     }
   }
 
-  const seenAt: string | null = (markerRes.data as any)?.seen_at ?? null;
+  const seenAt: string | null = markerRes.data?.seen_at ?? null;
   const events = markUnread(rawEvents, seenAt, userId).sort(
     (a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()
   );
