@@ -888,7 +888,7 @@ checks.push(
   },
   {
     id: 'role-written-only-by-users-route',
-    why: 'Role mutations must go through set_user_role so audit_log records the actor and old role, and trg_users_keep_one_admin enforces that at least one admin remains. No file in the API may write role to users directly, and set_user_role may only be called by the admin users route.',
+    why: 'Role mutations must go through set_user_role so audit_log records the actor and old role, and trg_users_keep_one_admin enforces that at least one admin remains. No file in the API may write role to users directly, and set_user_role may only be called by the admin users route and the first-run bootstrap route.',
     run: (files) => {
       const hits = [];
       const setRolePat = /\bset_user_role\b/;
@@ -898,7 +898,9 @@ checks.push(
         const r = rel(file);
         if (!r.startsWith('artifacts/api-server/src/')) continue;
 
-        if (r !== 'artifacts/api-server/src/routes/admin/users.ts') {
+        const mayCallSetRole = r === 'artifacts/api-server/src/routes/admin/users.ts'
+          || r === 'artifacts/api-server/src/routes/bootstrap.ts'; // first admin: the role still goes through set_user_role
+        if (!mayCallSetRole) {
           text.split('\n').forEach((line, i) => {
             if (/^\s*(\/\/|\/\*|\*)/.test(line)) return;
             if (setRolePat.test(line)) {
@@ -906,9 +908,6 @@ checks.push(
             }
           });
         }
-
-        // bootstrap.ts is the first-run zero-admin bootstrap endpoint (refuses once any admin exists)
-        if (r === 'artifacts/api-server/src/routes/bootstrap.ts') continue;
 
         let m;
         const re = new RegExp(roleWritePat.source, 'g');

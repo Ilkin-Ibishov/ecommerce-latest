@@ -90,6 +90,28 @@ log under `.agent-runs/` and a completion marker to `.agent-runs/LAST-RUN.done` 
   followed rewrote the previous commit's message instead. Check `git log -1` before amending.
 - **Read-only audit sub-agents are worth it** (clean context, own worktree, 60–130 s each). Check
   their top findings against the code before repeating them.
+- **A network outage kills builders and sub-agents alike** (2026-11-18: DNS failure, AGY exit 3 with
+  `AGY_ERROR … no such host`). Committed work survives. Resume a builder with a short
+  `prompts/<x>-resume.md` naming what is committed and what is uncommitted, and a sub-agent with
+  `SendMessage` (it keeps its context and worktree).
+- **A second working checkout from a worktree session:** `git worktree add <scratchpad path> -b <branch>
+  origin/main`. Used for parallel builders and docs branches; run `pnpm install --frozen-lockfile`
+  there first. A temp-folder worktree does not outlive the session — push its branch.
+- **Some database calls are declined by the permission check**, not by the owner (2026-11-18: a
+  rolled-back `execute_sql` dry-run, an `apply_migration` with `DROP TRIGGER`). Stop and ask the
+  owner; record in the notes exactly what was and was not applied.
+- **The CI queue keeps one pending run** per concurrency group; a newer push cancels an older
+  *pending* `integration-e2e`. Rerun it once the queue is empty (`gh run rerun <id>`). Checks on a
+  new PR can start minutes after it opens — wait for the run, not for `gh pr checks`.
+- **The mocked route tests (`tests/admin-users.test.ts` and similar) run locally** with dummy env
+  values for `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_ANON_KEY` and a 32-character
+  `SESSION_SECRET`: `pnpm exec vitest --run --project api-integration <file>`. The api-server
+  `tsconfig` excludes `tests/`, so typecheck never sees test files.
+- **`gh pr merge --delete-branch` keeps the remote branch** when the branch is checked out in a local
+  worktree. Check `git branch -r` after merging and delete what is merged.
+- **Builder-written tests have been wrong more often than builder code**: random-id `users` rows
+  (`users.id → auth.users`), invented columns, assertions that pass vacuously on a shared database
+  with 55 admins, E2E text the dictionaries do not contain. Read every new test at acceptance.
 - E2E failures: skill `e2e-diagnose`. Locale assertions: skill `locale-key-add`. Locator and SPA
   timing traps: `docs/knowledgebase/ci-testing-gotchas.md`.
 

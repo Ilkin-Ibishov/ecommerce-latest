@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { timingSafeEqual } from "crypto";
 import { getAdminSupabase } from "../lib/supabase";
+import { normalizePhone, validateAzPhone, isBypassPhone } from "../lib/otp";
 
 const router = Router();
 
@@ -52,51 +53,55 @@ router.post("/bootstrap/admin", async (req, res): Promise<void> => {
     return;
   }
 
-  // Create the user in Supabase Auth
-  const normalizedPhone = phone.trim().startsWith("+") ? phone.trim() : "+" + phone.trim();
+  // Same phone rules as the staff routes: canonical form, a valid Azerbaijan number, never a test
+  // phone (those accept a fixed code; one must not hold a role).
+  const normalizedPhone = normalizePhone(phone.trim());
+  if (!validateAzPhone(normalizedPhone)) {
+    res.status(400).json({ error: "invalid_phone" });
+    return;
+  }
+  if (isBypassPhone(normalizedPhone)) {
+    res.status(400).json({ error: "phone_reserved" });
+    return;
+  }
+  const fullName = name?.trim() || "Admin";
 
-  const { data: authData, error: authErr } = await (admin as any).auth.admin.createUser({
+  let userId: string;
+  const { data: authData, error: authErr } = await admin.auth.admin.createUser({
     phone: normalizedPhone,
     phone_confirm: true,
-    user_metadata: { full_name: name?.trim() || "Admin" },
+    user_metadata: { full_name: fullName },
   });
-
   if (authErr) {
-    // If user already exists in auth, look them up
-    if (authErr.message?.includes("already")) {
-      const { data: { users: allUsers } } = await (admin as any).auth.admin.listUsers();
-      const found = allUsers?.find((u: any) => u.phone === normalizedPhone);
-      if (!found) {
-        res.status(400).json({ error: authErr.message });
-        return;
-      }
-
-      // Upsert public.users row and set admin
-      await (admin as any).from("users").upsert({
-        id: found.id,
-        phone: normalizedPhone,
-        full_name: name?.trim() || found.user_metadata?.full_name || "Admin",
-        role: "admin",
-      });
-
-      res.json({ ok: true, message: "Existing user promoted to admin." });
+    // The auth user may already exist: find it by phone (auth stores digits only).
+    const { data: foundId, error: findErr } = await admin.rpc("find_auth_user_by_phone", {
+      p_phone: normalizedPhone.replace(/^\+/, ""),
+    });
+    if (findErr || !foundId) {
+      res.status(400).json({ error: authErr.message });
       return;
     }
-    res.status(400).json({ error: authErr.message });
+    userId = foundId;
+  } else {
+    userId = authData.user.id;
+  }
+
+  // Profile first (the auth trigger may have created it), then the role through the one writer of
+  // roles, which also writes the audit line. The new admin is the actor of their own bootstrap.
+  const { error: profileErr } = await admin
+    .from("users")
+    .upsert({ id: userId, phone: normalizedPhone, full_name: fullName }, { onConflict: "id" });
+  if (profileErr) {
+    res.status(500).json({ error: "profile_write_failed" });
+    return;
+  }
+  const { error: roleErr } = await admin.rpc("set_user_role", { p_actor: userId, p_user: userId, p_role: "admin" });
+  if (roleErr) {
+    res.status(500).json({ error: "role_write_failed" });
     return;
   }
 
-  const userId = authData.user.id;
-
-  // Upsert into public.users with admin role
-  await (admin as any).from("users").upsert({
-    id: userId,
-    phone: normalizedPhone,
-    full_name: name?.trim() || "Admin",
-    role: "admin",
-  });
-
-  res.json({ ok: true, message: "Admin account created. You can now sign in." });
+  res.json({ ok: true, message: authErr ? "Existing user promoted to admin." : "Admin account created. You can now sign in." });
 });
 
 // GET /bootstrap/status — returns whether bootstrap is still available

@@ -5,6 +5,12 @@ import { adminJson } from "@/lib/admin-fetch";
 import { apiUrl } from "@/lib/api";
 import { StocktakeRecentLines } from "@/components/admin/StocktakeRecentLines";
 import { StocktakeTypoModal } from "@/components/admin/StocktakeTypoModal";
+import { BarcodeVariantPicker } from "@/components/admin/BarcodeVariantPicker";
+import { scanBarcode } from "@/lib/barcode-scan";
+import type { BarcodeScanMatch } from "@workspace/api-client-react";
+
+/** What is being counted: from a scan match, or from a line being recounted. */
+type CountTarget = { variant_id: string; sku: string; product_title: string };
 
 interface StocktakeCountPageProps {
   id: string;
@@ -19,7 +25,8 @@ export default function StocktakeCountPage({ id }: StocktakeCountPageProps) {
   // Scanner state
   const [barcodeInput, setBarcodeInput] = useState("");
   const [searching, setSearching] = useState(false);
-  const [activeVariant, setActiveVariant] = useState<any>(null);
+  const [activeVariant, setActiveVariant] = useState<CountTarget | null>(null);
+  const [candidates, setCandidates] = useState<{ code: string; matches: BarcodeScanMatch[] } | null>(null);
   const [countedQty, setCountedQty] = useState("1");
   const [currentLocation, setCurrentLocation] = useState("Shelf A");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -54,11 +61,11 @@ export default function StocktakeCountPage({ id }: StocktakeCountPageProps) {
     setSearching(true);
     setErrorMsg(null);
     try {
-      const res = await adminJson(apiUrl(`/inventory/scan/${encodeURIComponent(code)}`));
-      const matches = res.matches ?? [];
-      if (matches.length > 0) {
-        setActiveVariant(matches[0]);
-        setCountedQty("1");
+      const matches = await scanBarcode(code);
+      if (matches.length === 1) {
+        pickMatch(matches[0]);
+      } else if (matches.length > 1) {
+        setCandidates({ code, matches });
       } else {
         setErrorMsg(`Item "${code}" not found in catalog`);
       }
@@ -68,6 +75,12 @@ export default function StocktakeCountPage({ id }: StocktakeCountPageProps) {
       setSearching(false);
       setBarcodeInput("");
     }
+  };
+
+  const pickMatch = (match: BarcodeScanMatch) => {
+    setActiveVariant({ variant_id: match.variant.id, sku: match.variant.sku ?? "", product_title: match.product.title });
+    setCountedQty(String(match.variant.pack_quantity || 1));
+    setCandidates(null);
   };
 
   const handleSaveCount = async () => {
@@ -195,7 +208,7 @@ export default function StocktakeCountPage({ id }: StocktakeCountPageProps) {
         {activeVariant && (
           <div className="pt-2 border-t border-border space-y-3 animate-in fade-in">
             <div className="bg-muted/40 p-3 rounded-lg">
-              <div className="text-sm font-bold text-foreground">{activeVariant.product_title || activeVariant.label}</div>
+              <div className="text-sm font-bold text-foreground">{activeVariant.product_title}</div>
               <div className="text-xs font-mono text-muted-foreground">SKU: {activeVariant.sku}</div>
             </div>
 
@@ -231,6 +244,15 @@ export default function StocktakeCountPage({ id }: StocktakeCountPageProps) {
         onCancel={() => setEditingLine(null)}
         onSave={handleSaveTypoFix}
       />
+
+      {candidates && (
+        <BarcodeVariantPicker
+          barcode={candidates.code}
+          matches={candidates.matches}
+          onSelect={pickMatch}
+          onCancel={() => setCandidates(null)}
+        />
+      )}
     </div>
   );
 }

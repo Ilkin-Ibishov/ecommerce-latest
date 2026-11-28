@@ -116,21 +116,25 @@ describe("Phase M4 Stock Signals Integration Tests", () => {
     const { error: costErr } = await db.from("variant_costs").upsert({ variant_id: deadVarId, cost_price: 15.0, opening_cost: 15.0 });
     expect(costErr).toBeNull();
 
+    // Filter to this test's variant: the shared test project exceeds PostgREST's 1000-row cap,
+    // and this variant's small capital sorts it past the cap in the unfiltered list.
     await setRole("staff");
-    const staffRes = await call("GET", "/admin/inventory/signals/dead-stock?days=90");
+    const staffRes = await call("GET", `/admin/inventory/signals/dead-stock?days=90&variant_ids=${deadVarId}`);
     expect(staffRes.status).toBe(200);
     const staffJson = (await staffRes.json()) as { total_dead_capital?: number; variants?: Record<string, unknown>[] };
     expect(staffJson).not.toHaveProperty("total_dead_capital");
+    expect(staffJson.variants ?? []).toHaveLength(1);
     const staffVar = (staffJson.variants ?? []).find((v) => v.variant_id === deadVarId);
     expect(staffVar).toBeDefined();
     expect(staffVar).not.toHaveProperty("unit_cost");
     expect(staffVar).not.toHaveProperty("capital_tied_up");
 
     await setRole("admin");
-    const adminRes = await call("GET", "/admin/inventory/signals/dead-stock?days=90");
+    const adminRes = await call("GET", `/admin/inventory/signals/dead-stock?days=90&variant_ids=${deadVarId}`);
     expect(adminRes.status).toBe(200);
     const adminJson = (await adminRes.json()) as { total_dead_capital?: number; variants?: Record<string, unknown>[] };
     expect(typeof adminJson.total_dead_capital).toBe("number");
+    expect(adminJson.variants ?? []).toHaveLength(1);
     const adminVar = (adminJson.variants ?? []).find((v) => v.variant_id === deadVarId);
     expect(adminVar).toBeDefined();
     expect(adminVar).toHaveProperty("unit_cost");

@@ -4,7 +4,7 @@
 
 Superseded handoffs. Nothing here is read at session start.
 
-10 files. The subject column is the file's own first sentence, so a
+11 files. The subject column is the file's own first sentence, so a
 file that opens with a banner reads as one — fix the file, not the index.
 
 | File | Title | Subject | Size |
@@ -18,4 +18,5 @@ file that opens with a banner reads as one — fix the file, not the index.
 | [`2026-11-18-afternoon.md`](2026-11-18-afternoon.md) | Archived from docs/STATUS.md — 2026-11-18 afternoon | Verbatim. The "Start here" block written at the end of the 2026-11-18 morning session and corrected during the afternoon one (no production project; git mechanics delegated). | 4 KB |
 | [`2026-11-18-evening.md`](2026-11-18-evening.md) | Archived from docs/STATUS.md — 2026-11-18 evening | Verbatim. The "Start here" block written at the end of the 2026-11-18 afternoon session. | 11 KB |
 | [`2026-11-18-morning.md`](2026-11-18-morning.md) | Archived from docs/STATUS.md — 2026-11-18 morning | Verbatim. The session that implemented the agent-context-modularization note in full (items A-F), removed all of `.kiro/` and `ltm/`, answered the gift-certific | 5 KB |
+| [`2026-11-18-night.md`](2026-11-18-night.md) | Archived from docs/STATUS.md — 2026-11-18 night | Verbatim. The "Start here" block written at the end of the 2026-11-18 evening review session. | 6 KB |
 | [`phase-state-m1-m4.md`](phase-state-m1-m4.md) | Archived from docs/STATUS.md — M1-M4 phase state and the long technical open list | Verbatim. The phase-by-phase State/Next blocks and the numbered technical open items, as they stood on 2026-11-16. | 25 KB |

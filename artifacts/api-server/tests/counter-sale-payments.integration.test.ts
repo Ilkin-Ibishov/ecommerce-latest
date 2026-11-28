@@ -103,34 +103,45 @@ describe("counter_sale_payments integration (spec §6)", () => {
   });
 
   it("backfill produces one row per existing sale with matching sum", async () => {
-    // Audit M1: no counter_sales row without a payment row, and no sale whose payments differ from its total (two count queries, both zero)
-    type SaleWithPayments = {
-      id: string;
-      total_amount: number;
-      counter_sale_payments: Array<{ sale_id: string; amount: number }>;
-    };
+    // Audit M1: no counter_sales row without a payment row, and no sale whose payments differ from its total.
+    // The table outgrows PostgREST's 1000-row cap on the shared test project, so neither check
+    // may read it in one select: the first compares two exact counts, the second pages by id.
 
-    const { data: rawSales, error } = await db
+    // 1. Every sale has at least one payment row: all sales vs sales with an inner-joined payment.
+    const all = await db.from("counter_sales").select("id", { count: "exact", head: true });
+    expect(all.error).toBeNull();
+    const paid = await db
       .from("counter_sales")
-      .select("id, total_amount, counter_sale_payments(sale_id, amount)");
-    expect(error).toBeNull();
-    expect(rawSales).not.toBeNull();
+      .select("id, counter_sale_payments!inner(sale_id)", { count: "exact", head: true });
+    expect(paid.error).toBeNull();
+    expect(all.count).not.toBeNull();
+    expect(paid.count).toBe(all.count);
 
-    const sales = (rawSales ?? []) as unknown as SaleWithPayments[];
-
-    const missingPayments = sales.filter(
-      (s) => !s.counter_sale_payments || s.counter_sale_payments.length === 0
-    );
-    expect(missingPayments.length).toBe(0);
-
-    const mismatchedSum = sales.filter((s) => {
-      const sum = (s.counter_sale_payments ?? []).reduce(
-        (acc, p) => acc + Number(p.amount),
-        0
-      );
-      return Math.round(sum * 100) !== Math.round(Number(s.total_amount) * 100);
-    });
-    expect(mismatchedSum.length).toBe(0);
+    // 2. Every sale's payments sum to its total. Keyset paging by id, 1000 rows a page, until a
+    //    short page: rows inserted meanwhile by other tests cannot make it skip one.
+    const mismatchedSum: string[] = [];
+    let seen = 0;
+    let lastId: string | null = null;
+    for (;;) {
+      let page = db
+        .from("counter_sales")
+        .select("id, total_amount, counter_sale_payments(amount)")
+        .order("id")
+        .limit(1000);
+      if (lastId) page = page.gt("id", lastId);
+      const { data, error } = await page;
+      expect(error).toBeNull();
+      const rows = data ?? [];
+      for (const s of rows) {
+        const sum = s.counter_sale_payments.reduce((acc, p) => acc + Number(p.amount), 0);
+        if (Math.round(sum * 100) !== Math.round(Number(s.total_amount) * 100)) mismatchedSum.push(s.id);
+      }
+      seen += rows.length;
+      if (rows.length < 1000) break;
+      lastId = rows[rows.length - 1].id;
+    }
+    expect(seen).toBeGreaterThanOrEqual(all.count!);
+    expect(mismatchedSum).toEqual([]);
   });
 
   it("replaying post_counter_sale with the same id and hash writes no second row", async () => {
