@@ -9,5 +9,5 @@ file that opens with a banner reads as one — fix the file, not the index.
 
 | File | Title | Subject | Size |
 |---|---|---|---|
-| [`m4b-store-notifications-notes.md`](m4b-store-notifications-notes.md) | M4b Store Notifications Build Round 1 Audit Notes | (no prose) | 8 KB |
+| [`m4b-store-notifications-notes.md`](m4b-store-notifications-notes.md) | M4b Store Notifications Build Round 1 Audit Notes | Branch `agent/m4b-fix-1`, one commit per item. | 11 KB |
 | [`staff-provisioning-notes.md`](staff-provisioning-notes.md) | Staff Provisioning Build Round 1 Audit Notes | Every admin page, the API routes it interacts with, their server guard (`requireAdmin` vs `requireStaffOrAdmin`), and visibility to staff: runtime-built key into `t()`. | 31 KB |

@@ -3,7 +3,7 @@
 ## Commit Log
 
 1. **`721b22a feat(db): add admin_inbox_seen table migration and database types`**
-   - Created migration `supabase/migrations/20261118130000_m4b_admin_inbox_seen.sql` defining `public.admin_inbox_seen` with RLS enabled, service-role policy, privileges revoked from `public, anon, authenticated`, and granted to `service_role`.
+   - Created migration `supabase/migrations/20261118160000_m4b_admin_inbox_seen.sql` defining `public.admin_inbox_seen` with RLS enabled, service-role policy, privileges revoked from `public, anon, authenticated`, and granted to `service_role`.
    - Updated `artifacts/supabase-types/src/database.types.ts` with `admin_inbox_seen` table types.
 2. **`ab0992c feat(api): add inbox pure logic for role filtering and unread calculation`**
    - Created `artifacts/api-server/src/lib/inbox.ts` implementing `itemsForRole(role)` and `markUnread(events, marker, userId, now)` with role-based needs_you keys and 14-day cutoff logic.
@@ -182,3 +182,13 @@ ok    no-client-grants-on-admin-inbox-seen 0 total, 0 new
 
 All invariant checks passed.
 ```
+
+## Orchestrator acceptance (2026-11-28)
+
+- Migration renamed `20261118130000_m4b_admin_inbox_seen.sql` → `20261118160000_m4b_admin_inbox_seen.sql`
+  (content unchanged): the old timestamp sorted before `20261118150000_users_keep_one_admin_hardening.sql`,
+  already on `main` and applied. The prompts keep the old name as history.
+- Fix round 1 was built by a Sonnet sub-agent (owner's instruction, 2026-11-28), not AGY; the AGY run
+  was stopped after making no change. Diff reviewed against the checklist: no test removed, no new
+  `as any`, dictionaries' line endings untouched.
+- Not verified: the integration tier (CI only).
