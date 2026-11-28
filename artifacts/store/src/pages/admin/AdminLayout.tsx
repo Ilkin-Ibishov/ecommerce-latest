@@ -1,12 +1,13 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { Link, useLocation } from "wouter";
 import {
   LayoutDashboard, Package, Boxes, BookmarkCheck, ClipboardCheck, ShoppingCart, Users, Tag, FolderOpen,
   MessageSquare, FileText, LogOut, ShieldCheck, Image, Menu, X, Settings2,
-  BookOpen, Award, ScanLine, PackagePlus,
+  BookOpen, Award, ScanLine, PackagePlus, Bell,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { apiUrl } from "@/lib/api";
+import { userFetch } from "@/lib/user-fetch";
 import { LoginModal } from "@/components/auth/LoginModal";
 import { I18nProvider, useI18n } from "@/lib/i18n/context";
 import { LocaleSwitcher } from "@/components/admin/LocaleSwitcher";
@@ -31,12 +32,14 @@ export function isStaffAllowedAdminPath(path: string): boolean {
     path === "/admin/inventory" ||
     path.startsWith("/admin/counter") ||
     path.startsWith("/admin/reservations") ||
-    path.startsWith("/admin/stocktakes")
+    path.startsWith("/admin/stocktakes") ||
+    path.startsWith("/admin/notifications")
   );
 }
 
 const navItems = [
   { href: "/admin", labelKey: "Admin.Nav.dashboard", icon: LayoutDashboard, adminOnly: true },
+  { href: "/admin/notifications", labelKey: "Admin.Nav.notifications", icon: Bell },
   { href: "/admin/products", labelKey: "Admin.Nav.products", icon: Package, adminOnly: true },
   { href: "/admin/inventory", labelKey: "Admin.Nav.inventory", icon: Boxes },
   { href: "/admin/counter", labelKey: "Admin.Nav.counter", icon: ScanLine },
@@ -94,7 +97,42 @@ function AdminLayoutInner({
   const [bootstrapAvailable, setBootstrapAvailable] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [inboxCount, setInboxCount] = useState<number>(0);
   const storeName = import.meta.env.VITE_STORE_NAME ?? "Store";
+
+  const refreshInboxCount = useCallback(async () => {
+    if (!authed) return;
+    try {
+      const res = await userFetch(apiUrl("/admin/inbox/count"));
+      if (res.ok) {
+        const json = await res.json();
+        if (typeof json?.count === "number") {
+          setInboxCount(json.count);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [authed]);
+
+  useEffect(() => {
+    if (authed) {
+      refreshInboxCount();
+    }
+  }, [authed, location, refreshInboxCount]);
+
+  useEffect(() => {
+    if (!authed) return;
+    const handleFocus = () => {
+      refreshInboxCount();
+    };
+    window.addEventListener("focus", handleFocus);
+    window.addEventListener("admin-inbox-changed", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("admin-inbox-changed", handleFocus);
+    };
+  }, [authed, refreshInboxCount]);
 
   // Close sidebar on route change (mobile navigation)
   useEffect(() => {
@@ -207,16 +245,24 @@ function AdminLayoutInner({
       <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         {navItems.filter((item: any) => !item.adminOnly || userRole === "admin").map(({ href, labelKey, icon: Icon }) => {
           const active = href === "/admin" ? location === "/admin" : location.startsWith(href);
+          const isNotifications = href === "/admin/notifications";
           return (
             <Link
               key={href}
               href={href}
-              className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition ${
+              className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm transition ${
                 active ? "bg-primary/20 text-primary font-medium" : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
               }`}
             >
-              <Icon size={16} />
-              {t(labelKey)}
+              <span className="flex items-center gap-3">
+                <Icon size={16} />
+                {t(labelKey)}
+              </span>
+              {isNotifications && inboxCount > 0 && (
+                <span className="inline-flex items-center rounded-full bg-destructive px-2 py-0.5 text-xs font-semibold text-destructive-foreground">
+                  {inboxCount}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -276,6 +322,18 @@ function AdminLayoutInner({
             </button>
             <span className="font-bold text-primary">{storeName}</span>
             <span className="text-xs text-muted-foreground">{t("Admin.Layout.mobileAdmin")}</span>
+            <Link
+              href="/admin/notifications"
+              className="relative ml-auto p-2 rounded-lg hover:bg-muted text-muted-foreground transition"
+              aria-label={t("Admin.Nav.notifications")}
+            >
+              <Bell size={20} />
+              {inboxCount > 0 && (
+                <span className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-bold text-destructive-foreground">
+                  {inboxCount}
+                </span>
+              )}
+            </Link>
           </header>
 
           <main className="flex-1 p-4 md:p-6 overflow-y-auto">

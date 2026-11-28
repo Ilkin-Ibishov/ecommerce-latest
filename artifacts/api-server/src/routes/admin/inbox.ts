@@ -1,0 +1,100 @@
+import { Router, type Request, type Response } from "express";
+import { z } from "zod";
+import { requireStaffOrAdmin } from "../../middlewares/requireStaffOrAdmin";
+import { logger } from "../../lib/logger";
+import {
+  itemsForRole,
+  countResponseSchema,
+  inboxResponseSchema,
+} from "../../lib/inbox";
+import { fetchNeedsYouCounts, fetchAdminEvents } from "../../lib/inbox-queries";
+
+const router = Router();
+
+function parseOutput<T>(req: Request, res: Response, schema: z.ZodType<T>, data: unknown, label: string): T | null {
+  const parsed = schema.safeParse(data);
+  if (!parsed.success) {
+    (req.log || logger).error({ issues: parsed.error.issues }, `Failed to parse ${label}`);
+    res.status(500).json({ error: "Failed to parse inbox data" });
+    return null;
+  }
+  return parsed.data;
+}
+
+const seenBody = z.object({ seen_through: z.string().datetime().optional() });
+
+function loadFailed(req: Request, res: Response, err: unknown): void {
+  (req.log || logger).error({ err }, "Failed to load inbox");
+  res.status(500).json({ error: "Failed to load inbox" });
+}
+
+router.get("/admin/inbox/count", requireStaffOrAdmin, async (req: Request, res: Response): Promise<void> => {
+  const admin = req.admin!;
+  const role = req.userRole;
+  try {
+    const counts = await fetchNeedsYouCounts(admin, role);
+    const keys = itemsForRole(role);
+    let total = keys.reduce((sum, key) => sum + counts[key], 0);
+
+    if (role === "admin") {
+      const { events } = await fetchAdminEvents(admin, req.user!.id);
+      total += events.filter((e) => e.unread).length;
+    }
+
+    const parsed = parseOutput(req, res, countResponseSchema, { count: total }, "inbox count");
+    if (!parsed) return;
+    res.json(parsed);
+  } catch (err) {
+    loadFailed(req, res, err);
+  }
+});
+
+router.get("/admin/inbox", requireStaffOrAdmin, async (req: Request, res: Response): Promise<void> => {
+  const admin = req.admin!;
+  const role = req.userRole;
+  try {
+    const counts = await fetchNeedsYouCounts(admin, role);
+    const keys = itemsForRole(role);
+    const needs_you = keys.map((key) => ({ key, count: counts[key] }));
+
+    if (role === "admin") {
+      const { events, seenAt } = await fetchAdminEvents(admin, req.user!.id);
+      const parsed = parseOutput(req, res, inboxResponseSchema, { needs_you, events, seen_at: seenAt }, "admin inbox");
+      if (!parsed) return;
+      res.json(parsed);
+      return;
+    }
+
+    const { data: markerRow, error } = await admin.from("admin_inbox_seen").select("seen_at").eq("user_id", req.user!.id).maybeSingle();
+    if (error) throw new Error(error.message);
+    const parsed = parseOutput(req, res, inboxResponseSchema, { needs_you, events: null, seen_at: markerRow?.seen_at ?? null }, "staff inbox");
+    if (!parsed) return;
+    res.json(parsed);
+  } catch (err) {
+    loadFailed(req, res, err);
+  }
+});
+
+router.post("/admin/inbox/seen", requireStaffOrAdmin, async (req: Request, res: Response): Promise<void> => {
+  const admin = req.admin!;
+  const body = seenBody.safeParse(req.body ?? {});
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid seen_through" });
+    return;
+  }
+  // The client sends the time of the newest event it showed; a time in the future is ignored.
+  const now = new Date();
+  const through = body.data.seen_through;
+  const seenAt = through && new Date(through).getTime() <= now.getTime() ? through : now.toISOString();
+  const { error } = await admin.from("admin_inbox_seen").upsert({
+    user_id: req.user!.id,
+    seen_at: seenAt,
+  });
+  if (error) {
+    loadFailed(req, res, error);
+    return;
+  }
+  res.status(204).end();
+});
+
+export default router;

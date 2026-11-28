@@ -2,58 +2,28 @@ import { useCallback, useEffect, useState } from "react";
 import { useI18n } from "@/lib/i18n/context";
 import { apiUrl } from "@/lib/api";
 import { userFetch } from "@/lib/user-fetch";
+import type { InboxResponse } from "@/components/admin/notifications/types";
+import { NeedsYouSection } from "@/components/admin/notifications/NeedsYouSection";
+import { HappenedSection } from "@/components/admin/notifications/HappenedSection";
+import { PlatformSection } from "@/components/admin/notifications/PlatformSection";
 
-/**
- * Notification shape returned from the platform notifications proxy.
- */
-interface PlatformNotification {
-  id: string;
-  content: string;
-  created_at: string;
-  is_read: boolean;
-}
-
-interface NotificationsResponse {
-  data: PlatformNotification[];
-  unread_count: number;
-}
-
-/**
- * The URL for the platform notifications proxy endpoint.
- * The server-side proxy handles platform auth — the client only needs user auth.
- */
-function getNotificationsUrl(): string {
-  return apiUrl("/platform/notifications");
-}
-
-/**
- * NotificationCenterPage — store-admin page showing platform notifications
- * fetched from the Control_Plane store-feed endpoint.
- *
- * Implements Requirements 7.2 (display content, time, read/unread),
- * 7.7 (all chrome via useI18n, no untranslated keys).
- */
 export default function NotificationCenterPage() {
   const { t } = useI18n();
-
-  const [notifications, setNotifications] = useState<PlatformNotification[]>([]);
-  const [unreadCount, setUnreadCount] = useState(0);
+  const [data, setData] = useState<InboxResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [markingSeen, setMarkingSeen] = useState(false);
 
-  const fetchNotifications = useCallback(async () => {
+  const fetchInbox = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const url = getNotificationsUrl();
-
-      const res = await userFetch(url);
+      const res = await userFetch(apiUrl("/admin/inbox"));
       if (!res.ok) {
         throw new Error(`HTTP ${res.status}`);
       }
-      const json: NotificationsResponse = await res.json();
-      setNotifications(json.data ?? []);
-      setUnreadCount(json.unread_count ?? 0);
+      const json: InboxResponse = await res.json();
+      setData(json);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Unknown error");
     } finally {
@@ -62,119 +32,61 @@ export default function NotificationCenterPage() {
   }, []);
 
   useEffect(() => {
-    fetchNotifications();
-  }, [fetchNotifications]);
+    fetchInbox();
+  }, [fetchInbox]);
 
-  const markAsRead = async (notificationId: string) => {
+  const handleMarkSeen = async () => {
+    setMarkingSeen(true);
     try {
-      const url = getNotificationsUrl();
-
-      const res = await userFetch(`${url}/${notificationId}/read`, {
+      // The marker is the time of the newest event shown, so the database clock decides
+      // what counts as seen, not this browser's or the API host's.
+      const times = (data?.events ?? []).map((e) => new Date(e.time).getTime());
+      const seen_through = times.length ? new Date(Math.max(...times)).toISOString() : undefined;
+      const res = await userFetch(apiUrl("/admin/inbox/seen"), {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seen_through }),
       });
-
       if (res.ok) {
-        // Update local state optimistically
-        setNotifications((prev) =>
-          prev.map((n) => (n.id === notificationId ? { ...n, is_read: true } : n))
-        );
-        setUnreadCount((prev) => Math.max(0, prev - 1));
+        window.dispatchEvent(new Event("admin-inbox-changed"));
+        await fetchInbox();
       }
     } catch {
-      // Silently fail for mark-as-read — notification remains visually unread
+      // Ignore
+    } finally {
+      setMarkingSeen(false);
     }
   };
 
   return (
     <div className="space-y-6">
-      {/* Header with title and unread badge */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold">{t("Notifications.title")}</h1>
-          {unreadCount > 0 && (
-            <span className="inline-flex items-center rounded-full bg-destructive px-2.5 py-0.5 text-xs font-medium text-destructive-foreground">
-              {t("Notifications.unreadBadge").replace("{count}", String(unreadCount))}
-            </span>
-          )}
-        </div>
+        <h1 className="text-2xl font-bold">{t("Notifications.title")}</h1>
       </div>
 
-      {/* Loading state */}
       {loading && (
         <div className="flex items-center justify-center py-12">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </div>
       )}
 
-      {/* Error state */}
       {error && !loading && (
         <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
           {error}
         </div>
       )}
 
-      {/* Empty state */}
-      {!loading && !error && notifications.length === 0 && (
-        <div className="flex flex-col items-center justify-center rounded-lg border border-border bg-card p-12 text-center">
-          <svg
-            className="mb-4 h-12 w-12 text-muted-foreground/50"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            aria-hidden="true"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0"
+      {!loading && !error && data && (
+        <div className="space-y-6">
+          <NeedsYouSection items={data.needs_you} />
+          {data.events !== null && (
+            <HappenedSection
+              events={data.events}
+              onMarkSeen={handleMarkSeen}
+              isMarkingSeen={markingSeen}
             />
-          </svg>
-          <p className="text-sm text-muted-foreground">{t("Notifications.empty")}</p>
-        </div>
-      )}
-
-      {/* Notification list */}
-      {!loading && !error && notifications.length > 0 && (
-        <div className="space-y-2">
-          {notifications.map((notification) => (
-            <div
-              key={notification.id}
-              className={`rounded-lg border p-4 transition-colors ${
-                notification.is_read
-                  ? "border-border bg-card"
-                  : "border-primary/30 bg-primary/5"
-              }`}
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex-1 min-w-0">
-                  {/* Unread indicator dot */}
-                  <div className="flex items-center gap-2 mb-1">
-                    {!notification.is_read && (
-                      <span className="h-2 w-2 rounded-full bg-primary flex-shrink-0" />
-                    )}
-                    <time className="text-xs text-muted-foreground">
-                      {new Date(notification.created_at).toLocaleString()}
-                    </time>
-                  </div>
-                  {/* Notification content */}
-                  <p className="text-sm">{notification.content}</p>
-                </div>
-
-                {/* Mark as read button */}
-                {!notification.is_read && (
-                  <button
-                    type="button"
-                    onClick={() => markAsRead(notification.id)}
-                    className="flex-shrink-0 rounded-md px-3 py-1.5 text-xs font-medium text-primary hover:bg-primary/10 transition-colors focus-visible:ring-1 focus-visible:ring-ring"
-                    aria-label={t("Notifications.markRead")}
-                  >
-                    {t("Notifications.markRead")}
-                  </button>
-                )}
-              </div>
-            </div>
-          ))}
+          )}
+          <PlatformSection />
         </div>
       )}
     </div>

@@ -919,6 +919,65 @@ checks.push(
       return hits;
     },
   },
+  {
+    id: 'm4b-no-functions-on-stock-or-sales',
+    why: 'No migration named *_m4b_* may contain FUNCTION together with stock_movements, counter_sales or counter_sale_payments.',
+    run: (files) => {
+      const hits = [];
+      const migs = files.filter(
+        ({ file }) => isSql(file) && /^supabase\/migrations\/.*_m4b_.*\.sql$/i.test(rel(file))
+      );
+      for (const { file, text } of migs) {
+        const r = rel(file);
+        const clean = text.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+        if (/\bFUNCTION\b/i.test(clean) && /\b(stock_movements|counter_sales|counter_sale_payments)\b/i.test(clean)) {
+          hits.push({
+            file: r,
+            line: 0,
+            text: `M4b migration "${r}" contains FUNCTION together with stock_movements, counter_sales or counter_sale_payments`,
+          });
+        }
+      }
+      return hits;
+    },
+  },
+  {
+    id: 'no-client-grants-on-admin-inbox-seen',
+    why: 'admin_inbox_seen contains admin read markers; no GRANT TO anon or TO authenticated is permitted.',
+    run: (files) => {
+      const migs = files.filter(
+        ({ file }) => isSql(file) && /^supabase\/migrations\//.test(rel(file))
+      );
+      const hits = [];
+      const grantRe = /\bGRANT\s+([^;]+?)\s+ON\s+([^;]+?)\s+TO\s+([^;]+);/gi;
+      const tableMatchRe = /(?:^|[\s,])(?:"?public"?\s*\.\s*)?"?admin_inbox_seen"?(?:[\s,]|$)/i;
+
+      for (const { file, text } of migs) {
+        const r = rel(file);
+        const clean = text.replace(/--.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+
+        for (const m of clean.matchAll(grantRe)) {
+          const privs = m[1].toUpperCase();
+          const targetObjects = m[2].trim();
+          const targetRoles = m[3].toLowerCase();
+          const targetsClient = /\b(anon|authenticated)\b/.test(targetRoles);
+          if (!targetsClient) continue;
+
+          const isAllTables = /\bALL\s+TABLES\s+IN\s+SCHEMA\b/i.test(targetObjects);
+          const mentionsTable = tableMatchRe.test(targetObjects);
+
+          if (isAllTables || mentionsTable) {
+            hits.push({
+              file: r,
+              line: 0,
+              text: `Migration grants ${privs.trim()} on ${isAllTables ? targetObjects : 'admin_inbox_seen'} to client role: ${m[3].trim()}`,
+            });
+          }
+        }
+      }
+      return hits;
+    },
+  },
 );
 
 /* ------------------------------------------------------------------- main */
