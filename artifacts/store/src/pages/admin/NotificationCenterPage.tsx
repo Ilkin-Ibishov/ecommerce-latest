@@ -38,8 +38,17 @@ export default function NotificationCenterPage() {
   const handleMarkSeen = async () => {
     setMarkingSeen(true);
     try {
-      const res = await userFetch(apiUrl("/admin/inbox/seen"), { method: "POST" });
+      // The marker is the time of the newest event shown, so the database clock decides
+      // what counts as seen, not this browser's or the API host's.
+      const times = (data?.events ?? []).map((e) => new Date(e.time).getTime());
+      const seen_through = times.length ? new Date(Math.max(...times)).toISOString() : undefined;
+      const res = await userFetch(apiUrl("/admin/inbox/seen"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ seen_through }),
+      });
       if (res.ok) {
+        window.dispatchEvent(new Event("admin-inbox-changed"));
         await fetchInbox();
       }
     } catch {

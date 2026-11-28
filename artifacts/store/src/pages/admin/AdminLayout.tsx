@@ -127,8 +127,10 @@ function AdminLayoutInner({
       refreshInboxCount();
     };
     window.addEventListener("focus", handleFocus);
+    window.addEventListener("admin-inbox-changed", handleFocus);
     return () => {
       window.removeEventListener("focus", handleFocus);
+      window.removeEventListener("admin-inbox-changed", handleFocus);
     };
   }, [authed, refreshInboxCount]);
 

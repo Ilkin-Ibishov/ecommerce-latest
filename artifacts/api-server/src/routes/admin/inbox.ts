@@ -21,6 +21,8 @@ function parseOutput<T>(req: Request, res: Response, schema: z.ZodType<T>, data:
   return parsed.data;
 }
 
+const seenBody = z.object({ seen_through: z.string().datetime().optional() });
+
 function loadFailed(req: Request, res: Response, err: unknown): void {
   (req.log || logger).error({ err }, "Failed to load inbox");
   res.status(500).json({ error: "Failed to load inbox" });
@@ -75,9 +77,18 @@ router.get("/admin/inbox", requireStaffOrAdmin, async (req: Request, res: Respon
 
 router.post("/admin/inbox/seen", requireStaffOrAdmin, async (req: Request, res: Response): Promise<void> => {
   const admin = req.admin!;
+  const body = seenBody.safeParse(req.body ?? {});
+  if (!body.success) {
+    res.status(400).json({ error: "Invalid seen_through" });
+    return;
+  }
+  // The client sends the time of the newest event it showed; a time in the future is ignored.
+  const now = new Date();
+  const through = body.data.seen_through;
+  const seenAt = through && new Date(through).getTime() <= now.getTime() ? through : now.toISOString();
   const { error } = await admin.from("admin_inbox_seen").upsert({
     user_id: req.user!.id,
-    seen_at: new Date().toISOString(),
+    seen_at: seenAt,
   });
   if (error) {
     loadFailed(req, res, error);

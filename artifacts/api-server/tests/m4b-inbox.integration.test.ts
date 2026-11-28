@@ -161,6 +161,26 @@ describe("M4b admin inbox integration", () => {
     }
   });
 
+  it("seen_through older than an event leaves that event unread", async () => {
+    // Admin B voids a sale now; admin A marks everything seen through one hour ago
+    const variantId = await createStockedVariant(db, adminSessionB.userId, 5, 10);
+    const body = saleBody(variantId, 1);
+    expect((await call(adminSessionB, "POST", "/admin/counter/sales", body)).status).toBe(201);
+    const voidRes = await call(adminSessionB, "POST", `/admin/counter/sales/${body.id}/void`, { reason: "seen_through test" });
+    expect(voidRes.status).toBe(200);
+    const saleNumber = (await voidRes.json()).sale_number;
+
+    const seenRes = await call(adminSessionA, "POST", "/admin/inbox/seen", {
+      seen_through: new Date(Date.now() - 3600 * 1000).toISOString(),
+    });
+    expect(seenRes.status).toBe(204);
+
+    const inbox = await (await call(adminSessionA, "GET", "/admin/inbox")).json();
+    const event = inbox.events?.find((e: any) => e.sale_number === saleNumber);
+    expect(event).toBeDefined();
+    expect(event.unread).toBe(true);
+  });
+
   it("a staff token gets the two counts, events: null, and no other key", async () => {
     await setRole(adminSessionB.userId, "staff");
     try {
